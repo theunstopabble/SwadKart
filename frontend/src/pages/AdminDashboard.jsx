@@ -14,12 +14,10 @@ import {
   Clock,
   Truck,
   User,
-  Calendar, // 👈 New
-  Eye, // 👈 New
-  MapPin, // 👈 New
+  Calendar,
+  Eye,
+  MapPin,
 } from "lucide-react";
-
-// 👇 FIX: Path corrected for 'src/pages/AdminDashboard.jsx'
 import { BASE_URL } from "../config";
 
 const AdminDashboard = () => {
@@ -32,7 +30,7 @@ const AdminDashboard = () => {
   const [showAddShopModal, setShowAddShopModal] = useState(false);
   const [showDummyModal, setShowDummyModal] = useState(false);
 
-  // 👇 NEW: Order Details Modal State
+  // Order Details Modal State
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   // Data
@@ -324,9 +322,9 @@ const AdminDashboard = () => {
                 <thead className="bg-black text-gray-200 uppercase font-bold text-sm">
                   <tr>
                     <th className="p-4">ID</th>
-                    <th className="p-4">Date</th> {/* 👈 NEW */}
+                    <th className="p-4">Date</th>
                     <th className="p-4">Customer</th>
-                    <th className="p-4">Amount</th> {/* 👈 NEW */}
+                    <th className="p-4">Amount</th>
                     <th className="p-4">Status</th>
                     <th className="p-4">Delivery Partner</th>
                     <th className="p-4">Action</th>
@@ -348,7 +346,7 @@ const AdminDashboard = () => {
                         </div>
                       </td>
                       <td className="p-4 font-bold text-white">
-                        {o.user?.name}
+                        {o.shippingAddress?.fullName || o.user?.name}
                       </td>
                       <td className="p-4 font-bold text-white">
                         ₹{o.totalPrice}
@@ -724,7 +722,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* 👇 NEW: ORDER DETAILS MODAL */}
+        {/* ORDER DETAILS MODAL */}
         {selectedOrder && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-2xl p-6 shadow-2xl relative animate-fade-in-up">
@@ -757,13 +755,19 @@ const AdminDashboard = () => {
                     <User size={14} /> Customer Details
                   </h3>
                   <p className="font-bold text-white">
-                    {selectedOrder.user?.name}
+                    {/* Display Shipping Name or Fallback to User Name */}
+                    {selectedOrder.shippingAddress?.fullName ||
+                      selectedOrder.user?.name}
                   </p>
                   <p className="text-gray-400 text-sm">
                     {selectedOrder.user?.email}
                   </p>
-                  <p className="text-gray-400 text-sm mt-1">
-                    {selectedOrder.user?.phone || "No Phone"}
+                  <p className="text-primary text-sm mt-1 font-mono">
+                    {/* Display Shipping Phone or Fallback to User Phone */}
+                    📞{" "}
+                    {selectedOrder.shippingAddress?.phone ||
+                      selectedOrder.user?.phone ||
+                      "No Phone"}
                   </p>
                 </div>
                 <div className="bg-black/40 p-4 rounded-xl">
@@ -774,7 +778,12 @@ const AdminDashboard = () => {
                     {selectedOrder.shippingAddress?.address},{" "}
                     {selectedOrder.shippingAddress?.city}
                     <br />
-                    {selectedOrder.shippingAddress?.postalCode},{" "}
+                    {/* Display State and Postal Code */}
+                    {selectedOrder.shippingAddress?.state
+                      ? `${selectedOrder.shippingAddress.state}, `
+                      : ""}
+                    {selectedOrder.shippingAddress?.postalCode}
+                    <br />
                     {selectedOrder.shippingAddress?.country}
                   </p>
                 </div>
