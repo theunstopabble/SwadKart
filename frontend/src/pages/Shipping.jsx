@@ -12,13 +12,21 @@ import {
   Phone,
   Map,
   Loader2,
+  User,
 } from "lucide-react";
+// 👇 Import Capacitor Geolocation
+import { Geolocation } from "@capacitor/geolocation";
 
 const Shipping = () => {
   const cart = useSelector((state) => state.cart);
   const { shippingAddress } = cart;
+  // User info se naam utha lo agar pehle se login hai
+  const { userInfo } = useSelector((state) => state.user);
 
-  // 1. Initialize states (Safe Fallback)
+  // States
+  const [fullName, setFullName] = useState(
+    shippingAddress?.fullName || userInfo?.name || ""
+  );
   const [address, setAddress] = useState(shippingAddress?.address || "");
   const [city, setCity] = useState(shippingAddress?.city || "");
   const [postalCode, setPostalCode] = useState(
@@ -30,7 +38,6 @@ const Shipping = () => {
     shippingAddress?.addressType || "Home"
   );
 
-  // 2. Loading state for Location Button
   const [loadingLocation, setLoadingLocation] = useState(false);
 
   const dispatch = useDispatch();
@@ -38,20 +45,19 @@ const Shipping = () => {
 
   const submitHandler = (e) => {
     e.preventDefault();
-
-    // Validation Check
     if (phone.length < 10) {
       alert("Please enter a valid 10-digit phone number");
       return;
     }
 
-    // 3. FIX: Backend ko 'country' chahiye, hum manually 'India' bhej rahe hain
+    // 🔥 DATA SAVING: Sab kuch Redux me bhejo
     dispatch(
       saveShippingAddress({
+        fullName, // NEW: Receiver Name
         address,
         city,
         postalCode,
-        country: "India", // 👈 IMPORTANT: Fixes backend validation error
+        country: "India",
         state,
         phone,
         addressType,
@@ -60,62 +66,57 @@ const Shipping = () => {
     navigate("/payment");
   };
 
-  // 4. REAL LOCATION FUNCTION
-  const handleCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
-      return;
-    }
+  // 🛰️ NATIVE GPS LOCATION (Fix for Permission Error)
+  const handleCurrentLocation = async () => {
+    setLoadingLocation(true);
+    try {
+      // 1. Permission Check
+      const permissions = await Geolocation.checkPermissions();
 
-    setLoadingLocation(true); // Start Loader
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-
-          // API Call to OpenStreetMap
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await response.json();
-
-          if (data && data.address) {
-            // Auto-Fill Logic (Robust)
-            const street =
-              data.address.road ||
-              data.address.suburb ||
-              data.address.neighbourhood ||
-              "";
-            const area = data.display_name.split(",")[0]; // First part of full address
-
-            setAddress(`${area}, ${street}`);
-            setCity(
-              data.address.city ||
-                data.address.town ||
-                data.address.village ||
-                data.address.county ||
-                ""
-            );
-            setPostalCode(data.address.postcode || "");
-            setState(data.address.state || "");
-
-            // Optional: Auto set country if needed, but we hardcode 'India' on submit
-          } else {
-            alert("Address details not found. Please enter manually.");
-          }
-        } catch (error) {
-          console.error(error);
-          alert("Internet connection needed for location.");
-        } finally {
-          setLoadingLocation(false); // Stop Loader
+      // Agar permission nahi mili, to maango
+      if (permissions.location !== "granted") {
+        const request = await Geolocation.requestPermissions();
+        if (request.location !== "granted") {
+          alert("Location permission denied. Please enable it in settings.");
+          setLoadingLocation(false);
+          return;
         }
-      },
-      (error) => {
-        setLoadingLocation(false);
-        alert("Location permission denied. Please enable GPS.");
       }
-    );
+
+      // 2. Get Coordinates
+      const coordinates = await Geolocation.getCurrentPosition();
+      const { latitude, longitude } = coordinates.coords;
+
+      // 3. Convert to Address (OpenStreetMap API)
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+      );
+      const data = await response.json();
+
+      if (data && data.address) {
+        const street =
+          data.address.road ||
+          data.address.suburb ||
+          data.address.neighbourhood ||
+          "";
+        const area = data.display_name.split(",")[0];
+
+        setAddress(`${area}, ${street}`);
+        setCity(
+          data.address.city || data.address.town || data.address.village || ""
+        );
+        setPostalCode(data.address.postcode || "");
+        setState(data.address.state || "");
+        // alert("Location Found: " + data.address.city);
+      } else {
+        alert("Address details not found.");
+      }
+    } catch (error) {
+      console.error("GPS Error:", error);
+      alert("Please enable GPS/Location on your phone.");
+    } finally {
+      setLoadingLocation(false);
+    }
   };
 
   return (
@@ -127,7 +128,7 @@ const Shipping = () => {
           Add Address <MapPin className="text-primary fill-current" />
         </h1>
         <p className="text-gray-400 mb-8 text-sm">
-          Where should we deliver your food?
+          Correct details help us deliver faster!
         </p>
 
         {/* 📍 GPS BUTTON */}
@@ -135,19 +136,34 @@ const Shipping = () => {
           onClick={handleCurrentLocation}
           type="button"
           disabled={loadingLocation}
-          className="w-full flex items-center justify-center gap-3 bg-gray-900/80 hover:bg-gray-800 text-blue-400 font-semibold py-4 rounded-xl border border-gray-800 transition-all mb-8 shadow-lg active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-3 bg-gray-900/80 hover:bg-gray-800 text-blue-400 font-semibold py-4 rounded-xl border border-gray-800 transition-all mb-8 shadow-lg active:scale-95 group disabled:opacity-50"
         >
           {loadingLocation ? (
             <Loader2 size={20} className="animate-spin text-primary" />
           ) : (
-            <Navigation size={20} className="group-hover:animate-pulse" />
+            <Navigation size={20} />
           )}
           <span>
-            {loadingLocation ? "Fetching Location..." : "Use Current Location"}
+            {loadingLocation ? "Detecting Location..." : "Use Current Location"}
           </span>
         </button>
 
         <form onSubmit={submitHandler} className="space-y-5">
+          {/* 👤 Full Name (NEW SECTION) */}
+          <div className="relative group">
+            <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary transition-colors">
+              <User size={20} />
+            </div>
+            <input
+              type="text"
+              placeholder="Full Name (Receiver)"
+              value={fullName}
+              required
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-gray-500 font-medium"
+            />
+          </div>
+
           {/* 📞 Phone Number */}
           <div className="relative group">
             <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary transition-colors">
@@ -171,7 +187,7 @@ const Shipping = () => {
             </div>
             <input
               type="text"
-              placeholder="Flat / House No / Area / Colony"
+              placeholder="House No / Flat / Area"
               value={address}
               required
               onChange={(e) => setAddress(e.target.value)}
@@ -188,7 +204,7 @@ const Shipping = () => {
                 value={city}
                 required
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full bg-gray-900 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-gray-500"
+                className="w-full bg-gray-900 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none"
               />
             </div>
             <div className="relative group w-1/2">
@@ -198,7 +214,7 @@ const Shipping = () => {
                 value={state}
                 required
                 onChange={(e) => setState(e.target.value)}
-                className="w-full bg-gray-900 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-gray-500"
+                className="w-full bg-gray-900 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none"
               />
             </div>
           </div>
@@ -216,44 +232,39 @@ const Shipping = () => {
               value={postalCode}
               required
               onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, ""))}
-              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-gray-500"
+              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none"
             />
           </div>
 
           {/* 🏷️ Address Type */}
-          <div className="pt-2">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 ml-1">
-              Save address as
-            </p>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setAddressType("Home")}
-                className={`flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 border transition-all duration-300 ${
-                  addressType === "Home"
-                    ? "bg-white text-black border-white font-bold shadow-lg transform scale-[1.02]"
-                    : "bg-gray-900 text-gray-400 border-gray-800 hover:bg-gray-800"
-                }`}
-              >
-                <Home size={18} /> Home
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddressType("Work")}
-                className={`flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 border transition-all duration-300 ${
-                  addressType === "Work"
-                    ? "bg-white text-black border-white font-bold shadow-lg transform scale-[1.02]"
-                    : "bg-gray-900 text-gray-400 border-gray-800 hover:bg-gray-800"
-                }`}
-              >
-                <Briefcase size={18} /> Work
-              </button>
-            </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setAddressType("Home")}
+              className={`flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 border ${
+                addressType === "Home"
+                  ? "bg-white text-black font-bold"
+                  : "bg-gray-900 text-gray-400 border-gray-800"
+              }`}
+            >
+              <Home size={18} /> Home
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddressType("Work")}
+              className={`flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 border ${
+                addressType === "Work"
+                  ? "bg-white text-black font-bold"
+                  : "bg-gray-900 text-gray-400 border-gray-800"
+              }`}
+            >
+              <Briefcase size={18} /> Work
+            </button>
           </div>
 
           <button
             type="submit"
-            className="w-full bg-primary hover:bg-red-600 text-white font-bold py-4 rounded-xl shadow-[0_8px_20px_rgba(225,29,72,0.4)] mt-8 flex justify-center items-center gap-2 transition-all active:scale-95"
+            className="w-full bg-primary hover:bg-red-600 text-white font-bold py-4 rounded-xl shadow-lg mt-8 flex justify-center items-center gap-2 transition-all active:scale-95"
           >
             Save & Continue <ArrowRight size={20} />
           </button>

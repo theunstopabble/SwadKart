@@ -1,15 +1,15 @@
-import mongoose from "mongoose"; // 👈 CHANGE: import use kiya
+import mongoose from "mongoose";
 
 const orderSchema = mongoose.Schema(
   {
-    // 1. Customer who placed the order
+    // 1. Customer who placed the order (Login user)
     user: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: "User",
     },
 
-    // 2. Order Details (List of Food Items)
+    // 2. Order Details
     orderItems: [
       {
         name: { type: String, required: true },
@@ -21,15 +21,23 @@ const orderSchema = mongoose.Schema(
           required: true,
           ref: "Product",
         },
+        // Restaurant ID bhi store karte hain taaki owner ko order mile
+        restaurant: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Restaurant",
+        },
       },
     ],
 
-    // 3. Shipping Details
+    // 3. Shipping Details (UPDATED 🛠️)
     shippingAddress: {
+      fullName: { type: String, required: true }, // 👈 NEW: Receiver Name
       address: { type: String, required: true },
       city: { type: String, required: true },
       postalCode: { type: String, required: true },
-      country: { type: String, required: true },
+      country: { type: String, required: true }, // "India" (Backend ko khush rakhne ke liye)
+      state: { type: String, required: true }, // 👈 NEW: State
+      phone: { type: String, required: true }, // 👈 NEW: Phone Number
     },
 
     // 4. Payment Info
@@ -45,54 +53,30 @@ const orderSchema = mongoose.Schema(
     },
 
     // 5. Pricing
-    taxPrice: {
-      type: Number,
-      required: true,
-      default: 0.0,
-    },
-    shippingPrice: {
-      type: Number,
-      required: true,
-      default: 0.0,
-    },
-    totalPrice: {
-      type: Number,
-      required: true,
-      default: 0.0,
-    },
+    taxPrice: { type: Number, required: true, default: 0.0 },
+    shippingPrice: { type: Number, required: true, default: 0.0 },
+    totalPrice: { type: Number, required: true, default: 0.0 },
 
     // 6. Payment Status
-    isPaid: {
-      type: Boolean,
-      required: true,
-      default: false,
-    },
-    paidAt: {
-      type: Date,
-    },
+    isPaid: { type: Boolean, required: true, default: false },
+    paidAt: { type: Date },
 
     // 7. Delivery Status
-    isDelivered: {
-      type: Boolean,
-      required: true,
-      default: false,
-    },
-    deliveredAt: {
-      type: Date,
-    },
+    isDelivered: { type: Boolean, required: true, default: false },
+    deliveredAt: { type: Date },
 
-    // 8. Delivery Assignment (New Feature 🛵)
+    // 8. Delivery Assignment
     deliveryPartner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
 
-    // 9. Order Status (Real-time tracking ke liye important)
+    // 9. Order Status
     orderStatus: {
       type: String,
       required: true,
-      default: "Placed", // Placed, Cooking, Ready, Out for Delivery, Delivered
+      default: "Placed",
     },
   },
   {
@@ -101,6 +85,4 @@ const orderSchema = mongoose.Schema(
 );
 
 const Order = mongoose.model("Order", orderSchema);
-
-// 👇 CHANGE: module.exports hata kar export default lagaya
 export default Order;
