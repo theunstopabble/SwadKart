@@ -4,21 +4,51 @@ import crypto from "crypto";
 
 const userSchema = mongoose.Schema(
   {
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    phone: { type: String },
-    role: { type: String, required: true, default: "user" },
-    image: { type: String },
-    description: { type: String },
+    name: {
+      type: String,
+      required: [true, "Please add a name"],
+    },
+    email: {
+      type: String,
+      required: [true, "Please add an email"],
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: [true, "Please add a password"],
+    },
+    phone: {
+      type: String,
+    },
+    role: {
+      type: String,
+      required: true,
+      default: "user",
+    },
+    image: {
+      type: String,
+    },
+    description: {
+      type: String,
+    },
 
-    // Shop Reordering indexing field
-    orderIndex: { type: Number, default: 0 },
+    // 👇 Admin Dashboard में Shop Reordering के लिए indexing field
+    orderIndex: {
+      type: Number,
+      default: 0,
+    },
 
     // OTP Security Fields
-    isVerified: { type: Boolean, default: false },
-    otp: { type: String },
-    otpExpires: { type: Date },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    otp: {
+      type: String,
+    },
+    otpExpires: {
+      type: Date,
+    },
 
     resetPasswordToken: String,
     resetPasswordExpire: Date,
@@ -31,31 +61,37 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// 👇 CORRECTED HASHING MIDDLEWARE
+// 👇 CRITICAL FIX: Hashing Middleware
+// 'next is not a function' एरर को रोकने के लिए 'return next()' का उपयोग किया गया है
 userSchema.pre("save", async function (next) {
-  // 1. Agar password badla nahi gaya hai, toh turant return karke aage badhein
+  // 1. अगर पासवर्ड बदला नहीं गया है (जैसे forgot password के दौरान), तो तुरंत आगे बढ़ें
   if (!this.isModified("password")) {
-    return next(); // 👈 'return' lagana bahut zaroori hai!
+    return next(); // 👈 'return' लगाना अनिवार्य है
   }
 
-  // 2. Agar password badla hai, toh hashing karein
+  // 2. अगर पासवर्ड बदला है, तो उसे हैश करें
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    next(); // 👈 Hashing ke baad aage badhein
+    next();
   } catch (error) {
-    next(error); // 👈 Agar koi error aaye toh Mongoose ko batayein
+    next(error);
   }
 });
 
 // Reset password token generation
 userSchema.methods.getResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(20).toString("hex");
+
+  // टोकन को हैश करके डेटाबेस में स्टोर करना
   this.resetPasswordToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 mins
+
+  // टोकन की वैधता 10 मिनट के लिए सेट करना
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
   return resetToken;
 };
 
