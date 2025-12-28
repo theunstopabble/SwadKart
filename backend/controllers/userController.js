@@ -18,6 +18,9 @@ const emailStyles = `
     .otp-box { background-color: #000000; color: #ff4757; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 20px; border-radius: 12px; margin: 25px 0; border: 1px dashed #ff4757; display: inline-block; width: 75%; }
     .cta-button { display: inline-block; background-color: #ff4757; color: #ffffff !important; text-decoration: none; padding: 14px 35px; border-radius: 12px; font-weight: bold; font-size: 18px; margin-top: 25px; transition: 0.3s; }
     .footer { background-color: #000000; color: #6b7280; text-align: center; padding: 25px; font-size: 12px; border-top: 1px solid #1f2937; }
+    .features-box { background-color: #000000; border-radius: 12px; padding: 20px; margin-top: 30px; text-align: left; border: 1px solid #1f2937; }
+    .features-list { list-style: none; padding: 0; margin: 0; }
+    .features-list li { margin-bottom: 10px; color: #9ca3af; font-size: 14px; }
   </style>
 `;
 
@@ -67,7 +70,7 @@ export const registerUser = async (req, res) => {
     if (user) {
       const otpTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="header"><h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1></div><div class="content"><h2>Verify Your Email</h2><p>Hi ${
         user.name
-      }, use the code below to verify your account.</p><div class="otp-box">${otp}</div></div><div class="footer"><p>&copy; ${new Date().getFullYear()} SwadKart.</p></div></div></body></html>`;
+      }, use the code below to verify your account.</p><div class="otp-box">${otp}</div></div><div class="footer"><p>&copy; ${new Date().getFullYear()} SwadKart. Made with ❤️ for Foodies</p></div></div></body></html>`;
 
       try {
         await sendEmail({
@@ -218,12 +221,9 @@ export const updateUserByAdmin = async (req, res) => {
     if (user) {
       user.name = req.body.name || user.name;
       user.image = req.body.image || user.image;
-
-      // 👈 orderIndex logic for reordering
       if (req.body.orderIndex !== undefined) {
         user.orderIndex = req.body.orderIndex;
       }
-
       const updated = await user.save();
       res.json(updated);
     } else {
@@ -347,4 +347,10 @@ export const resetPassword = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+// 👇 ADDED THIS BACK TO FIX THE RENDER DEPLOY ERROR
+// @desc    Seed Database (Placeholder for now)
+export const seedDatabase = async (req, res) => {
+  res.json({ message: "Seed functionality called." });
 };
