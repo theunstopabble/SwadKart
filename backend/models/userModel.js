@@ -12,7 +12,7 @@ const userSchema = mongoose.Schema(
     image: { type: String },
     description: { type: String },
 
-    // 👇 NEW: Shop Reordering ke liye indexing field
+    // Shop Reordering indexing field
     orderIndex: { type: Number, default: 0 },
 
     // OTP Security Fields
@@ -31,15 +31,21 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Hash password before saving
+// 👇 CORRECTED HASHING MIDDLEWARE
 userSchema.pre("save", async function (next) {
-  // Agar password modify nahi hua, toh aage badho
+  // 1. Agar password badla nahi gaya hai, toh turant return karke aage badhein
   if (!this.isModified("password")) {
-    next();
+    return next(); // 👈 'return' lagana bahut zaroori hai!
   }
 
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  // 2. Agar password badla hai, toh hashing karein
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next(); // 👈 Hashing ke baad aage badhein
+  } catch (error) {
+    next(error); // 👈 Agar koi error aaye toh Mongoose ko batayein
+  }
 });
 
 // Reset password token generation
