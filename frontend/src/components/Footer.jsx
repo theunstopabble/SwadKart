@@ -118,18 +118,18 @@ const Footer = () => {
               <li className="flex items-start gap-3 text-gray-400 text-sm">
                 <MapPin className="text-primary mt-1 shrink-0" size={18} />
                 <span>
-                  123 Food Street, Tech Park Area,
+                  Jagannath University (Chaksu Campus)
                   <br />
                   Jaipur, Rajasthan, India
                 </span>
               </li>
               <li className="flex items-center gap-3 text-gray-400 text-sm">
                 <Phone className="text-primary shrink-0" size={18} />
-                <span>+91 98765 43210</span>
+                <span>+91 6207793196</span>
               </li>
               <li className="flex items-center gap-3 text-gray-400 text-sm">
                 <Mail className="text-primary shrink-0" size={18} />
-                <span>support@swadkart.com</span>
+                <span>swadkartt@gmail.com</span>
               </li>
             </ul>
           </div>

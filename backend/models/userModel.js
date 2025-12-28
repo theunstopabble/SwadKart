@@ -31,13 +31,11 @@ const userSchema = mongoose.Schema(
     description: {
       type: String,
     },
-
-    // 👇 Admin Dashboard में Shop Reordering के लिए indexing field
+    // Shop Reordering Index
     orderIndex: {
       type: Number,
       default: 0,
     },
-
     // OTP Security Fields
     isVerified: {
       type: Boolean,
@@ -49,7 +47,6 @@ const userSchema = mongoose.Schema(
     otpExpires: {
       type: Date,
     },
-
     resetPasswordToken: String,
     resetPasswordExpire: Date,
   },
@@ -61,35 +58,29 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// 👇 CRITICAL FIX: Hashing Middleware
-// 'next is not a function' एरर को रोकने के लिए 'return next()' का उपयोग किया गया है
-userSchema.pre("save", async function (next) {
-  // 1. अगर पासवर्ड बदला नहीं गया है (जैसे forgot password के दौरान), तो तुरंत आगे बढ़ें
+// 👇 CRITICAL FIX: Removed 'next' parameter completely.
+// Now using Pure Async/Await (Modern Mongoose Standard)
+userSchema.pre("save", async function () {
+  // 1. अगर पासवर्ड बदला नहीं गया है, तो return कर दें (next() की जरूरत नहीं)
   if (!this.isModified("password")) {
-    return next(); // 👈 'return' लगाना अनिवार्य है
+    return;
   }
 
-  // 2. अगर पासवर्ड बदला है, तो उसे हैश करें
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  // 2. हैश करें
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  // async function अपने आप promise resolve करेगा, next() की जरूरत नहीं
 });
 
 // Reset password token generation
 userSchema.methods.getResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(20).toString("hex");
 
-  // टोकन को हैश करके डेटाबेस में स्टोर करना
   this.resetPasswordToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
 
-  // टोकन की वैधता 10 मिनट के लिए सेट करना
   this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
 
   return resetToken;

@@ -179,7 +179,7 @@ const PlaceOrder = () => {
           prefill: {
             name: userInfo.name,
             email: userInfo.email,
-            contact: userInfo.phone || "9999999999",
+            contact: cart.shippingAddress.phone || userInfo.phone || "9999999999",
           },
           theme: { color: "#e11d48" },
         };

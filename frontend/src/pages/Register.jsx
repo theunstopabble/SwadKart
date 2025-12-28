@@ -69,9 +69,12 @@ const Register = () => {
         body: JSON.stringify({ name, email, phone, password }),
       });
       const data = await res.json();
+
+      // ✅ Checking res.ok matches our new Backend Logic
       if (res.ok) {
         setOtpSent(true);
         setTimer(30); // Start 30s resend timer
+        setOtp(""); // Clear previous OTP if any (UX Improvement)
         toast.success(data.message || "OTP sent to your email! 📧");
       } else {
         toast.error(data.message || "Registration Failed");

@@ -17,7 +17,7 @@ import {
   createDummyRestaurant,
   seedDatabase,
   updateUserByAdmin,
-  deleteUserByAdmin, // 👈 NEW: Delete controller import
+  deleteUserByAdmin,
 } from "../controllers/userController.js";
 
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
@@ -64,7 +64,7 @@ router.post(
 
 router.post("/admin/seed", protect, authorizeRoles("admin"), seedDatabase);
 
-// 👈 UPDATED: Handle Indexing, Edit and Delete
+// 👈 Handle Indexing, Edit and Delete
 router
   .route("/:id")
   .get(getRestaurantById) // Publicly get single restaurant
