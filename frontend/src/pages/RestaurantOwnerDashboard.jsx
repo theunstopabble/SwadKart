@@ -18,7 +18,7 @@ import {
   ArrowUp,
   ArrowDown,
   UtensilsCrossed,
-  Phone, // 👈 New Icon
+  Phone,
 } from "lucide-react";
 import { BASE_URL } from "../config";
 
@@ -117,7 +117,7 @@ const RestaurantOwnerDashboard = () => {
       description: item.description,
       category: item.category,
       image: item.image,
-      isVeg: item.isVeg ? "true" : "false",
+      isVeg: item.isVeg ? "true" : "false", // 👈 String conversion for dropdown consistency
       orderIndex: item.orderIndex,
     });
     setShowModal(true);
@@ -130,7 +130,6 @@ const RestaurantOwnerDashboard = () => {
         method: "DELETE",
         headers: { Authorization: `Bearer ${userInfo.token}` },
       });
-      alert("Item Deleted!");
       fetchData();
     } catch (error) {
       console.error(error);
@@ -146,20 +145,18 @@ const RestaurantOwnerDashboard = () => {
     newItems[targetIndex] = temp;
     setMenuItems(newItems);
     try {
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userInfo.token}`,
+      };
       await fetch(`${BASE_URL}/api/v1/products/${newItems[index]._id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
-        },
+        headers,
         body: JSON.stringify({ orderIndex: index }),
       });
       await fetch(`${BASE_URL}/api/v1/products/${newItems[targetIndex]._id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
-        },
+        headers,
         body: JSON.stringify({ orderIndex: targetIndex }),
       });
       fetchData();
@@ -171,6 +168,7 @@ const RestaurantOwnerDashboard = () => {
   const handleSubmitItem = async (e) => {
     e.preventDefault();
     try {
+      // 👈 Authentic Boolean Conversion
       const productData = { ...newItem, isVeg: newItem.isVeg === "true" };
       let url = `${BASE_URL}/api/v1/products`;
       let method = "POST";
@@ -187,7 +185,6 @@ const RestaurantOwnerDashboard = () => {
         body: JSON.stringify(productData),
       });
       if (res.ok) {
-        alert(isEditing ? "Item Updated!" : "Item Added!");
         setShowModal(false);
         fetchData();
       }
@@ -209,7 +206,6 @@ const RestaurantOwnerDashboard = () => {
         body: JSON.stringify({ deliveryPartnerId: partnerId }),
       });
       if (res.ok) {
-        alert("Assigned!");
         fetchData();
       }
     } catch (error) {
@@ -253,21 +249,27 @@ const RestaurantOwnerDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
               <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 flex justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-bold">PENDING</p>
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
+                    Pending
+                  </p>
                   <h3 className="text-3xl font-bold">{stats.pending}</h3>
                 </div>
                 <Clock className="text-yellow-400" />
               </div>
               <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 flex justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-bold">REVENUE</p>
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
+                    Revenue
+                  </p>
                   <h3 className="text-3xl font-bold">₹{stats.revenue}</h3>
                 </div>
                 <TrendingUp className="text-green-400" />
               </div>
               <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 flex justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-bold">COMPLETED</p>
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
+                    Completed
+                  </p>
                   <h3 className="text-3xl font-bold">{stats.delivered}</h3>
                 </div>
                 <ClipboardList className="text-blue-400" />
@@ -298,7 +300,7 @@ const RestaurantOwnerDashboard = () => {
                         </span>
                       </h3>
 
-                      {/* 👇 UPDATED: FULL SHIPPING DETAILS */}
+                      {/* 👇 AUTHENTIC SHIPPING DETAILS FROM DATABASE */}
                       <div className="mt-3 space-y-2">
                         <p className="text-white font-bold flex items-center gap-2">
                           <User size={14} className="text-primary" />{" "}
@@ -385,8 +387,8 @@ const RestaurantOwnerDashboard = () => {
                   {order.deliveryPartner && (
                     <div className="bg-green-500/10 border border-green-500/20 p-2 rounded-lg">
                       <p className="text-green-400 text-xs font-bold flex items-center gap-2 justify-center italic">
-                        <Truck size={14} /> {order.deliveryPartner.name} is on
-                        the way!
+                        <Truck size={14} /> {order.deliveryPartner.name} is
+                        handling delivery
                       </p>
                     </div>
                   )}
@@ -424,10 +426,14 @@ const RestaurantOwnerDashboard = () => {
                     />
                     <span
                       className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-bold ${
-                        item.isVeg ? "bg-green-600" : "bg-red-600"
+                        item.isVeg === true || item.isVeg === "true"
+                          ? "bg-green-600"
+                          : "bg-red-600"
                       }`}
                     >
-                      {item.isVeg ? "VEG" : "NON-VEG"}
+                      {item.isVeg === true || item.isVeg === "true"
+                        ? "VEG"
+                        : "NON-VEG"}
                     </span>
                     <div className="absolute top-2 right-2 flex flex-col gap-1">
                       <button
