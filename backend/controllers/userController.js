@@ -25,6 +25,7 @@ const emailStyles = `
 // 🔐 AUTHENTICATION & USER PROFILE
 // =================================================================
 
+// @desc    Register user
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password, phone, role } = req.body;
@@ -74,6 +75,7 @@ export const registerUser = async (req, res) => {
   }
 };
 
+// @desc    Verify OTP
 export const verifyEmailAPI = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -87,6 +89,8 @@ export const verifyEmailAPI = async (req, res) => {
       res.json({
         _id: user._id,
         name: user.name,
+        email: user.email,
+        role: user.role,
         token: generateToken(user._id),
       });
     } else {
@@ -97,6 +101,7 @@ export const verifyEmailAPI = async (req, res) => {
   }
 };
 
+// @desc    Login user
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -107,6 +112,8 @@ export const loginUser = async (req, res) => {
       res.json({
         _id: user._id,
         name: user.name,
+        email: user.email,
+        phone: user.phone,
         role: user.role,
         token: generateToken(user._id),
       });
@@ -118,6 +125,7 @@ export const loginUser = async (req, res) => {
   }
 };
 
+// @desc    Get profile
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
@@ -128,12 +136,14 @@ export const getUserProfile = async (req, res) => {
   }
 };
 
+// @desc    Update profile
 export const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (user) {
       user.name = req.body.name || user.name;
       user.email = req.body.email || user.email;
+      user.phone = req.body.phone || user.phone;
       if (req.body.password) user.password = req.body.password;
       const updatedUser = await user.save();
       res.json({
@@ -151,6 +161,7 @@ export const updateUserProfile = async (req, res) => {
 // 🏙️ ADMIN & RESTAURANT OPERATIONS
 // =================================================================
 
+// @desc    Get all restaurants (Public)
 export const getAllRestaurantsPublic = async (req, res) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
@@ -162,6 +173,7 @@ export const getAllRestaurantsPublic = async (req, res) => {
   }
 };
 
+// @desc    Get all restaurants (Admin)
 export const getAllRestaurants = async (req, res) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
@@ -173,16 +185,7 @@ export const getAllRestaurants = async (req, res) => {
   }
 };
 
-export const getRestaurantById = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select("-password");
-    if (user) res.json(user);
-    else res.status(404).json({ message: "Not found" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
+// @desc    Update user by Admin (Handles Reordering)
 export const updateUserByAdmin = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -201,6 +204,7 @@ export const updateUserByAdmin = async (req, res) => {
   }
 };
 
+// @desc    Delete restaurant/user by Admin
 export const deleteUserByAdmin = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -217,22 +221,24 @@ export const deleteUserByAdmin = async (req, res) => {
   }
 };
 
-// ✅ FIXED DUMMY SHOP CREATION (Unique Data)
+// ✅ FIXED: AUTOMATIC DUMMY SHOP CREATION
 export const createDummyRestaurant = async (req, res) => {
   try {
     const { name, image } = req.body;
-    const uniqueTime = Date.now();
+    const uniqueTime = Date.now(); // 💡 For unique ID generation
 
     const user = await User.create({
       name: name || "New Dummy Shop",
-      email: `${name
-        ?.toLowerCase()
+      // 📧 Automatic unique email generation
+      email: `${(name || "dummy")
+        .toLowerCase()
         .replace(/\s+/g, "")}_${uniqueTime}@dummy.swadkart`,
-      password: "123",
+      password: "123", // Default dummy password
       role: "restaurant_owner",
       image:
         image || "https://images.unsplash.com/photo-1552566626-52f8b828add9",
-      phone: String(uniqueTime).substring(3, 13),
+      // 📞 Automatic unique phone generation (last 10 digits of timestamp)
+      phone: String(uniqueTime).slice(-10),
       isVerified: true,
       orderIndex: 0,
     });
@@ -242,23 +248,18 @@ export const createDummyRestaurant = async (req, res) => {
   }
 };
 
-export const createRestaurantByAdmin = async (req, res) => {
+// @desc    Get Restaurant by ID
+export const getRestaurantById = async (req, res) => {
   try {
-    const { name, email, password, image } = req.body;
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role: "restaurant_owner",
-      image,
-      isVerified: true,
-    });
-    res.status(201).json(user);
+    const user = await User.findById(req.params.id).select("-password");
+    if (user) res.json(user);
+    else res.status(404).json({ message: "Not found" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+// @desc    Get Delivery Partners
 export const getDeliveryPartners = async (req, res) => {
   try {
     const partners = await User.find({ role: "delivery_partner" }).select(
@@ -274,6 +275,7 @@ export const getDeliveryPartners = async (req, res) => {
 // 🔑 PASSWORD RESET
 // =================================================================
 
+// @desc    Forgot Password Request
 export const forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
@@ -285,7 +287,7 @@ export const forgotPassword = async (req, res) => {
     const resetUrl = `${
       process.env.FRONTEND_URL || "https://swadkart-pro.vercel.app"
     }/password/reset/${resetToken}`;
-    const resetTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="content"><h2>Password Recovery</h2><a href="${resetUrl}" class="cta-button">Reset Password</a></div></div></body></html>`;
+    const resetTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="header"><h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1></div><div class="content"><h2>Password Recovery</h2><p>Click below to reset password.</p><a href="${resetUrl}" class="cta-button">Reset Password</a></div></div></body></html>`;
 
     await sendEmail({
       email: user.email,
@@ -298,6 +300,7 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
+// @desc    Reset Password
 export const resetPassword = async (req, res) => {
   try {
     const resetPasswordToken = crypto
@@ -308,7 +311,9 @@ export const resetPassword = async (req, res) => {
       resetPasswordToken,
       resetPasswordExpire: { $gt: Date.now() },
     });
+
     if (!user) return res.status(400).json({ message: "Invalid Token" });
+
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -319,7 +324,7 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-// 👇 RENDER DEPLOY ERROR FIX
+// 👇 FIX FOR RENDER DEPLOY ERROR
 export const seedDatabase = async (req, res) => {
   res.json({ message: "Seed functionality called." });
 };
