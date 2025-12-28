@@ -65,8 +65,12 @@ const Home = () => {
       <div className="relative h-[500px] w-full bg-[url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80')] bg-cover bg-center">
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent flex flex-col justify-center items-center text-center px-4">
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight">
-            Discover <span className="text-primary">Best</span> Food
+            Craving <span className="text-primary">Delicioust</span> Food?
           </h1>
+          <p className="text-gray-300 text-lg md:text-xl mb-8 max-w-2xl">
+            Order from the best restaurants in Jaipur and get it delivered to
+            your doorstep.
+          </p>
 
           {/* 🔍 MULTI-PURPOSE SEARCH BAR */}
           <div className="flex bg-white rounded-full overflow-hidden p-1 w-full max-w-2xl shadow-2xl shadow-primary/20 border-2 border-transparent focus-within:border-primary transition-all">
