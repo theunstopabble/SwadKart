@@ -1,13 +1,14 @@
 import Razorpay from "razorpay";
 import Order from "../models/orderModel.js";
-import User from "../models/userModel.js"; // 👈 Required to find Restaurant Owner
+import Restaurant from "../models/restaurantModel.js"; // 👈 Required for Restaurant details
+import User from "../models/userModel.js"; // 👈 Required for Admin lookup
 import dotenv from "dotenv";
 import sendEmail from "../utils/sendEmail.js";
 import {
   getOrderConfirmationTemplate,
   getAdminOrderAlertTemplate,
   getRestaurantOrderAlertTemplate,
-} from "../utils/emailTemplates.js"; // 👈 All Professional Templates Imported
+} from "../utils/emailTemplates.js";
 
 dotenv.config();
 
@@ -93,7 +94,7 @@ export const verifyPayment = async (req, res) => {
         const updatedOrder = await order.save();
 
         // ==========================================
-        // 📧 SEND PAYMENT SUCCESS EMAILS (User + Admin + Restaurant)
+        // 📧 SEND EMAILS (DB DYNAMIC ADMIN & RESTAURANT)
         // ==========================================
         try {
           console.log("📨 Sending Online Payment Emails...");
@@ -105,31 +106,53 @@ export const verifyPayment = async (req, res) => {
             html: getOrderConfirmationTemplate(updatedOrder, true), // true = Paid
           });
 
-          // 2️⃣ ADMIN ALERT (Links to Admin Dashboard)
-          await sendEmail({
-            email: "ganand62077@gmail.com", // 👈 FIXED SUPER ADMIN
-            subject: `💰 Payment Received`,
-            html: getAdminOrderAlertTemplate(updatedOrder),
-          });
+          // 2️⃣ ADMIN ALERT (FETCH FROM DB) 🕵️‍♂️
+          const adminUser = await User.findOne({ role: "admin" });
 
-          // 3️⃣ RESTAURANT ALERT (Dynamic Logic)
-          const restaurantId = order.orderItems[0].restaurant;
-          if (restaurantId) {
-            const shopOwner = await User.findById(restaurantId);
-            if (shopOwner && shopOwner.email) {
-              console.log(`📨 Alerting Shop Owner: ${shopOwner.email}`);
-              await sendEmail({
-                email: shopOwner.email,
-                subject: `💰 New Online Order: ${shopOwner.name}`,
-                html: getRestaurantOrderAlertTemplate(
-                  updatedOrder,
-                  shopOwner.name
-                ),
-              });
+          if (adminUser && adminUser.email) {
+            console.log(`📨 Found Admin in DB: ${adminUser.email}`);
+            await sendEmail({
+              email: adminUser.email,
+              subject: `💰 Payment Received`,
+              html: getAdminOrderAlertTemplate(updatedOrder),
+            });
+          } else {
+            console.error("❌ No Admin found in DB to send alert!");
+          }
+
+          // 3️⃣ RESTAURANT ALERT (Via Restaurant Model)
+          if (order.orderItems && order.orderItems.length > 0) {
+            const restaurantId = order.orderItems[0].restaurant;
+
+            if (restaurantId) {
+              const restaurantDoc = await Restaurant.findById(
+                restaurantId
+              ).populate("owner");
+
+              if (restaurantDoc && restaurantDoc.owner) {
+                const shopOwner = restaurantDoc.owner;
+                const shopName = restaurantDoc.name;
+
+                // Skip Dummy Shops
+                if (
+                  shopOwner.email &&
+                  !shopOwner.email.includes("@dummy.swadkart")
+                ) {
+                  console.log(`📨 Alerting Shop: ${shopName}`);
+                  await sendEmail({
+                    email: shopOwner.email,
+                    subject: `💰 New Online Order: ${shopName}`,
+                    html: getRestaurantOrderAlertTemplate(
+                      updatedOrder,
+                      shopName
+                    ),
+                  });
+                }
+              }
             }
           }
 
-          console.log("✅ Emails Sent to Admin, User & Restaurant");
+          console.log("✅ Emails Sent!");
         } catch (emailErr) {
           console.error("Failed to send email alerts:", emailErr);
           // Don't fail the response if email fails

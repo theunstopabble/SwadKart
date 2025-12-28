@@ -1,40 +1,62 @@
 import Order from "../models/orderModel.js";
-import User from "../models/userModel.js"; // 👈 Required to find Restaurant Owner
+import User from "../models/userModel.js"; // 👈 Required for Admin & Owner lookup
+import Restaurant from "../models/restaurantModel.js"; // 👈 Required for Restaurant details
 import sendEmail from "../utils/sendEmail.js";
 import {
   getOrderConfirmationTemplate,
   getAdminOrderAlertTemplate,
   getRestaurantOrderAlertTemplate,
   getUserDriverAssignedTemplate,
-} from "../utils/emailTemplates.js"; // 👈 Imported Professional Templates
+} from "../utils/emailTemplates.js";
 
 // =================================================================
-// 📧 HELPER: NOTIFY ADMIN & RESTAURANT (Multi-Vendor Logic)
+// 📧 HELPER: NOTIFY ADMIN & RESTAURANT (DATABASE DRIVEN 🛡️)
 // =================================================================
 const notifyRestaurantAndAdmin = async (order) => {
   try {
-    // 1. Notify Super Admin (Fixed Email as requested)
-    // Links to: /admin/dashboard
-    await sendEmail({
-      email: "ganand62077@gmail.com",
-      subject: `🚨 New Order: #${order._id.toString().slice(-6)}`,
-      html: getAdminOrderAlertTemplate(order),
-    });
+    // 1. Notify Super Admin (FETCH FROM DB - NO HARDCODING) 🕵️‍♂️
+    // Finds the first user with role 'admin' in your database
+    const adminUser = await User.findOne({ role: "admin" });
 
-    // 2. Notify Restaurant Owner (Dynamic)
-    // Links to: /restaurant/dashboard
-    // Logic: Look at the first item to find the restaurant ID
-    const restaurantId = order.orderItems[0].restaurant;
+    if (adminUser && adminUser.email) {
+      console.log(`📨 Found Admin in DB: ${adminUser.email}`);
+      await sendEmail({
+        email: adminUser.email,
+        subject: `🚨 New Order: #${order._id.toString().slice(-6)}`,
+        html: getAdminOrderAlertTemplate(order),
+      });
+    } else {
+      console.error("❌ No Admin User found in Database to send alert!");
+    }
 
-    if (restaurantId) {
-      const shopOwner = await User.findById(restaurantId);
-      if (shopOwner && shopOwner.email) {
-        console.log(`📨 Alerting Shop Owner: ${shopOwner.email}`);
-        await sendEmail({
-          email: shopOwner.email,
-          subject: `🔔 New Order for ${shopOwner.name}`,
-          html: getRestaurantOrderAlertTemplate(order, shopOwner.name),
-        });
+    // 2. Notify Restaurant Owner (Dynamic via Restaurant Model)
+    if (order.orderItems && order.orderItems.length > 0) {
+      // Get the Restaurant ID from the first item
+      const restaurantId = order.orderItems[0].restaurant;
+
+      if (restaurantId) {
+        // Find the Restaurant Doc & Populate the Owner
+        const restaurantDoc = await Restaurant.findById(restaurantId).populate(
+          "owner"
+        );
+
+        if (restaurantDoc && restaurantDoc.owner) {
+          const shopOwner = restaurantDoc.owner;
+          const shopName = restaurantDoc.name;
+
+          // Check if email exists and is NOT a dummy email
+          if (shopOwner.email && !shopOwner.email.includes("@dummy.swadkart")) {
+            console.log(`📨 Alerting Shop: ${shopName} (${shopOwner.email})`);
+
+            await sendEmail({
+              email: shopOwner.email,
+              subject: `🔔 New Order for ${shopName}`,
+              html: getRestaurantOrderAlertTemplate(order, shopName),
+            });
+          } else {
+            console.log("⚠️ Dummy Shop or Missing Email. Skipping Shop Alert.");
+          }
+        }
       }
     }
   } catch (err) {
@@ -66,6 +88,7 @@ export const addOrderItems = async (req, res) => {
       orderItems: orderItems.map((x) => ({
         ...x,
         product: x.product,
+        restaurant: x.restaurant, // 👈 Ensures Restaurant ID is saved
         _id: undefined,
       })),
       user: req.user._id,
@@ -83,7 +106,7 @@ export const addOrderItems = async (req, res) => {
     // 🚚 COD EMAIL FLOW
     // ==========================================
     if (paymentMethod === "COD") {
-      // 1. Send Receipt to USER (Links to My Orders)
+      // 1. Send Receipt to USER
       try {
         await sendEmail({
           email: req.user.email,
@@ -94,7 +117,7 @@ export const addOrderItems = async (req, res) => {
         console.error("User COD Email Failed", error);
       }
 
-      // 2. Notify Admin & Restaurant
+      // 2. Notify Admin & Restaurant (DB Logic)
       await notifyRestaurantAndAdmin(createdOrder);
     }
     // ==========================================
@@ -218,7 +241,8 @@ export const assignDeliveryPartner = async (req, res) => {
     .populate("deliveryPartner", "name phone");
 
   if (order) {
-    // Manually fetch partner if populate failed (since it's being assigned now)
+    // Manually fetch partner if populate failed
+    const User = (await import("../models/userModel.js")).default;
     const partner = await User.findById(deliveryPartnerId);
 
     order.deliveryPartner = deliveryPartnerId;
@@ -226,7 +250,6 @@ export const assignDeliveryPartner = async (req, res) => {
     const updatedOrder = await order.save();
 
     // 📧 SEND EMAIL TO USER: "Driver Assigned"
-    // Links to: /orders/:id (Track Live)
     if (order.user && order.user.email && partner) {
       try {
         await sendEmail({
@@ -234,7 +257,7 @@ export const assignDeliveryPartner = async (req, res) => {
           subject: `🛵 Out for Delivery: Order #${order._id
             .toString()
             .slice(-6)}`,
-          html: getUserDriverAssignedTemplate(order, partner), // ✨ PRO TEMPLATE
+          html: getUserDriverAssignedTemplate(order, partner),
         });
         console.log("✅ Driver Assigned Email Sent to User");
       } catch (e) {

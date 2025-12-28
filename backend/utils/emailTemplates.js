@@ -118,7 +118,7 @@ const wrapEmail = (content) => {
 
       <div class="footer">
         <p>&copy; ${new Date().getFullYear()} SwadKart. Taste Delivered.</p>
-        <p>Need help? <a href="mailto:support@swadkart.com">Contact Support</a></p>
+        <p>Need help? <a href="mailto:swadkartt@gmail.com">Contact Support</a></p>
       </div>
     </div>
   </body>
@@ -225,7 +225,7 @@ export const getOrderConfirmationTemplate = (order, isPaid) => {
     </div>
 
     <div style="text-align: center;">
-      <a href="${FRONTEND_URL}/orders" class="button">Track My Order</a>
+      <a href="${FRONTEND_URL}/myorders" class="button">Track My Order</a>
     </div>
   `;
   return wrapEmail(content);
@@ -324,7 +324,7 @@ export const getUserDriverAssignedTemplate = (order, partner) => {
     </div>
 
     <div style="text-align: center;">
-      <a href="${FRONTEND_URL}/orders/${order._id}" class="button">Track Live</a>
+      <a href="${FRONTEND_URL}/myorders/${order._id}" class="button">Track Live</a>
     </div>
   `;
   return wrapEmail(content);
