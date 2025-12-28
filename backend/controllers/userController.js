@@ -25,19 +25,25 @@ const emailStyles = `
 // 🔐 AUTHENTICATION & USER PROFILE
 // =================================================================
 
-export const registerUser = async (req, res) => {
+// @desc    Register user (Next parameter added to fix crash)
+export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, phone, role } = req.body;
     if (!name || !email || !password || !phone) {
-      return res.status(400).json({ message: "🚫 All fields are mandatory!" });
+      res.status(400);
+      throw new Error("🚫 All fields are mandatory!");
     }
     const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(phone))
-      return res.status(400).json({ message: "🚫 Invalid Phone Number!" });
+    if (!phoneRegex.test(phone)) {
+      res.status(400);
+      throw new Error("🚫 Invalid Phone Number!");
+    }
 
     const userExists = await User.findOne({ email });
-    if (userExists)
-      return res.status(400).json({ message: "User already exists" });
+    if (userExists) {
+      res.status(400);
+      throw new Error("User already exists");
+    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = Date.now() + 10 * 60 * 1000;
@@ -66,19 +72,24 @@ export const registerUser = async (req, res) => {
           .json({ message: `OTP sent to ${user.email}`, email: user.email });
       } catch (err) {
         await User.findByIdAndDelete(user._id);
-        return res.status(500).json({ message: "Email failed to send." });
+        res.status(500);
+        throw new Error("Email failed to send.");
       }
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+    next(error);
+  } // 👈 next used to fix "next is not a function"
 };
 
-export const verifyEmailAPI = async (req, res) => {
+// @desc    Verify OTP
+export const verifyEmailAPI = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
     if (user.otp === otp && user.otpExpires > Date.now()) {
       user.isVerified = true;
       user.otp = undefined;
@@ -92,20 +103,24 @@ export const verifyEmailAPI = async (req, res) => {
         token: generateToken(user._id),
       });
     } else {
-      res.status(400).json({ message: "❌ Invalid or Expired OTP" });
+      res.status(400);
+      throw new Error("❌ Invalid or Expired OTP");
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const loginUser = async (req, res) => {
+// @desc    Login user
+export const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
     if (user && (await user.matchPassword(password))) {
-      if (!user.isVerified)
-        return res.status(401).json({ message: "🚫 Email not verified!" });
+      if (!user.isVerified) {
+        res.status(401);
+        throw new Error("🚫 Email not verified!");
+      }
       res.json({
         _id: user._id,
         name: user.name,
@@ -115,24 +130,30 @@ export const loginUser = async (req, res) => {
         token: generateToken(user._id),
       });
     } else {
-      res.status(401).json({ message: "Invalid email or password" });
+      res.status(401);
+      throw new Error("Invalid email or password");
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const getUserProfile = async (req, res) => {
+// @desc    Get profile
+export const getUserProfile = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
     if (user) res.json(user);
-    else res.status(404).json({ message: "User not found" });
+    else {
+      res.status(404);
+      throw new Error("User not found");
+    }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const updateUserProfile = async (req, res) => {
+// @desc    Update profile
+export const updateUserProfile = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
     if (user) {
@@ -148,7 +169,7 @@ export const updateUserProfile = async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
@@ -156,29 +177,29 @@ export const updateUserProfile = async (req, res) => {
 // 🏙️ ADMIN & RESTAURANT OPERATIONS
 // =================================================================
 
-export const getAllRestaurantsPublic = async (req, res) => {
+export const getAllRestaurantsPublic = async (req, res, next) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
       .select("-password")
       .sort({ orderIndex: 1 });
     res.json(restaurants);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const getAllRestaurants = async (req, res) => {
+export const getAllRestaurants = async (req, res, next) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
       .select("-password")
       .sort({ orderIndex: 1 });
     res.json(restaurants);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const updateUserByAdmin = async (req, res) => {
+export const updateUserByAdmin = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
     if (user) {
@@ -189,31 +210,34 @@ export const updateUserByAdmin = async (req, res) => {
       const updated = await user.save();
       res.json(updated);
     } else {
-      res.status(404).json({ message: "User not found" });
+      res.status(404);
+      throw new Error("User not found");
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const deleteUserByAdmin = async (req, res) => {
+export const deleteUserByAdmin = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
     if (user) {
-      if (user.role === "admin")
-        return res.status(400).json({ message: "Cannot delete Admin" });
+      if (user.role === "admin") {
+        res.status(400);
+        throw new Error("Cannot delete Admin");
+      }
       await user.deleteOne();
       res.json({ message: "User removed successfully" });
     } else {
-      res.status(404).json({ message: "User not found" });
+      res.status(404);
+      throw new Error("User not found");
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-// ✅ ADDED BACK: FIX FOR RENDER DEPLOY ERROR
-export const createRestaurantByAdmin = async (req, res) => {
+export const createRestaurantByAdmin = async (req, res, next) => {
   try {
     const { name, email, password, image } = req.body;
     const user = await User.create({
@@ -228,11 +252,11 @@ export const createRestaurantByAdmin = async (req, res) => {
     });
     res.status(201).json(user);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const createDummyRestaurant = async (req, res) => {
+export const createDummyRestaurant = async (req, res, next) => {
   try {
     const { name, image } = req.body;
     const uniqueTime = Date.now();
@@ -251,28 +275,31 @@ export const createDummyRestaurant = async (req, res) => {
     });
     res.status(201).json(user);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    next(error);
   }
 };
 
-export const getRestaurantById = async (req, res) => {
+export const getRestaurantById = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
     if (user) res.json(user);
-    else res.status(404).json({ message: "Not found" });
+    else {
+      res.status(404);
+      throw new Error("Not found");
+    }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const getDeliveryPartners = async (req, res) => {
+export const getDeliveryPartners = async (req, res, next) => {
   try {
     const partners = await User.find({ role: "delivery_partner" }).select(
       "-password"
     );
     res.json(partners);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
@@ -280,19 +307,19 @@ export const getDeliveryPartners = async (req, res) => {
 // 🔑 PASSWORD RESET
 // =================================================================
 
-export const forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res, next) => {
   try {
     const user = await User.findOne({ email: req.body.email });
-    if (!user) return res.status(404).json({ message: "User not found" });
-
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
     const resetToken = user.getResetPasswordToken();
     await user.save({ validateBeforeSave: false });
-
     const resetUrl = `${
       process.env.FRONTEND_URL || "https://swadkart-pro.vercel.app"
     }/password/reset/${resetToken}`;
-    const resetTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="content"><h2>Password Recovery</h2><p>Click below to reset password.</p><a href="${resetUrl}" class="cta-button">Reset Password</a></div></div></body></html>`;
-
+    const resetTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="header"><h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1></div><div class="content"><h2>Password Recovery</h2><a href="${resetUrl}" class="cta-button">Reset Password</a></div></div></body></html>`;
     await sendEmail({
       email: user.email,
       subject: "SwadKart Password Recovery 🔐",
@@ -300,11 +327,11 @@ export const forgotPassword = async (req, res) => {
     });
     res.json({ message: "Reset link sent to email" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const resetPassword = async (req, res) => {
+export const resetPassword = async (req, res, next) => {
   try {
     const resetPasswordToken = crypto
       .createHash("sha256")
@@ -314,14 +341,17 @@ export const resetPassword = async (req, res) => {
       resetPasswordToken,
       resetPasswordExpire: { $gt: Date.now() },
     });
-    if (!user) return res.status(400).json({ message: "Invalid Token" });
+    if (!user) {
+      res.status(400);
+      throw new Error("Invalid Token");
+    }
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();
     res.json({ message: "Password Updated" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 

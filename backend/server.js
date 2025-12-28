@@ -2,8 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import path from "path";
-import compression from "compression"; // 👈 SPEED: Data size chota karne ke liye
+import compression from "compression";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
@@ -17,11 +16,11 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 
 dotenv.config();
-connectDB(); // MongoDB connection fast wala logic yahan config/db.js mein hona chahiye
+connectDB();
 
 const app = express();
 
-// 🚀 SPEED FIX: Sabse upar compression add karein
+// 🚀 SPEED FIX: Data compression for faster response
 app.use(compression());
 
 const allowedOrigins = [
@@ -46,17 +45,19 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// 🔌 Socket.io Setup
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: corsOptions,
 });
 
+// Middleware to pass 'io' instance to controllers
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
-// Socket logic
+// Real-time Order Tracking logic
 io.on("connection", (socket) => {
   console.log("⚡ New Client Connected:", socket.id);
   socket.on("joinOrder", (orderId) => {
@@ -71,7 +72,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// 🛌 RENDER KEEP-AWAKE: Ye route Render ko sone nahi dega
+// 🛌 RENDER KEEP-AWAKE
 app.get("/ping", (req, res) => res.status(200).send("I am awake!"));
 
 // 🛤️ API ROUTES
@@ -85,8 +86,9 @@ app.get("/", (req, res) => {
   res.send("🚀 SwadKart API is running successfully...");
 });
 
+// ⚠️ ERROR HANDLING (Must be at the bottom)
 app.use(notFound);
-app.use(errorHandler);
+app.use(errorHandler); // 👈 This will catch next(error) from controllers
 
 const PORT = process.env.PORT || 5000;
 
