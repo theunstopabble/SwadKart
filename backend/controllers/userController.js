@@ -18,9 +18,6 @@ const emailStyles = `
     .otp-box { background-color: #000000; color: #ff4757; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 20px; border-radius: 12px; margin: 25px 0; border: 1px dashed #ff4757; display: inline-block; width: 75%; }
     .cta-button { display: inline-block; background-color: #ff4757; color: #ffffff !important; text-decoration: none; padding: 14px 35px; border-radius: 12px; font-weight: bold; font-size: 18px; margin-top: 25px; transition: 0.3s; }
     .footer { background-color: #000000; color: #6b7280; text-align: center; padding: 25px; font-size: 12px; border-top: 1px solid #1f2937; }
-    .features-box { background-color: #000000; border-radius: 12px; padding: 20px; margin-top: 30px; text-align: left; border: 1px solid #1f2937; }
-    .features-list { list-style: none; padding: 0; margin: 0; }
-    .features-list li { margin-bottom: 10px; color: #9ca3af; font-size: 14px; }
   </style>
 `;
 
@@ -28,26 +25,15 @@ const emailStyles = `
 // 🔐 AUTHENTICATION & USER PROFILE
 // =================================================================
 
-// @desc    Register a new user & Send OTP
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password, phone, role } = req.body;
-
     if (!name || !email || !password || !phone) {
       return res.status(400).json({ message: "🚫 All fields are mandatory!" });
     }
-
     const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(phone)) {
+    if (!phoneRegex.test(phone))
       return res.status(400).json({ message: "🚫 Invalid Phone Number!" });
-    }
-
-    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-    if (!gmailRegex.test(email)) {
-      return res
-        .status(400)
-        .json({ message: "🚫 Only official Gmail accounts allowed." });
-    }
 
     const userExists = await User.findOne({ email });
     if (userExists)
@@ -68,14 +54,11 @@ export const registerUser = async (req, res) => {
     });
 
     if (user) {
-      const otpTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="header"><h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1></div><div class="content"><h2>Verify Your Email</h2><p>Hi ${
-        user.name
-      }, use the code below to verify your account.</p><div class="otp-box">${otp}</div></div><div class="footer"><p>&copy; ${new Date().getFullYear()} SwadKart. Made with ❤️ for Foodies</p></div></div></body></html>`;
-
+      const otpTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="header"><h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1></div><div class="content"><h2>Verify Your Email</h2><div class="otp-box">${otp}</div></div></div></body></html>`;
       try {
         await sendEmail({
           email: user.email,
-          subject: `🔐 ${otp} is your SwadKart Verification Code`,
+          subject: `🔐 ${otp} is your Verification Code`,
           html: otpTemplate,
         });
         res
@@ -91,14 +74,11 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// @desc    Verify OTP & Activate Account
 export const verifyEmailAPI = async (req, res) => {
   try {
     const { email, otp } = req.body;
     const user = await User.findOne({ email });
-
     if (!user) return res.status(404).json({ message: "User not found" });
-
     if (user.otp === otp && user.otpExpires > Date.now()) {
       user.isVerified = true;
       user.otp = undefined;
@@ -107,8 +87,6 @@ export const verifyEmailAPI = async (req, res) => {
       res.json({
         _id: user._id,
         name: user.name,
-        email: user.email,
-        role: user.role,
         token: generateToken(user._id),
       });
     } else {
@@ -119,7 +97,6 @@ export const verifyEmailAPI = async (req, res) => {
   }
 };
 
-// @desc    Login User
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -130,8 +107,6 @@ export const loginUser = async (req, res) => {
       res.json({
         _id: user._id,
         name: user.name,
-        email: user.email,
-        phone: user.phone,
         role: user.role,
         token: generateToken(user._id),
       });
@@ -143,10 +118,9 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// @desc    Get Profile
 export const getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select("-password");
     if (user) res.json(user);
     else res.status(404).json({ message: "User not found" });
   } catch (error) {
@@ -154,14 +128,12 @@ export const getUserProfile = async (req, res) => {
   }
 };
 
-// @desc    Update Profile
 export const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (user) {
       user.name = req.body.name || user.name;
       user.email = req.body.email || user.email;
-      user.phone = req.body.phone || user.phone;
       if (req.body.password) user.password = req.body.password;
       const updatedUser = await user.save();
       res.json({
@@ -176,10 +148,9 @@ export const updateUserProfile = async (req, res) => {
 };
 
 // =================================================================
-// 🏙️ ADMIN & RESTAURANT (INDEXING & DELETE)
+// 🏙️ ADMIN & RESTAURANT OPERATIONS
 // =================================================================
 
-// @desc    Get all restaurants Public (Sorted by orderIndex)
 export const getAllRestaurantsPublic = async (req, res) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
@@ -191,7 +162,6 @@ export const getAllRestaurantsPublic = async (req, res) => {
   }
 };
 
-// @desc    Get all restaurants Admin (Sorted by orderIndex)
 export const getAllRestaurants = async (req, res) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
@@ -203,7 +173,6 @@ export const getAllRestaurants = async (req, res) => {
   }
 };
 
-// @desc    Get Restaurant by ID
 export const getRestaurantById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
@@ -214,16 +183,14 @@ export const getRestaurantById = async (req, res) => {
   }
 };
 
-// @desc    Update Shop/Restaurant Profile by Admin (Handles Reordering)
 export const updateUserByAdmin = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (user) {
       user.name = req.body.name || user.name;
       user.image = req.body.image || user.image;
-      if (req.body.orderIndex !== undefined) {
+      if (req.body.orderIndex !== undefined)
         user.orderIndex = req.body.orderIndex;
-      }
       const updated = await user.save();
       res.json(updated);
     } else {
@@ -234,7 +201,6 @@ export const updateUserByAdmin = async (req, res) => {
   }
 };
 
-// @desc    Delete Restaurant/User by Admin
 export const deleteUserByAdmin = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -242,7 +208,7 @@ export const deleteUserByAdmin = async (req, res) => {
       if (user.role === "admin")
         return res.status(400).json({ message: "Cannot delete Admin" });
       await user.deleteOne();
-      res.json({ message: "Restaurant removed successfully" });
+      res.json({ message: "User removed successfully" });
     } else {
       res.status(404).json({ message: "User not found" });
     }
@@ -251,7 +217,31 @@ export const deleteUserByAdmin = async (req, res) => {
   }
 };
 
-// @desc    Create Restaurant by Admin
+// ✅ FIXED DUMMY SHOP CREATION (Unique Data)
+export const createDummyRestaurant = async (req, res) => {
+  try {
+    const { name, image } = req.body;
+    const uniqueTime = Date.now();
+
+    const user = await User.create({
+      name: name || "New Dummy Shop",
+      email: `${name
+        ?.toLowerCase()
+        .replace(/\s+/g, "")}_${uniqueTime}@dummy.swadkart`,
+      password: "123",
+      role: "restaurant_owner",
+      image:
+        image || "https://images.unsplash.com/photo-1552566626-52f8b828add9",
+      phone: String(uniqueTime).substring(3, 13),
+      isVerified: true,
+      orderIndex: 0,
+    });
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 export const createRestaurantByAdmin = async (req, res) => {
   try {
     const { name, email, password, image } = req.body;
@@ -269,26 +259,6 @@ export const createRestaurantByAdmin = async (req, res) => {
   }
 };
 
-// @desc    Create Dummy Restaurant
-export const createDummyRestaurant = async (req, res) => {
-  try {
-    const { name, image } = req.body;
-    const user = await User.create({
-      name,
-      email: `${Date.now()}@dummy.com`,
-      password: "123",
-      role: "restaurant_owner",
-      image,
-      phone: "0000000000",
-      isVerified: true,
-    });
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc    Get Delivery Partners
 export const getDeliveryPartners = async (req, res) => {
   try {
     const partners = await User.find({ role: "delivery_partner" }).select(
@@ -301,7 +271,7 @@ export const getDeliveryPartners = async (req, res) => {
 };
 
 // =================================================================
-// 🔑 PASSWORD RESET (Forgot/Reset)
+// 🔑 PASSWORD RESET
 // =================================================================
 
 export const forgotPassword = async (req, res) => {
@@ -315,7 +285,7 @@ export const forgotPassword = async (req, res) => {
     const resetUrl = `${
       process.env.FRONTEND_URL || "https://swadkart-pro.vercel.app"
     }/password/reset/${resetToken}`;
-    const resetTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="header"><h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1></div><div class="content"><h2>Password Recovery</h2><p>Click below to reset password.</p><a href="${resetUrl}" class="cta-button">Reset Password</a></div></div></body></html>`;
+    const resetTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="content"><h2>Password Recovery</h2><a href="${resetUrl}" class="cta-button">Reset Password</a></div></div></body></html>`;
 
     await sendEmail({
       email: user.email,
@@ -349,8 +319,7 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-// 👇 ADDED THIS BACK TO FIX THE RENDER DEPLOY ERROR
-// @desc    Seed Database (Placeholder for now)
+// 👇 RENDER DEPLOY ERROR FIX
 export const seedDatabase = async (req, res) => {
   res.json({ message: "Seed functionality called." });
 };

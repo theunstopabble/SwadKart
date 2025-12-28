@@ -2,13 +2,22 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart } from "../redux/cartSlice";
-import { Star, MapPin, Clock, Plus } from "lucide-react";
-import { BASE_URL } from "../config"; // 👈 IMPORT IMPORTANT
+import {
+  Star,
+  MapPin,
+  Clock,
+  Plus,
+  Search,
+  UtensilsCrossed,
+} from "lucide-react"; // 👈 Added Search icons
+import { BASE_URL } from "../config";
 
 const RestaurantMenu = () => {
   const { id } = useParams();
   const [restaurant, setRestaurant] = useState(null);
   const [menu, setMenu] = useState([]);
+  const [filteredMenu, setFilteredMenu] = useState([]); // 👈 For Search logic
+  const [searchTerm, setSearchTerm] = useState(""); // 👈 Search state
   const [loading, setLoading] = useState(true);
 
   const dispatch = useDispatch();
@@ -19,11 +28,6 @@ const RestaurantMenu = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.log("Fetching for ID:", id);
-
-        // 👇 FIXED: Using BASE_URL and Correct Routes
-        // 1. Restaurant Details (User Routes se aayega) -> /api/v1/users/:id
-        // 2. Menu Items (Product Routes se aayega) -> /api/v1/products/restaurant/:id
         const [restaurantRes, menuRes] = await Promise.all([
           fetch(`${BASE_URL}/api/v1/users/${id}`),
           fetch(`${BASE_URL}/api/v1/products/restaurant/${id}`),
@@ -34,28 +38,36 @@ const RestaurantMenu = () => {
         const restaurantData = await restaurantRes.json();
         const menuData = await menuRes.json();
 
-        // --- 1. SET RESTAURANT ---
         setRestaurant(restaurantData.data || restaurantData);
 
-        // --- 2. SET MENU (SMART CHECK) ---
+        let finalMenu = [];
         if (Array.isArray(menuData)) {
-          setMenu(menuData);
+          finalMenu = menuData;
         } else if (menuData.products && Array.isArray(menuData.products)) {
-          setMenu(menuData.products);
+          finalMenu = menuData.products;
         } else if (menuData.data && Array.isArray(menuData.data)) {
-          setMenu(menuData.data);
-        } else {
-          setMenu([]);
+          finalMenu = menuData.data;
         }
+        setMenu(finalMenu);
+        setFilteredMenu(finalMenu); // 👈 Initialized filtered menu
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [id]);
+
+  // 🔍 Professional Filter Logic (Non-UI Destructive)
+  useEffect(() => {
+    const results = menu.filter(
+      (item) =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.category?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredMenu(results);
+  }, [searchTerm, menu]);
 
   const handleAddToCart = (item) => {
     if (!userInfo) {
@@ -109,30 +121,57 @@ const RestaurantMenu = () => {
         </div>
       )}
 
+      {/* 🔍 PROFESSIONAL SEARCH BAR (Theme Consistent) */}
+      <div className="max-w-7xl mx-auto px-6 mt-8">
+        <div className="relative group max-w-md">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-primary transition-colors">
+            <Search size={20} />
+          </div>
+          <input
+            type="text"
+            placeholder="Search for dishes (e.g. Pizza, Paneer)..."
+            className="w-full bg-gray-900 border border-gray-800 text-white pl-12 pr-4 py-3 rounded-2xl focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-medium placeholder:text-gray-600"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
       {/* Menu Grid */}
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <h2 className="text-2xl font-bold mb-8 border-l-4 border-primary pl-4 flex items-center gap-2">
-          Menu Items{" "}
-          <span className="text-sm bg-gray-800 text-gray-400 px-2 py-1 rounded-full">
-            {menu.length}
-          </span>
-        </h2>
+        <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            Menu Items{" "}
+            <span className="text-sm bg-gray-800 text-gray-400 px-2 py-1 rounded-full">
+              {filteredMenu.length}
+            </span>
+          </h2>
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="text-primary text-sm font-bold hover:underline"
+            >
+              Clear Search
+            </button>
+          )}
+        </div>
 
-        {menu.length === 0 ? (
-          <div className="text-center py-20 bg-gray-900/50 rounded-2xl border border-gray-800 border-dashed">
+        {filteredMenu.length === 0 ? (
+          <div className="text-center py-20 bg-gray-900/30 rounded-3xl border border-gray-800 border-dashed">
+            <UtensilsCrossed className="mx-auto text-gray-700 mb-4" size={48} />
             <p className="text-gray-400 text-xl font-bold">
-              No food items listed yet. 🍛
+              Oops! No dishes match your search. 🍛
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              The restaurant hasn't updated their menu online.
+              Try searching for something else or clear the filter.
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {menu.map((item) => (
+            {filteredMenu.map((item) => (
               <div
                 key={item._id}
-                className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/10 group flex flex-col"
+                className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/10 group flex flex-col animate-in fade-in zoom-in-95 duration-300"
               >
                 {/* Image Area */}
                 <div className="relative h-48 overflow-hidden">
@@ -157,7 +196,7 @@ const RestaurantMenu = () => {
                 {/* Details Area */}
                 <div className="p-5 flex flex-col flex-1">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-xl font-bold text-white leading-tight">
+                    <h3 className="text-xl font-bold text-white leading-tight group-hover:text-primary transition-colors">
                       {item.name}
                     </h3>
                     <p className="text-primary font-bold text-lg">
@@ -165,7 +204,7 @@ const RestaurantMenu = () => {
                     </p>
                   </div>
 
-                  <p className="text-gray-400 text-sm line-clamp-2 mb-4 flex-1">
+                  <p className="text-gray-400 text-sm line-clamp-2 mb-4 flex-1 italic">
                     {item.description}
                   </p>
 
