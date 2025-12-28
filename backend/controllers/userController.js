@@ -25,7 +25,7 @@ const emailStyles = `
 // 🔐 AUTHENTICATION & USER PROFILE
 // =================================================================
 
-// @desc    Register user (Next parameter added to fix crash)
+// @desc    Register user
 export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, phone, role } = req.body;
@@ -77,8 +77,8 @@ export const registerUser = async (req, res, next) => {
       }
     }
   } catch (error) {
-    next(error);
-  } // 👈 next used to fix "next is not a function"
+    next(error); // 👈 Fix for 'next is not a function'
+  }
 };
 
 // @desc    Verify OTP

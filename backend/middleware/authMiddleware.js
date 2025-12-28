@@ -1,11 +1,10 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 
-// 🔐 PROTECT MIDDLEWARE: JWT Token Verification
+// 🔐 PROTECT MIDDLEWARE
 export const protect = async (req, res, next) => {
   let token;
 
-  // Header se token nikalne ka logic
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
@@ -14,19 +13,18 @@ export const protect = async (req, res, next) => {
       token = req.headers.authorization.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // decoded.id (kyunki generateToken me 'id' pass kiya hai)
       req.user = await User.findById(decoded.id).select("-password");
 
       if (!req.user) {
         res.status(401);
-        return next(new Error("User not found")); // 👈 JSON ki jagah next(error)
+        return next(new Error("User not found"));
       }
 
-      return next(); // Sab theek hai to aage badho
+      return next();
     } catch (error) {
       console.error("🔥 JWT Auth Error:", error.message);
       res.status(401);
-      return next(new Error("Not authorized, token failed")); // 👈 Error handler ko pass karein
+      return next(new Error("Not authorized, token failed"));
     }
   }
 
@@ -36,12 +34,11 @@ export const protect = async (req, res, next) => {
   }
 };
 
-// 👑 ROLE AUTHORIZATION (Admin, Partner, etc.)
+// 👑 ROLE AUTHORIZATION
 export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
       res.status(403);
-      // standardize error message for frontend
       return next(
         new Error(`Role (${req.user?.role || "Guest"}) is not authorized`)
       );
@@ -57,12 +54,15 @@ export const notFound = (req, res, next) => {
   next(error);
 };
 
-// 🛑 GLOBAL ERROR HANDLER (Standard 4-Parameter Middleware)
-// Iska sequence (err, req, res, next) hona MUST hai taaki Express ise pehchane
+// 🛑 GLOBAL ERROR HANDLER
+// ध्यान दें: एक्सप्रेस इसे केवल तभी पहचानता है जब इसमें 4 पैरामीटर (err, req, res, next) हों।
 export const errorHandler = (err, req, res, next) => {
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-  res.status(statusCode);
-  res.json({
+
+  // कंसोल में एरर लॉग करें ताकि आप रेंडर पर देख सकें
+  console.error(`❌ [Error]: ${err.message}`);
+
+  res.status(statusCode).json({
     message: err.message,
     stack: process.env.NODE_ENV === "production" ? null : err.stack,
   });

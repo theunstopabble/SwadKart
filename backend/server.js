@@ -44,18 +44,17 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// 🔌 Socket.io Setup (FIXED FOR CORS)
+// 🔌 Socket.io Setup
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins, // 👈 Explicitly list all allowed origins
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },
-  transports: ["websocket", "polling"], // 👈 Add both transports
+  transports: ["websocket", "polling"],
 });
 
-// Middleware to pass 'io' instance to controllers
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -88,8 +87,9 @@ app.get("/", (req, res) => {
   res.send("🚀 SwadKart API is running successfully...");
 });
 
+// ⚠️ ERROR HANDLING (Must be after all routes)
 app.use(notFound);
-app.use(errorHandler);
+app.use(errorHandler); // 👈 Catching all next(error) calls
 
 const PORT = process.env.PORT || 5000;
 
