@@ -12,10 +12,13 @@ const userSchema = mongoose.Schema(
     image: { type: String },
     description: { type: String },
 
-    // 👇 NEW FIELDS FOR OTP SECURITY (OTP Verification)
-    isVerified: { type: Boolean, default: false }, // Login rokne ke liye
-    otp: { type: String }, // Generated OTP store karne ke liye
-    otpExpires: { type: Date }, // OTP expiry time ke liye
+    // 👇 NEW: Shop Reordering ke liye indexing field
+    orderIndex: { type: Number, default: 0 },
+
+    // OTP Security Fields
+    isVerified: { type: Boolean, default: false },
+    otp: { type: String },
+    otpExpires: { type: Date },
 
     resetPasswordToken: String,
     resetPasswordExpire: Date,
@@ -29,13 +32,12 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 // Hash password before saving
-userSchema.pre("save", async function () {
-  // Agar password modify nahi hua, toh yahin se wapas laut jao (return)
+userSchema.pre("save", async function (next) {
+  // Agar password modify nahi hua, toh aage badho
   if (!this.isModified("password")) {
-    return;
+    next();
   }
 
-  // Agar modify hua hai, toh hash karo
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

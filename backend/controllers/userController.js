@@ -18,9 +18,6 @@ const emailStyles = `
     .otp-box { background-color: #000000; color: #ff4757; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 20px; border-radius: 12px; margin: 25px 0; border: 1px dashed #ff4757; display: inline-block; width: 75%; }
     .cta-button { display: inline-block; background-color: #ff4757; color: #ffffff !important; text-decoration: none; padding: 14px 35px; border-radius: 12px; font-weight: bold; font-size: 18px; margin-top: 25px; transition: 0.3s; }
     .footer { background-color: #000000; color: #6b7280; text-align: center; padding: 25px; font-size: 12px; border-top: 1px solid #1f2937; }
-    .features-box { background-color: #000000; border-radius: 12px; padding: 20px; margin-top: 30px; text-align: left; border: 1px solid #1f2937; }
-    .features-list { list-style: none; padding: 0; margin: 0; }
-    .features-list li { margin-bottom: 10px; color: #9ca3af; font-size: 14px; }
   </style>
 `;
 
@@ -68,28 +65,9 @@ export const registerUser = async (req, res) => {
     });
 
     if (user) {
-      const otpTemplate = `
-        <html>
-        <head>${emailStyles}</head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1>
-            </div>
-            <div class="content">
-              <h2 style="color: #ffffff;">Verify Your Email</h2>
-              <p>Hi ${
-                user.name
-              }, use the code below to verify your account. Valid for 10 minutes.</p>
-              <div class="otp-box">${otp}</div>
-            </div>
-            <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} SwadKart. Made with ❤️ for Foodies</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
+      const otpTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="header"><h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1></div><div class="content"><h2>Verify Your Email</h2><p>Hi ${
+        user.name
+      }, use the code below to verify your account.</p><div class="otp-box">${otp}</div></div><div class="footer"><p>&copy; ${new Date().getFullYear()} SwadKart.</p></div></div></body></html>`;
 
       try {
         await sendEmail({
@@ -123,48 +101,6 @@ export const verifyEmailAPI = async (req, res) => {
       user.otp = undefined;
       user.otpExpires = undefined;
       await user.save();
-
-      const loginUrl = "https://swadkart-pro.vercel.app/login";
-
-      const welcomeTemplate = `
-        <html>
-        <head>${emailStyles}</head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span> </h1>
-            </div>
-            <div class="content">
-              <h2 style="color: #ffffff;">Welcome to the Family, ${
-                user.name
-              }! 🎉</h2>
-              <p>Your account is verified and ready. Enjoy India's most exciting food community.</p>
-              
-              <div class="features-box">
-                <ul class="features-list">
-                  <li>🚀 <b>Flash Delivery:</b> Fastest to your doorstep.</li>
-                  <li>🥘 <b>Top Rated:</b> Handpicked premium restaurants.</li>
-                  <li>🛡️ <b>Secure:</b> 100% safe payments via Razorpay.</li>
-                </ul>
-              </div>
-
-              <a href="${loginUrl}" class="cta-button">Order Your First Meal</a>
-              <p style="margin-top: 30px; font-size: 14px;">Hungry? Let's get some food on your plate!</p>
-            </div>
-            <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} SwadKart. Made with ❤️ for Foodies</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      sendEmail({
-        email: user.email,
-        subject: "Welcome to SwadKart! ✨",
-        html: welcomeTemplate,
-      }).catch((err) => console.log("Welcome Email Error:", err.message));
-
       res.json({
         _id: user._id,
         name: user.name,
@@ -237,7 +173,135 @@ export const updateUserProfile = async (req, res) => {
 };
 
 // =================================================================
-// 🔑 PASSWORD RESET
+// 🏙️ ADMIN & RESTAURANT (INDEXING & DELETE)
+// =================================================================
+
+// @desc    Get all restaurants Public (Sorted by orderIndex)
+export const getAllRestaurantsPublic = async (req, res) => {
+  try {
+    const restaurants = await User.find({ role: "restaurant_owner" })
+      .select("-password")
+      .sort({ orderIndex: 1 });
+    res.json(restaurants);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get all restaurants Admin (Sorted by orderIndex)
+export const getAllRestaurants = async (req, res) => {
+  try {
+    const restaurants = await User.find({ role: "restaurant_owner" })
+      .select("-password")
+      .sort({ orderIndex: 1 });
+    res.json(restaurants);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get Restaurant by ID
+export const getRestaurantById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+    if (user) res.json(user);
+    else res.status(404).json({ message: "Not found" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update Shop/Restaurant Profile by Admin (Handles Reordering)
+export const updateUserByAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (user) {
+      user.name = req.body.name || user.name;
+      user.image = req.body.image || user.image;
+
+      // 👈 orderIndex logic for reordering
+      if (req.body.orderIndex !== undefined) {
+        user.orderIndex = req.body.orderIndex;
+      }
+
+      const updated = await user.save();
+      res.json(updated);
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete Restaurant/User by Admin
+export const deleteUserByAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (user) {
+      if (user.role === "admin")
+        return res.status(400).json({ message: "Cannot delete Admin" });
+      await user.deleteOne();
+      res.json({ message: "Restaurant removed successfully" });
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Create Restaurant by Admin
+export const createRestaurantByAdmin = async (req, res) => {
+  try {
+    const { name, email, password, image } = req.body;
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role: "restaurant_owner",
+      image,
+      isVerified: true,
+    });
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Create Dummy Restaurant
+export const createDummyRestaurant = async (req, res) => {
+  try {
+    const { name, image } = req.body;
+    const user = await User.create({
+      name,
+      email: `${Date.now()}@dummy.com`,
+      password: "123",
+      role: "restaurant_owner",
+      image,
+      phone: "0000000000",
+      isVerified: true,
+    });
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get Delivery Partners
+export const getDeliveryPartners = async (req, res) => {
+  try {
+    const partners = await User.find({ role: "delivery_partner" }).select(
+      "-password"
+    );
+    res.json(partners);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// =================================================================
+// 🔑 PASSWORD RESET (Forgot/Reset)
 // =================================================================
 
 export const forgotPassword = async (req, res) => {
@@ -251,24 +315,7 @@ export const forgotPassword = async (req, res) => {
     const resetUrl = `${
       process.env.FRONTEND_URL || "https://swadkart-pro.vercel.app"
     }/password/reset/${resetToken}`;
-    const resetTemplate = `
-      <html>
-      <head>${emailStyles}</head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1>
-          </div>
-          <div class="content">
-            <h2 style="color: #ffffff;">Password Recovery</h2>
-            <p>Click the button below to securely reset your password. Link valid for 10 minutes.</p>
-            <a href="${resetUrl}" class="cta-button">Reset Password</a>
-          </div>
-          <div class="footer"><p>&copy; SwadKart. Made with ❤️ for Foodies</p></div>
-        </div>
-      </body>
-      </html>
-    `;
+    const resetTemplate = `<html><head>${emailStyles}</head><body><div class="container"><div class="header"><h1 class="logo-text"><span class="swad">Swad</span><span class="kart">Kart</span></h1></div><div class="content"><h2>Password Recovery</h2><p>Click below to reset password.</p><a href="${resetUrl}" class="cta-button">Reset Password</a></div></div></body></html>`;
 
     await sendEmail({
       email: user.email,
@@ -300,101 +347,4 @@ export const resetPassword = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
-
-// =================================================================
-// 🏙️ ADMIN & RESTAURANT (FIXED EXPORTS)
-// =================================================================
-
-export const getAllRestaurantsPublic = async (req, res) => {
-  try {
-    const restaurants = await User.find({ role: "restaurant_owner" }).select(
-      "-password"
-    );
-    res.json(restaurants);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const getRestaurantById = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select("-password");
-    if (user) res.json(user);
-    else res.status(404).json({ message: "Not found" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const createRestaurantByAdmin = async (req, res) => {
-  try {
-    const { name, email, password, image } = req.body;
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role: "restaurant_owner",
-      image,
-    });
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const updateUserByAdmin = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (user) {
-      user.name = req.body.name || user.name;
-      const updated = await user.save();
-      res.json(updated);
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const getAllRestaurants = async (req, res) => {
-  try {
-    const restaurants = await User.find({ role: "restaurant_owner" }).select(
-      "-password"
-    );
-    res.json(restaurants);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const createDummyRestaurant = async (req, res) => {
-  try {
-    const { name, image } = req.body;
-    const user = await User.create({
-      name,
-      email: `${Date.now()}@dummy.com`,
-      password: "123",
-      role: "restaurant_owner",
-      image,
-      phone: "0000000000",
-    });
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const getDeliveryPartners = async (req, res) => {
-  try {
-    const partners = await User.find({ role: "delivery_partner" }).select(
-      "-password"
-    );
-    res.json(partners);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const seedDatabase = async (req, res) => {
-  res.json({ message: "Seed" });
 };

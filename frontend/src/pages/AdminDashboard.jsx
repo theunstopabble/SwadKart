@@ -38,11 +38,11 @@ const AdminDashboard = () => {
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editItemId, setEditItemId] = useState(null);
 
-  // Data
+  // Data States
   const [stats, setStats] = useState({ revenue: 0, orders: 0, users: 0 });
   const [orders, setOrders] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
-  const [menuItems, setMenuItems] = useState([]); // 👈 Store selected restaurant's menu
+  const [menuItems, setMenuItems] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
 
   // Selections
@@ -72,7 +72,8 @@ const AdminDashboard = () => {
   const fetchAllData = async () => {
     const headers = { Authorization: `Bearer ${userInfo.token}` };
     try {
-      const resRest = await fetch(`${BASE_URL}/api/v1/users/restaurants`, {
+      // 1. Restaurants (Sorted by Backend)
+      const resRest = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
         headers,
       });
       const dataRest = await resRest.json();
@@ -81,6 +82,7 @@ const AdminDashboard = () => {
         setStats((prev) => ({ ...prev, users: dataRest.length }));
       }
 
+      // 2. Orders
       const resOrders = await fetch(`${BASE_URL}/api/v1/orders/admin/all`, {
         headers,
       });
@@ -98,6 +100,7 @@ const AdminDashboard = () => {
         }));
       }
 
+      // 3. Delivery Partners
       const resPartners = await fetch(
         `${BASE_URL}/api/v1/users/delivery-partners`,
         { headers }
@@ -129,10 +132,41 @@ const AdminDashboard = () => {
     }
   }, [selectedRestaurant]);
 
-  // ================= ACTIONS =================
+  // ================= ACTIONS (REORDERING) =================
 
-  // Reorder Item (Admin)
-  const handleReorder = async (index, direction) => {
+  // 1. Reorder Shops (Restaurants)
+  const handleShopReorder = async (index, direction) => {
+    const newShops = [...restaurants];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= newShops.length) return;
+
+    const temp = newShops[index];
+    newShops[index] = newShops[targetIndex];
+    newShops[targetIndex] = temp;
+    setRestaurants(newShops); // UI Update
+
+    try {
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userInfo.token}`,
+      };
+      await fetch(`${BASE_URL}/api/v1/users/${newShops[index]._id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ orderIndex: index }),
+      });
+      await fetch(`${BASE_URL}/api/v1/users/${newShops[targetIndex]._id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ orderIndex: targetIndex }),
+      });
+    } catch (error) {
+      console.error("Shop reorder failed", error);
+    }
+  };
+
+  // 2. Reorder Menu Items
+  const handleMenuReorder = async (index, direction) => {
     const newItems = [...menuItems];
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= newItems.length) return;
@@ -140,7 +174,7 @@ const AdminDashboard = () => {
     const temp = newItems[index];
     newItems[index] = newItems[targetIndex];
     newItems[targetIndex] = temp;
-    setMenuItems(newItems); // Optimistic
+    setMenuItems(newItems);
 
     try {
       const headers = {
@@ -162,24 +196,24 @@ const AdminDashboard = () => {
     }
   };
 
-  // Delete Restaurant
+  // ================= CRUD ACTIONS =================
+
   const handleDeleteRestaurant = async (id) => {
-    if (!window.confirm("Delete this restaurant AND all its menu items?"))
-      return;
+    if (!window.confirm("Delete this restaurant AND all items?")) return;
     try {
-      await fetch(`${BASE_URL}/api/v1/users/${id}`, {
-        // Backend route must exist for user delete
+      const res = await fetch(`${BASE_URL}/api/v1/users/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${userInfo.token}` },
       });
-      alert("Restaurant Deleted");
-      fetchAllData();
+      if (res.ok) {
+        alert("Restaurant Removed");
+        fetchAllData();
+      }
     } catch (error) {
       console.error(error);
     }
   };
 
-  // Delete Item
   const handleDeleteItem = async (id) => {
     if (!window.confirm("Delete item?")) return;
     try {
@@ -187,49 +221,15 @@ const AdminDashboard = () => {
         method: "DELETE",
         headers: { Authorization: `Bearer ${userInfo.token}` },
       });
-      // Refresh menu list
-      const res = await fetch(
-        `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`
-      );
-      setMenuItems(await res.json());
+      fetchAllData(); // Refresh menu
+      setSelectedRestaurant(selectedRestaurant); // Force reload menu
     } catch (error) {
       console.error(error);
     }
   };
 
-  // Open Edit Item Modal
-  const openEditItemModal = (item) => {
-    setIsEditingItem(true);
-    setEditItemId(item._id);
-    setNewItem({
-      name: item.name,
-      price: item.price,
-      description: item.description,
-      category: item.category,
-      image: item.image,
-      isVeg: item.isVeg ? "true" : "false",
-      orderIndex: item.orderIndex,
-    });
-    setShowItemModal(true);
-  };
-
-  const openAddItemModal = () => {
-    setIsEditingItem(false);
-    setNewItem({
-      name: "",
-      price: "",
-      description: "",
-      category: "",
-      image: "",
-      isVeg: "true",
-      orderIndex: menuItems.length,
-    });
-    setShowItemModal(true);
-  };
-
   const handleSubmitItem = async (e) => {
     e.preventDefault();
-    if (!selectedRestaurant) return alert("Select a restaurant");
     try {
       const productData = {
         ...newItem,
@@ -238,14 +238,13 @@ const AdminDashboard = () => {
       };
       let url = `${BASE_URL}/api/v1/products`;
       let method = "POST";
-
       if (isEditingItem) {
         url = `${BASE_URL}/api/v1/products/${editItemId}`;
         method = "PUT";
       }
 
       const res = await fetch(url, {
-        method: method,
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userInfo.token}`,
@@ -254,11 +253,8 @@ const AdminDashboard = () => {
       });
       if (res.ok) {
         setShowItemModal(false);
-        const menuRes = await fetch(
-          `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`
-        );
-        setMenuItems(await menuRes.json());
-        alert(isEditingItem ? "Item Updated" : "Item Added");
+        fetchAllData();
+        alert("Success");
       }
     } catch (err) {
       console.error(err);
@@ -268,7 +264,7 @@ const AdminDashboard = () => {
   const handleUpdateShop = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/${editingShop._id}`, {
+      await fetch(`${BASE_URL}/api/v1/users/${editingShop._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -279,11 +275,9 @@ const AdminDashboard = () => {
           image: editingShop.image,
         }),
       });
-      if (res.ok) {
-        setShowShopModal(false);
-        fetchAllData();
-        alert("Updated");
-      }
+      setShowShopModal(false);
+      fetchAllData();
+      alert("Updated");
     } catch (err) {
       console.error(err);
     }
@@ -332,9 +326,28 @@ const AdminDashboard = () => {
     fetchAllData();
   };
 
-  // Helpers
+  const openEditItemModal = (item) => {
+    setIsEditingItem(true);
+    setEditItemId(item._id);
+    setNewItem({ ...item, isVeg: item.isVeg ? "true" : "false" });
+    setShowItemModal(true);
+  };
+
+  const openAddItemModal = () => {
+    setIsEditingItem(false);
+    setNewItem({
+      name: "",
+      price: "",
+      description: "",
+      category: "",
+      image: "",
+      isVeg: "true",
+      orderIndex: menuItems.length,
+    });
+    setShowItemModal(true);
+  };
+
   const getStatusBadge = (order) => {
-    /* Same as before */
     if (order.isDelivered)
       return (
         <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit">
@@ -385,7 +398,7 @@ const AdminDashboard = () => {
 
         {/* Overview Tab */}
         {activeTab === "overview" && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
             <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 flex items-center gap-4">
               <div className="p-3 bg-green-500/20 rounded-lg text-green-500">
                 <TrendingUp size={24} />
@@ -426,7 +439,7 @@ const AdminDashboard = () => {
 
         {/* Orders Tab */}
         {activeTab === "orders" && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden animate-fade-in">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-gray-400">
                 <thead className="bg-black text-gray-200 uppercase font-bold text-sm">
@@ -454,12 +467,12 @@ const AdminDashboard = () => {
                       <td className="p-4">{getStatusBadge(o)}</td>
                       <td className="p-4">
                         {o.deliveryPartner ? (
-                          <span className="text-blue-400 flex items-center gap-1 font-bold">
-                            <User size={14} /> {o.deliveryPartner.name}
+                          <span className="text-blue-400 font-bold">
+                            {o.deliveryPartner.name}
                           </span>
                         ) : (
                           <select
-                            className="bg-black border border-gray-700 text-white p-2 rounded text-sm outline-none"
+                            className="bg-black border border-gray-700 text-white p-1 rounded text-xs"
                             onChange={(e) =>
                               setSelectedPartner({
                                 ...selectedPartner,
@@ -479,14 +492,14 @@ const AdminDashboard = () => {
                       <td className="p-4 flex gap-2">
                         <button
                           onClick={() => setSelectedOrder(o)}
-                          className="p-2 bg-gray-700 rounded-lg text-white"
+                          className="p-2 bg-gray-700 rounded-lg"
                         >
                           <Eye size={16} />
                         </button>
                         {!o.deliveryPartner && !o.isDelivered && (
                           <button
                             onClick={() => handleAssignPartner(o._id)}
-                            className="bg-primary text-white px-3 py-1 rounded text-xs font-bold"
+                            className="bg-primary px-3 py-1 rounded text-xs font-bold"
                           >
                             Assign
                           </button>
@@ -500,33 +513,33 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Shops Tab (Updated with Delete) */}
+        {/* Shops Tab (REORDERING & DELETE) */}
         {activeTab === "shops" && (
-          <div>
+          <div className="animate-fade-in">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Store className="text-primary" /> Restaurants
+                <Store className="text-primary" /> Manage Restaurants
               </h2>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDummyModal(true)}
-                  className="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-full flex items-center gap-2"
+                  className="bg-yellow-600 font-bold py-2 px-4 rounded-full flex items-center gap-2 transition-all active:scale-95"
                 >
-                  <PlusCircle size={20} /> Add Dummy
+                  <PlusCircle size={20} /> Dummy
                 </button>
                 <button
                   onClick={() => setShowAddShopModal(true)}
-                  className="bg-primary hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full flex items-center gap-2"
+                  className="bg-primary font-bold py-2 px-4 rounded-full flex items-center gap-2 transition-all active:scale-95"
                 >
-                  <Plus size={20} /> Full Register
+                  <Plus size={20} /> Register
                 </button>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {restaurants.map((shop) => (
+              {restaurants.map((shop, index) => (
                 <div
                   key={shop._id}
-                  className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden group relative"
+                  className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden group relative hover:border-primary/50 transition-all"
                 >
                   <div className="h-48 relative">
                     <img
@@ -537,6 +550,25 @@ const AdminDashboard = () => {
                       alt={shop.name}
                       className="w-full h-full object-cover"
                     />
+
+                    {/* Reorder Buttons */}
+                    <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+                      <button
+                        onClick={() => handleShopReorder(index, -1)}
+                        disabled={index === 0}
+                        className="bg-black/60 hover:bg-primary p-1.5 rounded text-white disabled:opacity-20"
+                      >
+                        <ArrowUp size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleShopReorder(index, 1)}
+                        disabled={index === restaurants.length - 1}
+                        className="bg-black/60 hover:bg-primary p-1.5 rounded text-white disabled:opacity-20"
+                      >
+                        <ArrowDown size={18} />
+                      </button>
+                    </div>
+
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
                       <button
                         onClick={() => {
@@ -559,15 +591,7 @@ const AdminDashboard = () => {
                     <h3 className="text-xl font-bold text-white mb-1">
                       {shop.name}
                     </h3>
-                    <p className="text-gray-500 text-sm">
-                      {shop.email.includes("@dummy") ? (
-                        <span className="text-yellow-500 text-xs border border-yellow-500/30 px-2 rounded">
-                          DUMMY
-                        </span>
-                      ) : (
-                        shop.email
-                      )}
-                    </p>
+                    <p className="text-gray-500 text-sm">{shop.email}</p>
                   </div>
                 </div>
               ))}
@@ -575,19 +599,19 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Menu Tab (FULL FEATURES: Reorder, Edit, Delete) */}
+        {/* Menu Tab (REORDERING & EDIT) */}
         {activeTab === "menu" && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
-            <h2 className="text-2xl font-bold flex items-center gap-2 mb-6">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 animate-fade-in">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
               <UtensilsCrossed className="text-primary" /> Live Menu Editor
             </h2>
             <div className="flex gap-4 mb-8">
               <select
                 value={selectedRestaurant}
                 onChange={(e) => setSelectedRestaurant(e.target.value)}
-                className="w-full md:w-1/2 bg-black border border-gray-700 rounded-xl p-4 text-white focus:outline-none"
+                className="w-full md:w-1/2 bg-black border border-gray-700 rounded-xl p-4 text-white"
               >
-                <option value="">-- Select Restaurant to Edit Menu --</option>
+                <option value="">-- Select Restaurant --</option>
                 {restaurants.map((r) => (
                   <option key={r._id} value={r._id}>
                     {r.name}
@@ -597,87 +621,78 @@ const AdminDashboard = () => {
               {selectedRestaurant && (
                 <button
                   onClick={openAddItemModal}
-                  className="bg-primary hover:bg-red-600 text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-lg"
+                  className="bg-primary font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-lg transition-all active:scale-95"
                 >
                   <Plus size={20} /> Add Item
                 </button>
               )}
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {menuItems.map((item, index) => (
+                <div
+                  key={item._id}
+                  className="bg-black/40 border border-gray-700 rounded-xl overflow-hidden group relative hover:border-primary transition-all"
+                >
+                  <div className="h-40 relative">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <span
+                      className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-bold ${
+                        item.isVeg === true || item.isVeg === "true"
+                          ? "bg-green-600"
+                          : "bg-red-600"
+                      }`}
+                    >
+                      {item.isVeg ? "VEG" : "NON-VEG"}
+                    </span>
 
-            {selectedRestaurant && menuItems.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in">
-                {menuItems.map((item, index) => (
-                  <div
-                    key={item._id}
-                    className="bg-black/40 border border-gray-700 rounded-xl overflow-hidden group relative hover:border-primary transition-all"
-                  >
-                    <div className="h-40 relative">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <span
-                        className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-bold ${
-                          item.isVeg ? "bg-green-600" : "bg-red-600"
-                        }`}
+                    <div className="absolute top-2 right-2 flex flex-col gap-1">
+                      <button
+                        onClick={() => handleMenuReorder(index, -1)}
+                        disabled={index === 0}
+                        className="bg-black/60 hover:bg-primary p-1 rounded text-white disabled:opacity-30"
                       >
-                        {item.isVeg ? "VEG" : "NON-VEG"}
-                      </span>
-                      {/* Reorder Controls */}
-                      <div className="absolute top-2 right-2 flex flex-col gap-1">
-                        <button
-                          onClick={() => handleReorder(index, -1)}
-                          disabled={index === 0}
-                          className="bg-black/60 hover:bg-primary p-1 rounded text-white disabled:opacity-30"
-                        >
-                          <ArrowUp size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleReorder(index, 1)}
-                          disabled={index === menuItems.length - 1}
-                          className="bg-black/60 hover:bg-primary p-1 rounded text-white disabled:opacity-30"
-                        >
-                          <ArrowDown size={16} />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <div className="flex justify-between font-bold mb-1">
-                        <h3>{item.name}</h3>
-                        <span className="text-primary">₹{item.price}</span>
-                      </div>
-                      <p className="text-gray-500 text-xs mb-3 line-clamp-2">
-                        {item.description}
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openEditItemModal(item)}
-                          className="flex-1 bg-gray-800 hover:bg-blue-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1"
-                        >
-                          <Edit2 size={12} /> Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteItem(item._id)}
-                          className="flex-1 bg-gray-800 hover:bg-red-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1"
-                        >
-                          <Trash2 size={12} /> Delete
-                        </button>
-                      </div>
+                        <ArrowUp size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleMenuReorder(index, 1)}
+                        disabled={index === menuItems.length - 1}
+                        className="bg-black/60 hover:bg-primary p-1 rounded text-white disabled:opacity-30"
+                      >
+                        <ArrowDown size={16} />
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-            {selectedRestaurant && menuItems.length === 0 && (
-              <p className="text-center text-gray-500">
-                No items found for this restaurant.
-              </p>
-            )}
+                  <div className="p-4">
+                    <div className="flex justify-between font-bold mb-1">
+                      <h3>{item.name}</h3>
+                      <span className="text-primary">₹{item.price}</span>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => openEditItemModal(item)}
+                        className="flex-1 bg-gray-800 hover:bg-blue-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1"
+                      >
+                        <Edit2 size={12} /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteItem(item._id)}
+                        className="flex-1 bg-gray-800 hover:bg-red-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1"
+                      >
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Modals */}
+        {/* MODALS */}
         {showItemModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative">
@@ -762,7 +777,6 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Add Shop / Edit Shop / Dummy Modals can remain similar to previous simpler versions or added here if needed fully expanded */}
         {showAddShopModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative">
@@ -806,9 +820,48 @@ const AdminDashboard = () => {
                 />
                 <button
                   type="submit"
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl"
+                  className="w-full bg-green-600 font-bold py-3 rounded-xl transition-all active:scale-95"
                 >
                   Register
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showShopModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
+            <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative">
+              <button
+                onClick={() => setShowShopModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+              <h2 className="text-2xl font-bold mb-4">Edit Shop</h2>
+              <form onSubmit={handleUpdateShop} className="space-y-4">
+                <input
+                  type="text"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
+                  value={editingShop?.name || ""}
+                  onChange={(e) =>
+                    setEditingShop({ ...editingShop, name: e.target.value })
+                  }
+                  required
+                />
+                <input
+                  type="text"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
+                  value={editingShop?.image || ""}
+                  onChange={(e) =>
+                    setEditingShop({ ...editingShop, image: e.target.value })
+                  }
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-green-600 font-bold py-3 rounded-xl transition-all active:scale-95"
+                >
+                  Update
                 </button>
               </form>
             </div>
@@ -828,7 +881,7 @@ const AdminDashboard = () => {
               <form onSubmit={handleCreateDummyShop} className="space-y-4">
                 <input
                   type="text"
-                  placeholder="Name"
+                  placeholder="Shop Name"
                   className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={dummyShopData.name}
                   onChange={(e) =>
@@ -850,87 +903,11 @@ const AdminDashboard = () => {
                 />
                 <button
                   type="submit"
-                  className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-xl"
+                  className="w-full bg-yellow-600 font-bold py-3 rounded-xl transition-all active:scale-95"
                 >
                   Create
                 </button>
               </form>
-            </div>
-          </div>
-        )}
-
-        {showShopModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
-            <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative">
-              <button
-                onClick={() => setShowShopModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white"
-              >
-                <X size={24} />
-              </button>
-              <h2 className="text-2xl font-bold mb-4">Edit Shop</h2>
-              <form onSubmit={handleUpdateShop} className="space-y-4">
-                <input
-                  type="text"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
-                  value={editingShop.name}
-                  onChange={(e) =>
-                    setEditingShop({ ...editingShop, name: e.target.value })
-                  }
-                  required
-                />
-                <input
-                  type="text"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
-                  value={editingShop.image}
-                  onChange={(e) =>
-                    setEditingShop({ ...editingShop, image: e.target.value })
-                  }
-                />
-                <button
-                  type="submit"
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl"
-                >
-                  Update
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Selected Order Modal (Same as before) */}
-        {selectedOrder && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-            <div className="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-2xl p-6 relative">
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white"
-              >
-                <X size={24} />
-              </button>
-              <h2 className="text-2xl font-bold mb-1">
-                Order #{selectedOrder._id.substring(0, 8)}{" "}
-                <span className="text-xs bg-primary px-2 py-1 rounded-full">
-                  {selectedOrder.isPaid ? "PAID" : "UNPAID"}
-                </span>
-              </h2>
-              {/* ... (Existing Order Details UI) ... */}
-              <div className="mt-4">
-                <h3 className="font-bold text-gray-400 uppercase text-xs mb-2">
-                  Items
-                </h3>
-                {selectedOrder.orderItems.map((item, i) => (
-                  <div
-                    key={i}
-                    className="flex justify-between border-b border-gray-800 pb-2 mb-2"
-                  >
-                    <span>
-                      {item.qty}x {item.name}
-                    </span>
-                    <span>₹{item.price * item.qty}</span>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         )}
