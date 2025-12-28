@@ -20,6 +20,7 @@ import {
   MapPin,
   ArrowUp,
   ArrowDown,
+  Phone, // 👈 New Icon
 } from "lucide-react";
 import { BASE_URL } from "../config";
 
@@ -72,7 +73,6 @@ const AdminDashboard = () => {
   const fetchAllData = async () => {
     const headers = { Authorization: `Bearer ${userInfo.token}` };
     try {
-      // 1. Restaurants (Sorted by Backend)
       const resRest = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
         headers,
       });
@@ -82,7 +82,6 @@ const AdminDashboard = () => {
         setStats((prev) => ({ ...prev, users: dataRest.length }));
       }
 
-      // 2. Orders
       const resOrders = await fetch(`${BASE_URL}/api/v1/orders/admin/all`, {
         headers,
       });
@@ -100,7 +99,6 @@ const AdminDashboard = () => {
         }));
       }
 
-      // 3. Delivery Partners
       const resPartners = await fetch(
         `${BASE_URL}/api/v1/users/delivery-partners`,
         { headers }
@@ -116,7 +114,6 @@ const AdminDashboard = () => {
     if (userInfo) fetchAllData();
   }, [userInfo, activeTab]);
 
-  // Fetch Menu when Restaurant Selected
   useEffect(() => {
     if (selectedRestaurant) {
       const fetchMenu = async () => {
@@ -133,18 +130,14 @@ const AdminDashboard = () => {
   }, [selectedRestaurant]);
 
   // ================= ACTIONS (REORDERING) =================
-
-  // 1. Reorder Shops (Restaurants)
   const handleShopReorder = async (index, direction) => {
     const newShops = [...restaurants];
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= newShops.length) return;
-
     const temp = newShops[index];
     newShops[index] = newShops[targetIndex];
     newShops[targetIndex] = temp;
-    setRestaurants(newShops); // UI Update
-
+    setRestaurants(newShops);
     try {
       const headers = {
         "Content-Type": "application/json",
@@ -165,17 +158,14 @@ const AdminDashboard = () => {
     }
   };
 
-  // 2. Reorder Menu Items
   const handleMenuReorder = async (index, direction) => {
     const newItems = [...menuItems];
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= newItems.length) return;
-
     const temp = newItems[index];
     newItems[index] = newItems[targetIndex];
     newItems[targetIndex] = temp;
     setMenuItems(newItems);
-
     try {
       const headers = {
         "Content-Type": "application/json",
@@ -197,7 +187,6 @@ const AdminDashboard = () => {
   };
 
   // ================= CRUD ACTIONS =================
-
   const handleDeleteRestaurant = async (id) => {
     if (!window.confirm("Delete this restaurant AND all items?")) return;
     try {
@@ -221,8 +210,10 @@ const AdminDashboard = () => {
         method: "DELETE",
         headers: { Authorization: `Bearer ${userInfo.token}` },
       });
-      fetchAllData(); // Refresh menu
-      setSelectedRestaurant(selectedRestaurant); // Force reload menu
+      const res = await fetch(
+        `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`
+      );
+      setMenuItems(await res.json());
     } catch (error) {
       console.error(error);
     }
@@ -242,7 +233,6 @@ const AdminDashboard = () => {
         url = `${BASE_URL}/api/v1/products/${editItemId}`;
         method = "PUT";
       }
-
       const res = await fetch(url, {
         method,
         headers: {
@@ -437,7 +427,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Orders Tab */}
+        {/* Orders Tab (UPDATED WITH PHONE & STATE) */}
         {activeTab === "orders" && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden animate-fade-in">
             <div className="overflow-x-auto">
@@ -445,7 +435,7 @@ const AdminDashboard = () => {
                 <thead className="bg-black text-gray-200 uppercase font-bold text-sm">
                   <tr>
                     <th className="p-4">ID</th>
-                    <th className="p-4">Customer</th>
+                    <th className="p-4">Customer Details</th>
                     <th className="p-4">Amount</th>
                     <th className="p-4">Status</th>
                     <th className="p-4">Delivery Partner</th>
@@ -458,9 +448,20 @@ const AdminDashboard = () => {
                       <td className="p-4 text-primary font-mono text-xs">
                         #{o._id.substring(0, 6)}
                       </td>
-                      <td className="p-4 font-bold text-white">
-                        {o.shippingAddress?.fullName || o.user?.name}
+
+                      {/* 👇 UPDATED: FULL CUSTOMER INFO */}
+                      <td className="p-4">
+                        <div className="font-bold text-white">
+                          {o.shippingAddress?.fullName || o.user?.name}
+                        </div>
+                        <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold italic">
+                          {o.shippingAddress?.city}, {o.shippingAddress?.state}
+                        </div>
+                        <div className="text-primary font-mono text-xs font-extrabold mt-0.5">
+                          📞 {o.shippingAddress?.phone}
+                        </div>
                       </td>
+
                       <td className="p-4 font-bold text-white">
                         ₹{o.totalPrice}
                       </td>
@@ -493,6 +494,7 @@ const AdminDashboard = () => {
                         <button
                           onClick={() => setSelectedOrder(o)}
                           className="p-2 bg-gray-700 rounded-lg"
+                          title="View Details"
                         >
                           <Eye size={16} />
                         </button>
@@ -513,7 +515,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Shops Tab (REORDERING & DELETE) */}
+        {/* Shops Tab (REORDERING ENABLED) */}
         {activeTab === "shops" && (
           <div className="animate-fade-in">
             <div className="flex justify-between items-center mb-6">
@@ -550,8 +552,6 @@ const AdminDashboard = () => {
                       alt={shop.name}
                       className="w-full h-full object-cover"
                     />
-
-                    {/* Reorder Buttons */}
                     <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
                       <button
                         onClick={() => handleShopReorder(index, -1)}
@@ -568,7 +568,6 @@ const AdminDashboard = () => {
                         <ArrowDown size={18} />
                       </button>
                     </div>
-
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
                       <button
                         onClick={() => {
@@ -599,7 +598,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Menu Tab (REORDERING & EDIT) */}
+        {/* Menu Tab */}
         {activeTab === "menu" && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 animate-fade-in">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -641,14 +640,11 @@ const AdminDashboard = () => {
                     />
                     <span
                       className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-bold ${
-                        item.isVeg === true || item.isVeg === "true"
-                          ? "bg-green-600"
-                          : "bg-red-600"
+                        item.isVeg ? "bg-green-600" : "bg-red-600"
                       }`}
                     >
                       {item.isVeg ? "VEG" : "NON-VEG"}
                     </span>
-
                     <div className="absolute top-2 right-2 flex flex-col gap-1">
                       <button
                         onClick={() => handleMenuReorder(index, -1)}
@@ -674,13 +670,13 @@ const AdminDashboard = () => {
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => openEditItemModal(item)}
-                        className="flex-1 bg-gray-800 hover:bg-blue-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1"
+                        className="flex-1 bg-gray-800 hover:bg-blue-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all"
                       >
                         <Edit2 size={12} /> Edit
                       </button>
                       <button
                         onClick={() => handleDeleteItem(item._id)}
-                        className="flex-1 bg-gray-800 hover:bg-red-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1"
+                        className="flex-1 bg-gray-800 hover:bg-red-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all"
                       >
                         <Trash2 size={12} /> Delete
                       </button>
@@ -692,7 +688,106 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* MODALS */}
+        {/* ORDER DETAILS MODAL (UPDATED FOR FULL SHIPPING INFO) */}
+        {selectedOrder && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+            <div className="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-2xl p-6 relative animate-in zoom-in-95 duration-200 shadow-2xl">
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+
+              <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
+                Order #{selectedOrder._id.substring(0, 8)}
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${
+                    selectedOrder.isPaid
+                      ? "bg-green-500/20 text-green-400"
+                      : "bg-red-500/20 text-red-400"
+                  }`}
+                >
+                  {selectedOrder.isPaid ? "PAID" : "UNPAID"}
+                </span>
+              </h2>
+              <p className="text-gray-500 text-[10px] mb-6 flex items-center gap-1 uppercase tracking-widest font-bold italic">
+                <Calendar size={10} /> Placed on:{" "}
+                {new Date(selectedOrder.createdAt).toLocaleString()}
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="bg-black/40 p-4 rounded-xl border border-gray-800">
+                  <h3 className="text-gray-500 text-[10px] font-bold uppercase mb-2 flex items-center gap-2 tracking-widest">
+                    <User size={12} className="text-primary" /> Customer
+                  </h3>
+                  <p className="font-bold text-white">
+                    {selectedOrder.shippingAddress?.fullName ||
+                      selectedOrder.user?.name}
+                  </p>
+                  <p className="text-primary font-mono font-bold mt-2 text-sm bg-primary/10 w-fit px-2 py-1 rounded border border-primary/20 flex items-center gap-2">
+                    <Phone size={12} />{" "}
+                    {selectedOrder.shippingAddress?.phone || "No Phone"}
+                  </p>
+                </div>
+                <div className="bg-black/40 p-4 rounded-xl border border-gray-800">
+                  <h3 className="text-gray-500 text-[10px] font-bold uppercase mb-2 flex items-center gap-2 tracking-widest">
+                    <MapPin size={12} className="text-primary" /> Address
+                  </h3>
+                  <p className="text-gray-300 text-xs leading-relaxed">
+                    {selectedOrder.shippingAddress?.address},{" "}
+                    {selectedOrder.shippingAddress?.city}, <br />
+                    {selectedOrder.shippingAddress?.state} -{" "}
+                    {selectedOrder.shippingAddress?.postalCode}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-black/40 p-4 rounded-xl border border-gray-800">
+                <h3 className="text-gray-500 text-[10px] font-bold uppercase mb-3 flex items-center gap-2 tracking-widest">
+                  <ShoppingBag size={12} className="text-primary" /> Order Items
+                </h3>
+                <div className="max-h-40 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+                  {selectedOrder.orderItems.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex justify-between items-center border-b border-gray-800 pb-2 last:border-0 last:pb-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-8 h-8 rounded object-cover"
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-white leading-none">
+                            {item.name}
+                          </p>
+                          <p className="text-[10px] text-gray-500 mt-1">
+                            {item.qty} x ₹{item.price}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs font-bold text-white italic">
+                        ₹{item.price * item.qty}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-800 flex justify-between items-center">
+                  <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">
+                    Total Amount
+                  </span>
+                  <span className="text-xl font-black text-primary italic underline decoration-white/20">
+                    ₹{selectedOrder.totalPrice}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ITEM MODAL */}
         {showItemModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative">
@@ -768,7 +863,7 @@ const AdminDashboard = () => {
                 ></textarea>
                 <button
                   type="submit"
-                  className="w-full bg-primary font-bold py-3 rounded-xl"
+                  className="w-full bg-primary font-bold py-3 rounded-xl transition-all active:scale-95"
                 >
                   {isEditingItem ? "Update" : "Add"}
                 </button>
@@ -777,6 +872,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* SHOP MODALS (Add/Edit/Dummy) */}
         {showAddShopModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative">
