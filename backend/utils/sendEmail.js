@@ -1,21 +1,20 @@
-// Universal Email Sender using Brevo API (Works on all Cloud Servers)
+import axios from "axios"; // 👈 Axios use karna zyada stable hai backend ke liye
+
 const sendEmail = async (options) => {
   console.log("📨 Email Sending Started (via Brevo API)...");
 
   const url = "https://api.brevo.com/v3/smtp/email";
 
-  // Agar humne full HTML template bheja hai to wo use kare, nahi to normal text wrap kare
   const htmlContent = options.html
     ? options.html
-    : `<html><body><p>${options.message.replace(
-        /\n/g,
-        "<br>"
-      )}</p></body></html>`;
+    : `<html><body><p>${
+        options.message ? options.message.replace(/\n/g, "<br>") : ""
+      }</p></body></html>`;
 
   const data = {
     sender: {
-      name: "SwadKart",
-      email: "swadkartt@gmail.com", // Aapka verified sender
+      name: "SwadKart Support",
+      email: "swadkartt@gmail.com", // 👈 Ensure this is verified in Brevo Dashboard
     },
     to: [
       {
@@ -24,29 +23,30 @@ const sendEmail = async (options) => {
       },
     ],
     subject: options.subject,
-    htmlContent: htmlContent, // 👈 Updated logic
+    htmlContent: htmlContent,
   };
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
+    const response = await axios.post(url, data, {
       headers: {
         accept: "application/json",
-        "api-key": process.env.BREVO_API_KEY,
+        "api-key": process.env.BREVO_API_KEY, // 👈 Render Dashboard se pick karega
         "content-type": "application/json",
       },
-      body: JSON.stringify(data),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "API Error");
+    if (response.status === 201 || response.status === 200) {
+      console.log("✅ Email Sent Successfully via Brevo API!");
     }
-
-    console.log("✅ Email Sent Successfully via API!");
   } catch (error) {
-    console.error("❌ EMAIL FAILED (API):", error.message);
-    // Error ko throw nahi karenge taaki code crash na ho (Welcome email critical nahi hota)
+    // 🔍 Detailed Error Logging
+    console.error(
+      "❌ EMAIL FAILED (Brevo):",
+      error.response ? error.response.data : error.message
+    );
+
+    // Yahan hum error throw nahi karenge taki register process crash na ho
+    // Magar debug ke liye log zaroor karenge
   }
 };
 

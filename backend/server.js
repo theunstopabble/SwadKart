@@ -20,7 +20,6 @@ connectDB();
 
 const app = express();
 
-// 🚀 SPEED FIX: Data compression for faster response
 app.use(compression());
 
 const allowedOrigins = [
@@ -33,7 +32,7 @@ const allowedOrigins = [
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(null, true);
@@ -45,10 +44,15 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// 🔌 Socket.io Setup
+// 🔌 Socket.io Setup (FIXED FOR CORS)
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: corsOptions,
+  cors: {
+    origin: allowedOrigins, // 👈 Explicitly list all allowed origins
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ["websocket", "polling"], // 👈 Add both transports
 });
 
 // Middleware to pass 'io' instance to controllers
@@ -57,7 +61,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Real-time Order Tracking logic
 io.on("connection", (socket) => {
   console.log("⚡ New Client Connected:", socket.id);
   socket.on("joinOrder", (orderId) => {
@@ -72,7 +75,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// 🛌 RENDER KEEP-AWAKE
 app.get("/ping", (req, res) => res.status(200).send("I am awake!"));
 
 // 🛤️ API ROUTES
@@ -86,9 +88,8 @@ app.get("/", (req, res) => {
   res.send("🚀 SwadKart API is running successfully...");
 });
 
-// ⚠️ ERROR HANDLING (Must be at the bottom)
 app.use(notFound);
-app.use(errorHandler); // 👈 This will catch next(error) from controllers
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
