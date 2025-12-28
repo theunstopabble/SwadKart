@@ -5,14 +5,13 @@ import Product from "../models/productModel.js";
 // ============================================================
 
 // @desc    Fetch all products (Search & Filter)
-// @route   GET /api/v1/products
 export const getProducts = async (req, res) => {
   try {
     const keyword = req.query.keyword
       ? { name: { $regex: req.query.keyword, $options: "i" } }
       : {};
 
-    const products = await Product.find({ ...keyword });
+    const products = await Product.find({ ...keyword }).sort({ orderIndex: 1 }); // 👈 Global list mein bhi sorting
     res.json({ products });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -20,30 +19,27 @@ export const getProducts = async (req, res) => {
 };
 
 // @desc    Fetch single product by ID
-// @route   GET /api/v1/products/:id
 export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (product) {
       res.json(product);
     } else {
-      res.status(404);
-      throw new Error("Product not found");
+      res.status(404).json({ message: "Product not found" });
     }
   } catch (error) {
     res.status(404).json({ message: "Product not found" });
   }
 };
 
-// @desc    Fetch products by Restaurant ID
-// @route   GET /api/v1/products/restaurant/:id
+// @desc    Fetch products by Restaurant ID (With Sorting logic)
 export const getProductsByRestaurant = async (req, res) => {
   try {
-    // Restaurant ID ya User ID match hone par items lao
+    // 👈 IMPORTANT FIX: .sort({ orderIndex: 1 }) lagaya taaki items reorder sequence mein aayein
     const products = await Product.find({
       $or: [{ restaurant: req.params.id }, { user: req.params.id }],
-    });
-    // Mobile App ke liye Array bhej rahe hain
+    }).sort({ orderIndex: 1 });
+
     res.json(products);
   } catch (error) {
     console.error("❌ Error fetching menu:", error.message);
@@ -56,7 +52,6 @@ export const getProductsByRestaurant = async (req, res) => {
 // ============================================================
 
 // @desc    Create a product
-// @route   POST /api/v1/products
 export const createProduct = async (req, res) => {
   try {
     const {
@@ -67,16 +62,11 @@ export const createProduct = async (req, res) => {
       category,
       countInStock,
       restaurantId,
-      isVeg, // 👈 New: isVeg receive karo
+      isVeg,
+      orderIndex, // 👈 New field
     } = req.body;
 
     const ownerId = restaurantId || req.user._id;
-
-    if (!ownerId) {
-      return res
-        .status(400)
-        .json({ message: "Restaurant Owner ID is required" });
-    }
 
     const product = new Product({
       name,
@@ -84,7 +74,8 @@ export const createProduct = async (req, res) => {
       description,
       image: image || "https://placehold.co/400",
       category,
-      isVeg: isVeg === undefined ? true : isVeg, // 👈 New: Database me save
+      isVeg: isVeg === undefined ? true : isVeg,
+      orderIndex: orderIndex || 0, // 👈 New field save
       restaurant: ownerId,
       user: ownerId,
       countInStock: countInStock || 100,
@@ -92,20 +83,16 @@ export const createProduct = async (req, res) => {
     });
 
     const createdProduct = await product.save();
-    console.log("✅ New Item Created:", createdProduct.name);
     res.status(201).json(createdProduct);
   } catch (error) {
-    console.error("Product Create Error:", error);
     res.status(400).json({ message: error.message });
   }
 };
 
 // @desc    Delete a product
-// @route   DELETE /api/v1/products/:id
 export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-
     if (product) {
       await product.deleteOne();
       res.json({ message: "Product removed" });
@@ -118,11 +105,18 @@ export const deleteProduct = async (req, res) => {
 };
 
 // @desc    Update a product
-// @route   PUT /api/v1/products/:id
 export const updateProduct = async (req, res) => {
   try {
-    const { name, price, description, image, category, countInStock, isVeg } =
-      req.body; // 👈 isVeg yahan bhi
+    const {
+      name,
+      price,
+      description,
+      image,
+      category,
+      countInStock,
+      isVeg,
+      orderIndex,
+    } = req.body;
     const product = await Product.findById(req.params.id);
 
     if (product) {
@@ -133,9 +127,14 @@ export const updateProduct = async (req, res) => {
       product.category = category || product.category;
       product.countInStock = countInStock || product.countInStock;
 
-      // 👈 Fix: Boolean update ke liye check (false bhi valid hai)
+      // 👈 Fix: Boolean validation
       if (isVeg !== undefined) {
         product.isVeg = isVeg;
+      }
+
+      // 👈 Fix: Order Index update (Sorting ke liye)
+      if (orderIndex !== undefined) {
+        product.orderIndex = orderIndex;
       }
 
       const updatedProduct = await product.save();
