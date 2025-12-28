@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Mail, ArrowRight, Loader } from "lucide-react";
-import { BASE_URL } from "../config"; // 👈 IMPORT IMPORTANT
+import {
+  Mail,
+  ArrowRight,
+  Loader,
+  ShieldCheck,
+  AlertCircle,
+} from "lucide-react";
+import { BASE_URL } from "../config";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -16,7 +22,6 @@ const ForgotPassword = () => {
     setError(null);
 
     try {
-      // 👇 FIX: Use BASE_URL instead of localhost
       const response = await fetch(`${BASE_URL}/api/v1/users/password/forgot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -26,57 +31,66 @@ const ForgotPassword = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // ✅ Success: Sirf message dikhao, navigate mat karo
-        setMessage("✅ Password reset link sent! Check your email.");
+        setMessage("✅ Success! Check your inbox for the reset link.");
         setEmail("");
       } else {
-        setError(data.message || "❌ User not found");
+        setError(data.message || "❌ Email not found in our records.");
       }
     } catch (error) {
-      setError("❌ Server error. Please try again.");
+      setError("❌ System error. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-gray-900 rounded-2xl shadow-2xl p-8 border border-gray-800">
-        <h2 className="text-3xl font-bold text-center mb-6 text-primary">
-          Forgot Password? 🔒
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+      {/* Premium Card Layout */}
+      <div className="max-w-md w-full bg-gray-900 border border-gray-800 rounded-[2.5rem] p-10 shadow-[0_20px_50px_rgba(255,71,87,0.1)] animate-in fade-in zoom-in-95 duration-500">
+        {/* Header Icon */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-primary/10 p-4 rounded-3xl border border-primary/20">
+            <ShieldCheck size={40} className="text-primary" />
+          </div>
+        </div>
+
+        <h2 className="text-3xl font-black text-center mb-4 uppercase tracking-tighter italic">
+          Reset <span className="text-primary">Password</span>
         </h2>
-        <p className="text-gray-400 text-center mb-6">
-          Enter your registered email address. We will send you a
-          <span className="text-white font-bold"> Reset Link</span>.
+
+        <p className="text-gray-500 text-center mb-8 font-medium text-sm leading-relaxed">
+          Forgot your security key? Enter your email and we'll send a
+          <span className="text-white"> Magic Link</span> to recover it.
         </p>
 
-        {/* Messages */}
+        {/* Status Messages */}
         {error && (
-          <div className="bg-red-500/20 text-red-400 p-3 rounded-lg mb-4 text-center text-sm font-bold">
-            {error}
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl mb-6 flex items-center gap-3 text-xs font-black uppercase tracking-widest">
+            <AlertCircle size={18} /> {error}
           </div>
         )}
+
         {message && (
-          <div className="bg-green-500/20 text-green-400 p-3 rounded-lg mb-4 text-center text-sm font-bold">
-            {message}
+          <div className="bg-green-500/10 border border-green-500/20 text-green-400 p-4 rounded-2xl mb-6 flex items-center gap-3 text-xs font-black uppercase tracking-widest">
+            <ShieldCheck size={18} /> {message}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-gray-400 mb-2 ml-1 text-sm font-bold">
-              Email Address
+            <label className="block text-gray-500 text-[10px] font-black uppercase tracking-[0.3em] mb-3 ml-1">
+              Registered Email
             </label>
-            <div className="relative">
+            <div className="relative group">
               <Mail
-                className="absolute left-4 top-3.5 text-gray-500"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-primary transition-colors"
                 size={20}
               />
               <input
                 type="email"
                 required
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-primary"
-                placeholder="Enter your email"
+                className="w-full bg-black border border-gray-800 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-bold placeholder:text-gray-700 placeholder:font-normal"
+                placeholder="Enter your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -86,24 +100,24 @@ const ForgotPassword = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-all flex justify-center items-center gap-2 disabled:opacity-50"
+            className="w-full bg-white hover:bg-primary text-black hover:text-white font-black py-4 rounded-2xl transition-all duration-300 flex justify-center items-center gap-3 shadow-xl uppercase tracking-widest text-xs disabled:opacity-50 active:scale-95"
           >
             {loading ? (
-              <Loader className="animate-spin" />
+              <Loader className="animate-spin" size={20} />
             ) : (
               <>
-                Send Link <ArrowRight size={18} />
+                Recover Account <ArrowRight size={18} />
               </>
             )}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center">
           <Link
             to="/login"
-            className="text-gray-400 hover:text-white text-sm font-bold"
+            className="text-gray-600 hover:text-primary text-[10px] font-black uppercase tracking-widest transition-colors"
           >
-            ← Back to Login
+            ← Back to safe zone
           </Link>
         </div>
       </div>
