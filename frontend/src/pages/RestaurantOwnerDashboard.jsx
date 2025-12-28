@@ -12,9 +12,8 @@ import {
   MapPin,
   ShoppingBag,
   CheckCircle,
-  Truck, // Truck icon import kiya
+  Truck,
 } from "lucide-react";
-// 👇 Path Update: Sirf '../config' kyunki file 'src/pages' me hai
 import { BASE_URL } from "../config";
 
 const RestaurantOwnerDashboard = () => {
@@ -22,7 +21,7 @@ const RestaurantOwnerDashboard = () => {
 
   // States
   const [orders, setOrders] = useState([]);
-  const [deliveryPartners, setDeliveryPartners] = useState([]); // 👈 NEW: Partners List
+  const [deliveryPartners, setDeliveryPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ revenue: 0, pending: 0, delivered: 0 });
 
@@ -37,6 +36,7 @@ const RestaurantOwnerDashboard = () => {
     description: "",
     category: "",
     image: "",
+    isVeg: "true", // 🟢 Default Veg (String for Dropdown)
   });
 
   // ================= FETCH DATA =================
@@ -48,7 +48,7 @@ const RestaurantOwnerDashboard = () => {
       const resOrders = await fetch(`${BASE_URL}/api/v1/orders`, { headers });
       const dataOrders = await resOrders.json();
 
-      // 2. Fetch Delivery Partners (For Dropdown)
+      // 2. Fetch Delivery Partners
       const resPartners = await fetch(
         `${BASE_URL}/api/v1/users/delivery-partners`,
         { headers }
@@ -57,7 +57,7 @@ const RestaurantOwnerDashboard = () => {
 
       if (resOrders.ok) {
         setOrders(dataOrders);
-        setDeliveryPartners(dataPartners || []); // Save partners
+        setDeliveryPartners(dataPartners || []);
 
         // Calculate Stats
         const totalRevenue = dataOrders.reduce(
@@ -103,7 +103,7 @@ const RestaurantOwnerDashboard = () => {
 
       if (res.ok) {
         alert("Delivery Partner Assigned! 🚚");
-        fetchData(); // Refresh list
+        fetchData();
       } else {
         alert("Failed to assign partner");
       }
@@ -116,24 +116,32 @@ const RestaurantOwnerDashboard = () => {
   const handleAddItem = async (e) => {
     e.preventDefault();
     try {
+      // 🟢 Convert String to Boolean
+      const productData = {
+        ...newItem,
+        isVeg: newItem.isVeg === "true",
+      };
+
       const res = await fetch(`${BASE_URL}/api/v1/products`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userInfo.token}`,
         },
-        body: JSON.stringify(newItem),
+        body: JSON.stringify(productData),
       });
 
       if (res.ok) {
         alert("Item Added Successfully! 🍔");
         setShowModal(false);
+        // Reset Form
         setNewItem({
           name: "",
           price: "",
           description: "",
           category: "",
           image: "",
+          isVeg: "true",
         });
       } else {
         alert("Error adding item");
@@ -214,7 +222,7 @@ const RestaurantOwnerDashboard = () => {
           </div>
         </div>
 
-        {/* Live Orders List (ENHANCED) */}
+        {/* Live Orders List */}
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 border-b border-gray-800 pb-4">
           <CookingPot className="text-primary" /> Live Orders
         </h2>
@@ -265,7 +273,7 @@ const RestaurantOwnerDashboard = () => {
                   </div>
                 </div>
 
-                {/* 👇 ENHANCEMENT: Order Items List (Chef needs this!) */}
+                {/* Order Items */}
                 <div className="mb-6 bg-black/40 p-4 rounded-xl">
                   <h4 className="text-gray-400 text-xs font-bold uppercase mb-2 flex items-center gap-1">
                     <ShoppingBag size={12} /> Order Items
@@ -287,7 +295,7 @@ const RestaurantOwnerDashboard = () => {
                   </ul>
                 </div>
 
-                {/* 👇 ASSIGNMENT SECTION */}
+                {/* Assignment Section */}
                 <div className="bg-gray-800/30 p-4 rounded-xl border border-gray-700/50">
                   <h4 className="text-gray-400 text-xs font-bold uppercase mb-2">
                     Delivery Assignment
@@ -364,24 +372,37 @@ const RestaurantOwnerDashboard = () => {
                 <input
                   type="number"
                   placeholder="Price"
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white"
+                  className="w-1/2 bg-gray-800 border-gray-700 rounded-lg p-3 text-white"
                   value={newItem.price}
                   onChange={(e) =>
                     setNewItem({ ...newItem, price: e.target.value })
                   }
                   required
                 />
-                <input
-                  type="text"
-                  placeholder="Category"
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white"
-                  value={newItem.category}
+                {/* 🟢 Veg/Non-Veg Dropdown */}
+                <select
+                  className="w-1/2 bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
+                  value={newItem.isVeg}
                   onChange={(e) =>
-                    setNewItem({ ...newItem, category: e.target.value })
+                    setNewItem({ ...newItem, isVeg: e.target.value })
                   }
-                  required
-                />
+                >
+                  <option value="true">🟢 Veg</option>
+                  <option value="false">🔴 Non-Veg</option>
+                </select>
               </div>
+
+              <input
+                type="text"
+                placeholder="Category (e.g., Starter, Main Course)"
+                className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white"
+                value={newItem.category}
+                onChange={(e) =>
+                  setNewItem({ ...newItem, category: e.target.value })
+                }
+                required
+              />
+
               <input
                 type="text"
                 placeholder="Image URL"

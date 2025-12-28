@@ -13,8 +13,6 @@ export const getProducts = async (req, res) => {
       : {};
 
     const products = await Product.find({ ...keyword });
-
-    // Web frontend ke liye hum object bhejte hain, ye sahi hai
     res.json({ products });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -37,22 +35,15 @@ export const getProductById = async (req, res) => {
   }
 };
 
-// 👇👇 IMPORTANT FIX FOR MOBILE APP 👇👇
 // @desc    Fetch products by Restaurant ID
 // @route   GET /api/v1/products/restaurant/:id
 export const getProductsByRestaurant = async (req, res) => {
   try {
-    console.log("📥 Fetching Menu for Restaurant ID:", req.params.id);
-
     // Restaurant ID ya User ID match hone par items lao
     const products = await Product.find({
       $or: [{ restaurant: req.params.id }, { user: req.params.id }],
     });
-
-    console.log(`✅ Found ${products.length} items for this shop.`);
-
-    // 🚨 FINAL FIX: Mobile App FlatList ko ARRAY chahiye, Object nahi.
-    // Isliye curly braces {} hata diye hain.
+    // Mobile App ke liye Array bhej rahe hain
     res.json(products);
   } catch (error) {
     console.error("❌ Error fetching menu:", error.message);
@@ -76,10 +67,9 @@ export const createProduct = async (req, res) => {
       category,
       countInStock,
       restaurantId,
+      isVeg, // 👈 New: isVeg receive karo
     } = req.body;
 
-    // Agar Admin bana raha hai to restaurantId lega,
-    // Agar Owner bana raha hai to khud ki ID use karega.
     const ownerId = restaurantId || req.user._id;
 
     if (!ownerId) {
@@ -94,6 +84,7 @@ export const createProduct = async (req, res) => {
       description,
       image: image || "https://placehold.co/400",
       category,
+      isVeg: isVeg === undefined ? true : isVeg, // 👈 New: Database me save
       restaurant: ownerId,
       user: ownerId,
       countInStock: countInStock || 100,
@@ -130,8 +121,8 @@ export const deleteProduct = async (req, res) => {
 // @route   PUT /api/v1/products/:id
 export const updateProduct = async (req, res) => {
   try {
-    const { name, price, description, image, category, countInStock } =
-      req.body;
+    const { name, price, description, image, category, countInStock, isVeg } =
+      req.body; // 👈 isVeg yahan bhi
     const product = await Product.findById(req.params.id);
 
     if (product) {
@@ -141,6 +132,11 @@ export const updateProduct = async (req, res) => {
       product.image = image || product.image;
       product.category = category || product.category;
       product.countInStock = countInStock || product.countInStock;
+
+      // 👈 Fix: Boolean update ke liye check (false bhi valid hai)
+      if (isVeg !== undefined) {
+        product.isVeg = isVeg;
+      }
 
       const updatedProduct = await product.save();
       res.json(updatedProduct);

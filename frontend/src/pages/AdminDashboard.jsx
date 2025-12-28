@@ -50,7 +50,9 @@ const AdminDashboard = () => {
     description: "",
     category: "",
     image: "",
+    isVeg: "true", // 🟢 Default Veg (String for Dropdown)
   });
+
   const [newShop, setNewShop] = useState({
     name: "",
     email: "",
@@ -178,17 +180,33 @@ const AdminDashboard = () => {
     e.preventDefault();
     if (!selectedRestaurant) return alert("Select a restaurant");
     try {
+      // 🟢 Fix: Convert "true"/"false" string to boolean
+      const productData = {
+        ...newItem,
+        isVeg: newItem.isVeg === "true",
+        restaurantId: selectedRestaurant,
+      };
+
       const res = await fetch(`${BASE_URL}/api/v1/products`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userInfo.token}`,
         },
-        body: JSON.stringify({ ...newItem, restaurantId: selectedRestaurant }),
+        body: JSON.stringify(productData),
       });
       if (res.ok) {
         setShowItemModal(false);
         alert("Item Added");
+        // Reset form
+        setNewItem({
+          name: "",
+          price: "",
+          description: "",
+          category: "",
+          image: "",
+          isVeg: "true",
+        });
       }
     } catch (err) {
       console.error(err);
@@ -346,6 +364,7 @@ const AdminDashboard = () => {
                         </div>
                       </td>
                       <td className="p-4 font-bold text-white">
+                        {/* 🟢 Fix: Display Full Name */}
                         {o.shippingAddress?.fullName || o.user?.name}
                       </td>
                       <td className="p-4 font-bold text-white">
@@ -584,24 +603,37 @@ const AdminDashboard = () => {
                   <input
                     type="number"
                     placeholder="Price"
-                    className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
+                    className="w-1/2 bg-gray-800 border-gray-700 p-3 rounded text-white"
                     value={newItem.price}
                     onChange={(e) =>
                       setNewItem({ ...newItem, price: e.target.value })
                     }
                     required
                   />
-                  <input
-                    type="text"
-                    placeholder="Category"
-                    className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
-                    value={newItem.category}
+                  {/* 🟢 NEW: Veg/Non-Veg Dropdown */}
+                  <select
+                    className="w-1/2 bg-gray-800 border-gray-700 p-3 rounded text-white focus:outline-none"
+                    value={newItem.isVeg}
                     onChange={(e) =>
-                      setNewItem({ ...newItem, category: e.target.value })
+                      setNewItem({ ...newItem, isVeg: e.target.value })
                     }
-                    required
-                  />
+                  >
+                    <option value="true">🟢 Veg</option>
+                    <option value="false">🔴 Non-Veg</option>
+                  </select>
                 </div>
+
+                <input
+                  type="text"
+                  placeholder="Category (e.g., Pizza, Burger)"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
+                  value={newItem.category}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, category: e.target.value })
+                  }
+                  required
+                />
+
                 <input
                   type="text"
                   placeholder="Image URL"
@@ -755,7 +787,7 @@ const AdminDashboard = () => {
                     <User size={14} /> Customer Details
                   </h3>
                   <p className="font-bold text-white">
-                    {/* Display Shipping Name or Fallback to User Name */}
+                    {/* 🟢 Fix: Display Shipping Name or Fallback to User Name */}
                     {selectedOrder.shippingAddress?.fullName ||
                       selectedOrder.user?.name}
                   </p>
@@ -763,7 +795,7 @@ const AdminDashboard = () => {
                     {selectedOrder.user?.email}
                   </p>
                   <p className="text-primary text-sm mt-1 font-mono">
-                    {/* Display Shipping Phone or Fallback to User Phone */}
+                    {/* 🟢 Fix: Display Shipping Phone or Fallback to User Phone */}
                     📞{" "}
                     {selectedOrder.shippingAddress?.phone ||
                       selectedOrder.user?.phone ||
@@ -778,7 +810,7 @@ const AdminDashboard = () => {
                     {selectedOrder.shippingAddress?.address},{" "}
                     {selectedOrder.shippingAddress?.city}
                     <br />
-                    {/* Display State and Postal Code */}
+                    {/* 🟢 Fix: Display State and Postal Code */}
                     {selectedOrder.shippingAddress?.state
                       ? `${selectedOrder.shippingAddress.state}, `
                       : ""}
