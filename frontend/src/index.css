@@ -2,8 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Body Style */
+/* =========================================
+   🌍 GLOBAL STYLES (Base Setup)
+   ========================================= */
 body {
-  background-color: #0f0f0f; /* Dark Theme Base */
+  background-color: #030712; /* Dark Theme (Gray-950) consistent with App */
   color: white;
+  margin: 0;
+  padding: 0;
+  font-family: 'Verdana', sans-serif;
+  
+  /* 📱 NOTCH & SAFE AREA SUPPORT (iPhone/Android) */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+
+  /* 🚫 Mobile Click Highlight Hatao */
+  -webkit-tap-highlight-color: transparent;
+  
+  /* 🚫 Text Selection Band (App feel) */
+  user-select: none; 
+}
+
+/* Input boxes me text select karne do */
+input, textarea {
+  user-select: text;
+}
+
+/* =========================================
+   👻 HIDE SCROLLBAR (App-Like Feel)
+   ========================================= */
+/* Chrome, Safari, Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+/* Firefox, IE, Edge */
+body {
+  -ms-overflow-style: none;  
+  scrollbar-width: none;  
+}
+
+/* =========================================
+   📱 MOBILE RESPONSIVE FIXES (The Real Magic)
+   Ye code design ko overlap hone se bachayega
+   ========================================= */
+@media only screen and (max-width: 768px) {
+
+  /* 1. Container Full Width (Side se katega nahi) */
+  .container, .main-content {
+    width: 100% !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    overflow-x: hidden; /* Horizontal scroll rokne ke liye */
+  }
+
+  /* 2. Flexbox Overlap Fix: Row ko Column banao */
+  /* Jahan bhi items bagal-bagal hain, unhe upar-niche karo */
+  .flex-row, .row, .product-list, .dashboard-grid {
+    display: flex;
+    flex-direction: column !important;
+    flex-wrap: wrap;
+  }
+
+  /* 3. Cards & Boxes Full Width */
+  .card, .product-card, .info-box, .stat-card {
+    width: 100% !important;
+    margin-bottom: 16px;
+    height: auto !important; /* Content ke hisab se height badhne do */
+  }
+
+  /* 4. Text Size Control (Zyada bada text na ho) */
+  h1 { font-size: 24px !important; line-height: 1.2 !important; }
+  h2 { font-size: 20px !important; }
+  p { font-size: 14px !important; }
+
+  /* 5. Images Responsive */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  /* 6. Buttons Mobile Friendly */
+  button {
+    min-height: 44px; /* Ungli se dabane ke liye sahi size */
+  }
 }

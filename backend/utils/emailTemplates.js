@@ -290,7 +290,7 @@ export const getRestaurantOrderAlertTemplate = (order, restaurantName) => {
   return wrapEmail(content);
 };
 
-// 🛵 8. DELIVERY PARTNER REQUEST (With Accept/Reject & Full Details)
+// 🛵 8. DELIVERY PARTNER REQUEST (Links to Dashboard for Safe Acceptance)
 export const getDeliveryRequestTemplate = (order, partner) => {
   const itemsHtml = order.orderItems
     .map((item) => `<li>${item.name} x ${item.qty}</li>`)
@@ -330,14 +330,9 @@ export const getDeliveryRequestTemplate = (order, partner) => {
     <p style="text-align:center; font-weight:bold; margin-top:20px;">Do you want to accept this delivery?</p>
 
     <div style="text-align: center; margin-top: 10px;">
-      <a href="${FRONTEND_URL}/delivery/action/${order._id}/accept" 
-         style="display:inline-block; background-color: #16a34a; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; margin-right: 10px; font-weight: bold;">
-         ✅ Accept Order
-      </a>
-
-      <a href="${FRONTEND_URL}/delivery/action/${order._id}/reject" 
-         style="display:inline-block; background-color: #dc2626; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-         ❌ Reject
+      <a href="${FRONTEND_URL}/delivery/dashboard" 
+         style="display:inline-block; background-color: #16a34a; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+         🚀 Open App to Accept
       </a>
     </div>
   `;

@@ -1,6 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { Toaster } from "react-hot-toast"; // 👈 IMPORT 1 (Zaruri hai)
-
+import { Toaster } from "react-hot-toast"; // Old Library (Agar kahi use ho rahi hai to rehne dein)
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -20,11 +19,18 @@ import RestaurantOwnerDashboard from "./pages/RestaurantOwnerDashboard";
 import DeliveryPartnerDashboard from "./pages/DeliveryPartnerDashboard";
 import Footer from "./components/Footer";
 
+// 👇 NEW: React Toastify Imports
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer } from "react-toastify";
+
 function App() {
   return (
     <>
-      {/* 👇 FIX: Ye line add karein, tabhi Alerts dikhenge */}
+      {/* 1. Purana Alert System (react-hot-toast) */}
       <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
+
+      {/* 2. 👇 Naya Alert System (Iske bina Delivery Dashboard ke alerts nahi chalenge) */}
+      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
 
       <Navbar />
 
@@ -55,7 +61,7 @@ function App() {
           element={<DeliveryPartnerDashboard />}
         />
 
-        {/* Old path support */}
+        {/* Support for Email Link Route */}
         <Route
           path="/delivery/dashboard"
           element={<DeliveryPartnerDashboard />}
