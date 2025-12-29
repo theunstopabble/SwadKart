@@ -118,7 +118,7 @@ const wrapEmail = (content) => {
 
       <div class="footer">
         <p>&copy; ${new Date().getFullYear()} SwadKart. Taste Delivered.</p>
-        <p>Need help? <a href="mailto:swadkartt@gmail.com">Contact Support</a></p>
+        <p>Need help? <a href="mailto:support@swadkart.com">Contact Support</a></p>
       </div>
     </div>
   </body>
@@ -290,20 +290,55 @@ export const getRestaurantOrderAlertTemplate = (order, restaurantName) => {
   return wrapEmail(content);
 };
 
-// 🛵 8. DELIVERY PARTNER ASSIGNED (Link to Delivery Dashboard)
-export const getDeliveryAssignedTemplate = (order, partner) => {
+// 🛵 8. DELIVERY PARTNER REQUEST (With Accept/Reject & Full Details)
+export const getDeliveryRequestTemplate = (order, partner) => {
+  const itemsHtml = order.orderItems
+    .map((item) => `<li>${item.name} x ${item.qty}</li>`)
+    .join("");
+
   const content = `
-    <img src="https://cdn-icons-png.flaticon.com/512/754/754665.png" alt="Delivery" width="80" style="display:block; margin: 0 auto 20px auto;">
-    <h2 style="color: ${BRAND_RED}; text-align: center; margin-top: 0;">New Task Assigned 🛵</h2>
-    <p style="text-align: center;">You have a new delivery request.</p>
+    <h2 style="color: ${BRAND_RED}; text-align: center;">🛵 New Delivery Request</h2>
+    <p style="text-align: center;">Hi <strong>${
+      partner.name
+    }</strong>, a new order has been assigned to you.</p>
     
     <div class="info-box">
-        <p><strong>Pickup From:</strong> Restaurant Location</p>
-        <p><strong>Deliver To:</strong> ${order.shippingAddress.address}</p>
+      <h3 style="margin:0; border-bottom:1px solid #ddd; padding-bottom:5px;">📦 Order Details</h3>
+      <p><strong>Order ID:</strong> #${order._id
+        .toString()
+        .slice(-6)
+        .toUpperCase()}</p>
+      <p><strong>Payment:</strong> ${order.paymentMethod} (Total: ₹${
+    order.totalPrice
+  })</p>
+      <ul>${itemsHtml}</ul>
     </div>
 
-    <div style="text-align: center;">
-      <a href="${FRONTEND_URL}/delivery/dashboard" class="button">Open Delivery App</a>
+    <div class="address-box" style="border-left: 4px solid #000;">
+      <h3 style="margin:0; font-size:16px;">📍 Drop Location</h3>
+      <p><strong>Customer:</strong> ${order.user.name}</p>
+      <p><strong>Address:</strong> ${order.shippingAddress.address}, ${
+    order.shippingAddress.city
+  }</p>
+      <p><strong>Phone:</strong> <a href="tel:${
+        order.shippingAddress.phone
+      }" style="font-weight:bold; color:${BRAND_RED}; text-decoration:none;">${
+    order.shippingAddress.phone
+  }</a></p>
+    </div>
+
+    <p style="text-align:center; font-weight:bold; margin-top:20px;">Do you want to accept this delivery?</p>
+
+    <div style="text-align: center; margin-top: 10px;">
+      <a href="${FRONTEND_URL}/delivery/action/${order._id}/accept" 
+         style="display:inline-block; background-color: #16a34a; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; margin-right: 10px; font-weight: bold;">
+         ✅ Accept Order
+      </a>
+
+      <a href="${FRONTEND_URL}/delivery/action/${order._id}/reject" 
+         style="display:inline-block; background-color: #dc2626; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+         ❌ Reject
+      </a>
     </div>
   `;
   return wrapEmail(content);
@@ -324,7 +359,28 @@ export const getUserDriverAssignedTemplate = (order, partner) => {
     </div>
 
     <div style="text-align: center;">
-      <a href="${FRONTEND_URL}/myorders/${order._id}" class="button">Track Live</a>
+      <a href="${FRONTEND_URL}/myorders" class="button">Track Live</a>
+    </div>
+  `;
+  return wrapEmail(content);
+};
+
+// 🚫 10. ORDER CANCELLED (Notification)
+export const getOrderCancelledTemplate = (order, reason) => {
+  const content = `
+    <h2 style="color: #dc2626; text-align: center;">Order Cancelled 🚫</h2>
+    <p style="text-align: center;">Order <strong>#${order._id
+      .toString()
+      .slice(-6)
+      .toUpperCase()}</strong> has been cancelled.</p>
+    
+    <div class="info-box" style="background: #fff1f2; border-color: #fecdd3;">
+      <p><strong>Reason:</strong> ${reason || "Changed my mind"}</p>
+      <p><strong>Refund Status:</strong> If paid online, the refund will be processed to your original payment method within 5-7 business days.</p>
+    </div>
+    
+    <div style="text-align: center;">
+      <a href="${FRONTEND_URL}/" class="button">Browse Other Food</a>
     </div>
   `;
   return wrapEmail(content);
