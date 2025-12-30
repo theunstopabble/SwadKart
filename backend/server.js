@@ -14,7 +14,8 @@ import userRoutes from "./routes/userRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
-import couponRoutes from "./routes/couponRoutes.js"; // 👈 1. NEW IMPORT
+import couponRoutes from "./routes/couponRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js"; // 👈 1. NEW IMPORT
 
 dotenv.config();
 connectDB();
@@ -83,7 +84,8 @@ app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/food", productRoutes);
 app.use("/api/v1/products", productRoutes);
-app.use("/api/v1/coupons", couponRoutes); // 👈 2. NEW ROUTE REGISTERED
+app.use("/api/v1/coupons", couponRoutes); 
+app.use("/api/v1/chat", chatRoutes);// 👈 2. NEW ROUTE REGISTERED
 
 app.get("/", (req, res) => {
   res.send("🚀 SwadKart API is running successfully...");

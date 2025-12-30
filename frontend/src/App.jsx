@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { Toaster } from "react-hot-toast"; // Old Library (Agar kahi use ho rahi hai to rehne dein)
+import { Toaster } from "react-hot-toast";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -18,18 +18,19 @@ import RestaurantMenu from "./pages/RestaurantMenu";
 import RestaurantOwnerDashboard from "./pages/RestaurantOwnerDashboard";
 import DeliveryPartnerDashboard from "./pages/DeliveryPartnerDashboard";
 import Footer from "./components/Footer";
+import ChatBot from "./components/ChatBot"; // 👈 1. NEW IMPORT (AI GENIE)
 
-// 👇 NEW: React Toastify Imports
+// 👇 React Toastify Imports
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 
 function App() {
   return (
     <>
-      {/* 1. Purana Alert System (react-hot-toast) */}
+      {/* 1. Purana Alert System */}
       <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
 
-      {/* 2. 👇 Naya Alert System (Iske bina Delivery Dashboard ke alerts nahi chalenge) */}
+      {/* 2. Naya Alert System */}
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
 
       <Navbar />
@@ -69,6 +70,9 @@ function App() {
       </Routes>
 
       <Footer />
+
+      {/* 🧞‍♂️ 3. AI CHATBOT ADDED HERE (Global Floating Button) */}
+      <ChatBot />
     </>
   );
 }
