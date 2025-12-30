@@ -25,7 +25,11 @@ import {
   ArrowDown,
   Phone,
   Tag,
-  RefreshCw, // Icon for Update
+  RefreshCw,
+  XCircle,
+  ToggleLeft,
+  ToggleRight,
+  Layers, // 👈 Imported for Variants
 } from "lucide-react";
 import { BASE_URL } from "../config";
 
@@ -41,7 +45,7 @@ const AdminDashboard = () => {
   const [showDummyModal, setShowDummyModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // --- EDIT/DATA STATES ---
+  // --- DATA STATES ---
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editItemId, setEditItemId] = useState(null);
   const [stats, setStats] = useState({ revenue: 0, orders: 0, users: 0 });
@@ -68,6 +72,9 @@ const AdminDashboard = () => {
     image: "",
     isVeg: "true",
     orderIndex: 0,
+    // 👇 NEW: Arrays for customization
+    variants: [],
+    addons: [],
   });
 
   const [newShop, setNewShop] = useState({
@@ -93,7 +100,6 @@ const AdminDashboard = () => {
     const headers = { Authorization: `Bearer ${userInfo.token}` };
 
     try {
-      // A. Fetch Restaurants
       const resRest = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
         headers,
       });
@@ -103,7 +109,6 @@ const AdminDashboard = () => {
         setStats((prev) => ({ ...prev, users: dataRest.length }));
       }
 
-      // B. Fetch Orders
       const resOrders = await fetch(`${BASE_URL}/api/v1/orders/admin/all`, {
         headers,
       });
@@ -121,7 +126,6 @@ const AdminDashboard = () => {
         }));
       }
 
-      // C. Fetch Delivery Partners
       const resPartners = await fetch(
         `${BASE_URL}/api/v1/users/delivery-partners`,
         { headers }
@@ -131,7 +135,6 @@ const AdminDashboard = () => {
         setDeliveryPartners(dataPartners);
       }
 
-      // D. Fetch Coupons
       try {
         const resCoupons = await axios.get(`${BASE_URL}/api/v1/coupons`, {
           headers,
@@ -145,7 +148,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- 2. AUTH CHECK & INITIAL LOAD ---
   useEffect(() => {
     if (userInfo && (userInfo.isAdmin || userInfo.role === "admin")) {
       fetchAllData();
@@ -154,7 +156,6 @@ const AdminDashboard = () => {
     }
   }, [userInfo, activeTab, navigate]);
 
-  // --- 3. FETCH MENU WHEN RESTAURANT SELECTED ---
   useEffect(() => {
     if (selectedRestaurant) {
       const fetchMenu = async () => {
@@ -174,9 +175,50 @@ const AdminDashboard = () => {
     }
   }, [selectedRestaurant]);
 
-  // --- HANDLERS ---
+  // ==========================
+  // ⚡ VARIANT & ADDON HANDLERS
+  // ==========================
 
-  // 🎟️ Create or Update Coupon Handler
+  const handleAddVariant = () => {
+    setNewItem({
+      ...newItem,
+      variants: [...newItem.variants, { name: "", price: "" }],
+    });
+  };
+
+  const handleRemoveVariant = (index) => {
+    const updated = newItem.variants.filter((_, i) => i !== index);
+    setNewItem({ ...newItem, variants: updated });
+  };
+
+  const handleVariantChange = (index, field, value) => {
+    const updated = [...newItem.variants];
+    updated[index][field] = value;
+    setNewItem({ ...newItem, variants: updated });
+  };
+
+  const handleAddAddon = () => {
+    setNewItem({
+      ...newItem,
+      addons: [...newItem.addons, { name: "", price: "" }],
+    });
+  };
+
+  const handleRemoveAddon = (index) => {
+    const updated = newItem.addons.filter((_, i) => i !== index);
+    setNewItem({ ...newItem, addons: updated });
+  };
+
+  const handleAddonChange = (index, field, value) => {
+    const updated = [...newItem.addons];
+    updated[index][field] = value;
+    setNewItem({ ...newItem, addons: updated });
+  };
+
+  // ==========================
+  // 🎟️ COUPON HANDLERS
+  // ==========================
+
   const handleCouponSubmit = async (e) => {
     e.preventDefault();
     const config = {
@@ -188,7 +230,6 @@ const AdminDashboard = () => {
 
     try {
       if (isEditingCoupon) {
-        // 👉 UPDATE Existing Coupon
         await axios.put(
           `${BASE_URL}/api/v1/coupons/${editCouponId}`,
           newCoupon,
@@ -196,12 +237,10 @@ const AdminDashboard = () => {
         );
         toast.success("Coupon Updated Successfully!");
       } else {
-        // 👉 CREATE New Coupon
         await axios.post(`${BASE_URL}/api/v1/coupons`, newCoupon, config);
         toast.success("Coupon Created Successfully!");
       }
 
-      // Reset Form
       setNewCoupon({
         code: "",
         discountPercentage: "",
@@ -211,17 +250,15 @@ const AdminDashboard = () => {
       });
       setIsEditingCoupon(false);
       setEditCouponId(null);
-      fetchAllData(); // Refresh List
+      fetchAllData();
     } catch (error) {
       toast.error(error.response?.data?.message || "Operation Failed");
     }
   };
 
-  // ✏️ Edit Coupon Click (Populate Form)
   const handleEditCouponClick = (coupon) => {
     setIsEditingCoupon(true);
     setEditCouponId(coupon._id);
-    // Format Date for Input
     const formattedDate = new Date(coupon.expirationDate)
       .toISOString()
       .split("T")[0];
@@ -232,9 +269,9 @@ const AdminDashboard = () => {
       maxDiscountAmount: coupon.maxDiscountAmount,
       expirationDate: formattedDate,
     });
+    window.scrollTo(0, 0);
   };
 
-  // 🗑️ Delete Coupon
   const handleDeleteCoupon = async (id) => {
     if (!window.confirm("Are you sure you want to delete this coupon?")) return;
     try {
@@ -247,7 +284,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // 🔙 Cancel Edit Mode
   const cancelCouponEdit = () => {
     setIsEditingCoupon(false);
     setEditCouponId(null);
@@ -260,7 +296,25 @@ const AdminDashboard = () => {
     });
   };
 
-  // ... (Other handlers unchanged)
+  const toggleCouponStatus = async (coupon) => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+      await axios.put(
+        `${BASE_URL}/api/v1/coupons/${coupon._id}`,
+        { isActive: !coupon.isActive },
+        config
+      );
+      toast.success(`Coupon ${!coupon.isActive ? "Activated" : "Deactivated"}`);
+      fetchAllData();
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  // ==========================
+  // 🛍️ OTHER HANDLERS
+  // ==========================
+
   const handleShopReorder = async (index, direction) => {
     const newShops = [...restaurants];
     const targetIndex = index + direction;
@@ -451,9 +505,16 @@ const AdminDashboard = () => {
   const openEditItemModal = (item) => {
     setIsEditingItem(true);
     setEditItemId(item._id);
-    setNewItem({ ...item, isVeg: item.isVeg ? "true" : "false" });
+    setNewItem({
+      ...item,
+      isVeg: item.isVeg ? "true" : "false",
+      // 👇 Load existing variants/addons
+      variants: item.variants || [],
+      addons: item.addons || [],
+    });
     setShowItemModal(true);
   };
+
   const openAddItemModal = () => {
     setIsEditingItem(false);
     setNewItem({
@@ -464,6 +525,8 @@ const AdminDashboard = () => {
       image: "",
       isVeg: "true",
       orderIndex: menuItems.length,
+      variants: [],
+      addons: [],
     });
     setShowItemModal(true);
   };
@@ -557,7 +620,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* 🎟️ COUPONS TAB CONTENT */}
+        {/* 🎟️ COUPONS TAB */}
         {activeTab === "coupons" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
             {/* Create/Edit Form */}
@@ -704,7 +767,24 @@ const AdminDashboard = () => {
                         {new Date(coupon.expirationDate).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      {/* TOGGLE ACTIVE STATUS */}
+                      <button
+                        onClick={() => toggleCouponStatus(coupon)}
+                        className={`transition-colors duration-200 ${
+                          coupon.isActive
+                            ? "text-green-500 hover:text-green-400"
+                            : "text-gray-500 hover:text-gray-400"
+                        }`}
+                        title={coupon.isActive ? "Deactivate" : "Activate"}
+                      >
+                        {coupon.isActive ? (
+                          <ToggleRight size={32} />
+                        ) : (
+                          <ToggleLeft size={32} />
+                        )}
+                      </button>
+
                       {/* EDIT BUTTON */}
                       <button
                         onClick={() => handleEditCouponClick(coupon)}
@@ -713,6 +793,7 @@ const AdminDashboard = () => {
                       >
                         <Edit2 size={18} />
                       </button>
+
                       {/* DELETE BUTTON */}
                       <button
                         onClick={() => handleDeleteCoupon(coupon._id)}
@@ -729,7 +810,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* ... (Orders, Shops, Menu Tabs & Modals - Unchanged) ... */}
+        {/* ORDERS TABLE */}
         {activeTab === "orders" && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden animate-fade-in">
             <div className="overflow-x-auto">
@@ -813,6 +894,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* SHOPS TAB */}
         {activeTab === "shops" && (
           <div className="animate-fade-in">
             <div className="flex justify-between items-center mb-6">
@@ -900,6 +982,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* MENU TAB */}
         {activeTab === "menu" && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 animate-fade-in">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -1061,9 +1144,24 @@ const AdminDashboard = () => {
                           <p className="text-xs font-bold text-white leading-none">
                             {item.name}
                           </p>
-                          <p className="text-[10px] text-gray-500 mt-1">
-                            {item.qty} x ₹{item.price}
-                          </p>
+                          {/* 👇👇 NEW: SHOW KITCHEN INSTRUCTIONS 👇👇 */}
+                          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+                            {item.selectedVariant && (
+                              <span className="block text-blue-300">
+                                • Size: {item.selectedVariant.name}
+                              </span>
+                            )}
+                            {item.selectedAddons &&
+                              item.selectedAddons.length > 0 && (
+                                <span className="block text-green-300">
+                                  • Extras:{" "}
+                                  {item.selectedAddons
+                                    .map((a) => a.name)
+                                    .join(", ")}
+                                </span>
+                              )}
+                          </div>
+                          {/* 👆👆 END NEW CODE 👆👆 */}
                         </div>
                       </div>
                       <p className="text-xs font-bold text-white italic">
@@ -1079,7 +1177,7 @@ const AdminDashboard = () => {
 
         {showItemModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
-            <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative">
+            <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
               <button
                 onClick={() => setShowItemModal(false)}
                 className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -1150,6 +1248,101 @@ const AdminDashboard = () => {
                   }
                   required
                 ></textarea>
+
+                {/* ⭐ VARIANTS SECTION */}
+                <div className="bg-black/20 p-3 rounded-lg border border-gray-800">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <Layers size={12} /> Variants (e.g., Size)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAddVariant}
+                      className="text-xs text-primary font-bold flex items-center gap-1 hover:text-white"
+                    >
+                      <Plus size={12} /> Add
+                    </button>
+                  </div>
+                  {newItem.variants.map((variant, index) => (
+                    <div key={index} className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        placeholder="Name (e.g. Large)"
+                        className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
+                        value={variant.name}
+                        onChange={(e) =>
+                          handleVariantChange(index, "name", e.target.value)
+                        }
+                        required
+                      />
+                      <input
+                        type="number"
+                        placeholder="Price"
+                        className="w-1/4 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
+                        value={variant.price}
+                        onChange={(e) =>
+                          handleVariantChange(index, "price", e.target.value)
+                        }
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveVariant(index)}
+                        className="text-gray-500 hover:text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ⭐ ADD-ONS SECTION */}
+                <div className="bg-black/20 p-3 rounded-lg border border-gray-800">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <PlusCircle size={12} /> Add-ons (e.g., Cheese)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAddAddon}
+                      className="text-xs text-green-500 font-bold flex items-center gap-1 hover:text-white"
+                    >
+                      <Plus size={12} /> Add
+                    </button>
+                  </div>
+                  {newItem.addons.map((addon, index) => (
+                    <div key={index} className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        placeholder="Name (e.g. Extra Cheese)"
+                        className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
+                        value={addon.name}
+                        onChange={(e) =>
+                          handleAddonChange(index, "name", e.target.value)
+                        }
+                        required
+                      />
+                      <input
+                        type="number"
+                        placeholder="Price"
+                        className="w-1/4 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
+                        value={addon.price}
+                        onChange={(e) =>
+                          handleAddonChange(index, "price", e.target.value)
+                        }
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAddon(index)}
+                        className="text-gray-500 hover:text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
                 <button
                   type="submit"
                   className="w-full bg-primary font-bold py-3 rounded-xl shadow-lg"
@@ -1230,7 +1423,10 @@ const AdminDashboard = () => {
                   className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={dummyShopData.name}
                   onChange={(e) =>
-                    setDummyShopData({ ...dummyShopData, name: e.target.value })
+                    setDummyShopData({
+                      ...dummyShopData,
+                      name: e.target.value,
+                    })
                   }
                   required
                 />

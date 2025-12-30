@@ -35,7 +35,7 @@ export const getProductById = async (req, res) => {
 // @desc    Fetch products by Restaurant ID (With Sorting logic)
 export const getProductsByRestaurant = async (req, res) => {
   try {
-    // 👈 IMPORTANT FIX: .sort({ orderIndex: 1 }) lagaya taaki items reorder sequence mein aayein
+    // 👈 IMPORTANT: .sort({ orderIndex: 1 }) lagaya taaki items reorder sequence mein aayein
     const products = await Product.find({
       $or: [{ restaurant: req.params.id }, { user: req.params.id }],
     }).sort({ orderIndex: 1 });
@@ -63,7 +63,10 @@ export const createProduct = async (req, res) => {
       countInStock,
       restaurantId,
       isVeg,
-      orderIndex, // 👈 New field
+      orderIndex,
+      // 👇 NEW: Destructure Variants & Addons
+      variants,
+      addons,
     } = req.body;
 
     const ownerId = restaurantId || req.user._id;
@@ -75,11 +78,14 @@ export const createProduct = async (req, res) => {
       image: image || "https://placehold.co/400",
       category,
       isVeg: isVeg === undefined ? true : isVeg,
-      orderIndex: orderIndex || 0, // 👈 New field save
+      orderIndex: orderIndex || 0,
       restaurant: ownerId,
       user: ownerId,
       countInStock: countInStock || 100,
       numReviews: 0,
+      // 👇 NEW: Save Arrays (Default empty if not provided)
+      variants: variants || [],
+      addons: addons || [],
     });
 
     const createdProduct = await product.save();
@@ -116,7 +122,11 @@ export const updateProduct = async (req, res) => {
       countInStock,
       isVeg,
       orderIndex,
+      // 👇 NEW: Get updated lists
+      variants,
+      addons,
     } = req.body;
+
     const product = await Product.findById(req.params.id);
 
     if (product) {
@@ -132,9 +142,17 @@ export const updateProduct = async (req, res) => {
         product.isVeg = isVeg;
       }
 
-      // 👈 Fix: Order Index update (Sorting ke liye)
+      // 👈 Fix: Order Index update
       if (orderIndex !== undefined) {
         product.orderIndex = orderIndex;
+      }
+
+      // 👇 NEW: Update Variants & Addons (Replace old array with new)
+      if (variants !== undefined) {
+        product.variants = variants;
+      }
+      if (addons !== undefined) {
+        product.addons = addons;
       }
 
       const updatedProduct = await product.save();

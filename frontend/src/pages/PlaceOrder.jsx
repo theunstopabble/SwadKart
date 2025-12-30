@@ -117,15 +117,20 @@ const PlaceOrder = () => {
     try {
       setIsProcessing(true);
 
-      // Create Order
+      // 👇👇 IMPORTANT FIX: Sanitize ID and Pass Customization 👇👇
       const formattedOrderItems = cart.cartItems.map((item) => ({
         name: item.name,
         qty: item.qty,
         image: item.image,
         price: item.price,
-        product: item._id,
+        // 🛠️ MAGIC FIX: Remove the extra string (like "-custom") from ID
+        product: item._id.includes("-") ? item._id.split("-")[0] : item._id,
         restaurant: item.restaurant,
+        // 🛠️ Pass the customization data to backend
+        selectedVariant: item.selectedVariant || null,
+        selectedAddons: item.selectedAddons || [],
       }));
+      // 👆👆 END FIX 👆👆
 
       const orderData = {
         orderItems: formattedOrderItems,
@@ -362,9 +367,22 @@ const PlaceOrder = () => {
                 key={index}
                 className="flex justify-between border-b border-gray-800 py-2 last:border-0"
               >
-                <span className="text-gray-300">
-                  {item.name} x {item.qty}
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-gray-300">
+                    {item.name} x {item.qty}
+                  </span>
+                  {/* 👇 SHOW VARIANTS IN SUMMARY TOO */}
+                  <span className="text-xs text-gray-500">
+                    {item.selectedVariant
+                      ? `Size: ${item.selectedVariant.name}`
+                      : ""}
+                    {item.selectedAddons?.length > 0
+                      ? `, Extras: ${item.selectedAddons
+                          .map((a) => a.name)
+                          .join(", ")}`
+                      : ""}
+                  </span>
+                </div>
                 <span className="text-white font-bold">
                   ₹{item.price * item.qty}
                 </span>

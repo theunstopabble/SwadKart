@@ -10,7 +10,7 @@ import {
   Plus,
   Tag,
   X,
-} from "lucide-react"; // Added X icon
+} from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { BASE_URL } from "../config";
@@ -164,7 +164,7 @@ const Cart = () => {
               {cartItems.map((item) => (
                 <div
                   key={item._id}
-                  className="bg-gray-900 p-4 rounded-xl flex items-center gap-4 border border-gray-800"
+                  className="bg-gray-900 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center gap-4 border border-gray-800"
                 >
                   <img
                     src={item.image}
@@ -175,37 +175,68 @@ const Cart = () => {
                     <h3 className="text-lg font-bold text-white">
                       {item.name}
                     </h3>
-                    <p className="text-red-500 font-bold">₹{item.price}</p>
+
+                    {/* 👇👇 NEW: SHOW VARIANTS AND ADDONS 👇👇 */}
+                    <div className="text-xs text-gray-400 mb-2 space-y-1 mt-1">
+                      {item.selectedVariant && (
+                        <p className="flex items-center gap-1">
+                          <span className="bg-gray-800 px-2 py-0.5 rounded text-blue-200 border border-gray-700">
+                            Size: {item.selectedVariant.name}
+                          </span>
+                        </p>
+                      )}
+                      {item.selectedAddons &&
+                        item.selectedAddons.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {item.selectedAddons.map((addon, idx) => (
+                              <span
+                                key={idx}
+                                className="bg-green-900/20 text-green-400 px-2 py-0.5 rounded border border-green-800/50"
+                              >
+                                + {addon.name} (₹{addon.price})
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                    </div>
+                    {/* 👆👆 END NEW CODE 👆👆 */}
+
+                    <p className="text-red-500 font-bold text-lg">
+                      ₹{item.price}
+                    </p>
                     <p className="text-xs text-gray-500">{item.category}</p>
                   </div>
-                  <div className="flex items-center gap-3 bg-black/50 px-3 py-1 rounded-lg border border-gray-700">
+
+                  <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+                    <div className="flex items-center gap-3 bg-black/50 px-3 py-1 rounded-lg border border-gray-700">
+                      <button
+                        onClick={() =>
+                          dispatch(addToCart({ ...item, qty: item.qty - 1 }))
+                        }
+                        disabled={item.qty === 1}
+                        className="text-gray-400 hover:text-white disabled:opacity-30"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="font-bold w-4 text-center">
+                        {item.qty}
+                      </span>
+                      <button
+                        onClick={() =>
+                          dispatch(addToCart({ ...item, qty: item.qty + 1 }))
+                        }
+                        className="text-gray-400 hover:text-white"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
                     <button
-                      onClick={() =>
-                        dispatch(addToCart({ ...item, qty: item.qty - 1 }))
-                      }
-                      disabled={item.qty === 1}
-                      className="text-gray-400 hover:text-white disabled:opacity-30"
+                      onClick={() => dispatch(removeFromCart(item._id))}
+                      className="bg-red-500/10 p-2 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all"
                     >
-                      <Minus size={16} />
-                    </button>
-                    <span className="font-bold w-4 text-center">
-                      {item.qty}
-                    </span>
-                    <button
-                      onClick={() =>
-                        dispatch(addToCart({ ...item, qty: item.qty + 1 }))
-                      }
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <Plus size={16} />
+                      <Trash2 size={20} />
                     </button>
                   </div>
-                  <button
-                    onClick={() => dispatch(removeFromCart(item._id))}
-                    className="bg-red-500/10 p-2 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all"
-                  >
-                    <Trash2 size={20} />
-                  </button>
                 </div>
               ))}
             </div>
@@ -305,11 +336,11 @@ const Cart = () => {
                             key={c._id}
                             onClick={() => toggleCoupon(c.code)}
                             className={`p-2 rounded cursor-pointer border border-transparent transition-all flex justify-between items-center group 
-                                        ${
-                                          appliedCoupon === c.code
-                                            ? "bg-green-500/10 border-green-500/50"
-                                            : "bg-gray-800 hover:border-red-500/50"
-                                        }`}
+                                    ${
+                                      appliedCoupon === c.code
+                                        ? "bg-green-500/10 border-green-500/50"
+                                        : "bg-gray-800 hover:border-red-500/50"
+                                    }`}
                           >
                             <div>
                               <p

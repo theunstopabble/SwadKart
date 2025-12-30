@@ -9,21 +9,33 @@ import {
   Plus,
   Search,
   UtensilsCrossed,
-} from "lucide-react"; // 👈 Added Search icons
+  X,
+  Check,
+  ChevronRight,
+} from "lucide-react";
 import { BASE_URL } from "../config";
 
 const RestaurantMenu = () => {
   const { id } = useParams();
-  const [restaurant, setRestaurant] = useState(null);
-  const [menu, setMenu] = useState([]);
-  const [filteredMenu, setFilteredMenu] = useState([]); // 👈 For Search logic
-  const [searchTerm, setSearchTerm] = useState(""); // 👈 Search state
-  const [loading, setLoading] = useState(true);
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { userInfo } = useSelector((state) => state.user);
 
+  // --- DATA STATES ---
+  const [restaurant, setRestaurant] = useState(null);
+  const [menu, setMenu] = useState([]);
+  const [filteredMenu, setFilteredMenu] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // --- CUSTOMIZATION MODAL STATES ---
+  const [showModal, setShowModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedAddons, setSelectedAddons] = useState([]);
+  const [finalPrice, setFinalPrice] = useState(0);
+
+  // 1. FETCH DATA
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -43,13 +55,11 @@ const RestaurantMenu = () => {
         let finalMenu = [];
         if (Array.isArray(menuData)) {
           finalMenu = menuData;
-        } else if (menuData.products && Array.isArray(menuData.products)) {
+        } else if (menuData.products) {
           finalMenu = menuData.products;
-        } else if (menuData.data && Array.isArray(menuData.data)) {
-          finalMenu = menuData.data;
         }
         setMenu(finalMenu);
-        setFilteredMenu(finalMenu); // 👈 Initialized filtered menu
+        setFilteredMenu(finalMenu);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -59,7 +69,7 @@ const RestaurantMenu = () => {
     fetchData();
   }, [id]);
 
-  // 🔍 Professional Filter Logic (Non-UI Destructive)
+  // 2. SEARCH LOGIC
   useEffect(() => {
     const results = menu.filter(
       (item) =>
@@ -69,14 +79,87 @@ const RestaurantMenu = () => {
     setFilteredMenu(results);
   }, [searchTerm, menu]);
 
-  const handleAddToCart = (item) => {
+  // 3. PRICE CALCULATION ENGINE
+  useEffect(() => {
+    if (!selectedItem) return;
+
+    let price = selectedItem.price;
+
+    // If variant selected, override base price
+    if (selectedVariant) {
+      price = selectedVariant.price;
+    }
+
+    // Add addons price
+    if (selectedAddons.length > 0) {
+      const addonsTotal = selectedAddons.reduce(
+        (acc, addon) => acc + addon.price,
+        0
+      );
+      price += addonsTotal;
+    }
+
+    setFinalPrice(price);
+  }, [selectedVariant, selectedAddons, selectedItem]);
+
+  // 4. HANDLERS
+  const handleAddToCartClick = (item) => {
     if (!userInfo) {
       alert("Please Login to order food! 🍔");
       navigate("/login");
+      return;
+    }
+
+    // 👉 Check if Customization is needed
+    const hasVariants = item.variants && item.variants.length > 0;
+    const hasAddons = item.addons && item.addons.length > 0;
+
+    if (hasVariants || hasAddons) {
+      // Open Modal
+      setSelectedItem(item);
+      // Auto-select first variant if exists (UX Best Practice)
+      if (hasVariants) {
+        setSelectedVariant(item.variants[0]);
+      } else {
+        setSelectedVariant(null);
+      }
+      setSelectedAddons([]);
+      setShowModal(true);
     } else {
+      // Direct Add
       dispatch(addToCart({ ...item, qty: 1 }));
       alert(`${item.name} added to cart! 🛒`);
     }
+  };
+
+  const toggleAddon = (addon) => {
+    if (selectedAddons.some((a) => a._id === addon._id)) {
+      setSelectedAddons(selectedAddons.filter((a) => a._id !== addon._id));
+    } else {
+      setSelectedAddons([...selectedAddons, addon]);
+    }
+  };
+
+  const confirmCustomization = () => {
+    if (!selectedItem) return;
+
+    // Construct Cart Item with Customizations
+    const cartItem = {
+      ...selectedItem,
+      price: finalPrice, // Save the CALCULATED price
+      selectedVariant: selectedVariant, // Save Variant info
+      selectedAddons: selectedAddons, // Save Addons info
+      qty: 1,
+      // Create a unique ID for cart so same item with diff options doesn't merge
+      _id:
+        selectedItem._id +
+        (selectedVariant ? "-" + selectedVariant.name : "") +
+        (selectedAddons.length > 0 ? "-custom" : ""),
+    };
+
+    dispatch(addToCart(cartItem));
+    setShowModal(false);
+    alert("Item added with customization! 😋");
   };
 
   if (loading)
@@ -121,7 +204,7 @@ const RestaurantMenu = () => {
         </div>
       )}
 
-      {/* 🔍 PROFESSIONAL SEARCH BAR (Theme Consistent) */}
+      {/* 🔍 SEARCH BAR */}
       <div className="max-w-7xl mx-auto px-6 mt-8">
         <div className="relative group max-w-md">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-primary transition-colors">
@@ -209,10 +292,18 @@ const RestaurantMenu = () => {
                   </p>
 
                   <button
-                    onClick={() => handleAddToCart(item)}
+                    onClick={() => handleAddToCartClick(item)}
                     className="w-full bg-white hover:bg-green-500 hover:text-white text-black font-extrabold py-3 rounded-xl transition-all shadow-lg active:scale-95 uppercase tracking-wide flex justify-center items-center gap-2"
                   >
-                    ADD <Plus size={18} strokeWidth={3} />
+                    {item.variants?.length > 0 || item.addons?.length > 0 ? (
+                      <>
+                        Customize <ChevronRight size={18} />
+                      </>
+                    ) : (
+                      <>
+                        ADD <Plus size={18} strokeWidth={3} />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -220,6 +311,155 @@ const RestaurantMenu = () => {
           </div>
         )}
       </div>
+
+      {/* 🥘 CUSTOMIZATION MODAL */}
+      {showModal && selectedItem && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex justify-center items-end sm:items-center z-50 animate-in fade-in duration-200">
+          <div className="bg-gray-900 w-full max-w-md sm:rounded-2xl rounded-t-2xl border border-gray-800 shadow-2xl relative flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900 sticky top-0 z-10 rounded-t-2xl">
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  Customize "{selectedItem.name}"
+                </h3>
+                <p className="text-sm text-gray-400 mt-1">
+                  Make it your way! 🍳
+                </p>
+              </div>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-white bg-gray-800 p-2 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+              {/* 1. VARIANTS (Radio) */}
+              {selectedItem.variants && selectedItem.variants.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                    Select Size / Option
+                  </h4>
+                  <div className="space-y-2">
+                    {selectedItem.variants.map((variant, idx) => (
+                      <label
+                        key={idx}
+                        className={`flex items-center justify-between p-4 rounded-xl cursor-pointer border transition-all ${
+                          selectedVariant === variant
+                            ? "bg-primary/10 border-primary"
+                            : "bg-gray-800 border-gray-700 hover:border-gray-600"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              selectedVariant === variant
+                                ? "border-primary"
+                                : "border-gray-500"
+                            }`}
+                          >
+                            {selectedVariant === variant && (
+                              <div className="w-2.5 h-2.5 bg-primary rounded-full" />
+                            )}
+                          </div>
+                          <span
+                            className={`font-bold ${
+                              selectedVariant === variant
+                                ? "text-white"
+                                : "text-gray-300"
+                            }`}
+                          >
+                            {variant.name}
+                          </span>
+                        </div>
+                        <span className="text-white font-mono">
+                          ₹{variant.price}
+                        </span>
+                        <input
+                          type="radio"
+                          name="variant"
+                          className="hidden"
+                          checked={selectedVariant === variant}
+                          onChange={() => setSelectedVariant(variant)}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 2. ADD-ONS (Checkbox) */}
+              {selectedItem.addons && selectedItem.addons.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                    Add Extras
+                  </h4>
+                  <div className="space-y-2">
+                    {selectedItem.addons.map((addon, idx) => {
+                      const isSelected = selectedAddons.some(
+                        (a) => a._id === addon._id
+                      );
+                      return (
+                        <label
+                          key={idx}
+                          className={`flex items-center justify-between p-4 rounded-xl cursor-pointer border transition-all ${
+                            isSelected
+                              ? "bg-green-500/10 border-green-500"
+                              : "bg-gray-800 border-gray-700 hover:border-gray-600"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                                isSelected
+                                  ? "border-green-500 bg-green-500"
+                                  : "border-gray-500"
+                              }`}
+                            >
+                              {isSelected && (
+                                <Check size={14} className="text-black" />
+                              )}
+                            </div>
+                            <span
+                              className={`font-bold ${
+                                isSelected ? "text-white" : "text-gray-300"
+                              }`}
+                            >
+                              {addon.name}
+                            </span>
+                          </div>
+                          <span className="text-white font-mono">
+                            +₹{addon.price}
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="hidden"
+                            checked={isSelected}
+                            onChange={() => toggleAddon(addon)}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Action */}
+            <div className="p-4 border-t border-gray-800 bg-gray-900 sticky bottom-0 rounded-b-2xl">
+              <button
+                onClick={confirmCustomization}
+                className="w-full bg-primary hover:bg-red-600 text-white py-4 rounded-xl font-bold text-lg flex justify-between items-center px-6 transition-all active:scale-95 shadow-lg shadow-primary/20"
+              >
+                <span>Add Item</span>
+                <span>₹{finalPrice}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

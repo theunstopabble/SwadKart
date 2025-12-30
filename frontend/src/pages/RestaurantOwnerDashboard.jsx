@@ -19,6 +19,8 @@ import {
   ArrowDown,
   UtensilsCrossed,
   Phone,
+  Layers, // Icon for Variants
+  Plus,
 } from "lucide-react";
 import { BASE_URL } from "../config";
 
@@ -44,6 +46,9 @@ const RestaurantOwnerDashboard = () => {
     image: "",
     isVeg: "true",
     orderIndex: 0,
+    // 👇 NEW ARRAYS FOR CUSTOMIZATION
+    variants: [],
+    addons: [],
   });
 
   const fetchData = async () => {
@@ -104,6 +109,8 @@ const RestaurantOwnerDashboard = () => {
       image: "",
       isVeg: "true",
       orderIndex: menuItems.length,
+      variants: [],
+      addons: [],
     });
     setShowModal(true);
   };
@@ -117,8 +124,11 @@ const RestaurantOwnerDashboard = () => {
       description: item.description,
       category: item.category,
       image: item.image,
-      isVeg: item.isVeg ? "true" : "false", // 👈 String conversion for dropdown consistency
+      isVeg: item.isVeg ? "true" : "false",
       orderIndex: item.orderIndex,
+      // 👇 Populate existing variants/addons
+      variants: item.variants || [],
+      addons: item.addons || [],
     });
     setShowModal(true);
   };
@@ -165,10 +175,53 @@ const RestaurantOwnerDashboard = () => {
     }
   };
 
+  // ============================================
+  // ⚡ VARIANT & ADDON HANDLERS
+  // ============================================
+
+  // --- VARIANTS ---
+  const handleAddVariant = () => {
+    setNewItem({
+      ...newItem,
+      variants: [...newItem.variants, { name: "", price: "" }],
+    });
+  };
+
+  const handleRemoveVariant = (index) => {
+    const updated = newItem.variants.filter((_, i) => i !== index);
+    setNewItem({ ...newItem, variants: updated });
+  };
+
+  const handleVariantChange = (index, field, value) => {
+    const updated = [...newItem.variants];
+    updated[index][field] = value;
+    setNewItem({ ...newItem, variants: updated });
+  };
+
+  // --- ADDONS ---
+  const handleAddAddon = () => {
+    setNewItem({
+      ...newItem,
+      addons: [...newItem.addons, { name: "", price: "" }],
+    });
+  };
+
+  const handleRemoveAddon = (index) => {
+    const updated = newItem.addons.filter((_, i) => i !== index);
+    setNewItem({ ...newItem, addons: updated });
+  };
+
+  const handleAddonChange = (index, field, value) => {
+    const updated = [...newItem.addons];
+    updated[index][field] = value;
+    setNewItem({ ...newItem, addons: updated });
+  };
+
+  // ============================================
+
   const handleSubmitItem = async (e) => {
     e.preventDefault();
     try {
-      // 👈 Authentic Boolean Conversion
       const productData = { ...newItem, isVeg: newItem.isVeg === "true" };
       let url = `${BASE_URL}/api/v1/products`;
       let method = "POST";
@@ -299,8 +352,6 @@ const RestaurantOwnerDashboard = () => {
                           {order.isPaid ? "PAID" : "UNPAID"}
                         </span>
                       </h3>
-
-                      {/* 👇 AUTHENTIC SHIPPING DETAILS FROM DATABASE */}
                       <div className="mt-3 space-y-2">
                         <p className="text-white font-bold flex items-center gap-2">
                           <User size={14} className="text-primary" />{" "}
@@ -343,14 +394,35 @@ const RestaurantOwnerDashboard = () => {
                     {order.orderItems.map((item, i) => (
                       <div
                         key={i}
-                        className="flex justify-between text-sm mb-1.5 text-gray-300"
+                        className="flex justify-between text-sm mb-2 text-gray-300 border-b border-gray-800 pb-2 last:border-0 last:pb-0"
                       >
-                        <span>
-                          <span className="text-primary font-bold">
-                            {item.qty}x
-                          </span>{" "}
-                          {item.name}
-                        </span>
+                        <div className="flex flex-col">
+                          <span>
+                            <span className="text-primary font-bold">
+                              {item.qty}x
+                            </span>{" "}
+                            {item.name}
+                          </span>
+
+                          {/* 👇👇 NEW: SHOW KITCHEN INSTRUCTIONS 👇👇 */}
+                          <div className="pl-6 text-xs text-gray-400 mt-1 space-y-0.5">
+                            {item.selectedVariant && (
+                              <span className="block text-blue-300">
+                                • Size: {item.selectedVariant.name}
+                              </span>
+                            )}
+                            {item.selectedAddons &&
+                              item.selectedAddons.length > 0 && (
+                                <span className="block text-green-300">
+                                  • Extras:{" "}
+                                  {item.selectedAddons
+                                    .map((a) => a.name)
+                                    .join(", ")}
+                                </span>
+                              )}
+                          </div>
+                          {/* 👆👆 END NEW CODE 👆👆 */}
+                        </div>
                         <span className="font-mono text-gray-400">
                           ₹{item.price * item.qty}
                         </span>
@@ -488,7 +560,7 @@ const RestaurantOwnerDashboard = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-          <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button
               onClick={() => setShowModal(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
@@ -517,7 +589,7 @@ const RestaurantOwnerDashboard = () => {
               <div className="flex gap-4">
                 <div className="w-1/2 space-y-1">
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                    Price (₹)
+                    Base Price (₹)
                   </label>
                   <input
                     type="number"
@@ -589,6 +661,101 @@ const RestaurantOwnerDashboard = () => {
                   required
                 />
               </div>
+
+              {/* ⭐ VARIANTS SECTION */}
+              <div className="bg-black/20 p-3 rounded-lg border border-gray-800">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                    <Layers size={12} /> Variants (e.g., Size)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAddVariant}
+                    className="text-xs text-primary font-bold flex items-center gap-1 hover:text-white"
+                  >
+                    <Plus size={12} /> Add
+                  </button>
+                </div>
+                {newItem.variants.map((variant, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="Name (e.g. Large)"
+                      className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
+                      value={variant.name}
+                      onChange={(e) =>
+                        handleVariantChange(index, "name", e.target.value)
+                      }
+                      required
+                    />
+                    <input
+                      type="number"
+                      placeholder="Price"
+                      className="w-1/4 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
+                      value={variant.price}
+                      onChange={(e) =>
+                        handleVariantChange(index, "price", e.target.value)
+                      }
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveVariant(index)}
+                      className="text-gray-500 hover:text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* ⭐ ADD-ONS SECTION */}
+              <div className="bg-black/20 p-3 rounded-lg border border-gray-800">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                    <PlusCircle size={12} /> Add-ons (e.g., Cheese)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAddAddon}
+                    className="text-xs text-green-500 font-bold flex items-center gap-1 hover:text-white"
+                  >
+                    <Plus size={12} /> Add
+                  </button>
+                </div>
+                {newItem.addons.map((addon, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="Name (e.g. Extra Cheese)"
+                      className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
+                      value={addon.name}
+                      onChange={(e) =>
+                        handleAddonChange(index, "name", e.target.value)
+                      }
+                      required
+                    />
+                    <input
+                      type="number"
+                      placeholder="Price"
+                      className="w-1/4 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
+                      value={addon.price}
+                      onChange={(e) =>
+                        handleAddonChange(index, "price", e.target.value)
+                      }
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAddon(index)}
+                      className="text-gray-500 hover:text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
               <button
                 type="submit"
                 className="w-full bg-primary hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow-lg transition-all active:scale-95"

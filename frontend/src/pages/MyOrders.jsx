@@ -129,14 +129,36 @@ const MyOrders = () => {
                         key={index}
                         className="flex justify-between items-center group/item"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-xl bg-gray-900 flex items-center justify-center font-black text-primary text-xs border border-gray-800">
-                            {item.qty}x
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-xl bg-gray-900 flex items-center justify-center font-black text-primary text-xs border border-gray-800">
+                              {item.qty}x
+                            </div>
+                            <span className="font-bold text-gray-300 group-hover/item:text-white transition-colors uppercase text-sm tracking-tight">
+                              {item.name}
+                            </span>
                           </div>
-                          <span className="font-bold text-gray-300 group-hover/item:text-white transition-colors uppercase text-sm tracking-tight">
-                            {item.name}
-                          </span>
+
+                          {/* 👇👇 NEW: SHOW VARIANTS & ADDONS 👇👇 */}
+                          <div className="pl-14 text-[10px] text-gray-500 mt-1 space-y-0.5">
+                            {item.selectedVariant && (
+                              <p className="text-primary font-bold">
+                                Size: {item.selectedVariant.name}
+                              </p>
+                            )}
+                            {item.selectedAddons &&
+                              item.selectedAddons.length > 0 && (
+                                <p className="text-gray-400">
+                                  Extras:{" "}
+                                  {item.selectedAddons
+                                    .map((a) => a.name)
+                                    .join(", ")}
+                                </p>
+                              )}
+                          </div>
+                          {/* 👆👆 END NEW CODE 👆👆 */}
                         </div>
+
                         <span className="font-mono text-white font-black text-sm">
                           ₹{item.price * item.qty}
                         </span>

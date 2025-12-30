@@ -12,7 +12,7 @@ const orderSchema = mongoose.Schema(
     },
 
     // =================================================
-    // 🍔 2. ORDER ITEMS
+    // 🍔 2. ORDER ITEMS (Updated with Customization)
     // =================================================
     orderItems: [
       {
@@ -25,11 +25,21 @@ const orderSchema = mongoose.Schema(
           required: true,
           ref: "Product",
         },
-        // 👇 Linked to Restaurant Model (Crucial for Multi-Vendor)
+        // 👇 Linked to Restaurant
         restaurant: {
           type: mongoose.Schema.Types.ObjectId,
           required: true,
-          ref: "Restaurant",
+          ref: "User", // Note: Ensure this matches your User model (Restaurant Owner)
+        },
+
+        // ⭐ NEW FIELDS FOR VARIANTS & ADD-ONS ⭐
+        selectedVariant: {
+          type: Object, // Stores { name: "Large", price: 500 }
+          default: null,
+        },
+        selectedAddons: {
+          type: Array, // Stores [{ name: "Cheese", price: 50 }, ...]
+          default: [],
         },
       },
     ],
@@ -38,13 +48,13 @@ const orderSchema = mongoose.Schema(
     // 📍 3. SHIPPING DETAILS (FULL INFO)
     // =================================================
     shippingAddress: {
-      fullName: { type: String, required: true }, // Receiver Name
+      fullName: { type: String, required: true },
       address: { type: String, required: true },
       city: { type: String, required: true },
       postalCode: { type: String, required: true },
       country: { type: String, required: true, default: "India" },
       state: { type: String, required: true },
-      phone: { type: String, required: true }, // Driver needs this to call
+      phone: { type: String, required: true },
     },
 
     // =================================================
@@ -66,7 +76,7 @@ const orderSchema = mongoose.Schema(
     shippingPrice: { type: Number, required: true, default: 0.0 },
     totalPrice: { type: Number, required: true, default: 0.0 },
 
-    // 👇 ADDED: Coupon Info for Database Storage
+    // 👇 Coupon Info
     couponCode: { type: String, default: "" },
     couponDiscount: { type: Number, required: true, default: 0.0 },
 
@@ -83,14 +93,13 @@ const orderSchema = mongoose.Schema(
     deliveredAt: { type: Date },
 
     // =================================================
-    // 🛵 8. DELIVERY PARTNER LOGIC (Advanced)
+    // 🛵 8. DELIVERY PARTNER LOGIC
     // =================================================
     deliveryPartner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
-    // 👇 Tracks if Driver Accepted/Rejected
     deliveryStatus: {
       type: String,
       enum: ["None", "Assigned", "Accepted", "Rejected"],
@@ -98,22 +107,21 @@ const orderSchema = mongoose.Schema(
     },
 
     // =================================================
-    // 🔄 9. ORDER LIFECYCLE (Status + Cancellation)
+    // 🔄 9. ORDER LIFECYCLE
     // =================================================
     orderStatus: {
       type: String,
       enum: [
         "Placed",
         "Preparing",
-        "Ready", // Food ready, waiting for driver
+        "Ready",
         "Out for Delivery",
         "Delivered",
-        "Cancelled", // 👈 For User Cancellation
+        "Cancelled",
       ],
       required: true,
       default: "Placed",
     },
-    // 👇 Cancellation Details
     cancelledAt: { type: Date },
     cancellationReason: { type: String },
   },

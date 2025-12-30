@@ -232,6 +232,26 @@ const OrderDetails = () => {
                         <p className="text-white font-black uppercase text-xs tracking-tight">
                           {item.name}
                         </p>
+
+                        {/* 👇👇 NEW: SHOW VARIANTS & ADDONS 👇👇 */}
+                        <div className="text-[10px] text-gray-400 mt-1 space-y-0.5">
+                          {item.selectedVariant && (
+                            <p className="text-primary font-bold">
+                              Size: {item.selectedVariant.name}
+                            </p>
+                          )}
+                          {item.selectedAddons &&
+                            item.selectedAddons.length > 0 && (
+                              <p className="text-gray-500">
+                                Extras:{" "}
+                                {item.selectedAddons
+                                  .map((a) => a.name)
+                                  .join(", ")}
+                              </p>
+                            )}
+                        </div>
+                        {/* 👆👆 END NEW CODE 👆👆 */}
+
                         <p className="text-gray-500 text-[10px] font-bold mt-1 uppercase italic tracking-widest">
                           {item.qty} units × ₹{item.price}
                         </p>
@@ -263,6 +283,15 @@ const OrderDetails = () => {
                   <span>Delivery Fee</span>
                   <span className="text-white">₹{order.shippingPrice}</span>
                 </div>
+
+                {/* 👇 Show Discount */}
+                {order.couponDiscount > 0 && (
+                  <div className="flex justify-between text-green-500 text-xs font-black uppercase tracking-widest">
+                    <span>Discount ({order.couponCode})</span>
+                    <span>- ₹{order.couponDiscount}</span>
+                  </div>
+                )}
+
                 <div className="pt-4 border-t border-gray-900 flex justify-between items-center">
                   <span className="text-xs font-black uppercase tracking-[0.3em] text-primary">
                     Grand Total
