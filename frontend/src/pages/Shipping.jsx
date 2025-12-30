@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { saveShippingAddress } from "../redux/cartSlice";
@@ -10,17 +10,43 @@ import {
   Briefcase,
   ArrowRight,
   Phone,
-  Map,
+  Map as MapIcon,
   Loader2,
   User,
 } from "lucide-react";
-// 👇 Import Capacitor Geolocation
 import { Geolocation } from "@capacitor/geolocation";
+
+// 👇 1. Map Imports (Naye updates)
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
+import L from "leaflet";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+// Marker Fix for Leaflet
+let DefaultIcon = L.icon({
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// 2. Helper Component: Map ko naye coordinates par le jaane ke liye
+function ChangeView({ center }) {
+  const map = useMap();
+  map.setView(center, 16);
+  return null;
+}
 
 const Shipping = () => {
   const cart = useSelector((state) => state.cart);
   const { shippingAddress } = cart;
-  // User info se naam utha lo agar pehle se login hai
   const { userInfo } = useSelector((state) => state.user);
 
   // States
@@ -38,61 +64,32 @@ const Shipping = () => {
     shippingAddress?.addressType || "Home"
   );
 
+  // 👇 3. Map State (Default: Jaipur ya purana address)
+  const [mapCenter, setMapCenter] = useState([26.9124, 75.7873]);
   const [loadingLocation, setLoadingLocation] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const submitHandler = (e) => {
-    e.preventDefault();
-    if (phone.length < 10) {
-      alert("Please enter a valid 10-digit phone number");
-      return;
-    }
-
-    // 🔥 DATA SAVING: Sab kuch Redux me bhejo
-    dispatch(
-      saveShippingAddress({
-        fullName, // NEW: Receiver Name
-        address,
-        city,
-        postalCode,
-        country: "India",
-        state,
-        phone,
-        addressType,
-      })
-    );
-    navigate("/payment");
+  // 4. Map par click karke pin change karne ka logic
+  const LocationMarker = () => {
+    useMapEvents({
+      click(e) {
+        const { lat, lng } = e.latlng;
+        setMapCenter([lat, lng]);
+        fetchAddressFromCoords(lat, lng);
+      },
+    });
+    return <Marker position={mapCenter} />;
   };
 
-  // 🛰️ NATIVE GPS LOCATION (Fix for Permission Error)
-  const handleCurrentLocation = async () => {
-    setLoadingLocation(true);
+  // 5. Reverse Geocoding (Lat/Lng se Address nikalna)
+  const fetchAddressFromCoords = async (lat, lng) => {
     try {
-      // 1. Permission Check
-      const permissions = await Geolocation.checkPermissions();
-
-      // Agar permission nahi mili, to maango
-      if (permissions.location !== "granted") {
-        const request = await Geolocation.requestPermissions();
-        if (request.location !== "granted") {
-          alert("Location permission denied. Please enable it in settings.");
-          setLoadingLocation(false);
-          return;
-        }
-      }
-
-      // 2. Get Coordinates
-      const coordinates = await Geolocation.getCurrentPosition();
-      const { latitude, longitude } = coordinates.coords;
-
-      // 3. Convert to Address (OpenStreetMap API)
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
       );
       const data = await response.json();
-
       if (data && data.address) {
         const street =
           data.address.road ||
@@ -100,17 +97,38 @@ const Shipping = () => {
           data.address.neighbourhood ||
           "";
         const area = data.display_name.split(",")[0];
-
         setAddress(`${area}, ${street}`);
         setCity(
           data.address.city || data.address.town || data.address.village || ""
         );
         setPostalCode(data.address.postcode || "");
         setState(data.address.state || "");
-        // alert("Location Found: " + data.address.city);
-      } else {
-        alert("Address details not found.");
       }
+    } catch (error) {
+      console.error("Geocoding Error:", error);
+    }
+  };
+
+  const handleCurrentLocation = async () => {
+    setLoadingLocation(true);
+    try {
+      const permissions = await Geolocation.checkPermissions();
+      if (permissions.location !== "granted") {
+        const request = await Geolocation.requestPermissions();
+        if (request.location !== "granted") {
+          alert("Location permission denied.");
+          setLoadingLocation(false);
+          return;
+        }
+      }
+
+      const coordinates = await Geolocation.getCurrentPosition();
+      const { latitude, longitude } = coordinates.coords;
+
+      // Map ko update karo
+      setMapCenter([latitude, longitude]);
+      // Address fields bharo
+      await fetchAddressFromCoords(latitude, longitude);
     } catch (error) {
       console.error("GPS Error:", error);
       alert("Please enable GPS/Location on your phone.");
@@ -119,24 +137,59 @@ const Shipping = () => {
     }
   };
 
+  const submitHandler = (e) => {
+    e.preventDefault();
+    if (phone.length < 10) {
+      alert("Please enter a valid 10-digit phone number");
+      return;
+    }
+    dispatch(
+      saveShippingAddress({
+        fullName,
+        address,
+        city,
+        postalCode,
+        country: "India",
+        state,
+        phone,
+        addressType,
+        // Optional: Location coordinates bhi bhej sakte hain backend ke liye
+        lat: mapCenter[0],
+        lng: mapCenter[1],
+      })
+    );
+    navigate("/payment");
+  };
+
   return (
     <div className="min-h-screen bg-black text-white pt-24 px-4 pb-20">
       <CheckoutSteps step1 step2 />
 
-      <div className="max-w-lg mx-auto mt-8 animate-in slide-in-from-bottom-5 duration-500">
+      <div className="max-w-lg mx-auto mt-8">
         <h1 className="text-3xl font-extrabold mb-2 flex items-center gap-2">
-          Add Address <MapPin className="text-primary fill-current" />
+          Delivery Location <MapPin className="text-primary" />
         </h1>
-        <p className="text-gray-400 mb-8 text-sm">
-          Correct details help us deliver faster!
-        </p>
+
+        {/* 🗺️ NEW: Map Integration Section */}
+        <div className="w-full h-64 rounded-2xl overflow-hidden border border-gray-800 my-6 relative z-10 shadow-2xl">
+          <MapContainer
+            center={mapCenter}
+            zoom={16}
+            scrollWheelZoom={false}
+            style={{ height: "100%", width: "100%" }}
+          >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <ChangeView center={mapCenter} />
+            <LocationMarker />
+          </MapContainer>
+        </div>
 
         {/* 📍 GPS BUTTON */}
         <button
           onClick={handleCurrentLocation}
           type="button"
           disabled={loadingLocation}
-          className="w-full flex items-center justify-center gap-3 bg-gray-900/80 hover:bg-gray-800 text-blue-400 font-semibold py-4 rounded-xl border border-gray-800 transition-all mb-8 shadow-lg active:scale-95 group disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-3 bg-gray-900/80 hover:bg-gray-800 text-blue-400 font-semibold py-4 rounded-xl border border-gray-800 mb-8 transition-all disabled:opacity-50"
         >
           {loadingLocation ? (
             <Loader2 size={20} className="animate-spin text-primary" />
@@ -144,12 +197,12 @@ const Shipping = () => {
             <Navigation size={20} />
           )}
           <span>
-            {loadingLocation ? "Detecting Location..." : "Use Current Location"}
+            {loadingLocation ? "Locating..." : "Use My Current Location"}
           </span>
         </button>
 
         <form onSubmit={submitHandler} className="space-y-5">
-          {/* 👤 Full Name (NEW SECTION) */}
+          {/* User Input Fields (Baki sab same rahega) */}
           <div className="relative group">
             <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary transition-colors">
               <User size={20} />
@@ -164,7 +217,6 @@ const Shipping = () => {
             />
           </div>
 
-          {/* 📞 Phone Number */}
           <div className="relative group">
             <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary transition-colors">
               <Phone size={20} />
@@ -176,11 +228,10 @@ const Shipping = () => {
               required
               maxLength={10}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-gray-500 font-medium tracking-widest"
+              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none transition-all placeholder-gray-500 font-medium tracking-widest"
             />
           </div>
 
-          {/* 🏠 Address */}
           <div className="relative group">
             <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary transition-colors">
               <MapPin size={20} />
@@ -191,38 +242,32 @@ const Shipping = () => {
               value={address}
               required
               onChange={(e) => setAddress(e.target.value)}
-              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-gray-500 font-medium"
+              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none transition-all placeholder-gray-500 font-medium"
             />
           </div>
 
-          {/* 🏙️ City & State */}
           <div className="flex gap-4">
-            <div className="relative group w-1/2">
-              <input
-                type="text"
-                placeholder="City"
-                value={city}
-                required
-                onChange={(e) => setCity(e.target.value)}
-                className="w-full bg-gray-900 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none"
-              />
-            </div>
-            <div className="relative group w-1/2">
-              <input
-                type="text"
-                placeholder="State"
-                value={state}
-                required
-                onChange={(e) => setState(e.target.value)}
-                className="w-full bg-gray-900 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none"
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="City"
+              value={city}
+              required
+              onChange={(e) => setCity(e.target.value)}
+              className="w-1/2 bg-gray-900 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none"
+            />
+            <input
+              type="text"
+              placeholder="State"
+              value={state}
+              required
+              onChange={(e) => setState(e.target.value)}
+              className="w-1/2 bg-gray-900 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none"
+            />
           </div>
 
-          {/* 📮 Pincode */}
           <div className="relative group">
-            <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary transition-colors">
-              <Map size={20} />
+            <div className="absolute top-4 left-4 text-gray-500">
+              <MapIcon size={20} />
             </div>
             <input
               type="text"
@@ -236,7 +281,6 @@ const Shipping = () => {
             />
           </div>
 
-          {/* 🏷️ Address Type */}
           <div className="flex gap-3 pt-2">
             <button
               type="button"
