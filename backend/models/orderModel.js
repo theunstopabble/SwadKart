@@ -66,6 +66,10 @@ const orderSchema = mongoose.Schema(
     shippingPrice: { type: Number, required: true, default: 0.0 },
     totalPrice: { type: Number, required: true, default: 0.0 },
 
+    // 👇 ADDED: Coupon Info for Database Storage
+    couponCode: { type: String, default: "" },
+    couponDiscount: { type: Number, required: true, default: 0.0 },
+
     // =================================================
     // ✅ 6. PAYMENT STATUS
     // =================================================

@@ -77,6 +77,9 @@ export const addOrderItems = async (req, res) => {
     taxPrice,
     shippingPrice,
     totalPrice,
+    // 👇 ADDED: Coupon Data
+    couponCode,
+    couponDiscount,
   } = req.body;
 
   if (orderItems && orderItems.length === 0) {
@@ -97,6 +100,9 @@ export const addOrderItems = async (req, res) => {
       taxPrice,
       shippingPrice,
       totalPrice,
+      // 👇 ADDED: Save Coupon Info to DB
+      couponCode,
+      couponDiscount,
     });
 
     const createdOrder = await order.save();

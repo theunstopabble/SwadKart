@@ -9,7 +9,8 @@ import {
   Minus,
   Plus,
   Tag,
-} from "lucide-react";
+  X,
+} from "lucide-react"; // Added X icon
 import axios from "axios";
 import { toast } from "react-toastify";
 import { BASE_URL } from "../config";
@@ -35,14 +36,14 @@ const Cart = () => {
     0
   );
 
-  // 2. Existing Logic (Tax & Shipping)
-  const tax = subtotal * 0.05; // 5% Tax
-  const shipping = subtotal > 500 ? 0 : 40; // Free shipping over ₹500
+  // 2. Tax & Shipping
+  const tax = subtotal * 0.05;
+  const shipping = subtotal > 500 ? 0 : 40;
 
-  // 3. Final Total (Subtotal + Tax + Shipping - Discount)
+  // 3. Final Total
   const total = subtotal + tax + shipping - discount;
 
-  // 🔄 Fetch Smart Coupons on Load
+  // 🔄 Fetch Smart Coupons
   useEffect(() => {
     if (userInfo) {
       fetchAvailableCoupons();
@@ -62,14 +63,13 @@ const Cart = () => {
     }
   };
 
-  // 🎫 API Handler: Apply Coupon
-  const applyCouponHandler = async () => {
-    if (!couponCode) {
+  // 🎫 Apply Coupon Handler
+  const applyCouponHandler = async (codeToApply = couponCode) => {
+    if (!codeToApply) {
       toast.error("Please enter a coupon code");
       return;
     }
 
-    // 🔒 Security Check: User login hai ya nahi?
     if (!userInfo || !userInfo.token) {
       toast.error("Please login to apply coupons");
       navigate("/login");
@@ -81,28 +81,45 @@ const Cart = () => {
       const config = {
         headers: {
           "Content-Type": "application/json",
-          // 👇 FIX: Use 'userInfo.token' instead of localStorage directly
           Authorization: `Bearer ${userInfo.token}`,
         },
       };
 
       const { data } = await axios.post(
         `${BASE_URL}/api/v1/coupons/validate`,
-        { code: couponCode, orderAmount: subtotal },
+        { code: codeToApply, orderAmount: subtotal },
         config
       );
 
       setDiscount(data.discountAmount);
       setAppliedCoupon(data.code);
+      setCouponCode(data.code); // Sync input box
       toast.success(
         `Coupon ${data.code} Applied! Saved ₹${data.discountAmount}`
       );
       setLoadingCoupon(false);
     } catch (error) {
       setLoadingCoupon(false);
-      setDiscount(0);
-      setAppliedCoupon("");
+      // Keep input as is, just show error
       toast.error(error.response?.data?.message || "Invalid Coupon");
+    }
+  };
+
+  // ❌ Remove Coupon Handler
+  const removeCouponHandler = () => {
+    setDiscount(0);
+    setAppliedCoupon("");
+    setCouponCode("");
+    toast.info("Coupon Removed");
+  };
+
+  // 🔄 Toggle Coupon Logic (Select/Deselect)
+  const toggleCoupon = (code) => {
+    if (appliedCoupon === code) {
+      removeCouponHandler(); // Deselect
+    } else {
+      setCouponCode(code);
+      applyCouponHandler(code); // Select & Apply
     }
   };
 
@@ -111,7 +128,7 @@ const Cart = () => {
     if (!userInfo) {
       navigate("/login?redirect=shipping");
     } else {
-      // Save Discount to LocalStorage for next steps
+      // Save Discount to LocalStorage for PlaceOrder page
       localStorage.setItem("couponDiscount", JSON.stringify(discount));
       localStorage.setItem("appliedCoupon", JSON.stringify(appliedCoupon));
       navigate("/shipping");
@@ -133,9 +150,6 @@ const Cart = () => {
             <p className="text-2xl text-gray-400 font-bold mb-2">
               Your cart is empty!
             </p>
-            <p className="text-gray-500 mb-6">
-              Looks like you haven't added any delicious food yet.
-            </p>
             <Link
               to="/"
               className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition-all shadow-lg shadow-red-600/30"
@@ -145,19 +159,18 @@ const Cart = () => {
           </div>
         ) : (
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* CART ITEMS LIST */}
+            {/* CART ITEMS */}
             <div className="lg:w-2/3 space-y-4">
               {cartItems.map((item) => (
                 <div
                   key={item._id}
-                  className="bg-gray-900 p-4 rounded-xl flex items-center gap-4 border border-gray-800 hover:border-gray-700 transition-all"
+                  className="bg-gray-900 p-4 rounded-xl flex items-center gap-4 border border-gray-800"
                 >
                   <img
                     src={item.image}
                     alt={item.name}
                     className="w-24 h-24 object-cover rounded-lg"
                   />
-
                   <div className="flex-grow">
                     <h3 className="text-lg font-bold text-white">
                       {item.name}
@@ -165,8 +178,6 @@ const Cart = () => {
                     <p className="text-red-500 font-bold">₹{item.price}</p>
                     <p className="text-xs text-gray-500">{item.category}</p>
                   </div>
-
-                  {/* Quantity Controls */}
                   <div className="flex items-center gap-3 bg-black/50 px-3 py-1 rounded-lg border border-gray-700">
                     <button
                       onClick={() =>
@@ -189,8 +200,6 @@ const Cart = () => {
                       <Plus size={16} />
                     </button>
                   </div>
-
-                  {/* Remove Button */}
                   <button
                     onClick={() => dispatch(removeFromCart(item._id))}
                     className="bg-red-500/10 p-2 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all"
@@ -201,13 +210,12 @@ const Cart = () => {
               ))}
             </div>
 
-            {/* ORDER SUMMARY (Checkout Box) */}
+            {/* SUMMARY */}
             <div className="lg:w-1/3">
               <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 sticky top-24">
                 <h2 className="text-xl font-bold mb-6 border-b border-gray-800 pb-4">
                   Order Summary
                 </h2>
-
                 <div className="space-y-3 text-gray-300 mb-6">
                   <div className="flex justify-between">
                     <span>
@@ -228,7 +236,7 @@ const Cart = () => {
                     </span>
                   </div>
 
-                  {/* 🎫 COUPON DISCOUNT ROW (Dynamic) */}
+                  {/* Coupon Applied Display */}
                   {discount > 0 && (
                     <div className="flex justify-between text-green-400 font-bold animate-pulse">
                       <span>Coupon ({appliedCoupon})</span>
@@ -244,7 +252,7 @@ const Cart = () => {
                   </span>
                 </div>
 
-                {/* 🎫 COUPON INPUT SECTION */}
+                {/* 🎫 INPUT SECTION */}
                 <div className="mb-6">
                   <label className="text-sm text-gray-400 mb-2 block">
                     Have a Coupon?
@@ -258,21 +266,34 @@ const Cart = () => {
                       <input
                         type="text"
                         placeholder="Ex: SWAD50"
-                        className="w-full bg-black text-white pl-10 pr-3 py-2.5 rounded-lg border border-gray-700 focus:outline-none focus:border-red-500 uppercase font-bold"
+                        className="w-full bg-black text-white pl-10 pr-8 py-2.5 rounded-lg border border-gray-700 focus:outline-none focus:border-red-500 uppercase font-bold"
                         value={couponCode}
                         onChange={(e) => setCouponCode(e.target.value)}
+                        disabled={discount > 0} // Disable when applied
                       />
+                      {/* X Button inside input */}
+                      {discount > 0 && (
+                        <button
+                          onClick={removeCouponHandler}
+                          className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <X size={18} />
+                        </button>
+                      )}
                     </div>
-                    <button
-                      onClick={applyCouponHandler}
-                      disabled={loadingCoupon}
-                      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50"
-                    >
-                      {loadingCoupon ? "..." : "Apply"}
-                    </button>
+                    {/* Hide Apply button if already applied */}
+                    {discount === 0 && (
+                      <button
+                        onClick={() => applyCouponHandler()}
+                        disabled={loadingCoupon}
+                        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50"
+                      >
+                        {loadingCoupon ? "..." : "Apply"}
+                      </button>
+                    )}
                   </div>
 
-                  {/* 👇 SMART DROPDOWN LIST */}
+                  {/* 📜 COUPON LIST */}
                   {availableCoupons.length > 0 && (
                     <div className="bg-black/40 rounded-lg border border-gray-800 p-2">
                       <p className="text-xs text-gray-500 mb-2 px-1 flex items-center gap-1">
@@ -282,15 +303,22 @@ const Cart = () => {
                         {availableCoupons.map((c) => (
                           <div
                             key={c._id}
-                            onClick={() => setCouponCode(c.code)}
-                            className={`p-2 rounded cursor-pointer border border-transparent hover:border-red-500/50 transition-all flex justify-between items-center group ${
-                              couponCode === c.code
-                                ? "bg-red-500/10 border-red-500"
-                                : "bg-gray-800"
-                            }`}
+                            onClick={() => toggleCoupon(c.code)}
+                            className={`p-2 rounded cursor-pointer border border-transparent transition-all flex justify-between items-center group 
+                                        ${
+                                          appliedCoupon === c.code
+                                            ? "bg-green-500/10 border-green-500/50"
+                                            : "bg-gray-800 hover:border-red-500/50"
+                                        }`}
                           >
                             <div>
-                              <p className="font-bold text-sm text-white group-hover:text-red-400 transition-colors">
+                              <p
+                                className={`font-bold text-sm transition-colors ${
+                                  appliedCoupon === c.code
+                                    ? "text-green-400"
+                                    : "text-white group-hover:text-red-400"
+                                }`}
+                              >
                                 {c.code}
                               </p>
                               <p className="text-[10px] text-gray-400">
@@ -298,8 +326,14 @@ const Cart = () => {
                                 {c.maxDiscountAmount}
                               </p>
                             </div>
-                            <div className="text-xs font-bold text-green-400 bg-green-400/10 px-2 py-1 rounded">
-                              SAVE
+                            <div
+                              className={`text-xs font-bold px-2 py-1 rounded ${
+                                appliedCoupon === c.code
+                                  ? "text-red-400 bg-red-400/10"
+                                  : "text-green-400 bg-green-400/10"
+                              }`}
+                            >
+                              {appliedCoupon === c.code ? "REMOVE" : "APPLY"}
                             </div>
                           </div>
                         ))}

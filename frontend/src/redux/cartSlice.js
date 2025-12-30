@@ -9,7 +9,6 @@ const initialState = {
     ? JSON.parse(localStorage.getItem("shippingAddress"))
     : {},
 
-  // 👇 New: Payment Method bhi yahi initialize kar lete hain (Next step ke liye)
   paymentMethod: localStorage.getItem("paymentMethod")
     ? JSON.parse(localStorage.getItem("paymentMethod"))
     : "PayPal",
@@ -43,12 +42,12 @@ const cartSlice = createSlice({
       localStorage.setItem("shippingAddress", JSON.stringify(action.payload));
     },
 
-    // 👇 New Action: Payment Method Save Karo
     savePaymentMethod: (state, action) => {
       state.paymentMethod = action.payload;
       localStorage.setItem("paymentMethod", JSON.stringify(action.payload));
     },
 
+    // 👇 Yeh function yahan hona chahiye
     clearCart: (state) => {
       state.cartItems = [];
       localStorage.removeItem("cartItems");
@@ -56,13 +55,13 @@ const cartSlice = createSlice({
   },
 });
 
-// Export mein 'savePaymentMethod' bhi add kar diya
+// 👇 SABSE ZARURI: Yahan 'clearCart' likha hona chahiye
 export const {
   addToCart,
   removeFromCart,
   saveShippingAddress,
   savePaymentMethod,
-  clearCart,
+  clearCart, // 👈 Check karein ki ye yahan hai
 } = cartSlice.actions;
 
 export default cartSlice.reducer;

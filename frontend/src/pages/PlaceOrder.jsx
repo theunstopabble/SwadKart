@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+// 👇 Correct Import based on your cartSlice.js
 import { clearCart } from "../redux/cartSlice";
 import CheckoutSteps from "../components/CheckoutSteps";
 import {
@@ -26,17 +27,28 @@ const PlaceOrder = () => {
   const [countdown, setCountdown] = useState(4);
   const [paymentDetails, setPaymentDetails] = useState({ id: "", date: "" });
 
+  // --- 1. PRICE CALCULATIONS (With Discount) ---
   const itemsPrice = cart.cartItems.reduce(
     (acc, item) => acc + item.price * item.qty,
     0
   );
   const shippingPrice = itemsPrice > 500 ? 0 : 40;
   const taxPrice = Number((0.05 * itemsPrice).toFixed(2));
-  const totalPrice = (
+
+  // 👇 Retrieve Discount from LocalStorage
+  const couponDiscount = Number(localStorage.getItem("couponDiscount")) || 0;
+  const appliedCouponCode =
+    JSON.parse(localStorage.getItem("appliedCoupon")) || "";
+
+  // 👇 Subtract Discount from Total
+  let calculatedTotal =
     Number(itemsPrice) +
     Number(shippingPrice) +
-    Number(taxPrice)
-  ).toFixed(2);
+    Number(taxPrice) -
+    couponDiscount;
+  if (calculatedTotal < 0) calculatedTotal = 0; // Prevent negative total
+
+  const totalPrice = calculatedTotal.toFixed(2);
 
   useEffect(() => {
     if (!cart.shippingAddress.address) navigate("/shipping");
@@ -73,8 +85,12 @@ const PlaceOrder = () => {
             hour12: true,
           }),
         });
-        setIsProcessing(false); // Loader hatao
-        setShowSuccessScreen(true); // Green screen dikhao
+        setIsProcessing(false);
+        setShowSuccessScreen(true);
+
+        // 👇 Clear Coupon Data on Success
+        localStorage.removeItem("couponDiscount");
+        localStorage.removeItem("appliedCoupon");
 
         // ⏱️ 4 Second Countdown Timer
         let timer = 4;
@@ -83,7 +99,7 @@ const PlaceOrder = () => {
           setCountdown(timer);
           if (timer === 0) {
             clearInterval(interval);
-            dispatch(clearCart());
+            dispatch(clearCart()); // ✅ Correct Action
             navigate(`/order/${dbOrderId}`);
           }
         }, 1000);
@@ -110,6 +126,7 @@ const PlaceOrder = () => {
         product: item._id,
         restaurant: item.restaurant,
       }));
+
       const orderData = {
         orderItems: formattedOrderItems,
         shippingAddress: cart.shippingAddress,
@@ -117,7 +134,10 @@ const PlaceOrder = () => {
         itemsPrice,
         taxPrice,
         shippingPrice,
-        totalPrice,
+        totalPrice, // This is now the DISCOUNTED price
+        // 👇 Send Coupon Info to Backend
+        couponCode: appliedCouponCode,
+        couponDiscount: couponDiscount,
       };
 
       const res = await fetch(`${BASE_URL}/api/v1/orders`, {
@@ -138,13 +158,18 @@ const PlaceOrder = () => {
         });
         setIsProcessing(false);
         setShowSuccessScreen(true);
+
+        // 👇 Clear Coupon Data on Success
+        localStorage.removeItem("couponDiscount");
+        localStorage.removeItem("appliedCoupon");
+
         let timer = 4;
         const interval = setInterval(() => {
           timer -= 1;
           setCountdown(timer);
           if (timer === 0) {
             clearInterval(interval);
-            dispatch(clearCart());
+            dispatch(clearCart()); // ✅ Correct Action
             navigate(`/order/${data._id}`);
           }
         }, 1000);
@@ -160,6 +185,7 @@ const PlaceOrder = () => {
               "Content-Type": "application/json",
               Authorization: `Bearer ${userInfo.token}`,
             },
+            // 👇 Send DISCOUNTED totalPrice to Razorpay
             body: JSON.stringify({ amount: totalPrice }),
           }
         );
@@ -179,7 +205,8 @@ const PlaceOrder = () => {
           prefill: {
             name: userInfo.name,
             email: userInfo.email,
-            contact: cart.shippingAddress.phone || userInfo.phone || "9999999999",
+            contact:
+              cart.shippingAddress.phone || userInfo.phone || "9999999999",
           },
           theme: { color: "#e11d48" },
         };
@@ -232,11 +259,10 @@ const PlaceOrder = () => {
     }
   };
 
-  // 🟢 1. EXACT RAZORPAY SUCCESS SCREEN (Replica)
+  // 🟢 1. SUCCESS SCREEN
   if (showSuccessScreen) {
     return (
       <div className="fixed inset-0 bg-[#0cbf66] z-[9999] flex flex-col items-center justify-between py-12 px-6 text-white font-sans animate-in fade-in duration-300">
-        {/* Top Section */}
         <div className="text-center space-y-2 mt-8">
           <p className="text-green-100 text-sm font-medium">
             You will be redirected in {countdown} seconds
@@ -246,11 +272,8 @@ const PlaceOrder = () => {
           </h1>
         </div>
 
-        {/* Animated Checkmark Circle */}
         <div className="relative flex items-center justify-center">
-          {/* Pulsing Outer Ring */}
           <div className="absolute w-28 h-28 bg-[#3ed186] rounded-full animate-ping opacity-75"></div>
-          {/* Inner Solid Circle */}
           <div className="relative w-24 h-24 bg-[#51e898] rounded-full flex items-center justify-center shadow-lg">
             <Check
               size={48}
@@ -260,7 +283,6 @@ const PlaceOrder = () => {
           </div>
         </div>
 
-        {/* Bottom Details Card */}
         <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-gray-800 animate-in slide-in-from-bottom-10 duration-500">
           <div className="flex justify-between items-center mb-1">
             <span className="font-bold text-lg text-black">SwadKart</span>
@@ -288,7 +310,6 @@ const PlaceOrder = () => {
           </div>
         </div>
 
-        {/* Footer Brand */}
         <div className="text-center opacity-80 mt-4">
           <p className="text-xs font-semibold tracking-wide flex items-center justify-center gap-1">
             Secured by{" "}
@@ -299,7 +320,7 @@ const PlaceOrder = () => {
     );
   }
 
-  // 🟡 2. LOADING SPINNER (Processing)
+  // 🟡 2. LOADING SPINNER
   if (isProcessing) {
     return (
       <div className="fixed inset-0 bg-black/95 z-[9999] flex flex-col items-center justify-center text-white backdrop-blur-sm">
@@ -318,10 +339,8 @@ const PlaceOrder = () => {
   return (
     <div className="min-h-screen bg-black text-white pt-24 px-4 pb-10">
       <CheckoutSteps step1 step2 step3 step4 />
-      {/* ... (Same layout code as before) ... */}
       <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8 mt-8">
         <div className="lg:w-2/3 space-y-6">
-          {/* Components for Address, Payment, Items (Same as before) */}
           <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-primary">
               <MapPin /> Shipping Details
@@ -338,7 +357,19 @@ const PlaceOrder = () => {
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-primary">
               <ShoppingBag /> Items
             </h2>
-            <p>Items Count: {cart.cartItems.length}</p>
+            {cart.cartItems.map((item, index) => (
+              <div
+                key={index}
+                className="flex justify-between border-b border-gray-800 py-2 last:border-0"
+              >
+                <span className="text-gray-300">
+                  {item.name} x {item.qty}
+                </span>
+                <span className="text-white font-bold">
+                  ₹{item.price * item.qty}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
         <div className="lg:w-1/3">
@@ -346,6 +377,28 @@ const PlaceOrder = () => {
             <h2 className="text-2xl font-bold mb-6 border-b border-gray-800 pb-4">
               Order Summary
             </h2>
+            <div className="space-y-3 mb-6 text-gray-300">
+              <div className="flex justify-between">
+                <span>Items</span>
+                <span>₹{itemsPrice}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tax</span>
+                <span>₹{taxPrice}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span>₹{shippingPrice}</span>
+              </div>
+
+              {/* 👇 Display Discount */}
+              {couponDiscount > 0 && (
+                <div className="flex justify-between text-green-400 font-bold">
+                  <span>Discount ({appliedCouponCode})</span>
+                  <span>- ₹{couponDiscount}</span>
+                </div>
+              )}
+            </div>
             <div className="flex justify-between text-xl font-bold text-white border-t border-gray-800 pt-4 mb-6">
               <span>Total</span>
               <span className="text-primary">₹{totalPrice}</span>

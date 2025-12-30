@@ -42,7 +42,8 @@ export const createRazorpayOrder = async (req, res) => {
     const instance = getRazorpayInstance();
 
     const options = {
-      amount: Number(amount * 100), // ₹1 = 100 paise
+      // 👇 FIX: Math.round() prevents decimal errors (e.g. 14344.99 -> 14345)
+      amount: Math.round(Number(amount) * 100),
       currency: "INR",
       receipt: `receipt_order_${Date.now()}`,
     };

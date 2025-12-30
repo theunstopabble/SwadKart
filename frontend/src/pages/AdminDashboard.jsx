@@ -24,7 +24,8 @@ import {
   ArrowUp,
   ArrowDown,
   Phone,
-  Tag, // Safe Icon
+  Tag,
+  RefreshCw, // Icon for Update
 } from "lucide-react";
 import { BASE_URL } from "../config";
 
@@ -49,6 +50,10 @@ const AdminDashboard = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
   const [coupons, setCoupons] = useState([]);
+
+  // 🎟️ Coupon Edit State
+  const [isEditingCoupon, setIsEditingCoupon] = useState(false);
+  const [editCouponId, setEditCouponId] = useState(null);
 
   const [selectedRestaurant, setSelectedRestaurant] = useState("");
   const [editingShop, setEditingShop] = useState(null);
@@ -126,7 +131,7 @@ const AdminDashboard = () => {
         setDeliveryPartners(dataPartners);
       }
 
-      // D. Fetch Coupons (Wrapped in try-catch to prevent dashboard crash)
+      // D. Fetch Coupons
       try {
         const resCoupons = await axios.get(`${BASE_URL}/api/v1/coupons`, {
           headers,
@@ -142,7 +147,6 @@ const AdminDashboard = () => {
 
   // --- 2. AUTH CHECK & INITIAL LOAD ---
   useEffect(() => {
-    // 👇 FIX: Check both 'isAdmin' (boolean) AND 'role' (string)
     if (userInfo && (userInfo.isAdmin || userInfo.role === "admin")) {
       fetchAllData();
     } else {
@@ -172,17 +176,32 @@ const AdminDashboard = () => {
 
   // --- HANDLERS ---
 
-  const createCouponHandler = async (e) => {
+  // 🎟️ Create or Update Coupon Handler
+  const handleCouponSubmit = async (e) => {
     e.preventDefault();
+    const config = {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userInfo.token}`,
+      },
+    };
+
     try {
-      const config = {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
-        },
-      };
-      await axios.post(`${BASE_URL}/api/v1/coupons`, newCoupon, config);
-      toast.success("Coupon Created Successfully! 🎉");
+      if (isEditingCoupon) {
+        // 👉 UPDATE Existing Coupon
+        await axios.put(
+          `${BASE_URL}/api/v1/coupons/${editCouponId}`,
+          newCoupon,
+          config
+        );
+        toast.success("Coupon Updated Successfully!");
+      } else {
+        // 👉 CREATE New Coupon
+        await axios.post(`${BASE_URL}/api/v1/coupons`, newCoupon, config);
+        toast.success("Coupon Created Successfully!");
+      }
+
+      // Reset Form
       setNewCoupon({
         code: "",
         discountPercentage: "",
@@ -190,29 +209,71 @@ const AdminDashboard = () => {
         maxDiscountAmount: "",
         expirationDate: "",
       });
-      fetchAllData();
+      setIsEditingCoupon(false);
+      setEditCouponId(null);
+      fetchAllData(); // Refresh List
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to create coupon");
+      toast.error(error.response?.data?.message || "Operation Failed");
     }
   };
 
+  // ✏️ Edit Coupon Click (Populate Form)
+  const handleEditCouponClick = (coupon) => {
+    setIsEditingCoupon(true);
+    setEditCouponId(coupon._id);
+    // Format Date for Input
+    const formattedDate = new Date(coupon.expirationDate)
+      .toISOString()
+      .split("T")[0];
+    setNewCoupon({
+      code: coupon.code,
+      discountPercentage: coupon.discountPercentage,
+      minOrderValue: coupon.minOrderValue,
+      maxDiscountAmount: coupon.maxDiscountAmount,
+      expirationDate: formattedDate,
+    });
+  };
+
+  // 🗑️ Delete Coupon
+  const handleDeleteCoupon = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this coupon?")) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+      await axios.delete(`${BASE_URL}/api/v1/coupons/${id}`, config);
+      toast.success("Coupon Deleted");
+      fetchAllData();
+    } catch (error) {
+      toast.error("Failed to delete coupon");
+    }
+  };
+
+  // 🔙 Cancel Edit Mode
+  const cancelCouponEdit = () => {
+    setIsEditingCoupon(false);
+    setEditCouponId(null);
+    setNewCoupon({
+      code: "",
+      discountPercentage: "",
+      minOrderValue: "",
+      maxDiscountAmount: "",
+      expirationDate: "",
+    });
+  };
+
+  // ... (Other handlers unchanged)
   const handleShopReorder = async (index, direction) => {
     const newShops = [...restaurants];
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= newShops.length) return;
-
     const temp = newShops[index];
     newShops[index] = newShops[targetIndex];
     newShops[targetIndex] = temp;
-
     setRestaurants(newShops);
-
     try {
       const headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${userInfo.token}`,
       };
-
       await Promise.all([
         fetch(`${BASE_URL}/api/v1/users/${newShops[index]._id}`, {
           method: "PUT",
@@ -225,10 +286,9 @@ const AdminDashboard = () => {
           body: JSON.stringify({ orderIndex: targetIndex }),
         }),
       ]);
-
       setTimeout(() => fetchAllData(), 500);
     } catch (error) {
-      console.error("Shop reorder failed", error);
+      console.error(error);
       fetchAllData();
     }
   };
@@ -394,7 +454,6 @@ const AdminDashboard = () => {
     setNewItem({ ...item, isVeg: item.isVeg ? "true" : "false" });
     setShowItemModal(true);
   };
-
   const openAddItemModal = () => {
     setIsEditingItem(false);
     setNewItem({
@@ -442,7 +501,7 @@ const AdminDashboard = () => {
             { id: "orders", label: "Manage Orders", icon: ShoppingBag },
             { id: "shops", label: "Manage Shops", icon: Store },
             { id: "menu", label: "Manage Menu", icon: UtensilsCrossed },
-            { id: "coupons", label: "Coupons", icon: Tag }, // 👈 Using Tag Icon
+            { id: "coupons", label: "Coupons", icon: Tag },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -501,12 +560,17 @@ const AdminDashboard = () => {
         {/* 🎟️ COUPONS TAB CONTENT */}
         {activeTab === "coupons" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
-            {/* Create Form */}
-            <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 h-fit">
+            {/* Create/Edit Form */}
+            <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 h-fit sticky top-24">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
-                <Plus size={20} className="text-green-500" /> Create Coupon
+                {isEditingCoupon ? (
+                  <RefreshCw size={20} className="text-blue-500" />
+                ) : (
+                  <Plus size={20} className="text-green-500" />
+                )}
+                {isEditingCoupon ? "Update Coupon" : "Create New Coupon"}
               </h3>
-              <form onSubmit={createCouponHandler} className="space-y-4">
+              <form onSubmit={handleCouponSubmit} className="space-y-4">
                 <div>
                   <label className="text-xs text-gray-400">Code</label>
                   <input
@@ -585,14 +649,31 @@ const AdminDashboard = () => {
                     required
                   />
                 </div>
-                <button
-                  type="submit"
-                  className="w-full bg-green-600 hover:bg-green-700 py-3 rounded font-bold transition text-white"
-                >
-                  Create Coupon
-                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className={`flex-1 ${
+                      isEditingCoupon
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "bg-green-600 hover:bg-green-700"
+                    } py-3 rounded font-bold transition text-white`}
+                  >
+                    {isEditingCoupon ? "Update" : "Create"}
+                  </button>
+                  {isEditingCoupon && (
+                    <button
+                      type="button"
+                      onClick={cancelCouponEdit}
+                      className="bg-gray-700 hover:bg-gray-600 px-4 rounded font-bold text-white"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
+
             {/* Coupon List */}
             <div className="lg:col-span-2 space-y-4">
               <h3 className="text-xl font-bold mb-4">
@@ -604,7 +685,11 @@ const AdminDashboard = () => {
                 coupons.map((coupon) => (
                   <div
                     key={coupon._id}
-                    className="bg-gray-800 p-4 rounded-xl flex justify-between items-center border border-gray-700"
+                    className={`bg-gray-800 p-4 rounded-xl flex justify-between items-center border ${
+                      editCouponId === coupon._id
+                        ? "border-blue-500 bg-blue-900/10"
+                        : "border-gray-700"
+                    }`}
                   >
                     <div>
                       <h4 className="text-2xl font-black text-green-400">
@@ -619,18 +704,23 @@ const AdminDashboard = () => {
                         {new Date(coupon.expirationDate).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          new Date() > new Date(coupon.expirationDate)
-                            ? "bg-red-500/20 text-red-500"
-                            : "bg-green-500/20 text-green-500"
-                        }`}
+                    <div className="flex items-center gap-2">
+                      {/* EDIT BUTTON */}
+                      <button
+                        onClick={() => handleEditCouponClick(coupon)}
+                        className="p-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500 hover:text-white transition-all"
+                        title="Edit Coupon"
                       >
-                        {new Date() > new Date(coupon.expirationDate)
-                          ? "EXPIRED"
-                          : "ACTIVE"}
-                      </span>
+                        <Edit2 size={18} />
+                      </button>
+                      {/* DELETE BUTTON */}
+                      <button
+                        onClick={() => handleDeleteCoupon(coupon._id)}
+                        className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all"
+                        title="Delete Coupon"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
                   </div>
                 ))
@@ -639,7 +729,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* 3. ORDERS TAB */}
+        {/* ... (Orders, Shops, Menu Tabs & Modals - Unchanged) ... */}
         {activeTab === "orders" && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden animate-fade-in">
             <div className="overflow-x-auto">
@@ -723,7 +813,6 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* 4. SHOPS TAB */}
         {activeTab === "shops" && (
           <div className="animate-fade-in">
             <div className="flex justify-between items-center mb-6">
@@ -811,7 +900,6 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* 5. MENU TAB */}
         {activeTab === "menu" && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 animate-fade-in">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -989,7 +1077,6 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Item Modal */}
         {showItemModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative">
