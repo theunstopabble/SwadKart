@@ -1,8 +1,18 @@
-import { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, removeFromCart } from "../redux/cartSlice";
-import { Trash2, ShoppingCart, ArrowRight, Minus, Plus } from "lucide-react";
+import {
+  Trash2,
+  ShoppingCart,
+  ArrowRight,
+  Minus,
+  Plus,
+  Tag,
+} from "lucide-react";
+import axios from "axios";
+import { toast } from "react-toastify";
+import { BASE_URL } from "../config";
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -12,20 +22,99 @@ const Cart = () => {
   const { cartItems } = cart;
   const { userInfo } = useSelector((state) => state.user);
 
-  // Calculate Subtotal
+  // 🎫 Coupon States
+  const [couponCode, setCouponCode] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [loadingCoupon, setLoadingCoupon] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+
+  // 1. Calculate Subtotal
   const subtotal = cartItems.reduce(
     (acc, item) => acc + item.qty * item.price,
     0
   );
+
+  // 2. Existing Logic (Tax & Shipping)
   const tax = subtotal * 0.05; // 5% Tax
   const shipping = subtotal > 500 ? 0 : 40; // Free shipping over ₹500
-  const total = subtotal + tax + shipping;
 
+  // 3. Final Total (Subtotal + Tax + Shipping - Discount)
+  const total = subtotal + tax + shipping - discount;
+
+  // 🔄 Fetch Smart Coupons on Load
+  useEffect(() => {
+    if (userInfo) {
+      fetchAvailableCoupons();
+    }
+  }, [userInfo]);
+
+  const fetchAvailableCoupons = async () => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+      const { data } = await axios.get(
+        `${BASE_URL}/api/v1/coupons/available`,
+        config
+      );
+      setAvailableCoupons(data);
+    } catch (error) {
+      console.error("Error fetching coupons", error);
+    }
+  };
+
+  // 🎫 API Handler: Apply Coupon
+  const applyCouponHandler = async () => {
+    if (!couponCode) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+
+    // 🔒 Security Check: User login hai ya nahi?
+    if (!userInfo || !userInfo.token) {
+      toast.error("Please login to apply coupons");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setLoadingCoupon(true);
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          // 👇 FIX: Use 'userInfo.token' instead of localStorage directly
+          Authorization: `Bearer ${userInfo.token}`,
+        },
+      };
+
+      const { data } = await axios.post(
+        `${BASE_URL}/api/v1/coupons/validate`,
+        { code: couponCode, orderAmount: subtotal },
+        config
+      );
+
+      setDiscount(data.discountAmount);
+      setAppliedCoupon(data.code);
+      toast.success(
+        `Coupon ${data.code} Applied! Saved ₹${data.discountAmount}`
+      );
+      setLoadingCoupon(false);
+    } catch (error) {
+      setLoadingCoupon(false);
+      setDiscount(0);
+      setAppliedCoupon("");
+      toast.error(error.response?.data?.message || "Invalid Coupon");
+    }
+  };
+
+  // 🚀 Checkout Handler
   const checkoutHandler = () => {
     if (!userInfo) {
       navigate("/login?redirect=shipping");
     } else {
-      navigate("/shipping"); // Next Step: Address Page
+      // Save Discount to LocalStorage for next steps
+      localStorage.setItem("couponDiscount", JSON.stringify(discount));
+      localStorage.setItem("appliedCoupon", JSON.stringify(appliedCoupon));
+      navigate("/shipping");
     }
   };
 
@@ -33,7 +122,7 @@ const Cart = () => {
     <div className="min-h-screen bg-black text-white pt-24 px-4 pb-10">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-extrabold mb-8 flex items-center gap-3">
-          <ShoppingCart className="text-primary" size={32} /> Your Food Cart
+          <ShoppingCart className="text-red-500" size={32} /> Your Food Cart
         </h1>
 
         {cartItems.length === 0 ? (
@@ -49,7 +138,7 @@ const Cart = () => {
             </p>
             <Link
               to="/"
-              className="bg-primary hover:bg-red-600 text-white px-8 py-3 rounded-full font-bold transition-all shadow-lg shadow-primary/30"
+              className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition-all shadow-lg shadow-red-600/30"
             >
               Explore Restaurants
             </Link>
@@ -73,7 +162,7 @@ const Cart = () => {
                     <h3 className="text-lg font-bold text-white">
                       {item.name}
                     </h3>
-                    <p className="text-primary font-bold">₹{item.price}</p>
+                    <p className="text-red-500 font-bold">₹{item.price}</p>
                     <p className="text-xs text-gray-500">{item.category}</p>
                   </div>
 
@@ -138,16 +227,90 @@ const Cart = () => {
                       {shipping === 0 ? "FREE" : `₹${shipping}`}
                     </span>
                   </div>
+
+                  {/* 🎫 COUPON DISCOUNT ROW (Dynamic) */}
+                  {discount > 0 && (
+                    <div className="flex justify-between text-green-400 font-bold animate-pulse">
+                      <span>Coupon ({appliedCoupon})</span>
+                      <span>- ₹{discount.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-between text-xl font-bold text-white border-t border-gray-800 pt-4 mb-6">
                   <span>Total</span>
-                  <span className="text-primary">₹{total.toFixed(2)}</span>
+                  <span className="text-red-500">
+                    ₹{(total < 0 ? 0 : total).toFixed(2)}
+                  </span>
+                </div>
+
+                {/* 🎫 COUPON INPUT SECTION */}
+                <div className="mb-6">
+                  <label className="text-sm text-gray-400 mb-2 block">
+                    Have a Coupon?
+                  </label>
+                  <div className="flex gap-2 mb-3">
+                    <div className="relative flex-1">
+                      <Tag
+                        className="absolute left-3 top-3 text-gray-500"
+                        size={18}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Ex: SWAD50"
+                        className="w-full bg-black text-white pl-10 pr-3 py-2.5 rounded-lg border border-gray-700 focus:outline-none focus:border-red-500 uppercase font-bold"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      onClick={applyCouponHandler}
+                      disabled={loadingCoupon}
+                      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50"
+                    >
+                      {loadingCoupon ? "..." : "Apply"}
+                    </button>
+                  </div>
+
+                  {/* 👇 SMART DROPDOWN LIST */}
+                  {availableCoupons.length > 0 && (
+                    <div className="bg-black/40 rounded-lg border border-gray-800 p-2">
+                      <p className="text-xs text-gray-500 mb-2 px-1 flex items-center gap-1">
+                        <Tag size={10} /> Best Coupons for You:
+                      </p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                        {availableCoupons.map((c) => (
+                          <div
+                            key={c._id}
+                            onClick={() => setCouponCode(c.code)}
+                            className={`p-2 rounded cursor-pointer border border-transparent hover:border-red-500/50 transition-all flex justify-between items-center group ${
+                              couponCode === c.code
+                                ? "bg-red-500/10 border-red-500"
+                                : "bg-gray-800"
+                            }`}
+                          >
+                            <div>
+                              <p className="font-bold text-sm text-white group-hover:text-red-400 transition-colors">
+                                {c.code}
+                              </p>
+                              <p className="text-[10px] text-gray-400">
+                                {c.discountPercentage}% Off upto ₹
+                                {c.maxDiscountAmount}
+                              </p>
+                            </div>
+                            <div className="text-xs font-bold text-green-400 bg-green-400/10 px-2 py-1 rounded">
+                              SAVE
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   onClick={checkoutHandler}
-                  className="w-full bg-primary hover:bg-red-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25 transform hover:-translate-y-1"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-600/25 transform hover:-translate-y-1"
                 >
                   Proceed to Checkout <ArrowRight size={20} />
                 </button>

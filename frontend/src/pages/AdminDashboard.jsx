@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -21,32 +24,37 @@ import {
   ArrowUp,
   ArrowDown,
   Phone,
+  Tag, // Safe Icon
 } from "lucide-react";
 import { BASE_URL } from "../config";
 
 const AdminDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
 
+  // --- UI STATES ---
   const [showItemModal, setShowItemModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
   const [showAddShopModal, setShowAddShopModal] = useState(false);
   const [showDummyModal, setShowDummyModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // --- EDIT/DATA STATES ---
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editItemId, setEditItemId] = useState(null);
-
   const [stats, setStats] = useState({ revenue: 0, orders: 0, users: 0 });
   const [orders, setOrders] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
+  const [coupons, setCoupons] = useState([]);
 
   const [selectedRestaurant, setSelectedRestaurant] = useState("");
   const [editingShop, setEditingShop] = useState(null);
   const [selectedPartner, setSelectedPartner] = useState({});
 
+  // --- FORMS ---
   const [newItem, setNewItem] = useState({
     name: "",
     price: "",
@@ -56,31 +64,46 @@ const AdminDashboard = () => {
     isVeg: "true",
     orderIndex: 0,
   });
+
   const [newShop, setNewShop] = useState({
     name: "",
     email: "",
     password: "",
     image: "",
   });
+
   const [dummyShopData, setDummyShopData] = useState({ name: "", image: "" });
 
+  const [newCoupon, setNewCoupon] = useState({
+    code: "",
+    discountPercentage: "",
+    minOrderValue: "",
+    maxDiscountAmount: "",
+    expirationDate: "",
+  });
+
+  // --- 1. FETCH ALL DATA ---
   const fetchAllData = async () => {
+    if (!userInfo || !userInfo.token) return;
     const headers = { Authorization: `Bearer ${userInfo.token}` };
+
     try {
+      // A. Fetch Restaurants
       const resRest = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
         headers,
       });
-      const dataRest = await resRest.json();
       if (resRest.ok) {
+        const dataRest = await resRest.json();
         setRestaurants(dataRest);
         setStats((prev) => ({ ...prev, users: dataRest.length }));
       }
 
+      // B. Fetch Orders
       const resOrders = await fetch(`${BASE_URL}/api/v1/orders/admin/all`, {
         headers,
       });
-      const dataOrders = await resOrders.json();
       if (resOrders.ok) {
+        const dataOrders = await resOrders.json();
         setOrders(dataOrders);
         const totalRev = dataOrders.reduce(
           (acc, order) => acc + (order.isPaid ? order.totalPrice : 0),
@@ -93,29 +116,53 @@ const AdminDashboard = () => {
         }));
       }
 
+      // C. Fetch Delivery Partners
       const resPartners = await fetch(
         `${BASE_URL}/api/v1/users/delivery-partners`,
         { headers }
       );
-      const dataPartners = await resPartners.json();
-      if (resPartners.ok) setDeliveryPartners(dataPartners);
+      if (resPartners.ok) {
+        const dataPartners = await resPartners.json();
+        setDeliveryPartners(dataPartners);
+      }
+
+      // D. Fetch Coupons (Wrapped in try-catch to prevent dashboard crash)
+      try {
+        const resCoupons = await axios.get(`${BASE_URL}/api/v1/coupons`, {
+          headers,
+        });
+        setCoupons(resCoupons.data || []);
+      } catch (couponError) {
+        console.warn("Coupon API not ready yet:", couponError);
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
+  // --- 2. AUTH CHECK & INITIAL LOAD ---
   useEffect(() => {
-    if (userInfo) fetchAllData();
-  }, [userInfo, activeTab]);
+    // 👇 FIX: Check both 'isAdmin' (boolean) AND 'role' (string)
+    if (userInfo && (userInfo.isAdmin || userInfo.role === "admin")) {
+      fetchAllData();
+    } else {
+      navigate("/");
+    }
+  }, [userInfo, activeTab, navigate]);
 
+  // --- 3. FETCH MENU WHEN RESTAURANT SELECTED ---
   useEffect(() => {
     if (selectedRestaurant) {
       const fetchMenu = async () => {
-        const res = await fetch(
-          `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`
-        );
-        const data = await res.json();
-        setMenuItems(data);
+        try {
+          const res = await fetch(
+            `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`
+          );
+          const data = await res.json();
+          setMenuItems(data);
+        } catch (error) {
+          console.error(error);
+        }
       };
       fetchMenu();
     } else {
@@ -123,7 +170,32 @@ const AdminDashboard = () => {
     }
   }, [selectedRestaurant]);
 
-  // ✅ IMPROVED: Live Reordering with proper delay for Database Sync
+  // --- HANDLERS ---
+
+  const createCouponHandler = async (e) => {
+    e.preventDefault();
+    try {
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userInfo.token}`,
+        },
+      };
+      await axios.post(`${BASE_URL}/api/v1/coupons`, newCoupon, config);
+      toast.success("Coupon Created Successfully! 🎉");
+      setNewCoupon({
+        code: "",
+        discountPercentage: "",
+        minOrderValue: "",
+        maxDiscountAmount: "",
+        expirationDate: "",
+      });
+      fetchAllData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to create coupon");
+    }
+  };
+
   const handleShopReorder = async (index, direction) => {
     const newShops = [...restaurants];
     const targetIndex = index + direction;
@@ -133,7 +205,6 @@ const AdminDashboard = () => {
     newShops[index] = newShops[targetIndex];
     newShops[targetIndex] = temp;
 
-    // 1. Instant UI Update (Optimistic)
     setRestaurants(newShops);
 
     try {
@@ -142,7 +213,6 @@ const AdminDashboard = () => {
         Authorization: `Bearer ${userInfo.token}`,
       };
 
-      // 2. Parallel API Calls to update indexes
       await Promise.all([
         fetch(`${BASE_URL}/api/v1/users/${newShops[index]._id}`, {
           method: "PUT",
@@ -156,11 +226,10 @@ const AdminDashboard = () => {
         }),
       ]);
 
-      // 3. Small delay ensures DB is fully updated before next fetch
       setTimeout(() => fetchAllData(), 500);
     } catch (error) {
       console.error("Shop reorder failed", error);
-      fetchAllData(); // Error aane par purana data restore karein
+      fetchAllData();
     }
   };
 
@@ -373,6 +442,7 @@ const AdminDashboard = () => {
             { id: "orders", label: "Manage Orders", icon: ShoppingBag },
             { id: "shops", label: "Manage Shops", icon: Store },
             { id: "menu", label: "Manage Menu", icon: UtensilsCrossed },
+            { id: "coupons", label: "Coupons", icon: Tag }, // 👈 Using Tag Icon
           ].map((tab) => (
             <button
               key={tab.id}
@@ -428,6 +498,148 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* 🎟️ COUPONS TAB CONTENT */}
+        {activeTab === "coupons" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+            {/* Create Form */}
+            <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 h-fit">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+                <Plus size={20} className="text-green-500" /> Create Coupon
+              </h3>
+              <form onSubmit={createCouponHandler} className="space-y-4">
+                <div>
+                  <label className="text-xs text-gray-400">Code</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: SWAD50"
+                    className="w-full bg-black p-3 rounded border border-gray-700 uppercase font-bold text-white"
+                    value={newCoupon.code}
+                    onChange={(e) =>
+                      setNewCoupon({
+                        ...newCoupon,
+                        code: e.target.value.toUpperCase(),
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-400">Discount %</label>
+                    <input
+                      type="number"
+                      className="w-full bg-black p-3 rounded border border-gray-700 text-white"
+                      value={newCoupon.discountPercentage}
+                      onChange={(e) =>
+                        setNewCoupon({
+                          ...newCoupon,
+                          discountPercentage: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400">Max Off (₹)</label>
+                    <input
+                      type="number"
+                      className="w-full bg-black p-3 rounded border border-gray-700 text-white"
+                      value={newCoupon.maxDiscountAmount}
+                      onChange={(e) =>
+                        setNewCoupon({
+                          ...newCoupon,
+                          maxDiscountAmount: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400">Min Order (₹)</label>
+                  <input
+                    type="number"
+                    className="w-full bg-black p-3 rounded border border-gray-700 text-white"
+                    value={newCoupon.minOrderValue}
+                    onChange={(e) =>
+                      setNewCoupon({
+                        ...newCoupon,
+                        minOrderValue: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400">Expires On</label>
+                  <input
+                    type="date"
+                    className="w-full bg-black p-3 rounded border border-gray-700 text-white"
+                    value={newCoupon.expirationDate}
+                    onChange={(e) =>
+                      setNewCoupon({
+                        ...newCoupon,
+                        expirationDate: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-green-600 hover:bg-green-700 py-3 rounded font-bold transition text-white"
+                >
+                  Create Coupon
+                </button>
+              </form>
+            </div>
+            {/* Coupon List */}
+            <div className="lg:col-span-2 space-y-4">
+              <h3 className="text-xl font-bold mb-4">
+                Active Coupons ({coupons.length})
+              </h3>
+              {coupons.length === 0 ? (
+                <p className="text-gray-500">No active coupons found.</p>
+              ) : (
+                coupons.map((coupon) => (
+                  <div
+                    key={coupon._id}
+                    className="bg-gray-800 p-4 rounded-xl flex justify-between items-center border border-gray-700"
+                  >
+                    <div>
+                      <h4 className="text-2xl font-black text-green-400">
+                        {coupon.code}
+                      </h4>
+                      <p className="text-sm text-gray-300">
+                        {coupon.discountPercentage}% OFF upto ₹
+                        {coupon.maxDiscountAmount}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Min Order: ₹{coupon.minOrderValue} | Expires:{" "}
+                        {new Date(coupon.expirationDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          new Date() > new Date(coupon.expirationDate)
+                            ? "bg-red-500/20 text-red-500"
+                            : "bg-green-500/20 text-green-500"
+                        }`}
+                      >
+                        {new Date() > new Date(coupon.expirationDate)
+                          ? "EXPIRED"
+                          : "ACTIVE"}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 3. ORDERS TAB */}
         {activeTab === "orders" && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden animate-fade-in">
             <div className="overflow-x-auto">
@@ -511,6 +723,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* 4. SHOPS TAB */}
         {activeTab === "shops" && (
           <div className="animate-fade-in">
             <div className="flex justify-between items-center mb-6">
@@ -547,8 +760,6 @@ const AdminDashboard = () => {
                       alt={shop.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-
-                    {/* ✅ Live Reorder Buttons */}
                     <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
                       <button
                         onClick={() => handleShopReorder(index, -1)}
@@ -565,7 +776,6 @@ const AdminDashboard = () => {
                         <ArrowDown size={18} />
                       </button>
                     </div>
-
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
                       <button
                         onClick={() => {
@@ -601,7 +811,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* ... (Menu and Modals Sections remain exactly as per user's last code but ensured Lucide-React consistency) */}
+        {/* 5. MENU TAB */}
         {activeTab === "menu" && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 animate-fade-in">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -691,7 +901,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* MODAL: Order Details */}
+        {/* MODALS */}
         {selectedOrder && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-2xl p-6 relative animate-in zoom-in-95 duration-200 shadow-2xl">
@@ -779,10 +989,10 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Item Modal (Same logic) */}
+        {/* Item Modal */}
         {showItemModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
-            <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative animate-in zoom-in-95 duration-200">
+            <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative">
               <button
                 onClick={() => setShowItemModal(false)}
                 className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -796,7 +1006,7 @@ const AdminDashboard = () => {
                 <input
                   type="text"
                   placeholder="Name"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={newItem.name}
                   onChange={(e) =>
                     setNewItem({ ...newItem, name: e.target.value })
@@ -807,7 +1017,7 @@ const AdminDashboard = () => {
                   <input
                     type="number"
                     placeholder="Price"
-                    className="w-1/2 bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
+                    className="w-1/2 bg-gray-800 border-gray-700 p-3 rounded text-white"
                     value={newItem.price}
                     onChange={(e) =>
                       setNewItem({ ...newItem, price: e.target.value })
@@ -821,14 +1031,14 @@ const AdminDashboard = () => {
                       setNewItem({ ...newItem, isVeg: e.target.value })
                     }
                   >
-                    <option value="true">🟢 Veg</option>
-                    <option value="false">🔴 Non-Veg</option>
+                    <option value="true">Veg</option>
+                    <option value="false">Non-Veg</option>
                   </select>
                 </div>
                 <input
                   type="text"
                   placeholder="Category"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={newItem.category}
                   onChange={(e) =>
                     setNewItem({ ...newItem, category: e.target.value })
@@ -838,7 +1048,7 @@ const AdminDashboard = () => {
                 <input
                   type="text"
                   placeholder="Image URL"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={newItem.image}
                   onChange={(e) =>
                     setNewItem({ ...newItem, image: e.target.value })
@@ -846,7 +1056,7 @@ const AdminDashboard = () => {
                 />
                 <textarea
                   placeholder="Description"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white h-24 focus:border-primary focus:outline-none"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white h-24"
                   value={newItem.description}
                   onChange={(e) =>
                     setNewItem({ ...newItem, description: e.target.value })
@@ -855,7 +1065,7 @@ const AdminDashboard = () => {
                 ></textarea>
                 <button
                   type="submit"
-                  className="w-full bg-primary font-bold py-3 rounded-xl shadow-lg active:scale-95 transition-all"
+                  className="w-full bg-primary font-bold py-3 rounded-xl shadow-lg"
                 >
                   {isEditingItem ? "Update" : "Add"}
                 </button>
@@ -864,22 +1074,21 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Shop Modal (Same logic) */}
         {showAddShopModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
-            <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative animate-in zoom-in-95 duration-200">
+          <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+            <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-md relative border border-gray-700">
               <button
                 onClick={() => setShowAddShopModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                className="absolute top-4 right-4 text-gray-400"
               >
-                <X size={24} />
+                <X />
               </button>
               <h2 className="text-2xl font-bold mb-4">Register Shop</h2>
               <form onSubmit={handleAddShop} className="space-y-4">
                 <input
                   type="text"
                   placeholder="Name"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={newShop.name}
                   onChange={(e) =>
                     setNewShop({ ...newShop, name: e.target.value })
@@ -889,7 +1098,7 @@ const AdminDashboard = () => {
                 <input
                   type="email"
                   placeholder="Email"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={newShop.email}
                   onChange={(e) =>
                     setNewShop({ ...newShop, email: e.target.value })
@@ -899,7 +1108,7 @@ const AdminDashboard = () => {
                 <input
                   type="password"
                   placeholder="Password"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={newShop.password}
                   onChange={(e) =>
                     setNewShop({ ...newShop, password: e.target.value })
@@ -908,7 +1117,7 @@ const AdminDashboard = () => {
                 />
                 <button
                   type="submit"
-                  className="w-full bg-green-600 font-bold py-3 rounded-xl transition-all active:scale-95"
+                  className="w-full bg-green-600 font-bold py-3 rounded-xl"
                 >
                   Register
                 </button>
@@ -917,60 +1126,21 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {showShopModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
-            <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative animate-in zoom-in-95 duration-200">
-              <button
-                onClick={() => setShowShopModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
-              >
-                <X size={24} />
-              </button>
-              <h2 className="text-2xl font-bold mb-4">Edit Shop</h2>
-              <form onSubmit={handleUpdateShop} className="space-y-4">
-                <input
-                  type="text"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
-                  value={editingShop?.name || ""}
-                  onChange={(e) =>
-                    setEditingShop({ ...editingShop, name: e.target.value })
-                  }
-                  required
-                />
-                <input
-                  type="text"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
-                  value={editingShop?.image || ""}
-                  onChange={(e) =>
-                    setEditingShop({ ...editingShop, image: e.target.value })
-                  }
-                />
-                <button
-                  type="submit"
-                  className="w-full bg-green-600 font-bold py-3 rounded-xl transition-all active:scale-95"
-                >
-                  Update
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-
         {showDummyModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex justify-center items-center z-50 p-4">
-            <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative animate-in zoom-in-95 duration-200">
+          <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+            <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-md relative border border-gray-700">
               <button
                 onClick={() => setShowDummyModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+                className="absolute top-4 right-4 text-gray-400"
               >
-                <X size={24} />
+                <X />
               </button>
               <h2 className="text-2xl font-bold mb-4">Add Dummy Shop</h2>
               <form onSubmit={handleCreateDummyShop} className="space-y-4">
                 <input
                   type="text"
-                  placeholder="Shop Name"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
+                  placeholder="Name"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={dummyShopData.name}
                   onChange={(e) =>
                     setDummyShopData({ ...dummyShopData, name: e.target.value })
@@ -980,7 +1150,7 @@ const AdminDashboard = () => {
                 <input
                   type="text"
                   placeholder="Image URL"
-                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white focus:border-primary focus:outline-none"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
                   value={dummyShopData.image}
                   onChange={(e) =>
                     setDummyShopData({
@@ -991,9 +1161,48 @@ const AdminDashboard = () => {
                 />
                 <button
                   type="submit"
-                  className="w-full bg-yellow-600 font-bold py-3 rounded-xl transition-all active:scale-95"
+                  className="w-full bg-yellow-600 font-bold py-3 rounded-xl"
                 >
                   Create
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showShopModal && (
+          <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+            <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-md relative border border-gray-700">
+              <button
+                onClick={() => setShowShopModal(false)}
+                className="absolute top-4 right-4 text-gray-400"
+              >
+                <X />
+              </button>
+              <h2 className="text-2xl font-bold mb-4">Edit Shop</h2>
+              <form onSubmit={handleUpdateShop} className="space-y-4">
+                <input
+                  type="text"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
+                  value={editingShop?.name || ""}
+                  onChange={(e) =>
+                    setEditingShop({ ...editingShop, name: e.target.value })
+                  }
+                  required
+                />
+                <input
+                  type="text"
+                  className="w-full bg-gray-800 border-gray-700 p-3 rounded text-white"
+                  value={editingShop?.image || ""}
+                  onChange={(e) =>
+                    setEditingShop({ ...editingShop, image: e.target.value })
+                  }
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-green-600 font-bold py-3 rounded-xl"
+                >
+                  Update
                 </button>
               </form>
             </div>
