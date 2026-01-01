@@ -13,10 +13,12 @@ import {
   Map as MapIcon,
   Loader2,
   User,
+  Search,
 } from "lucide-react";
-import { Geolocation } from "@capacitor/geolocation";
 
-// 👇 1. Map Imports (Naye updates)
+// ❌ Removed Capacitor Import (Web Mode Active)
+
+// 1. Map Imports
 import {
   MapContainer,
   TileLayer,
@@ -37,10 +39,12 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// 2. Helper Component: Map ko naye coordinates par le jaane ke liye
+// 2. Helper Component: Map View Updater
 function ChangeView({ center }) {
   const map = useMap();
-  map.setView(center, 16);
+  useEffect(() => {
+    map.setView(center, 16);
+  }, [center, map]);
   return null;
 }
 
@@ -49,7 +53,7 @@ const Shipping = () => {
   const { shippingAddress } = cart;
   const { userInfo } = useSelector((state) => state.user);
 
-  // States
+  // Form States
   const [fullName, setFullName] = useState(
     shippingAddress?.fullName || userInfo?.name || ""
   );
@@ -64,26 +68,16 @@ const Shipping = () => {
     shippingAddress?.addressType || "Home"
   );
 
-  // 👇 3. Map State (Default: Jaipur ya purana address)
-  const [mapCenter, setMapCenter] = useState([26.9124, 75.7873]);
+  // Map & Search States
+  const [mapCenter, setMapCenter] = useState([26.9124, 75.7873]); // Default: Jaipur
+  const [searchQuery, setSearchQuery] = useState("");
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // 4. Map par click karke pin change karne ka logic
-  const LocationMarker = () => {
-    useMapEvents({
-      click(e) {
-        const { lat, lng } = e.latlng;
-        setMapCenter([lat, lng]);
-        fetchAddressFromCoords(lat, lng);
-      },
-    });
-    return <Marker position={mapCenter} />;
-  };
-
-  // 5. Reverse Geocoding (Lat/Lng se Address nikalna)
+  // 3. Reverse Geocoding: Coords -> Address
   const fetchAddressFromCoords = async (lat, lng) => {
     try {
       const response = await fetch(
@@ -97,6 +91,8 @@ const Shipping = () => {
           data.address.neighbourhood ||
           "";
         const area = data.display_name.split(",")[0];
+
+        // Auto-fill fields
         setAddress(`${area}, ${street}`);
         setCity(
           data.address.city || data.address.town || data.address.village || ""
@@ -109,32 +105,74 @@ const Shipping = () => {
     }
   };
 
-  const handleCurrentLocation = async () => {
-    setLoadingLocation(true);
+  // 4. Search Logic
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery) return;
+    setIsSearching(true);
     try {
-      const permissions = await Geolocation.checkPermissions();
-      if (permissions.location !== "granted") {
-        const request = await Geolocation.requestPermissions();
-        if (request.location !== "granted") {
-          alert("Location permission denied.");
-          setLoadingLocation(false);
-          return;
-        }
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&countrycodes=in`
+      );
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        const newPos = [parseFloat(lat), parseFloat(lon)];
+        setMapCenter(newPos);
+        await fetchAddressFromCoords(lat, lon);
+      } else {
+        alert("Area not found. Try adding city name.");
       }
-
-      const coordinates = await Geolocation.getCurrentPosition();
-      const { latitude, longitude } = coordinates.coords;
-
-      // Map ko update karo
-      setMapCenter([latitude, longitude]);
-      // Address fields bharo
-      await fetchAddressFromCoords(latitude, longitude);
     } catch (error) {
-      console.error("GPS Error:", error);
-      alert("Please enable GPS/Location on your phone.");
+      console.error("Search Error:", error);
     } finally {
-      setLoadingLocation(false);
+      setIsSearching(false);
     }
+  };
+
+  // 5. Map Click Logic
+  const LocationMarker = () => {
+    useMapEvents({
+      click(e) {
+        const { lat, lng } = e.latlng;
+        setMapCenter([lat, lng]);
+        fetchAddressFromCoords(lat, lng);
+      },
+    });
+    return <Marker position={mapCenter} />;
+  };
+
+  // 6. 🌐 NATIVE BROWSER GPS (Replacement for Capacitor)
+  const handleCurrentLocation = () => {
+    setLoadingLocation(true);
+
+    // Check if browser supports Geolocation
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      setLoadingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        // Success
+        const { latitude, longitude } = position.coords;
+        setMapCenter([latitude, longitude]);
+        await fetchAddressFromCoords(latitude, longitude);
+        setLoadingLocation(false);
+      },
+      (error) => {
+        // Error
+        console.error("GPS Error:", error);
+        let msg = "Unable to retrieve your location.";
+        if (error.code === 1)
+          msg =
+            "Location permission denied. Please enable it in browser settings.";
+        alert(msg);
+        setLoadingLocation(false);
+      },
+      { enableHighAccuracy: true } // Options
+    );
   };
 
   const submitHandler = (e) => {
@@ -153,7 +191,6 @@ const Shipping = () => {
         state,
         phone,
         addressType,
-        // Optional: Location coordinates bhi bhej sakte hain backend ke liye
         lat: mapCenter[0],
         lng: mapCenter[1],
       })
@@ -170,8 +207,33 @@ const Shipping = () => {
           Delivery Location <MapPin className="text-primary" />
         </h1>
 
-        {/* 🗺️ NEW: Map Integration Section */}
-        <div className="w-full h-64 rounded-2xl overflow-hidden border border-gray-800 my-6 relative z-10 shadow-2xl">
+        {/* 🔍 Search Bar Section */}
+        <form onSubmit={handleSearch} className="relative mt-6 mb-4 group z-20">
+          <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-blue-500 transition-colors">
+            <Search size={20} />
+          </div>
+          <input
+            type="text"
+            placeholder="Search area (e.g. Mansarovar, Jaipur)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-gray-900 text-white pl-12 pr-24 py-4 rounded-xl border border-gray-800 focus:border-blue-500 outline-none transition-all shadow-lg"
+          />
+          <button
+            type="submit"
+            disabled={isSearching}
+            className="absolute right-2 top-2 bottom-2 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50"
+          >
+            {isSearching ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              "Search"
+            )}
+          </button>
+        </form>
+
+        {/* 🗺️ Leaflet Map Section */}
+        <div className="w-full h-64 rounded-2xl overflow-hidden border border-gray-800 mb-6 relative z-10 shadow-2xl">
           <MapContainer
             center={mapCenter}
             zoom={16}
@@ -184,12 +246,12 @@ const Shipping = () => {
           </MapContainer>
         </div>
 
-        {/* 📍 GPS BUTTON */}
+        {/* 📍 GPS Button */}
         <button
           onClick={handleCurrentLocation}
           type="button"
           disabled={loadingLocation}
-          className="w-full flex items-center justify-center gap-3 bg-gray-900/80 hover:bg-gray-800 text-blue-400 font-semibold py-4 rounded-xl border border-gray-800 mb-8 transition-all disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-3 bg-gray-900/80 hover:bg-gray-800 text-blue-400 font-semibold py-4 rounded-xl border border-gray-800 mb-8 transition-all active:scale-95 disabled:opacity-50"
         >
           {loadingLocation ? (
             <Loader2 size={20} className="animate-spin text-primary" />
@@ -202,9 +264,9 @@ const Shipping = () => {
         </button>
 
         <form onSubmit={submitHandler} className="space-y-5">
-          {/* User Input Fields (Baki sab same rahega) */}
+          {/* Receiver Name */}
           <div className="relative group">
-            <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary transition-colors">
+            <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary">
               <User size={20} />
             </div>
             <input
@@ -213,12 +275,13 @@ const Shipping = () => {
               value={fullName}
               required
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-gray-500 font-medium"
+              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none transition-all font-medium"
             />
           </div>
 
+          {/* Phone */}
           <div className="relative group">
-            <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary transition-colors">
+            <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary">
               <Phone size={20} />
             </div>
             <input
@@ -228,12 +291,13 @@ const Shipping = () => {
               required
               maxLength={10}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none transition-all placeholder-gray-500 font-medium tracking-widest"
+              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none tracking-widest"
             />
           </div>
 
+          {/* Address */}
           <div className="relative group">
-            <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary transition-colors">
+            <div className="absolute top-4 left-4 text-gray-500 group-focus-within:text-primary">
               <MapPin size={20} />
             </div>
             <input
@@ -242,7 +306,7 @@ const Shipping = () => {
               value={address}
               required
               onChange={(e) => setAddress(e.target.value)}
-              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none transition-all placeholder-gray-500 font-medium"
+              className="w-full bg-gray-900 text-white pl-12 pr-4 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none"
             />
           </div>
 
@@ -265,6 +329,7 @@ const Shipping = () => {
             />
           </div>
 
+          {/* Pincode */}
           <div className="relative group">
             <div className="absolute top-4 left-4 text-gray-500">
               <MapIcon size={20} />
@@ -281,6 +346,7 @@ const Shipping = () => {
             />
           </div>
 
+          {/* Address Type Buttons */}
           <div className="flex gap-3 pt-2">
             <button
               type="button"

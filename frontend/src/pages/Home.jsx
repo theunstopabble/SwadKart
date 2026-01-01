@@ -1,33 +1,72 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, MapPin, Clock, Star, ArrowRight } from "lucide-react";
+import { Search, MapPin, Clock, Star, ArrowRight, Loader2 } from "lucide-react";
 import { BASE_URL } from "../config";
+import io from "socket.io-client"; // 👈 Import Socket
 
 const Home = () => {
   const [restaurants, setRestaurants] = useState([]);
-  const [filteredRestaurants, setFilteredRestaurants] = useState([]); // 👈 Filtered list logic
-  const [searchTerm, setSearchTerm] = useState(""); // 👈 Search input logic
+  const [filteredRestaurants, setFilteredRestaurants] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // 1. Fetch Restaurants Data
+  const fetchRestaurants = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/v1/users/restaurants`);
+      if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+      const data = await res.json();
+
+      const allShops = Array.isArray(data) ? data : data.restaurants || [];
+
+      // 👇 Initial Sort based on orderIndex (Low to High)
+      const sortedShops = allShops.sort(
+        (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
+      );
+
+      setRestaurants(sortedShops);
+      setFilteredRestaurants(sortedShops);
+    } catch (error) {
+      console.error("Error fetching restaurants:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchRestaurants = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/api/v1/users/restaurants`);
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-        const data = await res.json();
-        const allShops = Array.isArray(data) ? data : data.restaurants || [];
-        setRestaurants(allShops);
-        setFilteredRestaurants(allShops);
-      } catch (error) {
-        console.error("Error fetching restaurants:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchRestaurants();
+
+    // 📡 2. SOCKET CONNECTION (Live Shop Re-ordering)
+    const socket = io(BASE_URL);
+
+    // Listen for 'restaurantUpdated' event from Backend
+    socket.on("restaurantUpdated", (updatedShop) => {
+      console.log("⚡ Shop Update Received:", updatedShop.name);
+
+      setRestaurants((prevShops) => {
+        // A. If shop exists, replace it. If not, add it.
+        let updatedList = prevShops.map((shop) =>
+          shop._id === updatedShop._id ? updatedShop : shop
+        );
+
+        const exists = prevShops.find((s) => s._id === updatedShop._id);
+        if (!exists) updatedList.push(updatedShop);
+
+        // B. 🔥 CRITICAL: Re-Sort Immediately
+        return [...updatedList].sort(
+          (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
+        );
+      });
+    });
+
+    // Cleanup
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
-  // 🔍 Professional Search Logic (बिना UI बदले)
+  // 🔍 3. Search Logic
+  // This runs automatically whenever 'restaurants' changes (including via Socket)
   useEffect(() => {
     const results = restaurants.filter((shop) => {
       const matchName = shop.name
@@ -43,7 +82,7 @@ const Home = () => {
 
   return (
     <div className="bg-black min-h-screen text-white pt-20">
-      {/* Hero Section - Original UI */}
+      {/* Hero Section */}
       <div className="relative h-[500px] w-full bg-[url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80')] bg-cover bg-center">
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent flex flex-col justify-center items-center text-center px-4">
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight">
@@ -54,14 +93,14 @@ const Home = () => {
             your doorstep.
           </p>
 
-          {/* Search Bar - Logic added to Original Input */}
+          {/* Search Bar */}
           <div className="flex bg-white rounded-full overflow-hidden p-1 w-full max-w-xl shadow-2xl shadow-primary/20">
             <input
               type="text"
               placeholder="Search for restaurants or food..."
               className="flex-1 px-6 py-3 text-black outline-none font-medium"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)} // 👈 Live Search Logic
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
             <button className="bg-primary hover:bg-red-600 text-white px-8 py-3 rounded-full font-bold transition-all flex items-center gap-2">
               <Search size={20} /> Search
@@ -70,7 +109,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Restaurants List Section - Original UI */}
+      {/* Restaurants List Section */}
       <div className="max-w-7xl mx-auto px-6 py-16">
         <div className="flex items-center gap-4 mb-10">
           <div className="w-1 h-10 bg-primary rounded-full"></div>
@@ -82,9 +121,9 @@ const Home = () => {
         </div>
 
         {loading ? (
-          <p className="text-gray-500 text-center text-xl animate-pulse">
-            Finding best food spots...
-          </p>
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="animate-spin text-primary h-12 w-12" />
+          </div>
         ) : filteredRestaurants.length === 0 ? (
           <div className="text-center py-20 bg-gray-900 rounded-2xl">
             <p className="text-gray-400 text-xl">
@@ -92,7 +131,8 @@ const Home = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          // Added transition for smooth re-ordering effect
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 transition-all duration-500">
             {filteredRestaurants.map((shop) => (
               <Link
                 to={`/restaurant/${shop._id}`}

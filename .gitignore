@@ -84,3 +84,6 @@ dist
 
 # DynamoDB Local files
 .dynamodb/
+
+uploads/
+!uploads/.gitkeep

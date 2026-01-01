@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart } from "../redux/cartSlice";
+import io from "socket.io-client"; // 👈 1. Import Socket
 import {
   Star,
   MapPin,
@@ -12,6 +13,7 @@ import {
   X,
   Check,
   ChevronRight,
+  AlertCircle, // 👈 Import Icon
 } from "lucide-react";
 import { BASE_URL } from "../config";
 
@@ -59,7 +61,7 @@ const RestaurantMenu = () => {
           finalMenu = menuData.products;
         }
         setMenu(finalMenu);
-        setFilteredMenu(finalMenu);
+        // Initial filtering happens in the next useEffect automatically
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -69,7 +71,33 @@ const RestaurantMenu = () => {
     fetchData();
   }, [id]);
 
-  // 2. SEARCH LOGIC
+  // 📡 2. SOCKET.IO LIVE UPDATES (The Magic Fix)
+  useEffect(() => {
+    // Connect to Backend
+    const socket = io(BASE_URL);
+
+    // Listen for Stock Changes
+    socket.on("productUpdated", (updatedItem) => {
+      console.log(
+        "⚡ Live Update:",
+        updatedItem.name,
+        "Stock:",
+        updatedItem.countInStock
+      );
+
+      // Update State Immediately
+      setMenu((prevMenu) =>
+        prevMenu.map((item) =>
+          item._id === updatedItem._id ? { ...item, ...updatedItem } : item
+        )
+      );
+    });
+
+    // Cleanup
+    return () => socket.disconnect();
+  }, []);
+
+  // 3. SEARCH LOGIC (Runs when 'searchTerm' OR 'menu' changes)
   useEffect(() => {
     const results = menu.filter(
       (item) =>
@@ -79,18 +107,14 @@ const RestaurantMenu = () => {
     setFilteredMenu(results);
   }, [searchTerm, menu]);
 
-  // 3. PRICE CALCULATION ENGINE
+  // 4. PRICE CALCULATION ENGINE
   useEffect(() => {
     if (!selectedItem) return;
 
     let price = selectedItem.price;
-
-    // If variant selected, override base price
     if (selectedVariant) {
       price = selectedVariant.price;
     }
-
-    // Add addons price
     if (selectedAddons.length > 0) {
       const addonsTotal = selectedAddons.reduce(
         (acc, addon) => acc + addon.price,
@@ -98,26 +122,25 @@ const RestaurantMenu = () => {
       );
       price += addonsTotal;
     }
-
     setFinalPrice(price);
   }, [selectedVariant, selectedAddons, selectedItem]);
 
-  // 4. HANDLERS
+  // 5. HANDLERS
   const handleAddToCartClick = (item) => {
+    // 🛑 Block if Sold Out
+    if (item.countInStock === 0) return;
+
     if (!userInfo) {
       alert("Please Login to order food! 🍔");
       navigate("/login");
       return;
     }
 
-    // 👉 Check if Customization is needed
     const hasVariants = item.variants && item.variants.length > 0;
     const hasAddons = item.addons && item.addons.length > 0;
 
     if (hasVariants || hasAddons) {
-      // Open Modal
       setSelectedItem(item);
-      // Auto-select first variant if exists (UX Best Practice)
       if (hasVariants) {
         setSelectedVariant(item.variants[0]);
       } else {
@@ -126,7 +149,6 @@ const RestaurantMenu = () => {
       setSelectedAddons([]);
       setShowModal(true);
     } else {
-      // Direct Add
       dispatch(addToCart({ ...item, qty: 1 }));
       alert(`${item.name} added to cart! 🛒`);
     }
@@ -143,14 +165,12 @@ const RestaurantMenu = () => {
   const confirmCustomization = () => {
     if (!selectedItem) return;
 
-    // Construct Cart Item with Customizations
     const cartItem = {
       ...selectedItem,
-      price: finalPrice, // Save the CALCULATED price
-      selectedVariant: selectedVariant, // Save Variant info
-      selectedAddons: selectedAddons, // Save Addons info
+      price: finalPrice,
+      selectedVariant: selectedVariant,
+      selectedAddons: selectedAddons,
       qty: 1,
-      // Create a unique ID for cart so same item with diff options doesn't merge
       _id:
         selectedItem._id +
         (selectedVariant ? "-" + selectedVariant.name : "") +
@@ -204,7 +224,7 @@ const RestaurantMenu = () => {
         </div>
       )}
 
-      {/* 🔍 SEARCH BAR */}
+      {/* SEARCH BAR */}
       <div className="max-w-7xl mx-auto px-6 mt-8">
         <div className="relative group max-w-md">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-primary transition-colors">
@@ -245,78 +265,105 @@ const RestaurantMenu = () => {
             <p className="text-gray-400 text-xl font-bold">
               Oops! No dishes match your search. 🍛
             </p>
-            <p className="text-sm text-gray-500 mt-2">
-              Try searching for something else or clear the filter.
-            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredMenu.map((item) => (
-              <div
-                key={item._id}
-                className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/10 group flex flex-col animate-in fade-in zoom-in-95 duration-300"
-              >
-                {/* Image Area */}
-                <div className="relative h-48 overflow-hidden">
-                  <img
-                    src={
-                      item.image || "https://placehold.co/600x400?text=No+Image"
-                    }
-                    alt={item.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  {item.isVeg ? (
-                    <span className="absolute top-3 right-3 bg-green-900/80 text-green-400 text-xs font-bold px-2 py-1 rounded border border-green-500">
-                      VEG
-                    </span>
-                  ) : (
-                    <span className="absolute top-3 right-3 bg-red-900/80 text-red-400 text-xs font-bold px-2 py-1 rounded border border-red-500">
-                      NON-VEG
-                    </span>
-                  )}
-                </div>
+            {filteredMenu.map((item) => {
+              // 👇 CHECK STOCK STATUS
+              const isOutOfStock = item.countInStock === 0;
 
-                {/* Details Area */}
-                <div className="p-5 flex flex-col flex-1">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-xl font-bold text-white leading-tight group-hover:text-primary transition-colors">
-                      {item.name}
-                    </h3>
-                    <p className="text-primary font-bold text-lg">
-                      ₹{item.price}
-                    </p>
+              return (
+                <div
+                  key={item._id}
+                  className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/10 group flex flex-col animate-in fade-in zoom-in-95 duration-300"
+                >
+                  {/* Image Area */}
+                  <div className="relative h-48 overflow-hidden">
+                    <img
+                      src={
+                        item.image ||
+                        "https://placehold.co/600x400?text=No+Image"
+                      }
+                      alt={item.name}
+                      className={`w-full h-full object-cover transition-transform duration-500 ${
+                        isOutOfStock
+                          ? "grayscale opacity-40 scale-100" // Grayscale if OOS
+                          : "group-hover:scale-110"
+                      }`}
+                    />
+
+                    {/* 🚫 SOLD OUT OVERLAY */}
+                    {isOutOfStock && (
+                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-[2px]">
+                        <AlertCircle className="text-red-500 mb-1" size={32} />
+                        <span className="text-red-500 font-black text-xl border-2 border-red-500 px-3 py-1 uppercase tracking-widest shadow-xl -rotate-12">
+                          SOLD OUT
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Veg/Non-Veg Badge */}
+                    <span
+                      className={`absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded border z-10 ${
+                        item.isVeg
+                          ? "bg-green-900/80 text-green-400 border-green-500"
+                          : "bg-red-900/80 text-red-400 border-red-500"
+                      }`}
+                    >
+                      {item.isVeg ? "VEG" : "NON-VEG"}
+                    </span>
                   </div>
 
-                  <p className="text-gray-400 text-sm line-clamp-2 mb-4 flex-1 italic">
-                    {item.description}
-                  </p>
+                  {/* Details Area */}
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-xl font-bold text-white leading-tight group-hover:text-primary transition-colors">
+                        {item.name}
+                      </h3>
+                      <p className="text-primary font-bold text-lg">
+                        ₹{item.price}
+                      </p>
+                    </div>
 
-                  <button
-                    onClick={() => handleAddToCartClick(item)}
-                    className="w-full bg-white hover:bg-green-500 hover:text-white text-black font-extrabold py-3 rounded-xl transition-all shadow-lg active:scale-95 uppercase tracking-wide flex justify-center items-center gap-2"
-                  >
-                    {item.variants?.length > 0 || item.addons?.length > 0 ? (
-                      <>
-                        Customize <ChevronRight size={18} />
-                      </>
-                    ) : (
-                      <>
-                        ADD <Plus size={18} strokeWidth={3} />
-                      </>
-                    )}
-                  </button>
+                    <p className="text-gray-400 text-sm line-clamp-2 mb-4 flex-1 italic">
+                      {item.description}
+                    </p>
+
+                    {/* 👇 BUTTON LOGIC UPDATED */}
+                    <button
+                      onClick={() => handleAddToCartClick(item)}
+                      disabled={isOutOfStock}
+                      className={`w-full font-extrabold py-3 rounded-xl transition-all shadow-lg active:scale-95 uppercase tracking-wide flex justify-center items-center gap-2 ${
+                        isOutOfStock
+                          ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
+                          : "bg-white hover:bg-green-500 hover:text-white text-black"
+                      }`}
+                    >
+                      {isOutOfStock ? (
+                        "UNAVAILABLE"
+                      ) : item.variants?.length > 0 ||
+                        item.addons?.length > 0 ? (
+                        <>
+                          Customize <ChevronRight size={18} />
+                        </>
+                      ) : (
+                        <>
+                          ADD <Plus size={18} strokeWidth={3} />
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* 🥘 CUSTOMIZATION MODAL */}
+      {/* 🥘 CUSTOMIZATION MODAL (Same as before) */}
       {showModal && selectedItem && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex justify-center items-end sm:items-center z-50 animate-in fade-in duration-200">
           <div className="bg-gray-900 w-full max-w-md sm:rounded-2xl rounded-t-2xl border border-gray-800 shadow-2xl relative flex flex-col max-h-[90vh]">
-            {/* Header */}
             <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900 sticky top-0 z-10 rounded-t-2xl">
               <div>
                 <h3 className="text-xl font-bold text-white">
@@ -334,9 +381,8 @@ const RestaurantMenu = () => {
               </button>
             </div>
 
-            {/* Scrollable Content */}
             <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-              {/* 1. VARIANTS (Radio) */}
+              {/* VARIANTS */}
               {selectedItem.variants && selectedItem.variants.length > 0 && (
                 <div className="space-y-3">
                   <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">
@@ -390,7 +436,7 @@ const RestaurantMenu = () => {
                 </div>
               )}
 
-              {/* 2. ADD-ONS (Checkbox) */}
+              {/* ADD-ONS */}
               {selectedItem.addons && selectedItem.addons.length > 0 && (
                 <div className="space-y-3">
                   <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">
@@ -447,7 +493,6 @@ const RestaurantMenu = () => {
               )}
             </div>
 
-            {/* Footer Action */}
             <div className="p-4 border-t border-gray-800 bg-gray-900 sticky bottom-0 rounded-b-2xl">
               <button
                 onClick={confirmCustomization}

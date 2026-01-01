@@ -10,7 +10,6 @@ import {
   X,
   User,
   MapPin,
-  ShoppingBag,
   CheckCircle,
   Truck,
   Edit2,
@@ -19,10 +18,13 @@ import {
   ArrowDown,
   UtensilsCrossed,
   Phone,
-  Layers, // Icon for Variants
+  Layers,
   Plus,
+  Loader2,
+  Power, // Toggle icon
 } from "lucide-react";
 import { BASE_URL } from "../config";
+import { toast } from "react-hot-toast"; // Notifications
 
 const RestaurantOwnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -46,27 +48,46 @@ const RestaurantOwnerDashboard = () => {
     image: "",
     isVeg: "true",
     orderIndex: 0,
-    // 👇 NEW ARRAYS FOR CUSTOMIZATION
     variants: [],
     addons: [],
   });
 
+  // 👇 COMMON FETCH OPTIONS (Token + Cookie Support)
+  const getFetchOptions = (method = "GET", body = null) => {
+    const options = {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userInfo?.token}`,
+      },
+      credentials: "include", // 👈 Critical for avoiding 401
+    };
+    if (body) options.body = JSON.stringify(body);
+    return options;
+  };
+
   const fetchData = async () => {
-    const headers = { Authorization: `Bearer ${userInfo.token}` };
+    if (!userInfo) return;
     setLoading(true);
     try {
-      const resOrders = await fetch(`${BASE_URL}/api/v1/orders`, { headers });
+      // 1. Fetch Orders
+      const resOrders = await fetch(
+        `${BASE_URL}/api/v1/orders`,
+        getFetchOptions()
+      );
       const dataOrders = await resOrders.json();
 
+      // 2. Fetch Menu
       const resMenu = await fetch(
         `${BASE_URL}/api/v1/products/restaurant/${userInfo._id}`,
-        { headers }
+        getFetchOptions()
       );
       const dataMenu = await resMenu.json();
 
+      // 3. Fetch Partners
       const resPartners = await fetch(
         `${BASE_URL}/api/v1/users/delivery-partners`,
-        { headers }
+        getFetchOptions()
       );
       const dataPartners = await resPartners.json();
 
@@ -75,6 +96,7 @@ const RestaurantOwnerDashboard = () => {
         setMenuItems(dataMenu || []);
         setDeliveryPartners(dataPartners || []);
 
+        // Calculate Stats
         const totalRevenue = dataOrders.reduce(
           (acc, order) => acc + (order.isPaid ? order.totalPrice : 0),
           0
@@ -90,6 +112,7 @@ const RestaurantOwnerDashboard = () => {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
@@ -98,6 +121,39 @@ const RestaurantOwnerDashboard = () => {
   useEffect(() => {
     if (userInfo) fetchData();
   }, [userInfo]);
+
+  // ⚡ NEW: Toggle Stock Function (One-Click Availability)
+  const handleToggleStock = async (id) => {
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
+        getFetchOptions("PATCH") // 👈 Uses PATCH method with credentials
+      );
+
+      if (res.ok) {
+        const updatedItem = await res.json();
+        // Optimistic UI Update (Turant Green/Red ho jayega)
+        setMenuItems((prevItems) =>
+          prevItems.map((item) =>
+            item._id === id
+              ? { ...item, countInStock: updatedItem.countInStock }
+              : item
+          )
+        );
+        toast.success(
+          updatedItem.countInStock > 0
+            ? "Item Available 🟢"
+            : "Item Sold Out 🔴"
+        );
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || "Failed to update stock");
+      }
+    } catch (error) {
+      console.error("Toggle failed", error);
+      toast.error("Network error, try again.");
+    }
+  };
 
   const openAddModal = () => {
     setIsEditing(false);
@@ -126,7 +182,6 @@ const RestaurantOwnerDashboard = () => {
       image: item.image,
       isVeg: item.isVeg ? "true" : "false",
       orderIndex: item.orderIndex,
-      // 👇 Populate existing variants/addons
       variants: item.variants || [],
       addons: item.addons || [],
     });
@@ -136,13 +191,15 @@ const RestaurantOwnerDashboard = () => {
   const handleDeleteItem = async (id) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
     try {
-      await fetch(`${BASE_URL}/api/v1/products/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${userInfo.token}` },
-      });
+      await fetch(
+        `${BASE_URL}/api/v1/products/${id}`,
+        getFetchOptions("DELETE")
+      );
       fetchData();
+      toast.success("Item deleted successfully");
     } catch (error) {
       console.error(error);
+      toast.error("Failed to delete item");
     }
   };
 
@@ -154,70 +211,53 @@ const RestaurantOwnerDashboard = () => {
     newItems[index] = newItems[targetIndex];
     newItems[targetIndex] = temp;
     setMenuItems(newItems);
+
     try {
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userInfo.token}`,
-      };
-      await fetch(`${BASE_URL}/api/v1/products/${newItems[index]._id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ orderIndex: index }),
-      });
-      await fetch(`${BASE_URL}/api/v1/products/${newItems[targetIndex]._id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ orderIndex: targetIndex }),
-      });
-      fetchData();
+      await fetch(
+        `${BASE_URL}/api/v1/products/${newItems[index]._id}`,
+        getFetchOptions("PUT", { orderIndex: index })
+      );
+      await fetch(
+        `${BASE_URL}/api/v1/products/${newItems[targetIndex]._id}`,
+        getFetchOptions("PUT", { orderIndex: targetIndex })
+      );
     } catch (error) {
       console.error("Reorder failed", error);
+      toast.error("Reorder failed");
     }
   };
 
-  // ============================================
-  // ⚡ VARIANT & ADDON HANDLERS
-  // ============================================
-
-  // --- VARIANTS ---
-  const handleAddVariant = () => {
+  // --- Variant/Addon Handlers ---
+  const handleAddVariant = () =>
     setNewItem({
       ...newItem,
       variants: [...newItem.variants, { name: "", price: "" }],
     });
-  };
-
-  const handleRemoveVariant = (index) => {
-    const updated = newItem.variants.filter((_, i) => i !== index);
-    setNewItem({ ...newItem, variants: updated });
-  };
-
+  const handleRemoveVariant = (index) =>
+    setNewItem({
+      ...newItem,
+      variants: newItem.variants.filter((_, i) => i !== index),
+    });
   const handleVariantChange = (index, field, value) => {
     const updated = [...newItem.variants];
     updated[index][field] = value;
     setNewItem({ ...newItem, variants: updated });
   };
-
-  // --- ADDONS ---
-  const handleAddAddon = () => {
+  const handleAddAddon = () =>
     setNewItem({
       ...newItem,
       addons: [...newItem.addons, { name: "", price: "" }],
     });
-  };
-
-  const handleRemoveAddon = (index) => {
-    const updated = newItem.addons.filter((_, i) => i !== index);
-    setNewItem({ ...newItem, addons: updated });
-  };
-
+  const handleRemoveAddon = (index) =>
+    setNewItem({
+      ...newItem,
+      addons: newItem.addons.filter((_, i) => i !== index),
+    });
   const handleAddonChange = (index, field, value) => {
     const updated = [...newItem.addons];
     updated[index][field] = value;
     setNewItem({ ...newItem, addons: updated });
   };
-
-  // ============================================
 
   const handleSubmitItem = async (e) => {
     e.preventDefault();
@@ -225,44 +265,43 @@ const RestaurantOwnerDashboard = () => {
       const productData = { ...newItem, isVeg: newItem.isVeg === "true" };
       let url = `${BASE_URL}/api/v1/products`;
       let method = "POST";
+
       if (isEditing) {
-        url = `${BASE_URL}/api/v1/products/${editId}`;
+        url += `/${editId}`;
         method = "PUT";
       }
-      const res = await fetch(url, {
-        method: method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
-        },
-        body: JSON.stringify(productData),
-      });
+
+      const res = await fetch(url, getFetchOptions(method, productData));
+
       if (res.ok) {
         setShowModal(false);
         fetchData();
+        toast.success(isEditing ? "Item Updated!" : "Item Added!");
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Failed to save item");
       }
     } catch (error) {
       console.error(error);
+      toast.error("Something went wrong");
     }
   };
 
   const handleAssignPartner = async (orderId) => {
     const partnerId = selectedPartner[orderId];
-    if (!partnerId) return alert("Select a partner!");
+    if (!partnerId) return toast.error("Please select a partner first!");
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/orders/${orderId}/assign`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
-        },
-        body: JSON.stringify({ deliveryPartnerId: partnerId }),
-      });
+      const res = await fetch(
+        `${BASE_URL}/api/v1/orders/${orderId}/assign`,
+        getFetchOptions("PUT", { deliveryPartnerId: partnerId })
+      );
       if (res.ok) {
         fetchData();
+        toast.success("Delivery Partner Assigned! 🚚");
       }
     } catch (error) {
       console.error(error);
+      toast.error("Failed to assign partner");
     }
   };
 
@@ -297,7 +336,11 @@ const RestaurantOwnerDashboard = () => {
           </div>
         </div>
 
-        {activeTab === "overview" && (
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="animate-spin text-primary h-12 w-12" />
+          </div>
+        ) : activeTab === "overview" ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
               <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 flex justify-between">
@@ -333,86 +376,84 @@ const RestaurantOwnerDashboard = () => {
               <CookingPot className="text-primary" /> Live Orders
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {orders.map((order) => (
-                <div
-                  key={order._id}
-                  className="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-primary/30 transition-all"
-                >
-                  <div className="flex justify-between mb-4 border-b border-gray-800 pb-4">
-                    <div>
-                      <h3 className="text-xl font-bold flex items-center gap-2">
-                        #{order._id.substring(0, 6)}
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded uppercase font-extrabold tracking-wider ${
-                            order.isPaid
-                              ? "bg-green-500/20 text-green-400"
-                              : "bg-red-500/20 text-red-400"
-                          }`}
-                        >
-                          {order.isPaid ? "PAID" : "UNPAID"}
-                        </span>
-                      </h3>
-                      <div className="mt-3 space-y-2">
-                        <p className="text-white font-bold flex items-center gap-2">
-                          <User size={14} className="text-primary" />{" "}
-                          {order.shippingAddress?.fullName}
-                        </p>
-                        <p className="text-gray-400 text-sm flex items-start gap-2 leading-relaxed">
-                          <MapPin
-                            size={14}
-                            className="mt-1 flex-shrink-0 text-primary"
-                          />
-                          <span>
-                            {order.shippingAddress?.address},{" "}
-                            {order.shippingAddress?.city}, <br />
-                            {order.shippingAddress?.state} -{" "}
-                            {order.shippingAddress?.postalCode}
+              {orders.length === 0 ? (
+                <div className="col-span-full text-center py-20 text-gray-500 italic">
+                  No Active Orders Found.
+                </div>
+              ) : (
+                orders.map((order) => (
+                  <div
+                    key={order._id}
+                    className="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-primary/30 transition-all"
+                  >
+                    <div className="flex justify-between mb-4 border-b border-gray-800 pb-4">
+                      <div>
+                        <h3 className="text-xl font-bold flex items-center gap-2">
+                          #{order._id.substring(0, 6)}{" "}
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded uppercase font-extrabold tracking-wider ${
+                              order.isPaid
+                                ? "bg-green-500/20 text-green-400"
+                                : "bg-red-500/20 text-red-400"
+                            }`}
+                          >
+                            {order.isPaid ? "PAID" : "UNPAID"}
                           </span>
+                        </h3>
+                        <div className="mt-3 space-y-2">
+                          <p className="text-white font-bold flex items-center gap-2">
+                            <User size={14} className="text-primary" />{" "}
+                            {order.shippingAddress?.fullName}
+                          </p>
+                          <p className="text-gray-400 text-sm flex items-start gap-2 leading-relaxed">
+                            <MapPin
+                              size={14}
+                              className="mt-1 flex-shrink-0 text-primary"
+                            />
+                            <span>
+                              {order.shippingAddress?.address},{" "}
+                              {order.shippingAddress?.city},{" "}
+                              {order.shippingAddress?.state} -{" "}
+                              {order.shippingAddress?.postalCode}
+                            </span>
+                          </p>
+                          <p className="text-primary font-mono font-bold text-sm bg-primary/10 w-fit px-3 py-1 rounded-lg border border-primary/20 flex items-center gap-2">
+                            <Phone size={14} /> {order.shippingAddress?.phone}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">
+                          ₹{order.totalPrice}
                         </p>
-                        <p className="text-primary font-mono font-bold text-sm bg-primary/10 w-fit px-3 py-1 rounded-lg border border-primary/20 flex items-center gap-2">
-                          <Phone size={14} /> {order.shippingAddress?.phone}
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">
+                          {order.paymentMethod} Payment
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-1 italic">
+                          {new Date(order.createdAt).toLocaleTimeString()}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-primary">
-                        ₹{order.totalPrice}
-                      </p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest">
-                        {order.paymentMethod} Payment
-                      </p>
-                      <p className="text-[10px] text-gray-400 mt-1 italic">
-                        {new Date(order.createdAt).toLocaleTimeString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-black/40 p-3 rounded-xl mb-4 border border-gray-800">
-                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-2 tracking-widest">
-                      Order Items
-                    </p>
-                    {order.orderItems.map((item, i) => (
-                      <div
-                        key={i}
-                        className="flex justify-between text-sm mb-2 text-gray-300 border-b border-gray-800 pb-2 last:border-0 last:pb-0"
-                      >
-                        <div className="flex flex-col">
-                          <span>
-                            <span className="text-primary font-bold">
-                              {item.qty}x
-                            </span>{" "}
-                            {item.name}
-                          </span>
-
-                          {/* 👇👇 NEW: SHOW KITCHEN INSTRUCTIONS 👇👇 */}
-                          <div className="pl-6 text-xs text-gray-400 mt-1 space-y-0.5">
-                            {item.selectedVariant && (
-                              <span className="block text-blue-300">
-                                • Size: {item.selectedVariant.name}
-                              </span>
-                            )}
-                            {item.selectedAddons &&
-                              item.selectedAddons.length > 0 && (
+                    <div className="bg-black/40 p-3 rounded-xl mb-4 border border-gray-800">
+                      {order.orderItems.map((item, i) => (
+                        <div
+                          key={i}
+                          className="flex justify-between text-sm mb-2 text-gray-300 border-b border-gray-800 pb-2 last:border-0 last:pb-0"
+                        >
+                          <div className="flex flex-col">
+                            <span>
+                              <span className="text-primary font-bold">
+                                {item.qty}x
+                              </span>{" "}
+                              {item.name}
+                            </span>
+                            <div className="pl-6 text-xs text-gray-400 mt-1 space-y-0.5">
+                              {item.selectedVariant && (
+                                <span className="block text-blue-300">
+                                  • Size: {item.selectedVariant.name}
+                                </span>
+                              )}
+                              {item.selectedAddons?.length > 0 && (
                                 <span className="block text-green-300">
                                   • Extras:{" "}
                                   {item.selectedAddons
@@ -420,57 +461,54 @@ const RestaurantOwnerDashboard = () => {
                                     .join(", ")}
                                 </span>
                               )}
+                            </div>
                           </div>
-                          {/* 👆👆 END NEW CODE 👆👆 */}
+                          <span className="font-mono text-gray-400">
+                            ₹{item.price * item.qty}
+                          </span>
                         </div>
-                        <span className="font-mono text-gray-400">
-                          ₹{item.price * item.qty}
-                        </span>
+                      ))}
+                    </div>
+                    {!order.isDelivered && !order.deliveryPartner && (
+                      <div className="flex gap-2">
+                        <select
+                          className="flex-1 bg-black border border-gray-700 text-white p-2 rounded-lg text-sm focus:outline-none"
+                          onChange={(e) =>
+                            setSelectedPartner({
+                              ...selectedPartner,
+                              [order._id]: e.target.value,
+                            })
+                          }
+                        >
+                          <option value="">Assign Delivery Partner</option>
+                          {deliveryPartners.map((p) => (
+                            <option key={p._id} value={p._id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleAssignPartner(order._id)}
+                          className="bg-primary hover:bg-red-600 px-6 py-2 rounded-lg font-bold transition-all text-sm"
+                        >
+                          Assign
+                        </button>
                       </div>
-                    ))}
+                    )}
+                    {order.deliveryPartner && (
+                      <div className="bg-green-500/10 border border-green-500/20 p-2 rounded-lg">
+                        <p className="text-green-400 text-xs font-bold flex items-center gap-2 justify-center italic">
+                          <Truck size={14} /> {order.deliveryPartner.name} is
+                          handling delivery
+                        </p>
+                      </div>
+                    )}
                   </div>
-
-                  {!order.isDelivered && !order.deliveryPartner && (
-                    <div className="flex gap-2">
-                      <select
-                        className="flex-1 bg-black border border-gray-700 text-white p-2 rounded-lg text-sm focus:outline-none focus:border-primary transition-all"
-                        onChange={(e) =>
-                          setSelectedPartner({
-                            ...selectedPartner,
-                            [order._id]: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="">Assign Delivery Partner</option>
-                        {deliveryPartners.map((p) => (
-                          <option key={p._id} value={p._id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => handleAssignPartner(order._id)}
-                        className="bg-primary hover:bg-red-600 px-6 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95 text-sm"
-                      >
-                        Assign
-                      </button>
-                    </div>
-                  )}
-                  {order.deliveryPartner && (
-                    <div className="bg-green-500/10 border border-green-500/20 p-2 rounded-lg">
-                      <p className="text-green-400 text-xs font-bold flex items-center gap-2 justify-center italic">
-                        <Truck size={14} /> {order.deliveryPartner.name} is
-                        handling delivery
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </>
-        )}
-
-        {activeTab === "menu" && (
+        ) : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -479,7 +517,7 @@ const RestaurantOwnerDashboard = () => {
               </h2>
               <button
                 onClick={openAddModal}
-                className="bg-primary hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full flex items-center gap-2 shadow-lg transition-all active:scale-95"
+                className="bg-primary hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full flex items-center gap-2 shadow-lg transition-all"
               >
                 <PlusCircle size={20} /> Add Item
               </button>
@@ -498,27 +536,40 @@ const RestaurantOwnerDashboard = () => {
                     />
                     <span
                       className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-bold ${
-                        item.isVeg === true || item.isVeg === "true"
-                          ? "bg-green-600"
-                          : "bg-red-600"
+                        item.isVeg ? "bg-green-600" : "bg-red-600"
                       }`}
                     >
-                      {item.isVeg === true || item.isVeg === "true"
-                        ? "VEG"
-                        : "NON-VEG"}
+                      {item.isVeg ? "VEG" : "NON-VEG"}
                     </span>
+
+                    {/* ⚡ NEW: Availability Toggle Button */}
+                    <button
+                      onClick={() => handleToggleStock(item._id)}
+                      title={
+                        item.countInStock > 0 ? "Disable Item" : "Enable Item"
+                      }
+                      className={`absolute bottom-2 left-2 p-2 rounded-lg flex items-center gap-2 text-[10px] font-black transition-all shadow-lg border cursor-pointer z-10 hover:scale-105 active:scale-95 ${
+                        item.countInStock > 0
+                          ? "bg-green-500/20 text-green-400 border-green-500/50 hover:bg-green-500/30"
+                          : "bg-red-500/20 text-red-500 border-red-500/50 hover:bg-red-500/30"
+                      }`}
+                    >
+                      <Power size={12} />{" "}
+                      {item.countInStock > 0 ? "AVAILABLE" : "SOLD OUT"}
+                    </button>
+
                     <div className="absolute top-2 right-2 flex flex-col gap-1">
                       <button
                         onClick={() => handleReorder(index, -1)}
                         disabled={index === 0}
-                        className="bg-black/50 hover:bg-primary p-1 rounded text-white disabled:opacity-30 backdrop-blur-sm transition-all"
+                        className="bg-black/50 hover:bg-primary p-1 rounded text-white disabled:opacity-30 backdrop-blur-sm"
                       >
                         <ArrowUp size={16} />
                       </button>
                       <button
                         onClick={() => handleReorder(index, 1)}
                         disabled={index === menuItems.length - 1}
-                        className="bg-black/50 hover:bg-primary p-1 rounded text-white disabled:opacity-30 backdrop-blur-sm transition-all"
+                        className="bg-black/50 hover:bg-primary p-1 rounded text-white disabled:opacity-30 backdrop-blur-sm"
                       >
                         <ArrowDown size={16} />
                       </button>
@@ -560,7 +611,7 @@ const RestaurantOwnerDashboard = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-          <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button
               onClick={() => setShowModal(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
@@ -578,7 +629,7 @@ const RestaurantOwnerDashboard = () => {
                 <input
                   type="text"
                   placeholder="e.g. Farmhouse Pizza"
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-primary transition-all"
+                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
                   value={newItem.name}
                   onChange={(e) =>
                     setNewItem({ ...newItem, name: e.target.value })
@@ -594,7 +645,7 @@ const RestaurantOwnerDashboard = () => {
                   <input
                     type="number"
                     placeholder="299"
-                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-primary transition-all"
+                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
                     value={newItem.price}
                     onChange={(e) =>
                       setNewItem({ ...newItem, price: e.target.value })
@@ -607,7 +658,7 @@ const RestaurantOwnerDashboard = () => {
                     Type
                   </label>
                   <select
-                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-primary transition-all"
+                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
                     value={newItem.isVeg}
                     onChange={(e) =>
                       setNewItem({ ...newItem, isVeg: e.target.value })
@@ -625,7 +676,7 @@ const RestaurantOwnerDashboard = () => {
                 <input
                   type="text"
                   placeholder="e.g. Pizza, Burger"
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-primary transition-all"
+                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
                   value={newItem.category}
                   onChange={(e) =>
                     setNewItem({ ...newItem, category: e.target.value })
@@ -640,7 +691,7 @@ const RestaurantOwnerDashboard = () => {
                 <input
                   type="text"
                   placeholder="https://unsplash.com/..."
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-primary transition-all"
+                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
                   value={newItem.image}
                   onChange={(e) =>
                     setNewItem({ ...newItem, image: e.target.value })
@@ -653,7 +704,7 @@ const RestaurantOwnerDashboard = () => {
                 </label>
                 <textarea
                   placeholder="Tell customers about this dish..."
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white h-24 focus:outline-none focus:border-primary transition-all resize-none"
+                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white h-24 focus:outline-none resize-none"
                   value={newItem.description}
                   onChange={(e) =>
                     setNewItem({ ...newItem, description: e.target.value })
@@ -680,7 +731,7 @@ const RestaurantOwnerDashboard = () => {
                   <div key={index} className="flex gap-2 mb-2">
                     <input
                       type="text"
-                      placeholder="Name (e.g. Large)"
+                      placeholder="Name"
                       className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
                       value={variant.name}
                       onChange={(e) =>
@@ -727,7 +778,7 @@ const RestaurantOwnerDashboard = () => {
                   <div key={index} className="flex gap-2 mb-2">
                     <input
                       type="text"
-                      placeholder="Name (e.g. Extra Cheese)"
+                      placeholder="Name"
                       className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
                       value={addon.name}
                       onChange={(e) =>

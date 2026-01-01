@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast"; // Hot Toast is better
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -26,10 +26,10 @@ import {
   Phone,
   Tag,
   RefreshCw,
-  XCircle,
   ToggleLeft,
   ToggleRight,
-  Layers, // 👈 Imported for Variants
+  Layers,
+  Power, // Stock Toggle Icon
 } from "lucide-react";
 import { BASE_URL } from "../config";
 
@@ -72,7 +72,6 @@ const AdminDashboard = () => {
     image: "",
     isVeg: "true",
     orderIndex: 0,
-    // 👇 NEW: Arrays for customization
     variants: [],
     addons: [],
   });
@@ -94,24 +93,39 @@ const AdminDashboard = () => {
     expirationDate: "",
   });
 
+  // 👇 COMMON FETCH OPTIONS (Token + Cookie Support) - 401 Fix Here
+  const getFetchOptions = (method = "GET", body = null) => {
+    const options = {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userInfo?.token}`,
+      },
+      credentials: "include", // 👈 Critical for Cookie Auth
+    };
+    if (body) options.body = JSON.stringify(body);
+    return options;
+  };
+
   // --- 1. FETCH ALL DATA ---
   const fetchAllData = async () => {
     if (!userInfo || !userInfo.token) return;
-    const headers = { Authorization: `Bearer ${userInfo.token}` };
 
     try {
-      const resRest = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
-        headers,
-      });
+      const resRest = await fetch(
+        `${BASE_URL}/api/v1/users/admin/all`,
+        getFetchOptions()
+      );
       if (resRest.ok) {
         const dataRest = await resRest.json();
         setRestaurants(dataRest);
         setStats((prev) => ({ ...prev, users: dataRest.length }));
       }
 
-      const resOrders = await fetch(`${BASE_URL}/api/v1/orders/admin/all`, {
-        headers,
-      });
+      const resOrders = await fetch(
+        `${BASE_URL}/api/v1/orders/admin/all`,
+        getFetchOptions()
+      );
       if (resOrders.ok) {
         const dataOrders = await resOrders.json();
         setOrders(dataOrders);
@@ -128,7 +142,7 @@ const AdminDashboard = () => {
 
       const resPartners = await fetch(
         `${BASE_URL}/api/v1/users/delivery-partners`,
-        { headers }
+        getFetchOptions()
       );
       if (resPartners.ok) {
         const dataPartners = await resPartners.json();
@@ -137,7 +151,8 @@ const AdminDashboard = () => {
 
       try {
         const resCoupons = await axios.get(`${BASE_URL}/api/v1/coupons`, {
-          headers,
+          headers: { Authorization: `Bearer ${userInfo.token}` },
+          withCredentials: true, // Axios equivalent of credentials: include
         });
         setCoupons(resCoupons.data || []);
       } catch (couponError) {
@@ -161,7 +176,8 @@ const AdminDashboard = () => {
       const fetchMenu = async () => {
         try {
           const res = await fetch(
-            `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`
+            `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`,
+            getFetchOptions()
           );
           const data = await res.json();
           setMenuItems(data);
@@ -175,50 +191,72 @@ const AdminDashboard = () => {
     }
   }, [selectedRestaurant]);
 
-  // ==========================
-  // ⚡ VARIANT & ADDON HANDLERS
-  // ==========================
+  // ⚡ ADMIN STOCK TOGGLE (Fixed 401 Error)
+  const handleAdminToggleStock = async (id) => {
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
+        getFetchOptions("PATCH") // 👈 Uses Credentials
+      );
 
+      if (res.ok) {
+        const updatedProduct = await res.json();
+        // Update local state immediately
+        setMenuItems((prevItems) =>
+          prevItems.map((item) =>
+            item._id === id
+              ? { ...item, countInStock: updatedProduct.countInStock }
+              : item
+          )
+        );
+        toast.success(
+          `Item marked as ${
+            updatedProduct.countInStock > 0 ? "Available 🟢" : "Out of Stock 🔴"
+          }`
+        );
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Failed to toggle stock");
+      }
+    } catch (error) {
+      console.error("Toggle Failed", error);
+      toast.error("Failed to update stock status");
+    }
+  };
+
+  // --- VARIANT & ADDON HANDLERS ---
   const handleAddVariant = () => {
     setNewItem({
       ...newItem,
       variants: [...newItem.variants, { name: "", price: "" }],
     });
   };
-
   const handleRemoveVariant = (index) => {
     const updated = newItem.variants.filter((_, i) => i !== index);
     setNewItem({ ...newItem, variants: updated });
   };
-
   const handleVariantChange = (index, field, value) => {
     const updated = [...newItem.variants];
     updated[index][field] = value;
     setNewItem({ ...newItem, variants: updated });
   };
-
   const handleAddAddon = () => {
     setNewItem({
       ...newItem,
       addons: [...newItem.addons, { name: "", price: "" }],
     });
   };
-
   const handleRemoveAddon = (index) => {
     const updated = newItem.addons.filter((_, i) => i !== index);
     setNewItem({ ...newItem, addons: updated });
   };
-
   const handleAddonChange = (index, field, value) => {
     const updated = [...newItem.addons];
     updated[index][field] = value;
     setNewItem({ ...newItem, addons: updated });
   };
 
-  // ==========================
-  // 🎟️ COUPON HANDLERS
-  // ==========================
-
+  // --- COUPON HANDLERS ---
   const handleCouponSubmit = async (e) => {
     e.preventDefault();
     const config = {
@@ -226,6 +264,7 @@ const AdminDashboard = () => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${userInfo.token}`,
       },
+      withCredentials: true,
     };
 
     try {
@@ -275,7 +314,10 @@ const AdminDashboard = () => {
   const handleDeleteCoupon = async (id) => {
     if (!window.confirm("Are you sure you want to delete this coupon?")) return;
     try {
-      const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+      const config = {
+        headers: { Authorization: `Bearer ${userInfo.token}` },
+        withCredentials: true,
+      };
       await axios.delete(`${BASE_URL}/api/v1/coupons/${id}`, config);
       toast.success("Coupon Deleted");
       fetchAllData();
@@ -298,7 +340,10 @@ const AdminDashboard = () => {
 
   const toggleCouponStatus = async (coupon) => {
     try {
-      const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+      const config = {
+        headers: { Authorization: `Bearer ${userInfo.token}` },
+        withCredentials: true,
+      };
       await axios.put(
         `${BASE_URL}/api/v1/coupons/${coupon._id}`,
         { isActive: !coupon.isActive },
@@ -311,10 +356,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // ==========================
-  // 🛍️ OTHER HANDLERS
-  // ==========================
-
+  // --- OTHER HANDLERS ---
   const handleShopReorder = async (index, direction) => {
     const newShops = [...restaurants];
     const targetIndex = index + direction;
@@ -324,21 +366,15 @@ const AdminDashboard = () => {
     newShops[targetIndex] = temp;
     setRestaurants(newShops);
     try {
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userInfo.token}`,
-      };
       await Promise.all([
-        fetch(`${BASE_URL}/api/v1/users/${newShops[index]._id}`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({ orderIndex: index }),
-        }),
-        fetch(`${BASE_URL}/api/v1/users/${newShops[targetIndex]._id}`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({ orderIndex: targetIndex }),
-        }),
+        fetch(
+          `${BASE_URL}/api/v1/users/${newShops[index]._id}`,
+          getFetchOptions("PUT", { orderIndex: index })
+        ),
+        fetch(
+          `${BASE_URL}/api/v1/users/${newShops[targetIndex]._id}`,
+          getFetchOptions("PUT", { orderIndex: targetIndex })
+        ),
       ]);
       setTimeout(() => fetchAllData(), 500);
     } catch (error) {
@@ -356,20 +392,14 @@ const AdminDashboard = () => {
     newItems[targetIndex] = temp;
     setMenuItems(newItems);
     try {
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userInfo.token}`,
-      };
-      await fetch(`${BASE_URL}/api/v1/products/${newItems[index]._id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ orderIndex: index }),
-      });
-      await fetch(`${BASE_URL}/api/v1/products/${newItems[targetIndex]._id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ orderIndex: targetIndex }),
-      });
+      await fetch(
+        `${BASE_URL}/api/v1/products/${newItems[index]._id}`,
+        getFetchOptions("PUT", { orderIndex: index })
+      );
+      await fetch(
+        `${BASE_URL}/api/v1/products/${newItems[targetIndex]._id}`,
+        getFetchOptions("PUT", { orderIndex: targetIndex })
+      );
       setTimeout(() => fetchAllData(), 300);
     } catch (error) {
       console.error(error);
@@ -379,12 +409,12 @@ const AdminDashboard = () => {
   const handleDeleteRestaurant = async (id) => {
     if (!window.confirm("Delete this restaurant AND all items?")) return;
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${userInfo.token}` },
-      });
+      const res = await fetch(
+        `${BASE_URL}/api/v1/users/${id}`,
+        getFetchOptions("DELETE")
+      );
       if (res.ok) {
-        alert("Restaurant Removed");
+        toast.success("Restaurant Removed");
         fetchAllData();
       }
     } catch (error) {
@@ -395,11 +425,19 @@ const AdminDashboard = () => {
   const handleDeleteItem = async (id) => {
     if (!window.confirm("Delete item?")) return;
     try {
-      await fetch(`${BASE_URL}/api/v1/products/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${userInfo.token}` },
-      });
-      fetchAllData();
+      await fetch(
+        `${BASE_URL}/api/v1/products/${id}`,
+        getFetchOptions("DELETE")
+      );
+      fetchAllData(); // Or refetch just the menu
+      // Re-fetch menu specific to selection
+      if (selectedRestaurant) {
+        const res = await fetch(
+          `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`,
+          getFetchOptions()
+        );
+        setMenuItems(await res.json());
+      }
     } catch (error) {
       console.error(error);
     }
@@ -419,18 +457,16 @@ const AdminDashboard = () => {
         url = `${BASE_URL}/api/v1/products/${editItemId}`;
         method = "PUT";
       }
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
-        },
-        body: JSON.stringify(productData),
-      });
+      const res = await fetch(url, getFetchOptions(method, productData));
       if (res.ok) {
         setShowItemModal(false);
-        fetchAllData();
-        alert("Success");
+        // Refresh menu
+        const menuRes = await fetch(
+          `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`,
+          getFetchOptions()
+        );
+        setMenuItems(await menuRes.json());
+        toast.success("Success");
       }
     } catch (err) {
       console.error(err);
@@ -440,20 +476,16 @@ const AdminDashboard = () => {
   const handleUpdateShop = async (e) => {
     e.preventDefault();
     try {
-      await fetch(`${BASE_URL}/api/v1/users/${editingShop._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
-        },
-        body: JSON.stringify({
+      await fetch(
+        `${BASE_URL}/api/v1/users/${editingShop._id}`,
+        getFetchOptions("PUT", {
           name: editingShop.name,
           image: editingShop.image,
-        }),
-      });
+        })
+      );
       setShowShopModal(false);
       fetchAllData();
-      alert("Updated");
+      toast.success("Updated");
     } catch (err) {
       console.error(err);
     }
@@ -461,43 +493,31 @@ const AdminDashboard = () => {
 
   const handleAssignPartner = async (orderId) => {
     const partnerId = selectedPartner[orderId];
-    if (!partnerId) return alert("Select partner");
-    await fetch(`${BASE_URL}/api/v1/orders/${orderId}/assign`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userInfo.token}`,
-      },
-      body: JSON.stringify({ deliveryPartnerId: partnerId }),
-    });
-    alert("Assigned");
+    if (!partnerId) return toast.error("Select partner");
+    await fetch(
+      `${BASE_URL}/api/v1/orders/${orderId}/assign`,
+      getFetchOptions("PUT", { deliveryPartnerId: partnerId })
+    );
+    toast.success("Assigned");
     fetchAllData();
   };
 
   const handleCreateDummyShop = async (e) => {
     e.preventDefault();
-    await fetch(`${BASE_URL}/api/v1/users/admin/create-dummy`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userInfo.token}`,
-      },
-      body: JSON.stringify(dummyShopData),
-    });
+    await fetch(
+      `${BASE_URL}/api/v1/users/admin/create-dummy`,
+      getFetchOptions("POST", dummyShopData)
+    );
     setShowDummyModal(false);
     fetchAllData();
   };
 
   const handleAddShop = async (e) => {
     e.preventDefault();
-    await fetch(`${BASE_URL}/api/v1/users/admin/create-shop`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userInfo.token}`,
-      },
-      body: JSON.stringify(newShop),
-    });
+    await fetch(
+      `${BASE_URL}/api/v1/users/admin/create-shop`,
+      getFetchOptions("POST", newShop)
+    );
     setShowAddShopModal(false);
     fetchAllData();
   };
@@ -508,7 +528,6 @@ const AdminDashboard = () => {
     setNewItem({
       ...item,
       isVeg: item.isVeg ? "true" : "false",
-      // 👇 Load existing variants/addons
       variants: item.variants || [],
       addons: item.addons || [],
     });
@@ -580,6 +599,7 @@ const AdminDashboard = () => {
           ))}
         </div>
 
+        {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
             <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 flex items-center gap-4">
@@ -623,7 +643,6 @@ const AdminDashboard = () => {
         {/* 🎟️ COUPONS TAB */}
         {activeTab === "coupons" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
-            {/* Create/Edit Form */}
             <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 h-fit sticky top-24">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
                 {isEditingCoupon ? (
@@ -737,7 +756,6 @@ const AdminDashboard = () => {
               </form>
             </div>
 
-            {/* Coupon List */}
             <div className="lg:col-span-2 space-y-4">
               <h3 className="text-xl font-bold mb-4">
                 Active Coupons ({coupons.length})
@@ -763,12 +781,11 @@ const AdminDashboard = () => {
                         {coupon.maxDiscountAmount}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Min Order: ₹{coupon.minOrderValue} | Expires:{" "}
+                        Min: ₹{coupon.minOrderValue} | Exp:{" "}
                         {new Date(coupon.expirationDate).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      {/* TOGGLE ACTIVE STATUS */}
                       <button
                         onClick={() => toggleCouponStatus(coupon)}
                         className={`transition-colors duration-200 ${
@@ -784,8 +801,6 @@ const AdminDashboard = () => {
                           <ToggleLeft size={32} />
                         )}
                       </button>
-
-                      {/* EDIT BUTTON */}
                       <button
                         onClick={() => handleEditCouponClick(coupon)}
                         className="p-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500 hover:text-white transition-all"
@@ -793,8 +808,6 @@ const AdminDashboard = () => {
                       >
                         <Edit2 size={18} />
                       </button>
-
-                      {/* DELETE BUTTON */}
                       <button
                         onClick={() => handleDeleteCoupon(coupon._id)}
                         className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all"
@@ -986,7 +999,7 @@ const AdminDashboard = () => {
         {activeTab === "menu" && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 animate-fade-in">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-              <UtensilsCrossed className="text-primary" /> Live Menu Editor
+              <UtensilsCrossed className="text-primary" /> Master Stock Tracker
             </h2>
             <div className="flex gap-4 mb-8">
               <select
@@ -1010,69 +1023,84 @@ const AdminDashboard = () => {
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {menuItems.map((item, index) => (
-                <div
-                  key={item._id}
-                  className="bg-black/40 border border-gray-700 rounded-xl overflow-hidden group relative hover:border-primary transition-all"
-                >
-                  <div className="h-40 relative">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <span
-                      className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-bold ${
-                        item.isVeg ? "bg-green-600" : "bg-red-600"
-                      }`}
-                    >
-                      {item.isVeg ? "VEG" : "NON-VEG"}
-                    </span>
-                    <div className="absolute top-2 right-2 flex flex-col gap-1">
+
+            {selectedRestaurant ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {menuItems.map((item, index) => (
+                  <div
+                    key={item._id}
+                    className="bg-black/40 border border-gray-700 rounded-xl overflow-hidden group relative hover:border-primary transition-all"
+                  >
+                    <div className="h-40 relative">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                      />
+
+                      {/* ⚡ NEW: ADMIN STOCK TOGGLE BUTTON */}
                       <button
-                        onClick={() => handleMenuReorder(index, -1)}
-                        disabled={index === 0}
-                        className="bg-black/60 hover:bg-primary p-1 rounded text-white disabled:opacity-30 active:scale-90 transition-all"
+                        onClick={() => handleAdminToggleStock(item._id)}
+                        className={`absolute bottom-2 left-2 px-3 py-1.5 rounded-lg flex items-center gap-2 text-[10px] font-black transition-all shadow-xl border z-20 cursor-pointer ${
+                          item.countInStock > 0
+                            ? "bg-green-500/20 text-green-400 border-green-500/50 hover:bg-green-500/40"
+                            : "bg-red-500/20 text-red-400 border-red-500/50 hover:bg-red-500/40"
+                        }`}
                       >
-                        <ArrowUp size={16} />
+                        <Power size={12} />{" "}
+                        {item.countInStock > 0 ? "AVAILABLE" : "SOLD OUT"}
                       </button>
-                      <button
-                        onClick={() => handleMenuReorder(index, 1)}
-                        disabled={index === menuItems.length - 1}
-                        className="bg-black/60 hover:bg-primary p-1 rounded text-white disabled:opacity-30 active:scale-90 transition-all"
-                      >
-                        <ArrowDown size={16} />
-                      </button>
+
+                      <div className="absolute top-2 right-2 flex flex-col gap-1">
+                        <button
+                          onClick={() => handleMenuReorder(index, -1)}
+                          disabled={index === 0}
+                          className="bg-black/60 hover:bg-primary p-1 rounded text-white disabled:opacity-30 active:scale-90 transition-all"
+                        >
+                          <ArrowUp size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleMenuReorder(index, 1)}
+                          disabled={index === menuItems.length - 1}
+                          className="bg-black/60 hover:bg-primary p-1 rounded text-white disabled:opacity-30 active:scale-90 transition-all"
+                        >
+                          <ArrowDown size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex justify-between font-bold mb-1">
+                        <h3>{item.name}</h3>
+                        <span className="text-primary">₹{item.price}</span>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => openEditItemModal(item)}
+                          className="flex-1 bg-gray-800 hover:bg-blue-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all"
+                        >
+                          <Edit2 size={12} /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item._id)}
+                          className="flex-1 bg-gray-800 hover:bg-red-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all"
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-4">
-                    <div className="flex justify-between font-bold mb-1">
-                      <h3>{item.name}</h3>
-                      <span className="text-primary">₹{item.price}</span>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => openEditItemModal(item)}
-                        className="flex-1 bg-gray-800 hover:bg-blue-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all"
-                      >
-                        <Edit2 size={12} /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteItem(item._id)}
-                        className="flex-1 bg-gray-800 hover:bg-red-600 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all"
-                      >
-                        <Trash2 size={12} /> Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-black/20 rounded-xl border border-dashed border-gray-800 text-gray-500 font-bold italic">
+                Select a restaurant above to manage its inventory and stock
+                status.
+              </div>
+            )}
           </div>
         )}
 
-        {/* MODALS */}
+        {/* MODALS (Item, Shop, etc.) */}
         {selectedOrder && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-2xl p-6 relative animate-in zoom-in-95 duration-200 shadow-2xl">
@@ -1144,7 +1172,6 @@ const AdminDashboard = () => {
                           <p className="text-xs font-bold text-white leading-none">
                             {item.name}
                           </p>
-                          {/* 👇👇 NEW: SHOW KITCHEN INSTRUCTIONS 👇👇 */}
                           <div className="text-xs text-gray-400 mt-1 space-y-0.5">
                             {item.selectedVariant && (
                               <span className="block text-blue-300">
@@ -1161,7 +1188,6 @@ const AdminDashboard = () => {
                                 </span>
                               )}
                           </div>
-                          {/* 👆👆 END NEW CODE 👆👆 */}
                         </div>
                       </div>
                       <p className="text-xs font-bold text-white italic">
@@ -1188,6 +1214,7 @@ const AdminDashboard = () => {
                 {isEditingItem ? "Edit Item" : "Add Item"}
               </h2>
               <form onSubmit={handleSubmitItem} className="space-y-4">
+                {/* FORM FIELDS SAME AS BEFORE */}
                 <input
                   type="text"
                   placeholder="Name"
@@ -1247,13 +1274,13 @@ const AdminDashboard = () => {
                     setNewItem({ ...newItem, description: e.target.value })
                   }
                   required
-                ></textarea>
+                />
 
-                {/* ⭐ VARIANTS SECTION */}
+                {/* VARIANTS */}
                 <div className="bg-black/20 p-3 rounded-lg border border-gray-800">
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      <Layers size={12} /> Variants (e.g., Size)
+                      <Layers size={12} /> Variants
                     </label>
                     <button
                       type="button"
@@ -1267,7 +1294,7 @@ const AdminDashboard = () => {
                     <div key={index} className="flex gap-2 mb-2">
                       <input
                         type="text"
-                        placeholder="Name (e.g. Large)"
+                        placeholder="Name"
                         className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
                         value={variant.name}
                         onChange={(e) =>
@@ -1296,11 +1323,11 @@ const AdminDashboard = () => {
                   ))}
                 </div>
 
-                {/* ⭐ ADD-ONS SECTION */}
+                {/* ADDONS */}
                 <div className="bg-black/20 p-3 rounded-lg border border-gray-800">
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      <PlusCircle size={12} /> Add-ons (e.g., Cheese)
+                      <PlusCircle size={12} /> Add-ons
                     </label>
                     <button
                       type="button"
@@ -1314,7 +1341,7 @@ const AdminDashboard = () => {
                     <div key={index} className="flex gap-2 mb-2">
                       <input
                         type="text"
-                        placeholder="Name (e.g. Extra Cheese)"
+                        placeholder="Name"
                         className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
                         value={addon.name}
                         onChange={(e) =>
@@ -1345,7 +1372,7 @@ const AdminDashboard = () => {
 
                 <button
                   type="submit"
-                  className="w-full bg-primary font-bold py-3 rounded-xl shadow-lg"
+                  className="w-full bg-primary hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow-lg"
                 >
                   {isEditingItem ? "Update" : "Add"}
                 </button>

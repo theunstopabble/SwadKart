@@ -6,9 +6,9 @@ import {
   getOtpTemplate,
   getWelcomeTemplate,
   getResetPasswordTemplate,
-} from "../utils/emailTemplates.js"; // 👈 Imported Professional Templates
+} from "../utils/emailTemplates.js";
 
-// Debug Log to confirm file reload
+// Debug Log
 console.log("🟢 RELOADED: User Controller Code Loaded Successfully!");
 
 // =================================================================
@@ -48,11 +48,10 @@ export const registerUser = async (req, res) => {
         userExists.otpExpires = otpExpires;
         userExists.name = name;
         userExists.phone = phone;
-        userExists.password = password; // Model hook will hash this
+        userExists.password = password;
 
         await userExists.save();
 
-        // ✨ USE NEW PROFESSIONAL TEMPLATE
         const otpTemplate = getOtpTemplate(otp);
 
         try {
@@ -88,7 +87,6 @@ export const registerUser = async (req, res) => {
     });
 
     if (user) {
-      // ✨ USE NEW PROFESSIONAL TEMPLATE
       const otpTemplate = getOtpTemplate(otp);
 
       try {
@@ -132,21 +130,23 @@ export const verifyEmailAPI = async (req, res) => {
       user.otpExpires = undefined;
       await user.save();
 
-      // Optional: Send Welcome Email here if you want
-      // try {
-      //   await sendEmail({
-      //     email: user.email,
-      //     subject: "Welcome to SwadKart! 🎉",
-      //     html: getWelcomeTemplate(user.name)
-      //   });
-      // } catch(e) { console.log("Welcome email failed"); }
+      // ✨ Generate Token
+      const token = generateToken(user._id);
+
+      // ✨ Set Cookie (Extra Security Layer)
+      res.cookie("jwt", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== "development", // HTTPS in production
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 Days
+      });
 
       return res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id),
+        token: token, // JSON Token
       });
     } else {
       return res.status(400).json({ message: "❌ Invalid or Expired OTP" });
@@ -166,13 +166,26 @@ export const loginUser = async (req, res) => {
       if (!user.isVerified) {
         return res.status(401).json({ message: "🚫 Email not verified!" });
       }
+
+      // ✨ Generate Token
+      const token = generateToken(user._id);
+
+      // ✨ Set Cookie (Backup Authentication)
+      res.cookie("jwt", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== "development",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 Days
+      });
+
       return res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
         role: user.role,
-        token: generateToken(user._id),
+        image: user.image,
+        token: token, // JSON Token
       });
     } else {
       return res.status(401).json({ message: "Invalid email or password" });
@@ -207,10 +220,20 @@ export const updateUserProfile = async (req, res) => {
       if (req.body.password) user.password = req.body.password;
 
       const updatedUser = await user.save();
+      const token = generateToken(updatedUser._id);
+
+      // Update cookie on profile update
+      res.cookie("jwt", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== "development",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
       return res.json({
         _id: updatedUser._id,
         name: updatedUser.name,
-        token: generateToken(updatedUser._id),
+        token: token,
       });
     } else {
       return res.status(404).json({ message: "User not found" });
@@ -246,16 +269,28 @@ export const getAllRestaurants = async (req, res) => {
   }
 };
 
+// @desc    Update User by Admin (Includes Live Shop Re-Ordering)
 export const updateUserByAdmin = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (user) {
       user.name = req.body.name || user.name;
       user.image = req.body.image || user.image;
-      if (req.body.orderIndex !== undefined)
+
+      // 👇 Shop Order Index Logic
+      if (req.body.orderIndex !== undefined) {
         user.orderIndex = req.body.orderIndex;
-      const updated = await user.save();
-      return res.json(updated);
+      }
+
+      const updatedUser = await user.save();
+
+      // 📡 SOCKET MAGIC: Emit Update Event
+      if (req.io) {
+        req.io.emit("restaurantUpdated", updatedUser);
+        console.log(`📡 Restaurant Updated & Emitted: ${updatedUser.name}`);
+      }
+
+      return res.json(updatedUser);
     } else {
       return res.status(404).json({ message: "User not found" });
     }
@@ -361,7 +396,6 @@ export const forgotPassword = async (req, res) => {
       process.env.FRONTEND_URL || "https://swadkart-pro.vercel.app"
     }/password/reset/${resetToken}`;
 
-    // ✨ USE NEW PROFESSIONAL TEMPLATE
     const resetTemplate = getResetPasswordTemplate(resetUrl);
 
     await sendEmail({

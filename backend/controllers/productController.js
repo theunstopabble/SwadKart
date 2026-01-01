@@ -11,7 +11,7 @@ export const getProducts = async (req, res) => {
       ? { name: { $regex: req.query.keyword, $options: "i" } }
       : {};
 
-    const products = await Product.find({ ...keyword }).sort({ orderIndex: 1 }); // 👈 Global list mein bhi sorting
+    const products = await Product.find({ ...keyword }).sort({ orderIndex: 1 });
     res.json({ products });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -32,10 +32,9 @@ export const getProductById = async (req, res) => {
   }
 };
 
-// @desc    Fetch products by Restaurant ID (With Sorting logic)
+// @desc    Fetch products by Restaurant ID (Sorted by custom order)
 export const getProductsByRestaurant = async (req, res) => {
   try {
-    // 👈 IMPORTANT: .sort({ orderIndex: 1 }) lagaya taaki items reorder sequence mein aayein
     const products = await Product.find({
       $or: [{ restaurant: req.params.id }, { user: req.params.id }],
     }).sort({ orderIndex: 1 });
@@ -64,7 +63,6 @@ export const createProduct = async (req, res) => {
       restaurantId,
       isVeg,
       orderIndex,
-      // 👇 NEW: Destructure Variants & Addons
       variants,
       addons,
     } = req.body;
@@ -83,7 +81,6 @@ export const createProduct = async (req, res) => {
       user: ownerId,
       countInStock: countInStock || 100,
       numReviews: 0,
-      // 👇 NEW: Save Arrays (Default empty if not provided)
       variants: variants || [],
       addons: addons || [],
     });
@@ -99,9 +96,20 @@ export const createProduct = async (req, res) => {
 export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
+
     if (product) {
-      await product.deleteOne();
-      res.json({ message: "Product removed" });
+      if (
+        req.user.isAdmin ||
+        req.user.role === "admin" ||
+        product.restaurant.toString() === req.user._id.toString()
+      ) {
+        await product.deleteOne();
+        res.json({ message: "Product removed" });
+      } else {
+        res
+          .status(401)
+          .json({ message: "Not authorized to delete this product" });
+      }
     } else {
       res.status(404).json({ message: "Product not found" });
     }
@@ -122,7 +130,6 @@ export const updateProduct = async (req, res) => {
       countInStock,
       isVeg,
       orderIndex,
-      // 👇 NEW: Get updated lists
       variants,
       addons,
     } = req.body;
@@ -130,37 +137,83 @@ export const updateProduct = async (req, res) => {
     const product = await Product.findById(req.params.id);
 
     if (product) {
+      if (
+        !req.user.isAdmin &&
+        req.user.role !== "admin" &&
+        product.restaurant.toString() !== req.user._id.toString()
+      ) {
+        return res
+          .status(401)
+          .json({ message: "Not authorized to update this product" });
+      }
+
       product.name = name || product.name;
       product.price = price || product.price;
       product.description = description || product.description;
       product.image = image || product.image;
       product.category = category || product.category;
-      product.countInStock = countInStock || product.countInStock;
 
-      // 👈 Fix: Boolean validation
-      if (isVeg !== undefined) {
-        product.isVeg = isVeg;
-      }
-
-      // 👈 Fix: Order Index update
-      if (orderIndex !== undefined) {
-        product.orderIndex = orderIndex;
-      }
-
-      // 👇 NEW: Update Variants & Addons (Replace old array with new)
-      if (variants !== undefined) {
-        product.variants = variants;
-      }
-      if (addons !== undefined) {
-        product.addons = addons;
-      }
+      if (countInStock !== undefined) product.countInStock = countInStock;
+      if (isVeg !== undefined) product.isVeg = isVeg;
+      if (orderIndex !== undefined) product.orderIndex = orderIndex;
+      if (variants !== undefined) product.variants = variants;
+      if (addons !== undefined) product.addons = addons;
 
       const updatedProduct = await product.save();
+
+      // OPTIONAL: Update product ke baad bhi emit kar sakte hain
+      if (req.io) {
+        req.io.emit("productUpdated", updatedProduct);
+      }
+
       res.json(updatedProduct);
     } else {
       res.status(404).json({ message: "Product not found" });
     }
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    ⚡ Toggle Product Availability (One-Click Out of Stock) & SOCKET EMIT
+// @route   PATCH /api/products/:id/toggle-stock
+export const toggleProductStock = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (product) {
+      // Security Check
+      if (
+        req.user.isAdmin ||
+        req.user.role === "admin" ||
+        product.restaurant.toString() === req.user._id.toString()
+      ) {
+        // Toggle Logic
+        product.countInStock = product.countInStock > 0 ? 0 : 100;
+
+        const updatedProduct = await product.save();
+
+        // 🔥 CRITICAL CHANGE: Socket Emit Here
+        if (req.io) {
+          req.io.emit("productUpdated", updatedProduct);
+          console.log(
+            `📡 Socket Emitted: productUpdated for ${updatedProduct.name}`
+          );
+        } else {
+          console.warn("⚠️ Socket IO instance (req.io) not found!");
+        }
+
+        res.json(updatedProduct);
+      } else {
+        res
+          .status(401)
+          .json({ message: "Not authorized to modify this product" });
+      }
+    } else {
+      res.status(404).json({ message: "Product not found" });
+    }
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 };
