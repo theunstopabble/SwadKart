@@ -10,6 +10,7 @@ import { getOrderConfirmationTemplate } from "../utils/emailTemplates.js";
 // ==========================================
 // @desc    Create new order & Notify Restaurant
 // @route   POST /api/v1/orders
+// @access  Private
 export const addOrderItems = async (req, res) => {
   const {
     orderItems,
@@ -61,8 +62,10 @@ export const addOrderItems = async (req, res) => {
 
     // 🔔 REAL-TIME SOCKET: Notify Restaurant Owner immediately
     if (req.io) {
+      // Assuming first item's restaurant is the vendor
       const restaurantId = createdOrder.orderItems[0].restaurant;
       const restaurant = await Restaurant.findById(restaurantId);
+
       if (restaurant && restaurant.owner) {
         req.io
           .to(restaurant.owner.toString())
@@ -97,6 +100,9 @@ export const addOrderItems = async (req, res) => {
 // ==========================================
 // 🔍 2. GET ORDER BY ID
 // ==========================================
+// @desc    Get order details
+// @route   GET /api/v1/orders/:id
+// @access  Private
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
@@ -114,9 +120,89 @@ export const getOrderById = async (req, res) => {
 };
 
 // ==========================================
-// 🛠️ 3. UPDATE ORDER STATUS
+// 💳 3. UPDATE ORDER TO PAID
+// ==========================================
+// @desc    Update order to paid (For Online Payments)
+// @route   PUT /api/v1/orders/:id/pay
+// @access  Private
+export const updateOrderToPaid = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (order) {
+      order.isPaid = true;
+      order.paidAt = Date.now();
+      // Payment Result from Gateway (Razorpay/PayPal)
+      order.paymentResult = {
+        id: req.body.id,
+        status: req.body.status,
+        update_time: req.body.update_time,
+        email_address: req.body.email_address,
+      };
+
+      const updatedOrder = await order.save();
+
+      // 🔔 Socket Notification
+      if (req.io) {
+        req.io
+          .to(updatedOrder._id.toString())
+          .emit("orderUpdated", updatedOrder);
+      }
+
+      res.json(updatedOrder);
+    } else {
+      res.status(404).json({ message: "Order not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// 🚚 4. UPDATE ORDER TO DELIVERED (Specific)
+// ==========================================
+// @desc    Update order to delivered
+// @route   PUT /api/v1/orders/:id/deliver
+// @access  Private/Admin/Delivery
+export const updateOrderToDelivered = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (order) {
+      order.isDelivered = true;
+      order.deliveredAt = Date.now();
+      order.orderStatus = "Delivered";
+
+      // If COD, mark as paid upon delivery
+      if (order.paymentMethod === "COD") {
+        order.isPaid = true;
+        order.paidAt = Date.now();
+      }
+
+      const updatedOrder = await order.save();
+
+      // 🔔 Socket Notification
+      if (req.io) {
+        req.io
+          .to(updatedOrder._id.toString())
+          .emit("orderUpdated", updatedOrder);
+      }
+
+      res.json(updatedOrder);
+    } else {
+      res.status(404).json({ message: "Order not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// 🛠️ 5. UPDATE ORDER STATUS (Generic)
 // ==========================================
 // @desc    Update order status & Trigger notifications
+// @route   PUT /api/v1/orders/:id/status
+// @access  Private/Admin/Restaurant
 export const updateOrderStatus = async (req, res) => {
   const { status } = req.body;
   try {
@@ -128,7 +214,6 @@ export const updateOrderStatus = async (req, res) => {
     if (status === "Delivered") {
       order.isDelivered = true;
       order.deliveredAt = Date.now();
-      // Auto-pay on delivery if COD to sync finances
       if (order.paymentMethod === "COD") {
         order.isPaid = true;
         order.paidAt = Date.now();
@@ -139,10 +224,9 @@ export const updateOrderStatus = async (req, res) => {
 
     // 🔔 Real-time Updates via Socket
     if (req.io) {
-      // Notify the specific user room
       req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
 
-      // Broadcast to all delivery partners if status is "Ready"
+      // Broadcast to delivery partners if Ready
       if (status === "Ready") {
         req.io.emit("newDeliveryTask", updatedOrder);
       }
@@ -155,7 +239,41 @@ export const updateOrderStatus = async (req, res) => {
 };
 
 // ==========================================
-// 📈 4. SALES ANALYTICS (Dashboard)
+// 📜 6. USER ORDER HISTORY
+// ==========================================
+// @desc    Get logged in user orders
+// @route   GET /api/v1/orders/myorders
+// @access  Private
+export const getMyOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id }).sort({
+      createdAt: -1,
+    });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// 👑 7. ADMIN: ALL ORDERS
+// ==========================================
+// @desc    Get all orders
+// @route   GET /api/v1/orders
+// @access  Private/Admin
+export const getOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({})
+      .populate("user", "id name email") // Populate User details for Admin UI
+      .sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// 📈 8. SALES ANALYTICS
 // ==========================================
 export const getSalesStats = async (req, res) => {
   try {
@@ -169,7 +287,7 @@ export const getSalesStats = async (req, res) => {
         },
       },
       { $sort: { _id: 1 } },
-      { $limit: 7 }, // Last 7 days stats for the chart
+      { $limit: 7 }, // Last 7 days stats
     ]);
     res.json(stats);
   } catch (error) {
@@ -178,21 +296,7 @@ export const getSalesStats = async (req, res) => {
 };
 
 // ==========================================
-// 📜 5. USER ORDER HISTORY
-// ==========================================
-export const getMyOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.user._id }).sort({
-      createdAt: -1,
-    });
-    res.json(orders);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// ==========================================
-// 🚫 6. CANCEL ORDER
+// 🚫 9. CANCEL ORDER
 // ==========================================
 export const cancelOrder = async (req, res) => {
   const { reason } = req.body;
@@ -201,7 +305,7 @@ export const cancelOrder = async (req, res) => {
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Restriction: Cannot cancel if already dispatched or delivered
+    // Restriction: Cannot cancel if already dispatched
     const restrictedStatuses = ["Out for Delivery", "Delivered"];
     if (restrictedStatuses.includes(order.orderStatus)) {
       return res
@@ -219,20 +323,6 @@ export const cancelOrder = async (req, res) => {
     }
 
     res.json(updatedOrder);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// ==========================================
-// 👑 7. ADMIN: ALL ORDERS
-// ==========================================
-export const getAllOrdersAdmin = async (req, res) => {
-  try {
-    const orders = await Order.find({})
-      .populate("user", "id name email")
-      .sort({ createdAt: -1 });
-    res.json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
