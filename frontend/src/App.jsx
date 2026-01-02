@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import { Toaster } from "react-hot-toast";
+import { io } from "socket.io-client";
 
 // Pages
 import Home from "./pages/Home";
@@ -26,7 +27,14 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ChatBot from "./components/ChatBot";
 
-// ✨ ScrollToTop Helper: Taki har route change pe page upar se start ho
+// Helpers
+import { BASE_URL } from "./config";
+import {
+  requestNotificationPermission,
+  sendNotification,
+} from "./components/notificationHelper"; // ✅ Fixed Import Path
+
+// ✨ ScrollToTop Helper
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -36,6 +44,43 @@ const ScrollToTop = () => {
 };
 
 function App() {
+  const { userInfo } = useSelector((state) => state.user);
+
+  // 🔔 Push Notification & Global Socket Logic
+  useEffect(() => {
+    // 1. Request Permission on App Load
+    requestNotificationPermission();
+
+    const socket = io(BASE_URL);
+
+    if (userInfo) {
+      // 2. Join a private room for this user to receive personal updates
+      socket.emit("joinOrder", userInfo._id);
+
+      // 3. Global Listener for Order Status Updates
+      socket.on("orderUpdated", (order) => {
+        // Browser Push Notification
+        sendNotification(`SwadKart: Order Update! 🛵`, {
+          body: `आपका ऑर्डर #${order._id.slice(-6).toUpperCase()} अब "${
+            order.orderStatus
+          }" है।`,
+        });
+
+        // Audible Alert
+        const audio = new Audio("/notification.mp3");
+        audio
+          .play()
+          .catch((e) => console.log("Audio alert blocked by browser"));
+      });
+    }
+
+    // 4. Cleanup on Unmount
+    return () => {
+      socket.off("orderUpdated");
+      socket.disconnect();
+    };
+  }, [userInfo]);
+
   return (
     <>
       <ScrollToTop />

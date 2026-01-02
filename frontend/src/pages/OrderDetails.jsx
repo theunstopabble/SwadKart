@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import {
-  ShoppingBag, // ✅ Added missing import
+  ShoppingBag,
   MapPin,
   XCircle,
   Phone,
@@ -23,6 +23,7 @@ import { BASE_URL } from "../config";
 import OrderProgress from "../components/order/OrderProgress";
 import OrderItemList from "../components/order/OrderItemList";
 import ReviewModal from "../components/ReviewModal";
+import LiveTrackingMap from "../components/order/LiveTrackingMap"; // ✅ Added Map Component
 import { toast } from "react-hot-toast";
 
 const socket = io(BASE_URL);
@@ -55,7 +56,7 @@ const OrderDetails = () => {
           toast.error(data.message || "Order not found");
         }
       } catch (err) {
-        toast.error("Network error fetching order details");
+        toast.error("Network radar interference");
       } finally {
         setLoading(false);
       }
@@ -63,14 +64,11 @@ const OrderDetails = () => {
 
     if (userInfo) {
       fetchOrder();
-
-      // 📡 Join Socket Room for Live Updates
       socket.emit("joinOrder", id);
-
       socket.on("orderUpdated", (updatedOrder) => {
         if (updatedOrder._id === id) {
           setOrder(updatedOrder);
-          toast.success(`Order Status: ${updatedOrder.orderStatus}`, {
+          toast.success(`Protocol Update: ${updatedOrder.orderStatus}`, {
             icon: "🛵",
           });
         }
@@ -86,8 +84,8 @@ const OrderDetails = () => {
     return (
       <div className="min-h-screen bg-black flex flex-col justify-center items-center gap-4">
         <Loader2 className="animate-spin text-primary" size={40} />
-        <p className="text-gray-500 font-black uppercase text-[10px] tracking-widest">
-          Tracking Live Order...
+        <p className="text-gray-600 font-black uppercase text-[10px] tracking-[0.5em]">
+          Synchronizing Order Matrix...
         </p>
       </div>
     );
@@ -96,12 +94,14 @@ const OrderDetails = () => {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center gap-6">
         <XCircle size={64} className="text-red-500 opacity-20" />
-        <h2 className="text-2xl font-black uppercase italic">Order Missing</h2>
+        <h2 className="text-2xl font-black uppercase italic">
+          Order Signature Lost
+        </h2>
         <Link
           to="/myorders"
           className="bg-white text-black px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest"
         >
-          Back to History
+          Return to Base
         </Link>
       </div>
     );
@@ -109,7 +109,6 @@ const OrderDetails = () => {
   return (
     <div className="min-h-screen bg-black text-white pt-24 px-4 md:px-10 pb-20 font-sans">
       <div className="max-w-6xl mx-auto">
-        {/* Back Navigation */}
         <Link
           to="/myorders"
           className="inline-flex items-center gap-2 text-gray-500 hover:text-primary transition-all mb-8 text-[10px] font-black uppercase tracking-[0.2em] group"
@@ -118,7 +117,7 @@ const OrderDetails = () => {
             size={16}
             className="group-hover:-translate-x-1 transition-transform"
           />{" "}
-          Back to Orders
+          Back to Intelligence
         </Link>
 
         {/* 🏆 Header Section */}
@@ -130,26 +129,21 @@ const OrderDetails = () => {
               </span>
               {order.isPaid && (
                 <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                  <CheckCircle size={10} /> Payment Verified
+                  <CheckCircle size={10} /> Payment Authorized
                 </span>
               )}
             </div>
             <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
-              Track <span className="text-primary">Meal</span>
+              Track <span className="text-primary">Mission</span>
             </h1>
             <p className="flex items-center gap-2 text-gray-500 text-[10px] font-black uppercase tracking-[0.3em] pt-1">
-              <Calendar size={14} className="text-primary" /> Placed on{" "}
-              {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })}
+              <Calendar size={14} className="text-primary" /> Deployed on{" "}
+              {new Date(order.createdAt).toLocaleString("en-IN")}
             </p>
           </div>
-
           <div className="flex flex-col items-end gap-2">
             <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
-              Current Status
+              Protocol Status
             </span>
             <div className="bg-gray-900 border border-gray-800 px-8 py-3 rounded-2xl text-lg font-black italic text-white shadow-xl">
               {order.orderStatus}
@@ -157,7 +151,6 @@ const OrderDetails = () => {
           </div>
         </div>
 
-        {/* 🛵 Modern Progress Tracker */}
         <div className="mb-16">
           <OrderProgress
             currentStatus={order.orderStatus}
@@ -165,7 +158,22 @@ const OrderDetails = () => {
           />
         </div>
 
-        {/* 🔐 OTP Section: Safe Delivery Protocol */}
+        {/* 🗺️ LIVE RADAR: Only shown when "Out for Delivery" */}
+        {order.orderStatus === "Out for Delivery" && (
+          <div className="mb-16 animate-in slide-in-from-bottom-10 duration-1000">
+            <h2 className="text-xl font-black italic uppercase tracking-tighter mb-6 flex items-center gap-3">
+              <Truck className="text-primary" size={24} /> Tactical{" "}
+              <span className="text-primary">Radar</span>
+            </h2>
+            <LiveTrackingMap
+              orderId={order._id}
+              restaurantCoords={[26.9124, 75.7873]} // Ideally from order.orderItems[0].restaurant.location
+              userCoords={[26.922, 75.7788]} // From cart.shippingAddress coords
+            />
+          </div>
+        )}
+
+        {/* 🔐 OTP Section */}
         {order.orderStatus !== "Delivered" &&
           order.orderStatus !== "Cancelled" &&
           order.deliveryOTP && (
@@ -176,9 +184,8 @@ const OrderDetails = () => {
                 Secure Handshake OTP
               </h3>
               <p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-[9px] mb-8">
-                Share this with the driver only at the time of delivery
+                Share this with the logistics pilot only at the time of delivery
               </p>
-
               <div className="flex justify-center gap-4">
                 {order.deliveryOTP
                   .toString()
@@ -196,54 +203,49 @@ const OrderDetails = () => {
           )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-          {/* LEFT COLUMN: Info & Items */}
           <div className="lg:col-span-2 space-y-12">
-            {/* Delivery Details Card */}
-            <div className="bg-gray-950 p-8 rounded-[2.5rem] border border-gray-900 shadow-2xl relative overflow-hidden group hover:border-primary/20 transition-all">
+            {/* Delivery Details */}
+            <div className="bg-gray-950 p-8 rounded-[2.5rem] border border-gray-900 shadow-2xl group hover:border-primary/20 transition-all">
               <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
-                <MapPin size={16} className="text-primary" /> Recipient Details
+                <MapPin size={16} className="text-primary" /> Destination Intel
               </h2>
-              <div className="space-y-4">
-                <div className="bg-black/40 p-6 rounded-3xl border border-gray-900 group-hover:bg-black/60 transition-all">
-                  <p className="font-black text-xl uppercase italic tracking-tight text-white mb-1">
-                    {order.shippingAddress.fullName}
-                  </p>
-                  <p className="text-sm text-gray-500 font-medium leading-relaxed italic">
-                    {order.shippingAddress.address},{" "}
-                    {order.shippingAddress.city}
-                  </p>
-                  <div className="h-[1px] bg-gray-900 my-4"></div>
-                  <a
-                    href={`tel:${order.shippingAddress.phone}`}
-                    className="inline-flex items-center gap-3 bg-primary/10 text-primary px-4 py-2 rounded-xl text-xs font-black hover:bg-primary hover:text-white transition-all"
-                  >
-                    <Phone size={14} /> {order.shippingAddress.phone}
-                  </a>
-                </div>
+              <div className="bg-black/40 p-6 rounded-3xl border border-gray-900">
+                <p className="font-black text-xl uppercase italic tracking-tight text-white mb-1">
+                  {order.shippingAddress.fullName}
+                </p>
+                <p className="text-sm text-gray-500 font-medium leading-relaxed italic">
+                  {order.shippingAddress.address}, {order.shippingAddress.city}
+                </p>
+                <div className="h-[1px] bg-gray-900 my-4"></div>
+                <a
+                  href={`tel:${order.shippingAddress.phone}`}
+                  className="inline-flex items-center gap-3 bg-primary/10 text-primary px-4 py-2 rounded-xl text-xs font-black hover:bg-primary hover:text-white transition-all"
+                >
+                  <Phone size={14} /> {order.shippingAddress.phone}
+                </a>
               </div>
             </div>
 
-            {/* Items Card */}
-            <div className="bg-gray-950 p-1 rounded-[2.5rem] border border-gray-900 shadow-2xl overflow-hidden">
+            {/* Items List */}
+            <div className="bg-gray-950 rounded-[2.5rem] border border-gray-900 shadow-2xl overflow-hidden">
               <div className="p-8 pb-4">
                 <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.4em] flex items-center gap-3">
-                  <ShoppingBag size={16} className="text-primary" /> Your
-                  Selection
+                  <ShoppingBag size={16} className="text-primary" /> Cargo
+                  Manifest
                 </h2>
               </div>
               <OrderItemList items={order.orderItems} />
             </div>
 
-            {/* ⭐ REVIEW TRIGGER: Only if Delivered */}
+            {/* Review Trigger */}
             {order.orderStatus === "Delivered" && (
               <div className="bg-gradient-to-br from-primary/20 via-gray-950 to-black border border-primary/20 p-10 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
                 <div className="relative z-10 text-center md:text-left">
                   <h3 className="font-black uppercase italic tracking-tighter text-3xl text-white">
-                    Rate the <span className="text-primary">Taste!</span>
+                    Analyze <span className="text-primary">Flavour!</span>
                   </h3>
                   <p className="text-[10px] text-gray-500 mt-2 uppercase tracking-widest font-black leading-relaxed max-w-xs">
-                    How was the quality and delivery? Your feedback drives our
-                    kitchens.
+                    Your intel drives our kitchen efficiency.
                   </p>
                 </div>
                 <button
@@ -254,7 +256,7 @@ const OrderDetails = () => {
                     size={18}
                     className="group-hover:rotate-180 transition-transform duration-500"
                   />{" "}
-                  Write a Review
+                  Transmit Review
                 </button>
                 <UtensilsCrossed
                   className="absolute -right-4 -bottom-4 text-white/5"
@@ -264,55 +266,47 @@ const OrderDetails = () => {
             )}
           </div>
 
-          {/* RIGHT COLUMN: Financial Summary */}
+          {/* RIGHT COLUMN: Financials */}
           <div className="lg:col-span-1">
             <div className="bg-gray-950 p-10 rounded-[3rem] border border-gray-900 sticky top-28 shadow-2xl space-y-8">
-              <h2 className="text-lg font-black italic uppercase tracking-tighter border-b border-gray-900 pb-4">
+              <h2 className="text-lg font-black italic uppercase tracking-tighter border-b border-gray-900 pb-4 text-white">
                 Financials
               </h2>
-
               <div className="space-y-5">
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
-                  <span>Price ({order.orderItems.length} Items)</span>
+                  <span>Manifest Value</span>
                   <span className="text-white">₹{order.itemsPrice}</span>
                 </div>
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
-                  <span>Delivery Charge</span>
+                  <span>Logistics Fee</span>
                   <span className="text-white">₹{order.shippingPrice}</span>
                 </div>
                 {order.couponDiscount > 0 && (
                   <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-green-500">
-                    <span>Coupon Savings</span>
+                    <span>Coupon Credits</span>
                     <span>- ₹{order.couponDiscount}</span>
                   </div>
                 )}
-
                 <div className="h-[1px] bg-gray-900 my-2"></div>
-
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-black text-primary uppercase tracking-widest">
-                    Amount Paid
+                    Total Settled
                   </span>
                   <span className="text-4xl font-black italic text-white tracking-tighter">
                     ₹{order.totalPrice}
                   </span>
                 </div>
               </div>
-
               <div className="p-4 bg-black rounded-3xl border border-gray-900 text-center">
                 <p className="text-[9px] font-black text-gray-600 uppercase tracking-[0.3em]">
-                  Payment Method
+                  Transaction Protocol
                 </p>
-                <p className="text-xs font-black text-white uppercase italic tracking-widest mt-1">
+                <p className="text-xs font-black text-blue-400 uppercase italic tracking-widest mt-1">
                   {order.paymentMethod === "Online"
-                    ? "Digital Transaction"
-                    : "Cash on Delivery"}
+                    ? "Digital Encryption"
+                    : "Cash Manifest"}
                 </p>
               </div>
-
-              <button className="w-full py-4 rounded-2xl border border-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white hover:border-gray-600 transition-all">
-                Need Help with Order?
-              </button>
             </div>
           </div>
         </div>

@@ -27,7 +27,7 @@ connectDB(); // 🗄️ Database Connection
 const app = express();
 const httpServer = createServer(app);
 
-// 🔌 Socket.io Setup with CORS (Frontend Sync के लिए अनिवार्य)
+// 🔌 Socket.io Elite Setup
 const io = new Server(httpServer, {
   cors: {
     origin: [
@@ -41,34 +41,43 @@ const io = new Server(httpServer, {
   transports: ["websocket", "polling"],
 });
 
-// Middleware to make 'io' instance accessible in all controllers
+// Middleware to inject 'io' into controllers
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
-// Real-time Event Handling Logic
+// 🛰️ Real-time Communication Protocols
 io.on("connection", (socket) => {
-  console.log(`⚡ Client Connected: ${socket.id}`);
+  console.log(`⚡ Signal Established: ${socket.id}`);
 
-  // User/Admin joins a specific room for order tracking
+  // 1. Join Order/User Room
   socket.on("joinOrder", (id) => {
     socket.join(id);
-    console.log(`👤 Socket ${socket.id} locked into room: ${id}`);
+    console.log(`👤 Security: Socket locked into Sector ${id}`);
+  });
+
+  // 2. 🗺️ Live Map Tracking Logic (For Driver)
+  socket.on("updateLocation", ({ orderId, lat, lng }) => {
+    // ड्राइवर की लोकेशन उस ऑर्डर से जुड़े सभी लोगों (User & Admin) को भेजें
+    io.to(orderId).emit("driverLocationUpdate", { lat, lng });
+    console.log(
+      `📍 Logistics: Driver for ${orderId} shifted to [${lat}, ${lng}]`
+    );
   });
 
   socket.on("disconnect", () => {
-    console.log(`❌ Client ${socket.id} left the kitchen.`);
+    console.log(`❌ Signal Lost: ${socket.id} left the grid.`);
   });
 });
 
-// --- General Middleware ---
-app.use(compression()); // 📦 Makes API responses faster
+// --- Professional Middleware ---
+app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// --- Strict CORS Configuration ---
+// --- Security: Strict CORS Configuration ---
 const allowedOrigins = [
   "http://localhost:5173",
   "https://swadkart-pro.vercel.app",
@@ -81,7 +90,7 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("CORS Policy Violation: Origin not allowed"));
+        callback(new Error("CORS Protocol Violation: Access Denied"));
       }
     },
     credentials: true,
@@ -89,7 +98,7 @@ app.use(
   })
 );
 
-// --- API Routes Mapping ---
+// --- Core API Routes ---
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/payment", paymentRoutes);
@@ -99,11 +108,11 @@ app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/restaurants", restaurantRoutes);
 
-// --- File Handling Protocol ---
+// --- File Stream Protocol ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
-// --- Deployment Logic (Render/Vercel Sync) ---
+// --- Production Defense & Deployment ---
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
   app.get("*", (req, res) =>
@@ -112,18 +121,20 @@ if (process.env.NODE_ENV === "production") {
     )
   );
 } else {
-  app.get("/ping", (req, res) => res.status(200).send("Server is alive! 🍕"));
+  app.get("/ping", (req, res) =>
+    res.status(200).send("Mainframe is online. 🍕")
+  );
   app.get("/", (req, res) =>
-    res.send("🚀 SwadKart API is running in Dev Mode...")
+    res.send("🚀 SwadKart Beast Engine is running...")
   );
 }
 
-// Global Error Handlers
+// Global Exception Handling
 app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 8000;
 
 httpServer.listen(PORT, () => {
-  console.log(`🔥 SwadKart Beast Server firing on port ${PORT}`);
+  console.log(`🔥 Mainframe firing on Sector ${PORT}`);
 });
