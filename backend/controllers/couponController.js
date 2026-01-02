@@ -6,6 +6,8 @@ import Order from "../models/orderModel.js";
 // =================================================================
 
 // @desc    Create a new Coupon
+// @route   POST /api/v1/coupons
+// @access  Private/Admin
 export const createCoupon = async (req, res) => {
   try {
     const {
@@ -37,6 +39,8 @@ export const createCoupon = async (req, res) => {
 };
 
 // @desc    Get All Coupons (Admin Dashboard)
+// @route   GET /api/v1/coupons
+// @access  Private/Admin
 export const getCoupons = async (req, res) => {
   try {
     const coupons = await Coupon.find({}).sort({ createdAt: -1 });
@@ -47,6 +51,8 @@ export const getCoupons = async (req, res) => {
 };
 
 // @desc    Update a Coupon
+// @route   PUT /api/v1/coupons/:id
+// @access  Private/Admin
 export const updateCoupon = async (req, res) => {
   try {
     const {
@@ -79,6 +85,8 @@ export const updateCoupon = async (req, res) => {
 };
 
 // @desc    Delete a Coupon
+// @route   DELETE /api/v1/coupons/:id
+// @access  Private/Admin
 export const deleteCoupon = async (req, res) => {
   try {
     const coupon = await Coupon.findById(req.params.id);
@@ -98,6 +106,8 @@ export const deleteCoupon = async (req, res) => {
 // =================================================================
 
 // @desc    Validate Coupon (Fixed with 'usedBy' security)
+// @route   POST /api/v1/coupons/validate
+// @access  Private
 export const validateCoupon = async (req, res) => {
   try {
     const { code, orderAmount } = req.body;
@@ -109,8 +119,8 @@ export const validateCoupon = async (req, res) => {
       return res.status(400).json({ message: "Coupon is currently inactive" });
 
     // 🛡️ SECURITY: Check if user has already used this coupon
-    const alreadyUsed = coupon.usedBy.includes(req.user._id);
-    if (alreadyUsed) {
+    // Ensure req.user exists (Protected Route)
+    if (req.user && coupon.usedBy.includes(req.user._id)) {
       return res
         .status(400)
         .json({ message: "You have already used this coupon!" });
@@ -145,20 +155,36 @@ export const validateCoupon = async (req, res) => {
 };
 
 // @desc    Get Available Coupons (Smart List)
+// @route   GET /api/v1/coupons/available
+// @access  Private (Needs User Auth to check usage history)
 export const getApplicableCoupons = async (req, res) => {
   try {
     const currentDate = new Date();
-    // Fetch only active, not expired, and not already used by this user
-    const allCoupons = await Coupon.find({
+
+    // Ensure user is authenticated to filter 'usedBy'
+    const userId = req.user ? req.user._id : null;
+
+    let query = {
       isActive: true,
       expirationDate: { $gte: currentDate },
-      usedBy: { $ne: req.user._id }, // 🛡️ Hide coupons user already used
-    }).sort({ discountPercentage: -1 });
+    };
 
-    const orderCount = await Order.countDocuments({
-      user: req.user._id,
-      isPaid: true,
+    if (userId) {
+      query.usedBy = { $ne: userId }; // Only show unused coupons
+    }
+
+    const allCoupons = await Coupon.find(query).sort({
+      discountPercentage: -1,
     });
+
+    // Optional: Filter logic for first-time users
+    let orderCount = 0;
+    if (userId) {
+      orderCount = await Order.countDocuments({
+        user: userId,
+        isPaid: true,
+      });
+    }
 
     const applicableCoupons = allCoupons.filter((coupon) => {
       // Hide WELCOME coupons for old users
@@ -168,6 +194,7 @@ export const getApplicableCoupons = async (req, res) => {
 
     res.json(applicableCoupons);
   } catch (error) {
+    console.error("Coupon Fetch Error:", error);
     res.status(500).json({ message: "Server Error fetching coupons" });
   }
 };

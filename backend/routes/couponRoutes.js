@@ -5,8 +5,8 @@ import {
   validateCoupon,
   getCoupons,
   getApplicableCoupons,
-  deleteCoupon, // 👈 New Import
-  updateCoupon, // 👈 New Import
+  deleteCoupon,
+  updateCoupon,
 } from "../controllers/couponController.js";
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 
@@ -14,11 +14,13 @@ import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 // 🛒 USER ROUTES (Apply & Check Availability)
 // =================================================================
 
-// Validate Coupon (Checkout Page)
-router.post("/validate", protect, validateCoupon);
-
 // Get Available Coupons (Cart Page - Smart List)
-router.get("/available", protect, getApplicableCoupons);
+// 🔓 Public Route: Taki bina login kiye bhi offers dikh sakein
+router.get("/available", getApplicableCoupons);
+
+// Validate Coupon (Checkout Page)
+// 🔒 Protected: Kyunki hum check karte hain ki user ne ise pehle use to nahi kiya
+router.post("/validate", protect, validateCoupon);
 
 // =================================================================
 // 👑 ADMIN ROUTES (Manage Coupons)
@@ -26,12 +28,12 @@ router.get("/available", protect, getApplicableCoupons);
 
 router
   .route("/")
-  .post(protect, authorizeRoles("admin"), createCoupon) // Create New
-  .get(protect, authorizeRoles("admin"), getCoupons); // List All
+  .post(protect, authorizeRoles("admin"), createCoupon) // Create New Coupon
+  .get(protect, authorizeRoles("admin"), getCoupons); // List All Coupons
 
 router
   .route("/:id")
-  .put(protect, authorizeRoles("admin"), updateCoupon) // Update (Edit)
-  .delete(protect, authorizeRoles("admin"), deleteCoupon); // Delete
+  .put(protect, authorizeRoles("admin"), updateCoupon) // Update Coupon details
+  .delete(protect, authorizeRoles("admin"), deleteCoupon); // Delete Coupon
 
 export default router;
