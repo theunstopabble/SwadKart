@@ -9,30 +9,33 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
       devOptions: {
-        enabled: true,
+        enabled: true, // Development me bhi PWA test karne ke liye
       },
-      // ✅ Fix: Workbox settings to ignore API and Socket calls
+      // 🛠️ WORKBOX: Offline Support + Live API Block
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+        // API aur Socket calls ko cache se bahar rakha hai
         navigateFallbackDenylist: [/^\/api/, /^\/socket.io/],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/api"),
-            handler: "NetworkOnly", // API caching block
+            handler: "NetworkOnly", // Hamesha fresh data from server
           },
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/socket.io"),
-            handler: "NetworkOnly", // Socket caching block
+            handler: "NetworkOnly", // WebSocket support
           },
         ],
       },
+      // 📱 MANIFEST: App Identity
       manifest: {
-        name: "SwadKart - Food Delivery",
+        name: "SwadKart - Taste Delivered",
         short_name: "SwadKart",
-        description: "Order delicious food online with SwadKart",
-        theme_color: "#ffffff",
-        background_color: "#ffffff",
+        description: "Order premium food online with SwadKart Pro",
+        theme_color: "#ff6b6b", // Neon Red (Signature Color)
+        background_color: "#030712", // Pure Black (Dark Mode)
         display: "standalone",
+        orientation: "portrait",
         icons: [
           {
             src: "pwa-192x192.png",
@@ -43,12 +46,13 @@ export default defineConfig({
             src: "pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any maskable",
           },
         ],
       },
     }),
   ],
-  // 👇 SPEED OPTIMIZATION ADDED HERE
+  // ⚡ SPEED OPTIMIZATION: Manual Chunking for Smaller JS Files
   build: {
     rollupOptions: {
       output: {
@@ -63,11 +67,11 @@ export default defineConfig({
         },
       },
     },
-    chunkSizeWarningLimit: 1600,
+    chunkSizeWarningLimit: 2000,
   },
-  // 👆 END OF OPTIMIZATION
+  // 🌐 DEV SERVER: API Proxy to Backend
   server: {
-    port: 5173, // Port fix kar diya hai
+    port: 5173,
     proxy: {
       "/api": {
         target: "http://localhost:8000",

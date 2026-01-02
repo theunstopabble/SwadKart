@@ -8,11 +8,22 @@ const restaurantSchema = mongoose.Schema(
     image: { type: String },
     rating: { type: Number, default: 0 },
     numReviews: { type: Number, default: 0 },
-    // 👇 Sabse Zaruri: Ye Restaurant kis User ka hai?
+
+    // 👇 Sabse Zaruri: Ownership
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: "User",
+    },
+
+    // 👇 Approval & Dummy Logic
+    isVerified: {
+      type: Boolean,
+      default: false, // Naya restaurant hamesha false rahega jab tak admin approve na kare
+    },
+    isDummy: {
+      type: Boolean,
+      default: false, // Seeded data ke liye true
     },
     isActive: { type: Boolean, default: true },
   },

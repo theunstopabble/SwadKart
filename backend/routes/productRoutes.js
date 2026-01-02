@@ -1,7 +1,7 @@
 import express from "express";
 const router = express.Router();
 
-// 👇 Controller functions import
+// 👇 Product Controller functions import
 import {
   getProducts,
   getProductById,
@@ -12,28 +12,33 @@ import {
   toggleProductStock,
 } from "../controllers/productController.js";
 
+// 👇 Review Controller function import (New File)
+import { createProductReview } from "../controllers/reviewController.js";
+
 // 👇 Auth Middleware import
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 
 // ============================================================
-// 🚦 ROUTES ORDER MATTERS
+// 🚦 ROUTES CONFIGURATION
 // ============================================================
 
-// 1️⃣ ROOT ROUTES
+// 1️⃣ PUBLIC & GENERAL ROUTES
 router
   .route("/")
   .get(getProducts)
   .post(protect, authorizeRoles("admin", "restaurant_owner"), createProduct);
 
-// 2️⃣ SPECIFIC ROUTES (Must be before /:id)
 router.route("/restaurant/:id").get(getProductsByRestaurant);
 
-// 👇 STOCK TOGGLE ROUTE (FIXED HERE)
-// Yahan se 'authorizeRoles' hata diya hai.
-// Ab Controller khud check karega ki banda owner hai ya nahi.
+// 2️⃣ REVIEW ROUTE (New Addition)
+// User logged in hona chahiye tabhi review de payega
+router.route("/:id/reviews").post(protect, createProductReview);
+
+// 3️⃣ STOCK TOGGLE ROUTE
+// Controller handles the ownership check
 router.route("/:id/toggle-stock").patch(protect, toggleProductStock);
 
-// 3️⃣ GENERIC ID ROUTES (Last me)
+// 4️⃣ GENERIC ID ROUTES (Last)
 router
   .route("/:id")
   .get(getProductById)

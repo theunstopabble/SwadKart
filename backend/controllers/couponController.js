@@ -1,13 +1,11 @@
 import Coupon from "../models/couponModel.js";
-import Order from "../models/orderModel.js"; // 👈 Required for Smart Filtering logic
+import Order from "../models/orderModel.js";
 
 // =================================================================
-// 👑 ADMIN ACTIONS (Create, Update, Delete, Get All)
+// 👑 ADMIN ACTIONS
 // =================================================================
 
 // @desc    Create a new Coupon
-// @route   POST /api/v1/coupons
-// @access  Private/Admin
 export const createCoupon = async (req, res) => {
   try {
     const {
@@ -18,11 +16,9 @@ export const createCoupon = async (req, res) => {
       maxDiscountAmount,
     } = req.body;
 
-    // Check if code exists
     const couponExists = await Coupon.findOne({ code: code.toUpperCase() });
     if (couponExists) {
-      res.status(400);
-      throw new Error("Coupon code already exists");
+      return res.status(400).json({ message: "Coupon code already exists" });
     }
 
     const coupon = await Coupon.create({
@@ -31,22 +27,16 @@ export const createCoupon = async (req, res) => {
       expirationDate,
       minOrderValue: minOrderValue || 0,
       maxDiscountAmount: maxDiscountAmount || 0,
+      usedBy: [], // Initialize empty array
     });
 
-    if (coupon) {
-      res.status(201).json(coupon);
-    } else {
-      res.status(400);
-      throw new Error("Invalid coupon data");
-    }
+    res.status(201).json(coupon);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
-// @desc    Get All Coupons (For Admin Dashboard)
-// @route   GET /api/v1/coupons
-// @access  Private/Admin
+// @desc    Get All Coupons (Admin Dashboard)
 export const getCoupons = async (req, res) => {
   try {
     const coupons = await Coupon.find({}).sort({ createdAt: -1 });
@@ -57,8 +47,6 @@ export const getCoupons = async (req, res) => {
 };
 
 // @desc    Update a Coupon
-// @route   PUT /api/v1/coupons/:id
-// @access  Private/Admin
 export const updateCoupon = async (req, res) => {
   try {
     const {
@@ -69,7 +57,6 @@ export const updateCoupon = async (req, res) => {
       maxDiscountAmount,
       isActive,
     } = req.body;
-
     const coupon = await Coupon.findById(req.params.id);
 
     if (coupon) {
@@ -79,15 +66,12 @@ export const updateCoupon = async (req, res) => {
       coupon.expirationDate = expirationDate || coupon.expirationDate;
       coupon.minOrderValue = minOrderValue ?? coupon.minOrderValue;
       coupon.maxDiscountAmount = maxDiscountAmount ?? coupon.maxDiscountAmount;
-
-      // Explicit check for boolean to allow setting it to false
       coupon.isActive = isActive !== undefined ? isActive : coupon.isActive;
 
       const updatedCoupon = await coupon.save();
       res.json(updatedCoupon);
     } else {
-      res.status(404);
-      throw new Error("Coupon not found");
+      res.status(404).json({ message: "Coupon not found" });
     }
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -95,18 +79,14 @@ export const updateCoupon = async (req, res) => {
 };
 
 // @desc    Delete a Coupon
-// @route   DELETE /api/v1/coupons/:id
-// @access  Private/Admin
 export const deleteCoupon = async (req, res) => {
   try {
     const coupon = await Coupon.findById(req.params.id);
-
     if (coupon) {
       await coupon.deleteOne();
       res.json({ message: "Coupon removed successfully" });
     } else {
-      res.status(404);
-      throw new Error("Coupon not found");
+      res.status(404).json({ message: "Coupon not found" });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -114,48 +94,39 @@ export const deleteCoupon = async (req, res) => {
 };
 
 // =================================================================
-// 🛒 USER ACTIONS (Validate, Get Available)
+// 🛒 USER ACTIONS
 // =================================================================
 
-// @desc    Validate Coupon (User applying in Cart/Checkout)
-// @route   POST /api/v1/coupons/validate
-// @access  Private
+// @desc    Validate Coupon (Fixed with 'usedBy' security)
 export const validateCoupon = async (req, res) => {
   try {
     const { code, orderAmount } = req.body;
-
     const coupon = await Coupon.findOne({ code: code.toUpperCase() });
 
-    // 1. Check Existence
-    if (!coupon) {
-      res.status(404);
-      throw new Error("Invalid Coupon Code");
+    if (!coupon)
+      return res.status(404).json({ message: "Invalid Coupon Code" });
+    if (!coupon.isActive)
+      return res.status(400).json({ message: "Coupon is currently inactive" });
+
+    // 🛡️ SECURITY: Check if user has already used this coupon
+    const alreadyUsed = coupon.usedBy.includes(req.user._id);
+    if (alreadyUsed) {
+      return res
+        .status(400)
+        .json({ message: "You have already used this coupon!" });
     }
 
-    // 2. Check Expiration
     if (new Date() > new Date(coupon.expirationDate)) {
-      res.status(400);
-      throw new Error("Coupon has expired");
+      return res.status(400).json({ message: "Coupon has expired" });
     }
 
-    // 3. Check Active Status
-    if (!coupon.isActive) {
-      res.status(400);
-      throw new Error("Coupon is currently inactive");
-    }
-
-    // 4. Check Minimum Order
     if (orderAmount < coupon.minOrderValue) {
-      res.status(400);
-      throw new Error(
-        `Minimum order amount must be ₹${coupon.minOrderValue} to use this coupon`
-      );
+      return res.status(400).json({
+        message: `Minimum order must be ₹${coupon.minOrderValue}`,
+      });
     }
 
-    // 5. Calculate Discount
     let discountAmount = (orderAmount * coupon.discountPercentage) / 100;
-
-    // 6. Cap Max Discount (if set)
     if (
       coupon.maxDiscountAmount > 0 &&
       discountAmount > coupon.maxDiscountAmount
@@ -165,44 +136,38 @@ export const validateCoupon = async (req, res) => {
 
     res.json({
       code: coupon.code,
-      discountAmount: Math.round(discountAmount), // Round for payment gateways
-      message: "Coupon Applied Successfully!",
+      discountAmount: Math.round(discountAmount),
+      message: "Coupon Applied Successfully! 🎉",
     });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
-// @desc    Get Applicable Coupons for User (Smart List)
-// @route   GET /api/v1/coupons/available
-// @access  Private
+// @desc    Get Available Coupons (Smart List)
 export const getApplicableCoupons = async (req, res) => {
   try {
     const currentDate = new Date();
-
-    // 1. Fetch active & future coupons
+    // Fetch only active, not expired, and not already used by this user
     const allCoupons = await Coupon.find({
       isActive: true,
       expirationDate: { $gte: currentDate },
+      usedBy: { $ne: req.user._id }, // 🛡️ Hide coupons user already used
     }).sort({ discountPercentage: -1 });
 
-    // 2. Check User History for filtering
     const orderCount = await Order.countDocuments({
       user: req.user._id,
       isPaid: true,
     });
 
-    // 3. Filter Logic (Example: Hide 'WELCOME' code if old user)
     const applicableCoupons = allCoupons.filter((coupon) => {
-      if (orderCount > 0 && coupon.code.toUpperCase().startsWith("WELCOME")) {
-        return false;
-      }
+      // Hide WELCOME coupons for old users
+      if (orderCount > 0 && coupon.code.startsWith("WELCOME")) return false;
       return true;
     });
 
     res.json(applicableCoupons);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Server Error fetching coupons" });
   }
 };

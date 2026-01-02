@@ -1,8 +1,9 @@
 import React from "react";
-import { Plus, Star } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { addToCart } from "../redux/cartSlice";
-import { toast } from "react-hot-toast"; // Feedback ke liye
+import { toast } from "react-hot-toast";
+import Rating from "./Rating"; // 👈 Rating component import kiya
 
 const ProductCard = ({ product }) => {
   const dispatch = useDispatch();
@@ -10,7 +11,7 @@ const ProductCard = ({ product }) => {
   const handleAddToCart = () => {
     if (product.countInStock > 0) {
       dispatch(addToCart({ ...product, qty: 1 }));
-      toast.success("Added to cart");
+      toast.success(`${product.name} added to cart! 🛒`);
     } else {
       toast.error("Item is currently out of stock");
     }
@@ -28,7 +29,7 @@ const ProductCard = ({ product }) => {
           }`}
         />
 
-        {/* 🚫 SOLD OUT OVERLAY (New Fix) */}
+        {/* 🚫 SOLD OUT OVERLAY */}
         {product.countInStock === 0 && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
             <span className="text-red-500 font-black text-xl border-4 border-red-500 px-4 py-1 -rotate-12 uppercase tracking-widest shadow-xl backdrop-blur-sm">
@@ -37,18 +38,10 @@ const ProductCard = ({ product }) => {
           </div>
         )}
 
-        {/* Rating (Top Right) */}
-        <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm z-20">
-          <Star size={12} className="text-yellow-400 fill-yellow-400" />
-          {product.rating || 0}
-        </div>
-
-        {/* Veg/Non-Veg Badge (Top Left) */}
+        {/* Veg/Non-Veg Badge */}
         <span
           className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-extrabold tracking-wider shadow-md z-20 ${
-            product.isVeg
-              ? "bg-green-600 text-white" // Veg -> Green
-              : "bg-red-600 text-white" // Non-Veg -> Red
+            product.isVeg ? "bg-green-600 text-white" : "bg-red-600 text-white"
           }`}
         >
           {product.isVeg ? "VEG" : "NON-VEG"}
@@ -56,11 +49,19 @@ const ProductCard = ({ product }) => {
       </div>
 
       <div className="p-4 flex flex-col flex-grow">
-        <div className="flex justify-between items-start mb-2">
+        <div className="flex justify-between items-start mb-1">
           <h3 className="text-lg font-bold text-white truncate w-3/4">
             {product.name}
           </h3>
           <span className="text-primary font-bold">₹{product.price}</span>
+        </div>
+
+        {/* ⭐ RATINGS SECTION (Updated with Stars) */}
+        <div className="mb-3">
+          <Rating
+            value={product.rating}
+            text={`(${product.numReviews || 0})`}
+          />
         </div>
 
         <p className="text-gray-400 text-sm mb-4 line-clamp-2 flex-grow">
@@ -72,12 +73,14 @@ const ProductCard = ({ product }) => {
           disabled={product.countInStock === 0}
           className={`w-full py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 ${
             product.countInStock === 0
-              ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700" // Disabled Style
-              : "bg-gray-800 hover:bg-primary text-white group-hover:bg-primary cursor-pointer active:scale-95 shadow-md" // Active Style
+              ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
+              : "bg-gray-800 hover:bg-primary text-white group-hover:bg-primary cursor-pointer active:scale-95 shadow-md"
           }`}
         >
           {product.countInStock === 0 ? (
-            <span className="font-bold">OUT OF STOCK</span>
+            <span className="font-bold uppercase tracking-widest text-xs">
+              Out of Stock
+            </span>
           ) : (
             <>
               Add to Cart <Plus size={18} />

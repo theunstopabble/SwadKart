@@ -1,6 +1,9 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { useEffect } from "react";
 import { Toaster } from "react-hot-toast";
-import Navbar from "./components/Navbar";
+
+// Pages
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -17,64 +20,145 @@ import ResetPassword from "./pages/ResetPassword";
 import RestaurantMenu from "./pages/RestaurantMenu";
 import RestaurantOwnerDashboard from "./pages/RestaurantOwnerDashboard";
 import DeliveryPartnerDashboard from "./pages/DeliveryPartnerDashboard";
-import Footer from "./components/Footer";
-import ChatBot from "./components/ChatBot"; // 👈 1. NEW IMPORT (AI GENIE)
 
-// 👇 React Toastify Imports
-import "react-toastify/dist/ReactToastify.css";
-import { ToastContainer } from "react-toastify";
+// Components
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import ChatBot from "./components/ChatBot";
+
+// ✨ ScrollToTop Helper: Taki har route change pe page upar se start ho
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
 
 function App() {
   return (
     <>
-      {/* 1. Purana Alert System */}
-      <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
-
-      {/* 2. Naya Alert System */}
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      <ScrollToTop />
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: "#1f2937",
+            color: "#fff",
+            borderRadius: "15px",
+            border: "1px solid #374151",
+          },
+        }}
+      />
 
       <Navbar />
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/restaurant/:id" element={<RestaurantMenu />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/shipping" element={<Shipping />} />
-        <Route path="/payment" element={<Payment />} />
-        <Route path="/placeorder" element={<PlaceOrder />} />
-        <Route path="/order/:id" element={<OrderDetails />} />
-        <Route path="/myorders" element={<MyOrders />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/password/reset/:token" element={<ResetPassword />} />
+      <main className="min-h-screen">
+        <Routes>
+          {/* ============================== */}
+          {/* 🌍 PUBLIC ROUTES */}
+          {/* ============================== */}
+          <Route path="/" element={<Home />} />
+          <Route path="/restaurant/:id" element={<RestaurantMenu />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/password/reset/:token" element={<ResetPassword />} />
 
-        {/* Role Based Dashboards */}
-        <Route
-          path="/restaurant-dashboard"
-          element={<RestaurantOwnerDashboard />}
-        />
+          {/* ============================== */}
+          {/* 🔒 USER PROTECTED ROUTES */}
+          {/* ============================== */}
+          <Route element={<PrivateRoute />}>
+            <Route path="/shipping" element={<Shipping />} />
+            <Route path="/payment" element={<Payment />} />
+            <Route path="/placeorder" element={<PlaceOrder />} />
+            <Route path="/order/:id" element={<OrderDetails />} />
+            <Route path="/myorders" element={<MyOrders />} />
+            <Route path="/profile" element={<Profile />} />
+          </Route>
 
-        <Route
-          path="/delivery-dashboard"
-          element={<DeliveryPartnerDashboard />}
-        />
+          {/* ============================== */}
+          {/* 👑 ADMIN ROUTES */}
+          {/* ============================== */}
+          <Route path="/admin/dashboard" element={<AdminRoute />}>
+            <Route index element={<AdminDashboard />} />
+          </Route>
 
-        {/* Support for Email Link Route */}
-        <Route
-          path="/delivery/dashboard"
-          element={<DeliveryPartnerDashboard />}
-        />
-      </Routes>
+          {/* ============================== */}
+          {/* 🏪 RESTAURANT OWNER ROUTES */}
+          {/* ============================== */}
+          <Route element={<RestaurantRoute />}>
+            <Route
+              path="/restaurant-dashboard"
+              element={<RestaurantOwnerDashboard />}
+            />
+            <Route
+              path="/restaurant/dashboard"
+              element={<RestaurantOwnerDashboard />}
+            />
+          </Route>
+
+          {/* ============================== */}
+          {/* 🛵 DELIVERY PARTNER ROUTES */}
+          {/* ============================== */}
+          <Route element={<DeliveryRoute />}>
+            <Route
+              path="/delivery-dashboard"
+              element={<DeliveryPartnerDashboard />}
+            />
+            <Route
+              path="/delivery/dashboard"
+              element={<DeliveryPartnerDashboard />}
+            />
+          </Route>
+
+          {/* 404 Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
 
       <Footer />
-
-      {/* 🧞‍♂️ 3. AI CHATBOT ADDED HERE (Global Floating Button) */}
       <ChatBot />
     </>
   );
 }
+
+// ==========================================
+// 🛡️ ROUTE GUARDS (Security Logic)
+// ==========================================
+
+const PrivateRoute = () => {
+  const { userInfo } = useSelector((state) => state.user);
+  return userInfo ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
+const AdminRoute = () => {
+  const { userInfo } = useSelector((state) => state.user);
+  return userInfo && userInfo.role === "admin" ? (
+    <Outlet />
+  ) : (
+    <Navigate to="/login" replace />
+  );
+};
+
+const RestaurantRoute = () => {
+  const { userInfo } = useSelector((state) => state.user);
+  const isAllowed =
+    userInfo &&
+    (userInfo.role === "restaurant_owner" || userInfo.role === "admin");
+  return isAllowed ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
+const DeliveryRoute = () => {
+  const { userInfo } = useSelector((state) => state.user);
+  const isAllowed =
+    userInfo &&
+    (userInfo.role === "delivery" ||
+      userInfo.role === "delivery_partner" ||
+      userInfo.role === "admin");
+  return isAllowed ? <Outlet /> : <Navigate to="/login" replace />;
+};
 
 export default App;

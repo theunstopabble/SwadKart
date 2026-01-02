@@ -65,7 +65,7 @@ const Navbar = () => {
                 )}
                 {userInfo.role === "restaurant_owner" && (
                   <Link
-                    to="/restaurant-dashboard"
+                    to="/restaurant/dashboard"
                     className="hover:text-primary transition-colors font-medium text-green-400"
                   >
                     Kitchen Dashboard
@@ -182,7 +182,7 @@ const Navbar = () => {
 
                 {userInfo.role === "restaurant_owner" && (
                   <Link
-                    to="/restaurant-dashboard"
+                    to="/restaurant/dashboard"
                     className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-bold text-green-400 hover:bg-gray-800"
                     onClick={closeMenu}
                   >

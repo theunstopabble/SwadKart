@@ -1,269 +1,255 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
-import axios from "axios"; // 👈 Using Axios for better handling
-import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import { io } from "socket.io-client";
 import {
   Truck,
-  MapPin,
-  CheckCircle2,
-  XCircle,
-  Phone,
-  Navigation,
+  Package,
+  DollarSign,
+  ListChecks,
+  Loader2,
+  Signal,
 } from "lucide-react";
-import { BASE_URL } from "../config"; // 👈 Import Config
+import { BASE_URL } from "../config";
+
+// Modular Components
+import DeliveryCard from "../components/delivery/DeliveryCard";
+import EarningsHistory from "../components/delivery/EarningsHistory";
+
+// 🔌 Socket Connection
+const socket = io(BASE_URL);
 
 const DeliveryPartnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
+  const navigate = useNavigate();
+
+  // --- States ---
+  const [activeTab, setActiveTab] = useState("tasks");
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [otpInputs, setOtpInputs] = useState({});
 
-  // ==========================================
-  // 1. FETCH ASSIGNED DELIVERIES
-  // ==========================================
-  const fetchMyDeliveries = async () => {
+  // --- Fetch Logic (Optimized) ---
+  const fetchMyDeliveries = useCallback(async () => {
+    if (!userInfo || !userInfo.token) return;
     try {
-      const config = {
+      const res = await fetch(`${BASE_URL}/api/v1/orders/my-deliveries`, {
         headers: { Authorization: `Bearer ${userInfo.token}` },
-      };
-      // Matches Backend Route: /api/v1/orders/my-deliveries
-      const { data } = await axios.get(
-        `${BASE_URL}/api/v1/orders/my-deliveries`,
-        config
-      );
-      setTasks(data);
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // Sort: Active tasks on top
+        const sortedTasks = (data || []).sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setTasks(sortedTasks);
+      }
     } catch (error) {
-      console.error("Error fetching deliveries:", error);
-      toast.error("Failed to load tasks");
+      toast.error("Radar Sync Failed: Could not load tasks");
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (userInfo) fetchMyDeliveries();
   }, [userInfo]);
 
-  // ==========================================
-  // 2. HANDLE ACCEPT / REJECT
-  // ==========================================
+  useEffect(() => {
+    if (!userInfo) return navigate("/login");
+
+    fetchMyDeliveries();
+
+    // 📡 Socket Events
+    socket.emit("joinOrder", userInfo._id);
+
+    // Listen for new assignments
+    socket.on("orderAssigned", () => {
+      toast.success("🚀 NEW MISSION ASSIGNED!", {
+        duration: 5000,
+        icon: "🛵",
+        style: {
+          borderRadius: "15px",
+          background: "#1e293b",
+          color: "#fff",
+          border: "1px solid #3b82f6",
+        },
+      });
+      fetchMyDeliveries();
+    });
+
+    return () => {
+      socket.off("orderAssigned");
+    };
+  }, [userInfo, navigate, fetchMyDeliveries]);
+
+  // --- Handlers ---
   const handleDeliveryAction = async (id, action) => {
     try {
-      const config = {
-        headers: { Authorization: `Bearer ${userInfo.token}` },
-      };
-      // Matches Backend Route: /:id/delivery-action
-      await axios.put(
+      const res = await fetch(
         `${BASE_URL}/api/v1/orders/${id}/delivery-action`,
-        { action }, // 'accept' or 'reject'
-        config
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${userInfo.token}`,
+          },
+          body: JSON.stringify({ action }),
+        }
       );
 
-      toast.success(`Order ${action}ed successfully!`);
-      fetchMyDeliveries(); // Refresh list to update UI
+      if (res.ok) {
+        toast.success(
+          `Mission ${action === "accept" ? "Locked In" : "Declined"}`
+        );
+        fetchMyDeliveries();
+      } else {
+        const error = await res.json();
+        toast.error(error.message || "Action Failed");
+      }
     } catch (error) {
-      console.error(error);
-      toast.error("Action failed");
+      toast.error("Transmission Error");
     }
   };
 
-  // ==========================================
-  // 3. MARK AS DELIVERED
-  // ==========================================
   const markAsDelivered = async (id) => {
-    if (!window.confirm("Confirm delivery completion?")) return;
+    const otp = otpInputs[id];
+    if (!otp || otp.toString().length !== 4)
+      return toast.error("Enter 4-digit Secure OTP");
 
     try {
-      const config = {
-        headers: { Authorization: `Bearer ${userInfo.token}` },
-      };
-      // Matches Backend Route: /:id/deliver
-      await axios.put(`${BASE_URL}/api/v1/orders/${id}/deliver`, {}, config);
+      const res = await fetch(`${BASE_URL}/api/v1/orders/${id}/deliver`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userInfo.token}`,
+        },
+        body: JSON.stringify({ otp: Number(otp) }),
+      });
 
-      toast.success("Order Delivered Successfully! 🚀");
-      fetchMyDeliveries();
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("Target Reached: Order Delivered! 🏁");
+        setOtpInputs((prev) => ({ ...prev, [id]: "" }));
+        fetchMyDeliveries();
+      } else {
+        toast.error(data.message || "OTP Invalid");
+      }
     } catch (error) {
-      console.error(error);
-      toast.error("Error updating status");
+      toast.error("Handshake Failed");
     }
   };
 
-  // Helper to open Google Maps
-  const openMaps = (address, city) => {
-    const query = encodeURIComponent(`${address}, ${city}`);
-    window.open(
-      `https://www.google.com/maps/search/?api=1&query=${query}`,
-      "_blank"
+  if (loading)
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-blue-500" size={48} />
+        <p className="text-gray-500 font-black uppercase text-[10px] tracking-[0.5em] animate-pulse">
+          Initializing Flight Systems...
+        </p>
+      </div>
     );
-  };
 
   return (
-    <div className="min-h-screen bg-gray-950 pt-24 pb-12 px-4 sm:px-6 lg:px-8 text-white">
+    <div className="min-h-screen bg-gray-950 pt-24 pb-20 px-4 text-white font-sans">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold flex items-center gap-3 tracking-tight">
-            <Truck className="text-blue-500 h-10 w-10" />
-            Delivery Dashboard
-          </h1>
-        </div>
-
-        {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-blue-900/40 to-gray-900/40 backdrop-blur-xl p-8 rounded-3xl border border-blue-500/20 shadow-xl mb-10">
-          <h2 className="text-2xl font-bold mb-2">
-            Welcome, {userInfo?.name}! 👋
-          </h2>
-          <div className="inline-flex items-center gap-3 bg-black/30 px-5 py-2 rounded-full border border-green-500/30">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </span>
-            <span className="font-bold text-green-400 text-sm">Online</span>
-          </div>
-        </div>
-
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-2 pl-2 border-l-4 border-blue-500">
-          Active Tasks
-        </h3>
-
-        {loading ? (
-          <div className="text-center py-10 animate-pulse">
-            Loading your tasks...
-          </div>
-        ) : tasks.length === 0 ? (
-          <div className="text-gray-500 text-center py-10">
-            No active deliveries assigned yet.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {tasks.map((task) => (
-              <div
-                key={task._id}
-                className={`rounded-2xl overflow-hidden border transition-all ${
-                  task.orderStatus === "Delivered"
-                    ? "bg-gray-900/40 border-green-500/20 opacity-70"
-                    : "bg-gray-900/80 border-blue-500/50 shadow-blue-500/10"
-                }`}
-              >
-                {/* CARD HEADER */}
-                <div className="px-6 py-3 bg-gray-800/50 flex justify-between items-center">
-                  <span className="font-bold">
-                    #{task._id.substring(task._id.length - 6).toUpperCase()}
-                  </span>
-
-                  {/* DYNAMIC STATUS BADGE */}
-                  <span
-                    className={`text-xs font-bold px-3 py-1 rounded-full uppercase ${
-                      task.deliveryStatus === "Assigned"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : task.deliveryStatus === "Accepted"
-                        ? "bg-blue-500/20 text-blue-300"
-                        : "bg-green-500/20 text-green-400"
-                    }`}
-                  >
-                    {task.deliveryStatus === "Assigned"
-                      ? "Wait for Response"
-                      : task.deliveryStatus === "Accepted"
-                      ? "In Progress"
-                      : "Completed"}
-                  </span>
-                </div>
-
-                <div className="p-6 md:flex justify-between items-start gap-6">
-                  {/* LEFT: INFO */}
-                  <div className="flex-1 space-y-4">
-                    <div>
-                      <p className="text-xs text-gray-500 font-bold uppercase mb-1">
-                        Deliver To
-                      </p>
-                      <h4 className="text-lg font-bold text-white">
-                        {task.shippingAddress?.fullName || task.user?.name}
-                      </h4>
-
-                      {/* Address Link */}
-                      <div
-                        onClick={() =>
-                          openMaps(
-                            task.shippingAddress?.address,
-                            task.shippingAddress?.city
-                          )
-                        }
-                        className="flex items-start gap-2 text-gray-300 mt-2 cursor-pointer hover:text-blue-400 transition-colors"
-                      >
-                        <MapPin
-                          size={18}
-                          className="text-blue-500 shrink-0 mt-0.5"
-                        />
-                        <p>
-                          {task.shippingAddress?.address},{" "}
-                          {task.shippingAddress?.city}
-                          <span className="block text-xs text-blue-500 font-bold mt-1">
-                            Click to Navigate
-                          </span>
-                        </p>
-                      </div>
-
-                      {/* Phone Link */}
-                      <a
-                        href={`tel:${task.shippingAddress?.phone}`}
-                        className="flex items-center gap-2 text-gray-300 mt-3 hover:text-green-400 transition-colors"
-                      >
-                        <Phone size={18} className="text-green-500 shrink-0" />
-                        <span className="font-mono">
-                          {task.shippingAddress?.phone}
-                        </span>
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* RIGHT: ACTION BUTTONS */}
-                  <div className="mt-6 md:mt-0 flex flex-col gap-3 min-w-[200px]">
-                    {/* CASE 1: New Assignment (Accept/Reject) */}
-                    {task.deliveryStatus === "Assigned" && (
-                      <>
-                        <button
-                          onClick={() =>
-                            handleDeliveryAction(task._id, "accept")
-                          }
-                          className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"
-                        >
-                          <CheckCircle2 size={20} /> Accept
-                        </button>
-                        <button
-                          onClick={() =>
-                            handleDeliveryAction(task._id, "reject")
-                          }
-                          className="bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/50 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95"
-                        >
-                          <XCircle size={20} /> Reject
-                        </button>
-                      </>
-                    )}
-
-                    {/* CASE 2: Accepted (Mark Delivered) */}
-                    {task.deliveryStatus === "Accepted" &&
-                      task.orderStatus !== "Delivered" && (
-                        <button
-                          onClick={() => markAsDelivered(task._id)}
-                          className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"
-                        >
-                          <CheckCircle2 size={20} /> Mark Delivered
-                        </button>
-                      )}
-
-                    {/* CASE 3: Completed */}
-                    {task.orderStatus === "Delivered" && (
-                      <button
-                        disabled
-                        className="bg-gray-800 text-gray-500 font-bold py-3 px-6 rounded-xl cursor-not-allowed border border-gray-700"
-                      >
-                        Task Completed
-                      </button>
-                    )}
-                  </div>
-                </div>
+        {/* --- Header Section --- */}
+        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-blue-600 blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
+              <div className="relative p-5 bg-blue-600 rounded-[2rem] shadow-2xl shadow-blue-600/20 rotate-3 transition-transform hover:rotate-0">
+                <Truck size={36} className="text-white" />
               </div>
-            ))}
+            </div>
+            <div>
+              <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
+                Pilot <span className="text-blue-500">Ops</span>
+              </h1>
+              <p className="text-[10px] text-gray-500 font-black tracking-[0.4em] uppercase mt-2 flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>{" "}
+                Active Duty: {userInfo?.name}
+              </p>
+            </div>
           </div>
-        )}
+
+          <div className="flex items-center gap-3 bg-blue-500/5 border border-blue-500/20 px-6 py-3 rounded-2xl">
+            <Signal size={14} className="text-green-500 animate-pulse" />
+            <span className="text-[11px] font-black text-white uppercase tracking-widest">
+              System Online
+            </span>
+          </div>
+        </header>
+
+        {/* --- Tab Navigation --- */}
+        <div className="flex bg-black/50 p-1.5 rounded-3xl mb-12 border border-gray-900 shadow-inner">
+          {[
+            { id: "tasks", label: "Missions", icon: ListChecks, color: "blue" },
+            {
+              id: "earnings",
+              label: "Payday",
+              icon: DollarSign,
+              color: "green",
+            },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all duration-500 ${
+                activeTab === tab.id
+                  ? `bg-${tab.color}-600 text-white shadow-2xl shadow-${tab.color}-600/30 scale-105`
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              <tab.icon size={18} /> {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* --- Content Switcher --- */}
+        <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
+          {activeTab === "tasks" ? (
+            <div className="space-y-10">
+              <div className="flex items-center gap-4 px-2">
+                <h3 className="text-2xl font-black uppercase italic tracking-tighter">
+                  Current <span className="text-blue-500">Radar</span>
+                </h3>
+                <div className="h-[1px] flex-1 bg-gradient-to-r from-gray-800 to-transparent"></div>
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                  {tasks.filter((t) => !t.isDelivered).length} Pending
+                </span>
+              </div>
+
+              {tasks.filter((t) => !t.isDelivered).length === 0 ? (
+                <div className="text-center py-32 bg-gray-900/20 rounded-[3.5rem] border-2 border-dashed border-gray-900">
+                  <div className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-8">
+                    <Package size={40} className="text-gray-700" />
+                  </div>
+                  <p className="text-gray-600 font-black uppercase text-[10px] tracking-[0.4em] italic">
+                    Radar Clear: Standing by for orders...
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-8">
+                  {tasks
+                    .filter((t) => !t.isDelivered)
+                    .map((task) => (
+                      <DeliveryCard
+                        key={task._id}
+                        order={task}
+                        onAction={handleDeliveryAction}
+                        onVerify={markAsDelivered}
+                        otpValue={otpInputs[task._id] || ""}
+                        setOtpValue={(val) =>
+                          setOtpInputs({ ...otpInputs, [task._id]: val })
+                        }
+                      />
+                    ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <EarningsHistory tasks={tasks} />
+          )}
+        </div>
       </div>
     </div>
   );

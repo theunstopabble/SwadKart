@@ -12,18 +12,27 @@ const userSchema = mongoose.Schema(
       type: String,
       required: [true, "Please add an email"],
       unique: true,
+      lowercase: true, // Email hamesha lowercase mein save hoga
     },
     password: {
       type: String,
       required: [true, "Please add a password"],
+      minlength: 6,
     },
     phone: {
       type: String,
     },
+    // 🔥 Role Management with Enum for Security
     role: {
       type: String,
       required: true,
+      enum: ["user", "admin", "delivery_partner", "restaurant_owner"],
       default: "user",
+    },
+    // 🔥 Admin Flag (Backwards compatibility and quick checks)
+    isAdmin: {
+      type: Boolean,
+      default: false,
     },
     image: {
       type: String,
@@ -31,7 +40,7 @@ const userSchema = mongoose.Schema(
     description: {
       type: String,
     },
-    // Shop Reordering Index
+    // Shop Reordering Index (For Restaurant Owners)
     orderIndex: {
       type: Number,
       default: 0,
@@ -53,26 +62,35 @@ const userSchema = mongoose.Schema(
   { timestamps: true }
 );
 
-// Password matching method
+// ==========================================
+// 🛡️ PASSWORD MATCHING METHOD
+// ==========================================
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// 👇 CRITICAL FIX: Removed 'next' parameter completely.
-// Now using Pure Async/Await (Modern Mongoose Standard)
-userSchema.pre("save", async function () {
-  // 1. अगर पासवर्ड बदला नहीं गया है, तो return कर दें (next() की जरूरत नहीं)
-  if (!this.isModified("password")) {
-    return;
+// ==========================================
+// 🔒 PASSWORD HASHING (Modern Pre-Save)
+// ==========================================
+userSchema.pre("save", async function (next) {
+  // 1. Sync isAdmin flag based on role
+  if (this.isModified("role")) {
+    this.isAdmin = this.role === "admin";
   }
 
-  // 2. हैश करें
+  // 2. Hash password if modified
+  if (!this.isModified("password")) {
+    return next();
+  }
+
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  // async function अपने आप promise resolve करेगा, next() की जरूरत नहीं
+  next();
 });
 
-// Reset password token generation
+// ==========================================
+// 🔑 RESET PASSWORD TOKEN GENERATION
+// ==========================================
 userSchema.methods.getResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(20).toString("hex");
 
@@ -81,7 +99,7 @@ userSchema.methods.getResetPasswordToken = function () {
     .update(resetToken)
     .digest("hex");
 
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 Minutes
 
   return resetToken;
 };

@@ -1,30 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
-import {
-  CookingPot,
-  Clock,
-  PlusCircle,
-  ChefHat,
-  ClipboardList,
-  TrendingUp,
-  X,
-  User,
-  MapPin,
-  CheckCircle,
-  Truck,
-  Edit2,
-  Trash2,
-  ArrowUp,
-  ArrowDown,
-  UtensilsCrossed,
-  Phone,
-  Layers,
-  Plus,
-  Loader2,
-  Power, // Toggle icon
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { BASE_URL } from "../config";
-import { toast } from "react-hot-toast"; // Notifications
+import { toast } from "react-hot-toast";
+import { io } from "socket.io-client";
+
+// Modular Components
+import DashboardHeader from "../components/restaurant/DashboardHeader";
+import AnalyticsSection from "../components/restaurant/AnalyticsSection";
+import LiveOrders from "../components/restaurant/LiveOrders";
+import MenuManagement from "../components/restaurant/MenuManagement";
+import ItemModal from "../components/restaurant/ItemModal";
+
+const socket = io(BASE_URL);
 
 const RestaurantOwnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -33,13 +21,14 @@ const RestaurantOwnerDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
+  const [graphData, setGraphData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ revenue: 0, pending: 0, delivered: 0 });
-  const [selectedPartner, setSelectedPartner] = useState({});
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
-
+  const [selectedPartner, setSelectedPartner] = useState({});
   const [newItem, setNewItem] = useState({
     name: "",
     price: "",
@@ -47,776 +36,197 @@ const RestaurantOwnerDashboard = () => {
     category: "",
     image: "",
     isVeg: "true",
-    orderIndex: 0,
     variants: [],
     addons: [],
   });
 
-  // 👇 COMMON FETCH OPTIONS (Token + Cookie Support)
-  const getFetchOptions = (method = "GET", body = null) => {
-    const options = {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${userInfo?.token}`,
-      },
-      credentials: "include", // 👈 Critical for avoiding 401
-    };
-    if (body) options.body = JSON.stringify(body);
-    return options;
-  };
+  const audioPlayer = useRef(null);
+
+  const getFetchOptions = (method = "GET", body = null) => ({
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${userInfo?.token}`,
+    },
+    body: body ? JSON.stringify(body) : null,
+  });
 
   const fetchData = async () => {
     if (!userInfo) return;
-    setLoading(true);
     try {
-      // 1. Fetch Orders
-      const resOrders = await fetch(
-        `${BASE_URL}/api/v1/orders`,
-        getFetchOptions()
+      const [resOrders, resMenu, resPartners, resGraph] = await Promise.all([
+        fetch(`${BASE_URL}/api/v1/orders`, getFetchOptions()),
+        fetch(
+          `${BASE_URL}/api/v1/products/restaurant/${userInfo._id}`,
+          getFetchOptions()
+        ),
+        fetch(`${BASE_URL}/api/v1/users/delivery-partners`, getFetchOptions()),
+        fetch(`${BASE_URL}/api/v1/orders/sales-stats`, getFetchOptions()),
+      ]);
+
+      const dOrders = await resOrders.json();
+      const dMenu = await resMenu.json();
+      const dPartners = await resPartners.json();
+      const dGraph = await resGraph.json();
+
+      setOrders(dOrders || []);
+      setMenuItems(dMenu || []);
+      setDeliveryPartners(dPartners || []);
+      setGraphData(
+        dGraph.map((i) => ({
+          day: new Date(i._id).toLocaleDateString("en-US", {
+            weekday: "short",
+          }),
+          sales: i.sales,
+        }))
       );
-      const dataOrders = await resOrders.json();
 
-      // 2. Fetch Menu
-      const resMenu = await fetch(
-        `${BASE_URL}/api/v1/products/restaurant/${userInfo._id}`,
-        getFetchOptions()
-      );
-      const dataMenu = await resMenu.json();
-
-      // 3. Fetch Partners
-      const resPartners = await fetch(
-        `${BASE_URL}/api/v1/users/delivery-partners`,
-        getFetchOptions()
-      );
-      const dataPartners = await resPartners.json();
-
-      if (resOrders.ok) {
-        setOrders(dataOrders);
-        setMenuItems(dataMenu || []);
-        setDeliveryPartners(dataPartners || []);
-
-        // Calculate Stats
-        const totalRevenue = dataOrders.reduce(
-          (acc, order) => acc + (order.isPaid ? order.totalPrice : 0),
+      setStats({
+        revenue: dOrders.reduce(
+          (acc, o) => acc + (o.isPaid ? o.totalPrice : 0),
           0
-        );
-        const pendingCount = dataOrders.filter((o) => !o.isDelivered).length;
-        const deliveredCount = dataOrders.filter((o) => o.isDelivered).length;
-
-        setStats({
-          revenue: totalRevenue,
-          pending: pendingCount,
-          delivered: deliveredCount,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Failed to load dashboard data");
+        ),
+        pending: dOrders.filter(
+          (o) => o.orderStatus !== "Delivered" && o.orderStatus !== "Cancelled"
+        ).length,
+        delivered: dOrders.filter((o) => o.orderStatus === "Delivered").length,
+      });
+    } catch (e) {
+      toast.error("Sync error");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (userInfo) fetchData();
-  }, [userInfo]);
-
-  // ⚡ NEW: Toggle Stock Function (One-Click Availability)
-  const handleToggleStock = async (id) => {
-    try {
-      const res = await fetch(
-        `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
-        getFetchOptions("PATCH") // 👈 Uses PATCH method with credentials
-      );
-
-      if (res.ok) {
-        const updatedItem = await res.json();
-        // Optimistic UI Update (Turant Green/Red ho jayega)
-        setMenuItems((prevItems) =>
-          prevItems.map((item) =>
-            item._id === id
-              ? { ...item, countInStock: updatedItem.countInStock }
-              : item
-          )
-        );
-        toast.success(
-          updatedItem.countInStock > 0
-            ? "Item Available 🟢"
-            : "Item Sold Out 🔴"
-        );
-      } else {
-        const errorData = await res.json();
-        toast.error(errorData.message || "Failed to update stock");
-      }
-    } catch (error) {
-      console.error("Toggle failed", error);
-      toast.error("Network error, try again.");
-    }
-  };
-
-  const openAddModal = () => {
-    setIsEditing(false);
-    setNewItem({
-      name: "",
-      price: "",
-      description: "",
-      category: "",
-      image: "",
-      isVeg: "true",
-      orderIndex: menuItems.length,
-      variants: [],
-      addons: [],
-    });
-    setShowModal(true);
-  };
-
-  const openEditModal = (item) => {
-    setIsEditing(true);
-    setEditId(item._id);
-    setNewItem({
-      name: item.name,
-      price: item.price,
-      description: item.description,
-      category: item.category,
-      image: item.image,
-      isVeg: item.isVeg ? "true" : "false",
-      orderIndex: item.orderIndex,
-      variants: item.variants || [],
-      addons: item.addons || [],
-    });
-    setShowModal(true);
-  };
-
-  const handleDeleteItem = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this item?")) return;
-    try {
-      await fetch(
-        `${BASE_URL}/api/v1/products/${id}`,
-        getFetchOptions("DELETE")
-      );
-      fetchData();
-      toast.success("Item deleted successfully");
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete item");
-    }
-  };
-
-  const handleReorder = async (index, direction) => {
-    const newItems = [...menuItems];
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= newItems.length) return;
-    const temp = newItems[index];
-    newItems[index] = newItems[targetIndex];
-    newItems[targetIndex] = temp;
-    setMenuItems(newItems);
-
-    try {
-      await fetch(
-        `${BASE_URL}/api/v1/products/${newItems[index]._id}`,
-        getFetchOptions("PUT", { orderIndex: index })
-      );
-      await fetch(
-        `${BASE_URL}/api/v1/products/${newItems[targetIndex]._id}`,
-        getFetchOptions("PUT", { orderIndex: targetIndex })
-      );
-    } catch (error) {
-      console.error("Reorder failed", error);
-      toast.error("Reorder failed");
-    }
-  };
-
-  // --- Variant/Addon Handlers ---
-  const handleAddVariant = () =>
-    setNewItem({
-      ...newItem,
-      variants: [...newItem.variants, { name: "", price: "" }],
-    });
-  const handleRemoveVariant = (index) =>
-    setNewItem({
-      ...newItem,
-      variants: newItem.variants.filter((_, i) => i !== index),
-    });
-  const handleVariantChange = (index, field, value) => {
-    const updated = [...newItem.variants];
-    updated[index][field] = value;
-    setNewItem({ ...newItem, variants: updated });
-  };
-  const handleAddAddon = () =>
-    setNewItem({
-      ...newItem,
-      addons: [...newItem.addons, { name: "", price: "" }],
-    });
-  const handleRemoveAddon = (index) =>
-    setNewItem({
-      ...newItem,
-      addons: newItem.addons.filter((_, i) => i !== index),
-    });
-  const handleAddonChange = (index, field, value) => {
-    const updated = [...newItem.addons];
-    updated[index][field] = value;
-    setNewItem({ ...newItem, addons: updated });
-  };
-
-  const handleSubmitItem = async (e) => {
-    e.preventDefault();
-    try {
-      const productData = { ...newItem, isVeg: newItem.isVeg === "true" };
-      let url = `${BASE_URL}/api/v1/products`;
-      let method = "POST";
-
-      if (isEditing) {
-        url += `/${editId}`;
-        method = "PUT";
-      }
-
-      const res = await fetch(url, getFetchOptions(method, productData));
-
-      if (res.ok) {
-        setShowModal(false);
+    fetchData();
+    if (userInfo) {
+      socket.emit("joinOrder", userInfo._id);
+      socket.on("newOrderReceived", (newOrder) => {
+        if (isSoundEnabled && audioPlayer.current)
+          audioPlayer.current.play().catch(() => {});
+        toast.success(`🔔 NEW ORDER! #${newOrder._id.slice(-6)}`, {
+          duration: 6000,
+        });
         fetchData();
-        toast.success(isEditing ? "Item Updated!" : "Item Added!");
-      } else {
-        const err = await res.json();
-        toast.error(err.message || "Failed to save item");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Something went wrong");
+      });
+    }
+    return () => socket.off("newOrderReceived");
+  }, [userInfo, isSoundEnabled]);
+
+  // Handlers
+  const handleToggleStock = async (id) => {
+    const res = await fetch(
+      `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
+      getFetchOptions("PATCH")
+    );
+    if (res.ok) {
+      fetchData();
+      toast.success("Stock Toggled");
     }
   };
 
   const handleAssignPartner = async (orderId) => {
-    const partnerId = selectedPartner[orderId];
-    if (!partnerId) return toast.error("Please select a partner first!");
-    try {
-      const res = await fetch(
-        `${BASE_URL}/api/v1/orders/${orderId}/assign`,
-        getFetchOptions("PUT", { deliveryPartnerId: partnerId })
-      );
-      if (res.ok) {
-        fetchData();
-        toast.success("Delivery Partner Assigned! 🚚");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to assign partner");
+    const pId = selectedPartner[orderId];
+    if (!pId) return toast.error("Select partner");
+    const res = await fetch(
+      `${BASE_URL}/api/v1/orders/${orderId}/assign`,
+      getFetchOptions("PUT", { deliveryPartnerId: pId })
+    );
+    if (res.ok) {
+      fetchData();
+      toast.success("Driver Assigned 🛵");
+    }
+  };
+
+  const handleSubmitItem = async (e) => {
+    e.preventDefault();
+    const method = isEditing ? "PUT" : "POST";
+    const url = isEditing
+      ? `${BASE_URL}/api/v1/products/${editId}`
+      : `${BASE_URL}/api/v1/products`;
+    const res = await fetch(
+      url,
+      getFetchOptions(method, { ...newItem, isVeg: newItem.isVeg === "true" })
+    );
+    if (res.ok) {
+      setShowModal(false);
+      fetchData();
+      toast.success("Menu Updated!");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 pt-24 pb-12 px-4 sm:px-6 lg:px-8 text-white relative">
+    <div className="min-h-screen bg-gray-950 pt-24 pb-12 px-4 md:px-8 text-white font-sans">
+      <audio ref={audioPlayer} src="/notification.mp3" preload="auto" />
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-3xl font-extrabold flex items-center gap-3">
-            <ChefHat className="text-primary h-10 w-10" /> Kitchen Dashboard
-          </h1>
-          <div className="flex bg-gray-900 rounded-full p-1 border border-gray-800">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`px-6 py-2 rounded-full font-bold transition-all ${
-                activeTab === "overview"
-                  ? "bg-primary text-white"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Orders & Stats
-            </button>
-            <button
-              onClick={() => setActiveTab("menu")}
-              className={`px-6 py-2 rounded-full font-bold transition-all ${
-                activeTab === "menu"
-                  ? "bg-primary text-white"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Menu Management
-            </button>
-          </div>
-        </div>
+        <DashboardHeader
+          isSoundEnabled={isSoundEnabled}
+          setIsSoundEnabled={setIsSoundEnabled}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
 
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <Loader2 className="animate-spin text-primary h-12 w-12" />
+            <Loader2 className="animate-spin text-primary h-10 w-10" />
           </div>
         ) : activeTab === "overview" ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 flex justify-between">
-                <div>
-                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-                    Pending
-                  </p>
-                  <h3 className="text-3xl font-bold">{stats.pending}</h3>
-                </div>
-                <Clock className="text-yellow-400" />
-              </div>
-              <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 flex justify-between">
-                <div>
-                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-                    Revenue
-                  </p>
-                  <h3 className="text-3xl font-bold">₹{stats.revenue}</h3>
-                </div>
-                <TrendingUp className="text-green-400" />
-              </div>
-              <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 flex justify-between">
-                <div>
-                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-                    Completed
-                  </p>
-                  <h3 className="text-3xl font-bold">{stats.delivered}</h3>
-                </div>
-                <ClipboardList className="text-blue-400" />
-              </div>
-            </div>
-
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 border-b border-gray-800 pb-4">
-              <CookingPot className="text-primary" /> Live Orders
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {orders.length === 0 ? (
-                <div className="col-span-full text-center py-20 text-gray-500 italic">
-                  No Active Orders Found.
-                </div>
-              ) : (
-                orders.map((order) => (
-                  <div
-                    key={order._id}
-                    className="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-primary/30 transition-all"
-                  >
-                    <div className="flex justify-between mb-4 border-b border-gray-800 pb-4">
-                      <div>
-                        <h3 className="text-xl font-bold flex items-center gap-2">
-                          #{order._id.substring(0, 6)}{" "}
-                          <span
-                            className={`text-[10px] px-2 py-0.5 rounded uppercase font-extrabold tracking-wider ${
-                              order.isPaid
-                                ? "bg-green-500/20 text-green-400"
-                                : "bg-red-500/20 text-red-400"
-                            }`}
-                          >
-                            {order.isPaid ? "PAID" : "UNPAID"}
-                          </span>
-                        </h3>
-                        <div className="mt-3 space-y-2">
-                          <p className="text-white font-bold flex items-center gap-2">
-                            <User size={14} className="text-primary" />{" "}
-                            {order.shippingAddress?.fullName}
-                          </p>
-                          <p className="text-gray-400 text-sm flex items-start gap-2 leading-relaxed">
-                            <MapPin
-                              size={14}
-                              className="mt-1 flex-shrink-0 text-primary"
-                            />
-                            <span>
-                              {order.shippingAddress?.address},{" "}
-                              {order.shippingAddress?.city},{" "}
-                              {order.shippingAddress?.state} -{" "}
-                              {order.shippingAddress?.postalCode}
-                            </span>
-                          </p>
-                          <p className="text-primary font-mono font-bold text-sm bg-primary/10 w-fit px-3 py-1 rounded-lg border border-primary/20 flex items-center gap-2">
-                            <Phone size={14} /> {order.shippingAddress?.phone}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-primary">
-                          ₹{order.totalPrice}
-                        </p>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">
-                          {order.paymentMethod} Payment
-                        </p>
-                        <p className="text-[10px] text-gray-400 mt-1 italic">
-                          {new Date(order.createdAt).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="bg-black/40 p-3 rounded-xl mb-4 border border-gray-800">
-                      {order.orderItems.map((item, i) => (
-                        <div
-                          key={i}
-                          className="flex justify-between text-sm mb-2 text-gray-300 border-b border-gray-800 pb-2 last:border-0 last:pb-0"
-                        >
-                          <div className="flex flex-col">
-                            <span>
-                              <span className="text-primary font-bold">
-                                {item.qty}x
-                              </span>{" "}
-                              {item.name}
-                            </span>
-                            <div className="pl-6 text-xs text-gray-400 mt-1 space-y-0.5">
-                              {item.selectedVariant && (
-                                <span className="block text-blue-300">
-                                  • Size: {item.selectedVariant.name}
-                                </span>
-                              )}
-                              {item.selectedAddons?.length > 0 && (
-                                <span className="block text-green-300">
-                                  • Extras:{" "}
-                                  {item.selectedAddons
-                                    .map((a) => a.name)
-                                    .join(", ")}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <span className="font-mono text-gray-400">
-                            ₹{item.price * item.qty}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {!order.isDelivered && !order.deliveryPartner && (
-                      <div className="flex gap-2">
-                        <select
-                          className="flex-1 bg-black border border-gray-700 text-white p-2 rounded-lg text-sm focus:outline-none"
-                          onChange={(e) =>
-                            setSelectedPartner({
-                              ...selectedPartner,
-                              [order._id]: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="">Assign Delivery Partner</option>
-                          {deliveryPartners.map((p) => (
-                            <option key={p._id} value={p._id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleAssignPartner(order._id)}
-                          className="bg-primary hover:bg-red-600 px-6 py-2 rounded-lg font-bold transition-all text-sm"
-                        >
-                          Assign
-                        </button>
-                      </div>
-                    )}
-                    {order.deliveryPartner && (
-                      <div className="bg-green-500/10 border border-green-500/20 p-2 rounded-lg">
-                        <p className="text-green-400 text-xs font-bold flex items-center gap-2 justify-center italic">
-                          <Truck size={14} /> {order.deliveryPartner.name} is
-                          handling delivery
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <UtensilsCrossed className="text-primary" /> Manage Menu (
-                {menuItems.length})
-              </h2>
-              <button
-                onClick={openAddModal}
-                className="bg-primary hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full flex items-center gap-2 shadow-lg transition-all"
-              >
-                <PlusCircle size={20} /> Add Item
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {menuItems.map((item, index) => (
-                <div
-                  key={item._id}
-                  className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden group relative hover:border-primary/50 transition-all shadow-md"
-                >
-                  <div className="h-40 relative">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <span
-                      className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] font-bold ${
-                        item.isVeg ? "bg-green-600" : "bg-red-600"
-                      }`}
-                    >
-                      {item.isVeg ? "VEG" : "NON-VEG"}
-                    </span>
-
-                    {/* ⚡ NEW: Availability Toggle Button */}
-                    <button
-                      onClick={() => handleToggleStock(item._id)}
-                      title={
-                        item.countInStock > 0 ? "Disable Item" : "Enable Item"
-                      }
-                      className={`absolute bottom-2 left-2 p-2 rounded-lg flex items-center gap-2 text-[10px] font-black transition-all shadow-lg border cursor-pointer z-10 hover:scale-105 active:scale-95 ${
-                        item.countInStock > 0
-                          ? "bg-green-500/20 text-green-400 border-green-500/50 hover:bg-green-500/30"
-                          : "bg-red-500/20 text-red-500 border-red-500/50 hover:bg-red-500/30"
-                      }`}
-                    >
-                      <Power size={12} />{" "}
-                      {item.countInStock > 0 ? "AVAILABLE" : "SOLD OUT"}
-                    </button>
-
-                    <div className="absolute top-2 right-2 flex flex-col gap-1">
-                      <button
-                        onClick={() => handleReorder(index, -1)}
-                        disabled={index === 0}
-                        className="bg-black/50 hover:bg-primary p-1 rounded text-white disabled:opacity-30 backdrop-blur-sm"
-                      >
-                        <ArrowUp size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleReorder(index, 1)}
-                        disabled={index === menuItems.length - 1}
-                        className="bg-black/50 hover:bg-primary p-1 rounded text-white disabled:opacity-30 backdrop-blur-sm"
-                      >
-                        <ArrowDown size={16} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-1">
-                      <h3 className="font-bold text-lg truncate w-3/4">
-                        {item.name}
-                      </h3>
-                      <span className="text-primary font-bold">
-                        ₹{item.price}
-                      </span>
-                    </div>
-                    <p className="text-gray-500 text-xs mb-4 line-clamp-2">
-                      {item.description}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => openEditModal(item)}
-                        className="flex-1 bg-gray-800 hover:bg-blue-600 py-2 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all"
-                      >
-                        <Edit2 size={14} /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteItem(item._id)}
-                        className="flex-1 bg-gray-800 hover:bg-red-600 py-2 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all"
-                      >
-                        <Trash2 size={14} /> Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="space-y-12">
+            <AnalyticsSection stats={stats} graphData={graphData} />
+            <LiveOrders
+              orders={orders}
+              deliveryPartners={deliveryPartners}
+              selectedPartner={selectedPartner}
+              setSelectedPartner={setSelectedPartner}
+              handleAssignPartner={handleAssignPartner}
+            />
           </div>
+        ) : (
+          <MenuManagement
+            menuItems={menuItems}
+            handleToggleStock={handleToggleStock}
+            handleDeleteItem={async (id) => {
+              if (window.confirm("Delete?")) {
+                await fetch(
+                  `${BASE_URL}/api/v1/products/${id}`,
+                  getFetchOptions("DELETE")
+                );
+                fetchData();
+              }
+            }}
+            openAddModal={() => {
+              setIsEditing(false);
+              setNewItem({
+                name: "",
+                price: "",
+                description: "",
+                category: "",
+                image: "",
+                isVeg: "true",
+                variants: [],
+                addons: [],
+              });
+              setShowModal(true);
+            }}
+            openEditModal={(item) => {
+              setIsEditing(true);
+              setEditId(item._id);
+              setNewItem(item);
+              setShowModal(true);
+            }}
+          />
         )}
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-          <div className="bg-gray-900 border border-gray-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
-            >
-              <X size={24} />
-            </button>
-            <h2 className="text-2xl font-bold mb-6 text-white">
-              {isEditing ? "Edit Item" : "Add New Item"}
-            </h2>
-            <form onSubmit={handleSubmitItem} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                  Item Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Farmhouse Pizza"
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
-                  value={newItem.name}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, name: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="flex gap-4">
-                <div className="w-1/2 space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                    Base Price (₹)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="299"
-                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
-                    value={newItem.price}
-                    onChange={(e) =>
-                      setNewItem({ ...newItem, price: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="w-1/2 space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                    Type
-                  </label>
-                  <select
-                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
-                    value={newItem.isVeg}
-                    onChange={(e) =>
-                      setNewItem({ ...newItem, isVeg: e.target.value })
-                    }
-                  >
-                    <option value="true">🟢 Veg</option>
-                    <option value="false">🔴 Non-Veg</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                  Category
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Pizza, Burger"
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
-                  value={newItem.category}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, category: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                  Image URL
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://unsplash.com/..."
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white focus:outline-none"
-                  value={newItem.image}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, image: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                  Description
-                </label>
-                <textarea
-                  placeholder="Tell customers about this dish..."
-                  className="w-full bg-gray-800 border-gray-700 rounded-lg p-3 text-white h-24 focus:outline-none resize-none"
-                  value={newItem.description}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, description: e.target.value })
-                  }
-                  required
-                />
-              </div>
-
-              {/* ⭐ VARIANTS SECTION */}
-              <div className="bg-black/20 p-3 rounded-lg border border-gray-800">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                    <Layers size={12} /> Variants (e.g., Size)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAddVariant}
-                    className="text-xs text-primary font-bold flex items-center gap-1 hover:text-white"
-                  >
-                    <Plus size={12} /> Add
-                  </button>
-                </div>
-                {newItem.variants.map((variant, index) => (
-                  <div key={index} className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      placeholder="Name"
-                      className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
-                      value={variant.name}
-                      onChange={(e) =>
-                        handleVariantChange(index, "name", e.target.value)
-                      }
-                      required
-                    />
-                    <input
-                      type="number"
-                      placeholder="Price"
-                      className="w-1/4 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
-                      value={variant.price}
-                      onChange={(e) =>
-                        handleVariantChange(index, "price", e.target.value)
-                      }
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveVariant(index)}
-                      className="text-gray-500 hover:text-red-500"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* ⭐ ADD-ONS SECTION */}
-              <div className="bg-black/20 p-3 rounded-lg border border-gray-800">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                    <PlusCircle size={12} /> Add-ons (e.g., Cheese)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAddAddon}
-                    className="text-xs text-green-500 font-bold flex items-center gap-1 hover:text-white"
-                  >
-                    <Plus size={12} /> Add
-                  </button>
-                </div>
-                {newItem.addons.map((addon, index) => (
-                  <div key={index} className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      placeholder="Name"
-                      className="w-2/3 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
-                      value={addon.name}
-                      onChange={(e) =>
-                        handleAddonChange(index, "name", e.target.value)
-                      }
-                      required
-                    />
-                    <input
-                      type="number"
-                      placeholder="Price"
-                      className="w-1/4 bg-gray-800 border border-gray-700 rounded p-2 text-xs text-white"
-                      value={addon.price}
-                      onChange={(e) =>
-                        handleAddonChange(index, "price", e.target.value)
-                      }
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAddon(index)}
-                      className="text-gray-500 hover:text-red-500"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-primary hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow-lg transition-all active:scale-95"
-              >
-                {isEditing ? "Update Item" : "Create Item"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <ItemModal
+        showModal={showModal}
+        setShowModal={setShowModal}
+        isEditing={isEditing}
+        newItem={newItem}
+        setNewItem={setNewItem}
+        handleSubmitItem={handleSubmitItem}
+      />
     </div>
   );
 };

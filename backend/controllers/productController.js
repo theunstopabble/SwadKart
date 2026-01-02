@@ -1,16 +1,15 @@
 import Product from "../models/productModel.js";
 
 // ============================================================
-// 👇 PUBLIC ROUTES (Sabke liye open)
+// 👇 PUBLIC ROUTES
 // ============================================================
 
-// @desc    Fetch all products (Search & Filter)
+// @desc    Fetch all products
 export const getProducts = async (req, res) => {
   try {
     const keyword = req.query.keyword
       ? { name: { $regex: req.query.keyword, $options: "i" } }
       : {};
-
     const products = await Product.find({ ...keyword }).sort({ orderIndex: 1 });
     res.json({ products });
   } catch (error) {
@@ -18,36 +17,31 @@ export const getProducts = async (req, res) => {
   }
 };
 
-// @desc    Fetch single product by ID
+// @desc    Fetch single product
 export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (product) {
-      res.json(product);
-    } else {
-      res.status(404).json({ message: "Product not found" });
-    }
+    if (product) res.json(product);
+    else res.status(404).json({ message: "Product not found" });
   } catch (error) {
     res.status(404).json({ message: "Product not found" });
   }
 };
 
-// @desc    Fetch products by Restaurant ID (Sorted by custom order)
+// @desc    Fetch products by Restaurant ID
 export const getProductsByRestaurant = async (req, res) => {
   try {
     const products = await Product.find({
       $or: [{ restaurant: req.params.id }, { user: req.params.id }],
     }).sort({ orderIndex: 1 });
-
     res.json(products);
   } catch (error) {
-    console.error("❌ Error fetching menu:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
 
 // ============================================================
-// 👇 PROTECTED ROUTES (Admin / Restaurant Owner Only)
+// 👇 PROTECTED ROUTES
 // ============================================================
 
 // @desc    Create a product
@@ -67,6 +61,7 @@ export const createProduct = async (req, res) => {
       addons,
     } = req.body;
 
+    // Jo owner login hai wahi ID jayegi
     const ownerId = restaurantId || req.user._id;
 
     const product = new Product({
@@ -77,10 +72,9 @@ export const createProduct = async (req, res) => {
       category,
       isVeg: isVeg === undefined ? true : isVeg,
       orderIndex: orderIndex || 0,
-      restaurant: ownerId,
+      restaurant: ownerId, // Essential for Dashboard
       user: ownerId,
       countInStock: countInStock || 100,
-      numReviews: 0,
       variants: variants || [],
       addons: addons || [],
     });
@@ -92,80 +86,29 @@ export const createProduct = async (req, res) => {
   }
 };
 
-// @desc    Delete a product
-export const deleteProduct = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-
-    if (product) {
-      if (
-        req.user.isAdmin ||
-        req.user.role === "admin" ||
-        product.restaurant.toString() === req.user._id.toString()
-      ) {
-        await product.deleteOne();
-        res.json({ message: "Product removed" });
-      } else {
-        res
-          .status(401)
-          .json({ message: "Not authorized to delete this product" });
-      }
-    } else {
-      res.status(404).json({ message: "Product not found" });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
 // @desc    Update a product
 export const updateProduct = async (req, res) => {
   try {
-    const {
-      name,
-      price,
-      description,
-      image,
-      category,
-      countInStock,
-      isVeg,
-      orderIndex,
-      variants,
-      addons,
-    } = req.body;
-
     const product = await Product.findById(req.params.id);
 
     if (product) {
-      if (
-        !req.user.isAdmin &&
-        req.user.role !== "admin" &&
-        product.restaurant.toString() !== req.user._id.toString()
-      ) {
+      // 🛡️ SECURITY: Admin OR Owner (Checking both fields)
+      const isOwner =
+        (product.restaurant &&
+          product.restaurant.toString() === req.user._id.toString()) ||
+        (product.user && product.user.toString() === req.user._id.toString());
+      const isAdmin = req.user.role === "admin";
+
+      if (!isAdmin && !isOwner) {
         return res
           .status(401)
           .json({ message: "Not authorized to update this product" });
       }
 
-      product.name = name || product.name;
-      product.price = price || product.price;
-      product.description = description || product.description;
-      product.image = image || product.image;
-      product.category = category || product.category;
-
-      if (countInStock !== undefined) product.countInStock = countInStock;
-      if (isVeg !== undefined) product.isVeg = isVeg;
-      if (orderIndex !== undefined) product.orderIndex = orderIndex;
-      if (variants !== undefined) product.variants = variants;
-      if (addons !== undefined) product.addons = addons;
-
+      Object.assign(product, req.body);
       const updatedProduct = await product.save();
 
-      // OPTIONAL: Update product ke baad bhi emit kar sakte hain
-      if (req.io) {
-        req.io.emit("productUpdated", updatedProduct);
-      }
-
+      if (req.io) req.io.emit("productUpdated", updatedProduct);
       res.json(updatedProduct);
     } else {
       res.status(404).json({ message: "Product not found" });
@@ -175,45 +118,73 @@ export const updateProduct = async (req, res) => {
   }
 };
 
-// @desc    ⚡ Toggle Product Availability (One-Click Out of Stock) & SOCKET EMIT
-// @route   PATCH /api/products/:id/toggle-stock
-export const toggleProductStock = async (req, res) => {
+// @desc    Delete a product
+export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-
     if (product) {
-      // Security Check
-      if (
-        req.user.isAdmin ||
-        req.user.role === "admin" ||
-        product.restaurant.toString() === req.user._id.toString()
-      ) {
-        // Toggle Logic
-        product.countInStock = product.countInStock > 0 ? 0 : 100;
+      const isOwner =
+        (product.restaurant &&
+          product.restaurant.toString() === req.user._id.toString()) ||
+        (product.user && product.user.toString() === req.user._id.toString());
+      const isAdmin = req.user.role === "admin";
 
-        const updatedProduct = await product.save();
-
-        // 🔥 CRITICAL CHANGE: Socket Emit Here
-        if (req.io) {
-          req.io.emit("productUpdated", updatedProduct);
-          console.log(
-            `📡 Socket Emitted: productUpdated for ${updatedProduct.name}`
-          );
-        } else {
-          console.warn("⚠️ Socket IO instance (req.io) not found!");
-        }
-
-        res.json(updatedProduct);
+      if (isAdmin || isOwner) {
+        await product.deleteOne();
+        res.json({ message: "Product removed" });
       } else {
-        res
-          .status(401)
-          .json({ message: "Not authorized to modify this product" });
+        res.status(401).json({ message: "Not authorized" });
       }
     } else {
       res.status(404).json({ message: "Product not found" });
     }
   } catch (error) {
-    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    ⚡ Toggle Product Availability (The Fixed Function)
+export const toggleProductStock = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // 🛡️ SECURITY LOGS: Check terminal to see if IDs match
+    console.log("--- Toggle Stock Debug ---");
+    console.log("Login User ID:", req.user._id.toString());
+    console.log("DB Restaurant ID:", product.restaurant?.toString());
+    console.log("DB User ID:", product.user?.toString());
+
+    const isAdmin = req.user.role === "admin";
+
+    // Check ownership against both restaurant and user fields for safety
+    const isOwner =
+      (product.restaurant &&
+        product.restaurant.toString() === req.user._id.toString()) ||
+      (product.user && product.user.toString() === req.user._id.toString());
+
+    if (isAdmin || isOwner) {
+      // Toggle: If > 0 make it 0, else make it 100
+      product.countInStock = product.countInStock > 0 ? 0 : 100;
+
+      const updatedProduct = await product.save();
+
+      // 📡 SOCKET EMIT for real-time UI
+      if (req.io) {
+        req.io.emit("productUpdated", updatedProduct);
+      }
+
+      return res.json(updatedProduct);
+    } else {
+      return res.status(401).json({
+        message: "Unauthorized: You don't own this product.",
+      });
+    }
+  } catch (error) {
+    console.error("Toggle Error:", error);
     res.status(500).json({ message: error.message });
   }
 };

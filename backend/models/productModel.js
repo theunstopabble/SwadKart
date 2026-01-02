@@ -1,5 +1,24 @@
 import mongoose from "mongoose";
 
+// =================================================
+// ⭐ 0. REVIEW SCHEMA (Separate logic inside same file)
+// =================================================
+const reviewSchema = mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "User",
+    },
+    name: { type: String, required: true },
+    rating: { type: Number, required: true },
+    comment: { type: String, required: true },
+  },
+  {
+    timestamps: true,
+  }
+);
+
 const productSchema = mongoose.Schema(
   {
     // =================================================
@@ -10,7 +29,6 @@ const productSchema = mongoose.Schema(
       ref: "User",
       required: true,
     },
-    // Frontend compatibility ke liye 'user' field bhi rakha hai
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -20,83 +38,48 @@ const productSchema = mongoose.Schema(
     // =================================================
     // 🍕 2. BASIC DETAILS
     // =================================================
-    name: {
-      type: String,
-      required: true,
-    },
-    image: {
-      type: String,
-      required: true,
-    },
-    description: {
-      type: String,
-      required: true,
-    },
-    category: {
-      type: String,
-      required: true,
-    },
-
-    // Base Price (agar koi variant select na ho)
-    price: {
-      type: Number,
-      required: true,
-    },
+    name: { type: String, required: true },
+    image: { type: String, required: true },
+    description: { type: String, required: true },
+    category: { type: String, required: true },
+    price: { type: Number, required: true },
 
     // =================================================
-    // 🛠️ 3. CUSTOMIZATION (NEW FEATURES)
+    // 🛠️ 3. CUSTOMIZATION
     // =================================================
-
-    // 👇 Variants: (e.g., Size: Half/Full or Small/Large)
-    // Inka price base price ko replace karega (Logic Frontend par handle hoga)
     variants: [
       {
-        name: { type: String, required: true }, // e.g., "Large"
-        price: { type: Number, required: true }, // e.g., 250
+        name: { type: String, required: true },
+        price: { type: Number, required: true },
       },
     ],
-
-    // 👇 Add-ons: (e.g., Extra Cheese, Add Coke)
-    // Ye price total mein JUD jayega (Added cost)
     addons: [
       {
-        name: { type: String, required: true }, // e.g., "Extra Cheese"
-        price: { type: Number, required: true }, // e.g., 50
+        name: { type: String, required: true },
+        price: { type: Number, required: true },
       },
     ],
 
     // =================================================
     // ⚙️ 4. SETTINGS & STOCK
     // =================================================
-    isVeg: {
-      type: Boolean,
-      default: true,
-    },
-    isRecommended: {
-      type: Boolean,
-      default: false,
-    },
-    countInStock: {
-      type: Number,
-      required: true,
-      default: 100,
-    },
-
-    // Sorting Order for Menu
-    orderIndex: {
-      type: Number,
-      default: 0,
-    },
+    isVeg: { type: Boolean, default: true },
+    isRecommended: { type: Boolean, default: false },
+    countInStock: { type: Number, required: true, default: 100 },
+    orderIndex: { type: Number, default: 0 },
 
     // =================================================
-    // ⭐ 5. RATINGS
+    // ⭐ 5. REVIEWS & RATINGS (Fixed & Integrated)
     // =================================================
+    reviews: [reviewSchema], // 👈 Array of reviews
     rating: {
       type: Number,
+      required: true,
       default: 0,
     },
     numReviews: {
       type: Number,
+      required: true,
       default: 0,
     },
   },

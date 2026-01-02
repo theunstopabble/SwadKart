@@ -6,7 +6,7 @@ const couponSchema = mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      uppercase: true, // Auto-uppercase (e.g. "swad50")
+      uppercase: true,
     },
     discountPercentage: {
       type: Number,
@@ -15,11 +15,11 @@ const couponSchema = mongoose.Schema(
       max: 100,
     },
     maxDiscountAmount: {
-      type: Number, // Max ₹100 off (Safety feature)
+      type: Number,
       default: 500,
     },
     minOrderValue: {
-      type: Number, // Order must be above ₹200
+      type: Number,
       required: true,
       default: 0,
     },
@@ -31,6 +31,13 @@ const couponSchema = mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // ✅ Ab yeh sahi jagah par hai (Inside the schema object)
+    usedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,

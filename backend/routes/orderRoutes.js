@@ -1,94 +1,104 @@
 import express from "express";
 const router = express.Router();
+
+// 1. 👇 Order Controller (Core order logic)
 import {
   addOrderItems,
   getOrderById,
-  updateOrderToPaid,
-  updateOrderToDelivered,
-  updateOrderStatus,
   getMyOrders,
-  getOrders,
-  getAllOrdersAdmin,
-  assignDeliveryPartner,
-  getMyDeliveryOrders,
-  updateDeliveryAction, // 👈 New: Accept/Reject
-  cancelOrder, // 👈 New: Cancellation
-  getDashboardStats, // 👈 New: Analytics
+  cancelOrder,
+  // ❌ updateOrderToPaid function yahan se hata diya hai kyunki ye paymentController me merge ho gaya hai
 } from "../controllers/orderController.js";
 
+// 2. 👇 Delivery Controller (Driver & Tracking logic)
+import {
+  assignDeliveryPartner,
+  updateDeliveryAction,
+  updateOrderToDelivered,
+  getMyDeliveryOrders,
+} from "../controllers/deliveryController.js";
+
+// 3. 👇 Admin Controller (Stats & Analytics logic)
+import {
+  getSalesStats,
+  getDashboardStats,
+} from "../controllers/adminController.js";
+
+// 👇 Auth Middlewares
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 
-// ==================================================================
-// 👇 SPECIFIC ROUTES (Must come BEFORE /:id routes)
-// ==================================================================
+// ============================================================
+// 📊 ANALYTICS & STATS (Admin & Restaurant Owner)
+// ============================================================
 
-// 1. Dashboard Analytics (Admin & Restaurant)
-router
-  .route("/analytics")
-  .get(protect, authorizeRoles("admin", "restaurant_owner"), getDashboardStats);
+// ग्राफ के लिए रोजाना की सेल्स (Recharts Graph Data)
+router.get("/sales-stats", protect, authorizeRoles("admin"), getSalesStats);
 
-// 2. User's Order History
-router.route("/myorders").get(protect, getMyOrders);
+// कार्ड्स के लिए टोटल स्टैट्स (Dashboard Analytics)
+router.get(
+  "/analytics",
+  protect,
+  authorizeRoles("admin", "restaurant_owner"),
+  getDashboardStats
+);
 
-// 3. Admin: Get All Orders
-router
-  .route("/admin/all")
-  .get(protect, authorizeRoles("admin"), getAllOrdersAdmin);
+// ============================================================
+// 🛵 DELIVERY PARTNER ROUTES
+// ============================================================
 
-// 4. Delivery Partner: Get My Assigned Deliveries
-router
-  .route("/my-deliveries")
-  .get(protect, authorizeRoles("delivery_partner"), getMyDeliveryOrders);
+// ड्राइवर के अपने असाइन किए हुए ऑर्डर्स
+router.get(
+  "/my-deliveries",
+  protect,
+  authorizeRoles("delivery_partner"),
+  getMyDeliveryOrders
+);
 
-// ==================================================================
-// 👇 GENERAL ROUTES
-// ==================================================================
+// ड्राइवर द्वारा आर्डर स्वीकार या अस्वीकार करना
+router.put(
+  "/:id/delivery-action",
+  protect,
+  authorizeRoles("delivery_partner"),
+  updateDeliveryAction
+);
 
-// 5. Create Order / Get All Orders (Restaurant/Admin)
-router
-  .route("/")
-  .post(protect, addOrderItems)
-  .get(protect, authorizeRoles("admin", "restaurant_owner"), getOrders);
+// ड्राइवर या एडमिन द्वारा आर्डर डिलीवर मार्क करना (OTP के साथ)
+router.put(
+  "/:id/deliver",
+  protect,
+  authorizeRoles("admin", "delivery_partner"),
+  updateOrderToDelivered
+);
 
-// ==================================================================
-// 👇 ID BASED ROUTES (Must come LAST)
-// ==================================================================
+// ============================================================
+// 🛒 GENERAL ORDER ROUTES
+// ============================================================
 
-// 6. 🚫 Cancel Order (User & Admin)
-router.route("/:id/cancel").put(protect, cancelOrder);
+// नया आर्डर बनाना
+router.post("/", protect, addOrderItems);
 
-// 7. 🛵 Delivery Action (Accept/Reject by Partner)
-router
-  .route("/:id/delivery-action")
-  .put(protect, authorizeRoles("delivery_partner"), updateDeliveryAction);
+// यूजर का अपना आर्डर इतिहास
+router.get("/myorders", protect, getMyOrders);
 
-// 8. General Status Update (Cooking, Ready, etc.)
-router
-  .route("/:id/status")
-  .put(protect, authorizeRoles("admin", "restaurant_owner"), updateOrderStatus);
+// आर्डर कैंसिल करना
+router.put("/:id/cancel", protect, cancelOrder);
 
-// 9. Assign Delivery Partner (Admin/Restaurant)
-router
-  .route("/:id/assign")
-  .put(
-    protect,
-    authorizeRoles("admin", "restaurant_owner"),
-    assignDeliveryPartner
-  );
+// एडमिन द्वारा पार्टनर असाइन करना
+router.put(
+  "/:id/assign",
+  protect,
+  authorizeRoles("admin", "restaurant_owner"),
+  assignDeliveryPartner
+);
 
-// 10. Mark as Delivered (Delivery Partner/Admin)
-router
-  .route("/:id/deliver")
-  .put(
-    protect,
-    authorizeRoles("admin", "restaurant_owner", "delivery_partner"),
-    updateOrderToDelivered
-  );
+// ✅ NOTE: Razorpay Payment ke liye alag routes file (paymentRoutes.js) use ho rahi hai.
+// Agar koi purana code /:id/pay ko call kar raha hai, toh use ignore karein ya
+// frontend se payment gateway wala naya API call karein.
 
-// 11. Mark Payment as Paid
-router.route("/:id/pay").put(protect, updateOrderToPaid);
+// ============================================================
+// 🔍 FETCHING BY ID (Must be at the end)
+// ============================================================
 
-// 12. 🔥 GET SINGLE ORDER BY ID (This MUST be the Last Route)
-router.route("/:id").get(protect, getOrderById);
+router.get("/:id", protect, getOrderById);
 
 export default router;

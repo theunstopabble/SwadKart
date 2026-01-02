@@ -2,28 +2,56 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, Clock, Star, ArrowRight, Loader2 } from "lucide-react";
 import { BASE_URL } from "../config";
-import io from "socket.io-client"; // 👈 Import Socket
+import io from "socket.io-client";
+
+// --- Category Bar Component (Internal for easy access) ---
+const CategoryBar = ({ activeCategory, setActiveCategory }) => {
+  const categories = [
+    { name: "All", icon: "🍱" },
+    { name: "Pizza", icon: "🍕" },
+    { name: "Burgers", icon: "🍔" },
+    { name: "Starters", icon: "🍟" },
+    { name: "Main Course", icon: "🍛" },
+    { name: "Desserts", icon: "🍰" },
+    { name: "Drinks", icon: "🥤" },
+  ];
+
+  return (
+    <div className="flex overflow-x-auto gap-4 py-6 no-scrollbar mb-4">
+      {categories.map((cat) => (
+        <button
+          key={cat.name}
+          onClick={() => setActiveCategory(cat.name)}
+          className={`flex items-center gap-2 px-6 py-2 rounded-full whitespace-nowrap transition-all border ${
+            activeCategory === cat.name
+              ? "bg-primary border-primary text-white"
+              : "bg-gray-900 border-gray-800 text-gray-400 hover:border-gray-600"
+          }`}
+        >
+          <span>{cat.icon}</span>
+          <span className="text-xs font-bold uppercase">{cat.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
 
 const Home = () => {
   const [restaurants, setRestaurants] = useState([]);
   const [filteredRestaurants, setFilteredRestaurants] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All"); // 👈 Added state
   const [loading, setLoading] = useState(true);
 
-  // 1. Fetch Restaurants Data
   const fetchRestaurants = async () => {
     try {
       const res = await fetch(`${BASE_URL}/api/v1/users/restaurants`);
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       const data = await res.json();
-
       const allShops = Array.isArray(data) ? data : data.restaurants || [];
-
-      // 👇 Initial Sort based on orderIndex (Low to High)
       const sortedShops = allShops.sort(
         (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
       );
-
       setRestaurants(sortedShops);
       setFilteredRestaurants(sortedShops);
     } catch (error) {
@@ -35,54 +63,41 @@ const Home = () => {
 
   useEffect(() => {
     fetchRestaurants();
-
-    // 📡 2. SOCKET CONNECTION (Live Shop Re-ordering)
     const socket = io(BASE_URL);
-
-    // Listen for 'restaurantUpdated' event from Backend
     socket.on("restaurantUpdated", (updatedShop) => {
-      console.log("⚡ Shop Update Received:", updatedShop.name);
-
       setRestaurants((prevShops) => {
-        // A. If shop exists, replace it. If not, add it.
         let updatedList = prevShops.map((shop) =>
           shop._id === updatedShop._id ? updatedShop : shop
         );
-
         const exists = prevShops.find((s) => s._id === updatedShop._id);
         if (!exists) updatedList.push(updatedShop);
-
-        // B. 🔥 CRITICAL: Re-Sort Immediately
         return [...updatedList].sort(
           (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
         );
       });
     });
-
-    // Cleanup
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, []);
 
-  // 🔍 3. Search Logic
-  // This runs automatically whenever 'restaurants' changes (including via Socket)
+  // 🔍 Logic for BOTH Search and Category
   useEffect(() => {
     const results = restaurants.filter((shop) => {
-      const matchName = shop.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchDesc = shop.description
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      return matchName || matchDesc;
+      const matchSearch =
+        shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        shop.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchCategory =
+        activeCategory === "All" ||
+        shop.category?.toLowerCase() === activeCategory.toLowerCase();
+
+      return matchSearch && matchCategory;
     });
     setFilteredRestaurants(results);
-  }, [searchTerm, restaurants]);
+  }, [searchTerm, activeCategory, restaurants]);
 
   return (
     <div className="bg-black min-h-screen text-white pt-20">
-      {/* Hero Section */}
+      {/* Hero Section (Original UI) */}
       <div className="relative h-[500px] w-full bg-[url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80')] bg-cover bg-center">
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent flex flex-col justify-center items-center text-center px-4">
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight">
@@ -93,7 +108,7 @@ const Home = () => {
             your doorstep.
           </p>
 
-          {/* Search Bar */}
+          {/* Search Bar (Original UI) */}
           <div className="flex bg-white rounded-full overflow-hidden p-1 w-full max-w-xl shadow-2xl shadow-primary/20">
             <input
               type="text"
@@ -109,13 +124,19 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Restaurants List Section */}
+      {/* Restaurants List Section (Original UI) */}
       <div className="max-w-7xl mx-auto px-6 py-16">
+        {/* 🔥 NEW FEATURE: Category Bar (Minimal UI impact) */}
+        <CategoryBar
+          activeCategory={activeCategory}
+          setActiveCategory={setActiveCategory}
+        />
+
         <div className="flex items-center gap-4 mb-10">
           <div className="w-1 h-10 bg-primary rounded-full"></div>
           <h2 className="text-3xl md:text-4xl font-bold">
-            {searchTerm
-              ? `Results for "${searchTerm}"`
+            {searchTerm || activeCategory !== "All"
+              ? `Results for your craving`
               : "Top Restaurants in Jaipur"}
           </h2>
         </div>
@@ -131,7 +152,6 @@ const Home = () => {
             </p>
           </div>
         ) : (
-          // Added transition for smooth re-ordering effect
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 transition-all duration-500">
             {filteredRestaurants.map((shop) => (
               <Link

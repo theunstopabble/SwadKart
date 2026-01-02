@@ -5,14 +5,37 @@
   <meta charset="UTF-8" />
 
   <link rel="icon" type="image/png" href="/pwa-192x192.png" />
+  <title>SwadKart - Taste Delivered</title>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
   <meta name="theme-color" content="#030712" />
+  <meta name="background-color" content="#030712" />
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SwadKart">
+  <link rel="apple-touch-icon" href="/pwa-192x192.png">
+
+  <link rel="manifest" href="/manifest.webmanifest">
 
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
-  <title>SwadKart - Taste Delivered</title>
+  <style>
+    /* Mobile highlight remove and smooth scrolling */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+    }
+
+    body {
+      background-color: #030712;
+      margin: 0;
+      overflow-x: hidden;
+      overscroll-behavior-y: contain;
+      /* Prevents pull-to-refresh pull-away */
+    }
+  </style>
 </head>
 
 <body>

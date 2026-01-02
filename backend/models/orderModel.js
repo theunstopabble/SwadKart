@@ -12,7 +12,7 @@ const orderSchema = mongoose.Schema(
     },
 
     // =================================================
-    // 🍔 2. ORDER ITEMS (Updated with Customization)
+    // 🍔 2. ORDER ITEMS (Customization Ready)
     // =================================================
     orderItems: [
       {
@@ -25,14 +25,13 @@ const orderSchema = mongoose.Schema(
           required: true,
           ref: "Product",
         },
-        // 👇 Linked to Restaurant
+        // 👇 Linked to Restaurant Owner
         restaurant: {
           type: mongoose.Schema.Types.ObjectId,
           required: true,
-          ref: "User", // Note: Ensure this matches your User model (Restaurant Owner)
+          ref: "User",
         },
-
-        // ⭐ NEW FIELDS FOR VARIANTS & ADD-ONS ⭐
+        // ⭐ Variants & Add-ons
         selectedVariant: {
           type: Object, // Stores { name: "Large", price: 500 }
           default: null,
@@ -45,7 +44,7 @@ const orderSchema = mongoose.Schema(
     ],
 
     // =================================================
-    // 📍 3. SHIPPING DETAILS (FULL INFO)
+    // 📍 3. SHIPPING DETAILS
     // =================================================
     shippingAddress: {
       fullName: { type: String, required: true },
@@ -69,16 +68,18 @@ const orderSchema = mongoose.Schema(
     },
 
     // =================================================
-    // 💰 5. PRICING
+    // 💰 5. PRICING & COUPON LOGIC
     // =================================================
     itemsPrice: { type: Number, required: true, default: 0.0 },
     taxPrice: { type: Number, required: true, default: 0.0 },
     shippingPrice: { type: Number, required: true, default: 0.0 },
-    totalPrice: { type: Number, required: true, default: 0.0 },
 
-    // 👇 Coupon Info
+    // 👇 Coupon Calculation
     couponCode: { type: String, default: "" },
     couponDiscount: { type: Number, required: true, default: 0.0 },
+
+    // itemsPrice + taxPrice + shippingPrice - couponDiscount
+    totalPrice: { type: Number, required: true, default: 0.0 },
 
     // =================================================
     // ✅ 6. PAYMENT STATUS
@@ -87,14 +88,11 @@ const orderSchema = mongoose.Schema(
     paidAt: { type: Date },
 
     // =================================================
-    // 📦 7. DELIVERY STATUS (Global)
+    // 📦 7. DELIVERY & PARTNER LOGIC
     // =================================================
     isDelivered: { type: Boolean, required: true, default: false },
     deliveredAt: { type: Date },
 
-    // =================================================
-    // 🛵 8. DELIVERY PARTNER LOGIC
-    // =================================================
     deliveryPartner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -102,12 +100,22 @@ const orderSchema = mongoose.Schema(
     },
     deliveryStatus: {
       type: String,
-      enum: ["None", "Assigned", "Accepted", "Rejected"],
+      enum: [
+        "None",
+        "Assigned",
+        "Accepted",
+        "Rejected",
+        "Out for Delivery",
+        "Delivered",
+      ],
       default: "None",
+    },
+    deliveryOTP: {
+      type: Number, // 4 Digit code
     },
 
     // =================================================
-    // 🔄 9. ORDER LIFECYCLE
+    // 🔄 8. ORDER LIFECYCLE
     // =================================================
     orderStatus: {
       type: String,

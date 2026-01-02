@@ -1,73 +1,15 @@
 import Order from "../models/orderModel.js";
 import User from "../models/userModel.js";
-import Restaurant from "../models/restaurantModel.js"; // 👈 Required for Restaurant details
+import Restaurant from "../models/restaurantModel.js";
+import Coupon from "../models/couponModel.js";
 import sendEmail from "../utils/sendEmail.js";
-import {
-  getOrderConfirmationTemplate,
-  getAdminOrderAlertTemplate,
-  getRestaurantOrderAlertTemplate,
-  getUserDriverAssignedTemplate,
-  getDeliveryRequestTemplate, // 👈 For Driver Accept/Reject
-  getOrderCancelledTemplate, // 👈 For Cancellation
-} from "../utils/emailTemplates.js";
+import { getOrderConfirmationTemplate } from "../utils/emailTemplates.js";
 
-// =================================================================
-// 📧 HELPER: NOTIFY ADMIN & RESTAURANT (DATABASE DRIVEN 🛡️)
-// =================================================================
-const notifyRestaurantAndAdmin = async (order) => {
-  try {
-    // 1. Notify Super Admin (FETCH FROM DB - NO HARDCODING) 🕵️‍♂️
-    const adminUser = await User.findOne({ role: "admin" });
-
-    if (adminUser && adminUser.email) {
-      console.log(`📨 Found Admin in DB: ${adminUser.email}`);
-      await sendEmail({
-        email: adminUser.email,
-        subject: `🚨 New Order: #${order._id.toString().slice(-6)}`,
-        html: getAdminOrderAlertTemplate(order),
-      });
-    } else {
-      console.error("❌ No Admin User found in Database to send alert!");
-    }
-
-    // 2. Notify Restaurant Owner (Dynamic via Restaurant Model)
-    if (order.orderItems && order.orderItems.length > 0) {
-      const restaurantId = order.orderItems[0].restaurant;
-
-      if (restaurantId) {
-        const restaurantDoc = await Restaurant.findById(restaurantId).populate(
-          "owner"
-        );
-
-        if (restaurantDoc && restaurantDoc.owner) {
-          const shopOwner = restaurantDoc.owner;
-          const shopName = restaurantDoc.name;
-
-          // Check if email exists and is NOT a dummy email
-          if (shopOwner.email && !shopOwner.email.includes("@dummy.swadkart")) {
-            console.log(`📨 Alerting Shop: ${shopName} (${shopOwner.email})`);
-
-            await sendEmail({
-              email: shopOwner.email,
-              subject: `🔔 New Order for ${shopName}`,
-              html: getRestaurantOrderAlertTemplate(order, shopName),
-            });
-          } else {
-            console.log("⚠️ Dummy Shop or Missing Email. Skipping Shop Alert.");
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Notification Error:", err.message);
-  }
-};
-
-// =================================================================
-// 🛒 ORDER CREATION (Handles COD Emails Instantly)
-// =================================================================
-
-// @desc    Create new order
+// ==========================================
+// 🛒 1. CREATE NEW ORDER
+// ==========================================
+// @desc    Create new order & Notify Restaurant
+// @route   POST /api/v1/orders
 export const addOrderItems = async (req, res) => {
   const {
     orderItems,
@@ -77,21 +19,23 @@ export const addOrderItems = async (req, res) => {
     taxPrice,
     shippingPrice,
     totalPrice,
-    // 👇 ADDED: Coupon Data
     couponCode,
     couponDiscount,
   } = req.body;
 
-  if (orderItems && orderItems.length === 0) {
-    res.status(400);
-    throw new Error("No order items");
-  } else {
+  try {
+    if (orderItems && orderItems.length === 0) {
+      return res.status(400).json({ message: "No order items detected." });
+    }
+
+    // 🛡️ Generate a 4-digit OTP for secure delivery verification
+    const deliveryOTP = Math.floor(1000 + Math.random() * 9000);
+
     const order = new Order({
       orderItems: orderItems.map((x) => ({
         ...x,
         product: x.product,
-        restaurant: x.restaurant, // 👈 Ensures Restaurant ID is saved
-        _id: undefined,
+        restaurant: x.restaurant,
       })),
       user: req.user._id,
       shippingAddress,
@@ -100,372 +44,196 @@ export const addOrderItems = async (req, res) => {
       taxPrice,
       shippingPrice,
       totalPrice,
-      // 👇 ADDED: Save Coupon Info to DB
       couponCode,
       couponDiscount,
+      deliveryOTP, // Saved for later verification
     });
 
     const createdOrder = await order.save();
 
-    // ==========================================
-    // 🚚 COD EMAIL FLOW
-    // ==========================================
+    // 🎫 Update Coupon Usage Log
+    if (couponCode) {
+      await Coupon.findOneAndUpdate(
+        { code: couponCode.toUpperCase() },
+        { $addToSet: { usedBy: req.user._id } }
+      );
+    }
+
+    // 🔔 REAL-TIME SOCKET: Notify Restaurant Owner immediately
+    if (req.io) {
+      const restaurantId = createdOrder.orderItems[0].restaurant;
+      const restaurant = await Restaurant.findById(restaurantId);
+      if (restaurant && restaurant.owner) {
+        req.io
+          .to(restaurant.owner.toString())
+          .emit("newOrderReceived", createdOrder);
+        console.log(
+          `🔔 Socket: New order alert sent to owner ${restaurant.owner}`
+        );
+      }
+    }
+
+    // 📧 Email notification for COD Orders
     if (paymentMethod === "COD") {
-      // 1. Send Receipt to USER
       try {
         await sendEmail({
           email: req.user.email,
-          subject: `Order Confirmed: #${createdOrder._id.toString().slice(-6)}`,
-          html: getOrderConfirmationTemplate(createdOrder, false), // false = Not Paid
+          subject: `SwadKart: Order Confirmed! ✅ #${createdOrder._id
+            .toString()
+            .slice(-6)}`,
+          html: getOrderConfirmationTemplate(createdOrder, false),
         });
-      } catch (error) {
-        console.error("User COD Email Failed", error);
+      } catch (e) {
+        console.error("Email Service Error:", e.message);
       }
-
-      // 2. Notify Admin & Restaurant (DB Logic)
-      await notifyRestaurantAndAdmin(createdOrder);
     }
 
     res.status(201).json(createdOrder);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
-// =================================================================
-// 🔍 ORDER FETCHING
-// =================================================================
-
-// @desc    Get order by ID
+// ==========================================
+// 🔍 2. GET ORDER BY ID
+// ==========================================
 export const getOrderById = async (req, res) => {
-  const order = await Order.findById(req.params.id)
-    .populate("user", "name email")
-    .populate("deliveryPartner", "name phone");
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate("user", "name email")
+      .populate("deliveryPartner", "name phone");
 
-  if (order) {
-    res.json(order);
-  } else {
-    res.status(404);
-    throw new Error("Order not found");
+    if (order) {
+      res.json(order);
+    } else {
+      res.status(404).json({ message: "Order not found in records." });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Get logged in user orders
-export const getMyOrders = async (req, res) => {
-  const orders = await Order.find({ user: req.user._id }).sort({
-    createdAt: -1,
-  });
-  res.json(orders);
-};
-
-// =================================================================
-// 🚚 DELIVERY & STATUS LOGIC
-// =================================================================
-
-// @desc    Update order status (Kitchen/Delivery)
+// ==========================================
+// 🛠️ 3. UPDATE ORDER STATUS
+// ==========================================
+// @desc    Update order status & Trigger notifications
 export const updateOrderStatus = async (req, res) => {
   const { status } = req.body;
-  const order = await Order.findById(req.params.id);
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-  if (order) {
     order.orderStatus = status;
+
     if (status === "Delivered") {
       order.isDelivered = true;
       order.deliveredAt = Date.now();
-      order.deliveryStatus = "Delivered";
-    }
-    const updatedOrder = await order.save();
-    req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
-    req.io.emit("globalOrderUpdate", updatedOrder);
-    res.json(updatedOrder);
-  } else {
-    res.status(404);
-    throw new Error("Order not found");
-  }
-};
-
-// @desc    Assign Delivery Partner (Sends Accept/Reject Request)
-export const assignDeliveryPartner = async (req, res) => {
-  const { deliveryPartnerId } = req.body;
-
-  // 👇 Populate User & Partner for Email
-  const order = await Order.findById(req.params.id)
-    .populate("user", "name email phone")
-    .populate("deliveryPartner", "name phone");
-
-  if (order) {
-    const User = (await import("../models/userModel.js")).default;
-    const partner = await User.findById(deliveryPartnerId);
-
-    if (!partner) {
-      res.status(404);
-      throw new Error("Partner not found");
-    }
-
-    // Update Order State
-    order.deliveryPartner = deliveryPartnerId;
-    order.deliveryStatus = "Assigned"; // 👈 Set status to Assigned
-    order.orderStatus = "Ready"; // Food is ready
-
-    const updatedOrder = await order.save();
-
-    // 📧 SEND NEW "REQUEST" EMAIL TO PARTNER
-    if (partner.email) {
-      try {
-        await sendEmail({
-          email: partner.email,
-          subject: `🛵 New Delivery Task: #${order._id.toString().slice(-6)}`,
-          html: getDeliveryRequestTemplate(updatedOrder, partner), // ✨ Includes Accept/Reject Buttons
-        });
-        console.log(`✅ Delivery Request Sent to ${partner.name}`);
-      } catch (e) {
-        console.error("Delivery Email Failed", e);
+      // Auto-pay on delivery if COD to sync finances
+      if (order.paymentMethod === "COD") {
+        order.isPaid = true;
+        order.paidAt = Date.now();
       }
     }
 
-    req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
-    res.json(updatedOrder);
-  } else {
-    res.status(404);
-    throw new Error("Order not found");
-  }
-};
-
-// @desc    Update Delivery Action (Accept/Reject by Driver)
-export const updateDeliveryAction = async (req, res) => {
-  const { action } = req.body; // 'accept' or 'reject'
-  const order = await Order.findById(req.params.id);
-
-  if (order) {
-    // Security Check: Only assigned partner can accept/reject
-    if (order.deliveryPartner.toString() !== req.user._id.toString()) {
-      res.status(401);
-      throw new Error("Not authorized");
-    }
-
-    if (action === "accept") {
-      order.deliveryStatus = "Accepted";
-      order.orderStatus = "Out for Delivery";
-
-      // Notify User: Driver is coming!
-      const user = await User.findById(order.user);
-      const partner = await User.findById(order.deliveryPartner);
-      if (user && partner) {
-        try {
-          await sendEmail({
-            email: user.email,
-            subject: `🛵 Driver is on the way!`,
-            html: getUserDriverAssignedTemplate(order, partner),
-          });
-        } catch (e) {}
-      }
-    } else if (action === "reject") {
-      order.deliveryStatus = "Rejected";
-      order.deliveryPartner = null; // Unassign so Admin/Restaurant can re-assign
-    }
-
     const updatedOrder = await order.save();
-    req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
+
+    // 🔔 Real-time Updates via Socket
+    if (req.io) {
+      // Notify the specific user room
+      req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
+
+      // Broadcast to all delivery partners if status is "Ready"
+      if (status === "Ready") {
+        req.io.emit("newDeliveryTask", updatedOrder);
+      }
+    }
+
     res.json(updatedOrder);
-  } else {
-    res.status(404);
-    throw new Error("Order not found");
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
-// =================================================================
-// 🚫 CANCELLATION LOGIC
-// =================================================================
+// ==========================================
+// 📈 4. SALES ANALYTICS (Dashboard)
+// ==========================================
+export const getSalesStats = async (req, res) => {
+  try {
+    const stats = await Order.aggregate([
+      { $match: { isPaid: true } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          sales: { $sum: "$totalPrice" },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+      { $limit: 7 }, // Last 7 days stats for the chart
+    ]);
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
-// @desc    Cancel Order (User/Admin)
+// ==========================================
+// 📜 5. USER ORDER HISTORY
+// ==========================================
+export const getMyOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id }).sort({
+      createdAt: -1,
+    });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// 🚫 6. CANCEL ORDER
+// ==========================================
 export const cancelOrder = async (req, res) => {
   const { reason } = req.body;
-  const order = await Order.findById(req.params.id).populate(
-    "user",
-    "email name"
-  );
-
-  if (order) {
-    // Permissions Check
-    if (
-      order.user._id.toString() !== req.user._id.toString() &&
-      req.user.role !== "admin"
-    ) {
-      res.status(401);
-      throw new Error("Not authorized");
-    }
-
-    // Restriction: Can't cancel if food is out
-    if (
-      order.orderStatus === "Out for Delivery" ||
-      order.orderStatus === "Delivered"
-    ) {
-      res.status(400);
-      throw new Error("Cannot cancel order at this stage.");
-    }
-
-    // Update State
-    order.orderStatus = "Cancelled";
-    order.deliveryStatus = "None";
-    order.cancellationReason = reason || "User cancelled";
-    order.cancelledAt = Date.now();
-
-    const updatedOrder = await order.save();
-
-    // 📧 Notify User
-    try {
-      await sendEmail({
-        email: order.user.email,
-        subject: `Order Cancelled: #${order._id.toString().slice(-6)}`,
-        html: getOrderCancelledTemplate(updatedOrder, reason),
-      });
-    } catch (e) {
-      console.error("Cancel Email Failed", e);
-    }
-
-    req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
-    res.json({ message: "Order Cancelled", order: updatedOrder });
-  } else {
-    res.status(404);
-    throw new Error("Order not found");
-  }
-};
-
-// =================================================================
-// 👑 ADMIN & DASHBOARD ROUTES
-// =================================================================
-
-export const updateOrderToPaid = async (req, res) => {
-  const order = await Order.findById(req.params.id).populate(
-    "user",
-    "name email"
-  );
-  if (order) {
-    order.isPaid = true;
-    order.paidAt = Date.now();
-    order.paymentResult = {
-      id: req.body.id || "Manual",
-      status: "completed",
-      update_time: Date.now(),
-      email_address: order.user.email,
-    };
-    const updatedOrder = await order.save();
-    try {
-      await sendEmail({
-        email: order.user.email,
-        subject: `Payment Confirmed`,
-        html: getOrderConfirmationTemplate(updatedOrder, true),
-      });
-    } catch (e) {}
-    req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
-    res.json(updatedOrder);
-  } else {
-    res.status(404);
-    throw new Error("Order not found");
-  }
-};
-
-export const updateOrderToDelivered = async (req, res) => {
-  const order = await Order.findById(req.params.id);
-  if (order) {
-    order.isDelivered = true;
-    order.deliveredAt = Date.now();
-    order.orderStatus = "Delivered";
-    const updatedOrder = await order.save();
-    req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
-    res.json(updatedOrder);
-  } else {
-    res.status(404);
-    throw new Error("Order not found");
-  }
-};
-
-export const getAllOrdersAdmin = async (req, res) => {
-  const orders = await Order.find({})
-    .populate("user", "id name")
-    .populate("deliveryPartner", "name")
-    .sort({ createdAt: -1 });
-  res.json(orders);
-};
-
-export const getOrders = async (req, res) => {
-  const orders = await Order.find({})
-    .populate("user", "id name")
-    .populate("deliveryPartner", "name")
-    .sort({ createdAt: -1 });
-  res.json(orders);
-};
-
-export const getMyDeliveryOrders = async (req, res) => {
-  const orders = await Order.find({ deliveryPartner: req.user._id })
-    .populate("user", "name email phone")
-    .sort({ createdAt: -1 });
-  res.json(orders);
-};
-
-// @desc    Get Dashboard Analytics (Role Based: Admin vs Restaurant)
-export const getDashboardStats = async (req, res) => {
   try {
-    let query = {}; // Default: Empty query means ALL data (For Admin)
+    const order = await Order.findById(req.params.id);
 
-    // 🔒 IF RESTAURANT OWNER: Filter data strictly for their restaurant
-    if (req.user.role === "restaurant_owner") {
-      // 1. Find the restaurant belonging to this logged-in user
-      const restaurantDoc = await Restaurant.findOne({ owner: req.user._id });
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-      if (!restaurantDoc) {
-        return res
-          .status(404)
-          .json({ message: "No restaurant found for this owner." });
-      }
-
-      // 2. Query Logic: Order items must belong to this restaurant
-      query = { "orderItems.restaurant": restaurantDoc._id };
+    // Restriction: Cannot cancel if already dispatched or delivered
+    const restrictedStatuses = ["Out for Delivery", "Delivered"];
+    if (restrictedStatuses.includes(order.orderStatus)) {
+      return res
+        .status(400)
+        .json({ message: "Order cannot be cancelled at this stage." });
     }
 
-    // ===============================================
-    // 📊 FETCH ANALYTICS
-    // ===============================================
-    const totalOrders = await Order.countDocuments(query);
-    const paidOrders = await Order.find({ ...query, isPaid: true });
-    const totalSales = paidOrders.reduce(
-      (acc, order) => acc + order.totalPrice,
-      0
-    );
+    order.orderStatus = "Cancelled";
+    order.cancellationReason = reason || "Cancelled by User";
 
-    const breakdown = {
-      placed: await Order.countDocuments({ ...query, orderStatus: "Placed" }),
-      preparing: await Order.countDocuments({
-        ...query,
-        orderStatus: "Preparing",
-      }),
-      ready: await Order.countDocuments({ ...query, orderStatus: "Ready" }),
-      outForDelivery: await Order.countDocuments({
-        ...query,
-        orderStatus: "Out for Delivery",
-      }),
-      delivered: await Order.countDocuments({
-        ...query,
-        orderStatus: "Delivered",
-      }),
-      cancelled: await Order.countDocuments({
-        ...query,
-        orderStatus: "Cancelled",
-      }),
-    };
+    const updatedOrder = await order.save();
 
-    const recentOrders = await Order.find(query)
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate("user", "name");
+    if (req.io) {
+      req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
+    }
 
-    res.json({
-      role: req.user.role,
-      totalOrders,
-      totalSales,
-      breakdown,
-      recentOrders,
-    });
+    res.json(updatedOrder);
   } catch (error) {
-    console.error("Dashboard Stats Error:", error);
-    res.status(500).json({ message: "Server Error in Stats" });
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// 👑 7. ADMIN: ALL ORDERS
+// ==========================================
+export const getAllOrdersAdmin = async (req, res) => {
+  try {
+    const orders = await Order.find({})
+      .populate("user", "id name email")
+      .sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

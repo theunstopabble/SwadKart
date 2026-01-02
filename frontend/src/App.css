@@ -1,42 +1,91 @@
+/* ==========================================
+   🚀 SWADKART PRO - GLOBAL STYLES
+   ========================================== */
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left; /* Default text aligned for forms and lists */
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  /* transition: filter 300ms; */
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* 📱 Mobile UX Optimizations */
+* {
+  -webkit-tap-highlight-color: transparent; /* Remove blue highlight on tap */
+  outline: none;
+  box-sizing: border-box;
 }
 
-@keyframes logo-spin {
+/* 🌑 Professional Dark Mode Background */
+body {
+  background-color: #030712; /* Tailwind dark-950 */
+  color: #ffffff;
+  overflow-x: hidden;
+}
+
+/* 📜 Custom Scrollbar (Neon Primary Theme) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a; /* dark-900 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ff6b6b; /* Neon Red */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff4757;
+}
+
+/* 🚫 Hide Scrollbar Utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ✨ Premium Animations (Custom Framer-like flow) */
+@keyframes slideUp {
   from {
-    transform: rotate(0deg);
+    opacity: 0;
+    transform: translateY(20px);
   }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out forwards;
 }
 
-.card {
-  padding: 2em;
+/* 🖼️ Glassmorphism Cards */
+.glass-card {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.read-the-docs {
-  color: #888;
+/* 🥘 Responsive Food Grids Fix */
+.grid-auto-fit {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* 📝 Text Optimization */
+.tracking-ultra {
+  letter-spacing: 0.2em;
+}
+
+.font-black-italic {
+  font-weight: 900;
+  font-style: italic;
 }
