@@ -59,7 +59,7 @@ io.on("connection", (socket) => {
 
   // 2. 🗺️ Live Map Tracking Logic (For Driver)
   socket.on("updateLocation", ({ orderId, lat, lng }) => {
-    // ड्राइवर की लोकेशन उस ऑर्डर से जुड़े सभी लोगों (User & Admin) को भेजें
+    // ड्राइवर की लोकेशन उस ऑर्डर से जुड़े सभी लोगों (User & Admin) को भेजें
     io.to(orderId).emit("driverLocationUpdate", { lat, lng });
     console.log(
       `📍 Logistics: Driver for ${orderId} shifted to [${lat}, ${lng}]`
@@ -115,7 +115,9 @@ app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 // --- Production Defense & Deployment ---
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
-  app.get("*", (req, res) =>
+
+  // 👇 CRITICAL FIX: Changed "*" to "(.*)" to fix Render Deployment Crash
+  app.get("(.*)", (req, res) =>
     res.sendFile(
       path.resolve(__dirname, "..", "frontend", "dist", "index.html")
     )
