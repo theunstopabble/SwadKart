@@ -59,7 +59,6 @@ io.on("connection", (socket) => {
 
   // 2. 🗺️ Live Map Tracking Logic (For Driver)
   socket.on("updateLocation", ({ orderId, lat, lng }) => {
-    // ड्राइवर की लोकेशन उस ऑर्डर से जुड़े सभी लोगों (User & Admin) को भेजें
     io.to(orderId).emit("driverLocationUpdate", { lat, lng });
     console.log(
       `📍 Logistics: Driver for ${orderId} shifted to [${lat}, ${lng}]`
@@ -112,16 +111,17 @@ app.use("/api/v1/restaurants", restaurantRoutes);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
-// --- Production Defense & Deployment ---
+// --- Deployment Logic (Render/Vercel Sync) ---
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  // 👇 CRITICAL FIX: Changed "*" to "(.*)" to fix Render Deployment Crash
-  app.get("(.*)", (req, res) =>
+  // 👇 IMPORTANT FIX: Yahan humne String ki jagah Regex use kiya hai
+  // Isse 'Missing parameter name' wala error kabhi nahi aayega
+  app.get(/^\/(?!api).*/, (req, res) => {
     res.sendFile(
       path.resolve(__dirname, "..", "frontend", "dist", "index.html")
-    )
-  );
+    );
+  });
 } else {
   app.get("/ping", (req, res) =>
     res.status(200).send("Mainframe is online. 🍕")
