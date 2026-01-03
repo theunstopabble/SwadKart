@@ -5,6 +5,7 @@ const sendEmail = async (options) => {
 
   const url = "https://api.brevo.com/v3/smtp/email";
 
+  // HTML content handle karna agar options me na ho
   const htmlContent = options.html
     ? options.html
     : `<html><body><p>${
@@ -14,7 +15,7 @@ const sendEmail = async (options) => {
   const data = {
     sender: {
       name: "SwadKart Support",
-      email: "swadkartt@gmail.com", // 👈 Ensure this is verified in Brevo Dashboard
+      email: "swadkartt@gmail.com", // 👈 Ensure this email is verified in Brevo Dashboard
     },
     to: [
       {
@@ -37,6 +38,7 @@ const sendEmail = async (options) => {
 
     if (response.status === 201 || response.status === 200) {
       console.log("✅ Email Sent Successfully via Brevo API!");
+      return true;
     }
   } catch (error) {
     // 🔍 Detailed Error Logging
@@ -45,8 +47,9 @@ const sendEmail = async (options) => {
       error.response ? error.response.data : error.message
     );
 
-    // Yahan hum error throw nahi karenge taki register process crash na ho
-    // Magar debug ke liye log zaroor karenge
+    // Note: Hum yahan error throw kar rahe hain taaki Controller ko pata chale ki email fail ho gaya
+    // Agar ye silent rahega to user ko lagega OTP chala gaya jabki wo fail ho chuka hoga.
+    throw new Error("Email could not be sent. Please try again later.");
   }
 };
 

@@ -9,7 +9,9 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 
 import connectDB from "./config/db.js";
-import { notFound, errorHandler } from "./middleware/authMiddleware.js";
+
+// 👇 FIX: Import from errorMiddleware, NOT authMiddleware
+import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
 // Routes Import
 import userRoutes from "./routes/userRoutes.js";
@@ -115,8 +117,7 @@ app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  // 👇 IMPORTANT FIX: Yahan humne String ki jagah Regex use kiya hai
-  // Isse 'Missing parameter name' wala error kabhi nahi aayega
+  // 👇 Regex Fix for SPA Routing
   app.get(/^\/(?!api).*/, (req, res) => {
     res.sendFile(
       path.resolve(__dirname, "..", "frontend", "dist", "index.html")
@@ -132,6 +133,7 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // Global Exception Handling
+// 👇 Ensure these are used AFTER routes
 app.use(notFound);
 app.use(errorHandler);
 

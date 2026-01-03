@@ -18,7 +18,7 @@ import OrdersTab from "../components/admin/OrdersTab";
 import ShopsTab from "../components/admin/ShopsTab";
 import MenuTab from "../components/admin/MenuTab";
 import CouponsTab from "../components/admin/CouponsTab";
-import UsersTab from "../components/admin/UsersTab"; // 👈 New Component Added
+import UsersTab from "../components/admin/UsersTab";
 
 const AdminDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -43,19 +43,23 @@ const AdminDashboard = () => {
 
     try {
       // 1. Fetch Users/Restaurants for Management
-      const resRest = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
+      // Note: Make sure this route exists in userRoutes, otherwise use /api/v1/users
+      const resRest = await fetch(`${BASE_URL}/api/v1/users`, {
         headers,
       });
       if (resRest.ok) {
         const dataRest = await resRest.json();
+        // Assuming the API returns all users, filter restaurants if needed or use backend logic
         setRestaurants(dataRest);
         setStats((prev) => ({ ...prev, users: dataRest.length }));
       }
 
       // 2. Fetch Orders & Calculate Revenue
-      const resOrders = await fetch(`${BASE_URL}/api/v1/orders/admin/all`, {
+      // ✅ FIX: Changed endpoint from '/admin/all' to '/' because we fixed the route in backend
+      const resOrders = await fetch(`${BASE_URL}/api/v1/orders`, {
         headers,
       });
+
       if (resOrders.ok) {
         const dataOrders = await resOrders.json();
         setOrders(dataOrders);
@@ -68,6 +72,8 @@ const AdminDashboard = () => {
           revenue: totalRev,
           orders: dataOrders.length,
         }));
+      } else {
+        console.error("Failed to fetch orders");
       }
 
       // 3. Delivery Partners
@@ -117,7 +123,7 @@ const AdminDashboard = () => {
           {[
             { id: "overview", label: "Analytics", icon: LayoutDashboard },
             { id: "orders", label: "Orders", icon: ShoppingBag },
-            { id: "users", label: "Users", icon: UsersIcon }, // 👈 New Tab
+            { id: "users", label: "Users", icon: UsersIcon },
             { id: "shops", label: "Shops", icon: Store },
             { id: "menu", label: "Menu Lab", icon: UtensilsCrossed },
             { id: "coupons", label: "Marketing", icon: Tag },

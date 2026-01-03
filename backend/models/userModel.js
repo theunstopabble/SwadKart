@@ -12,7 +12,7 @@ const userSchema = mongoose.Schema(
       type: String,
       required: [true, "Please add an email"],
       unique: true,
-      lowercase: true, // Email hamesha lowercase mein save hoga
+      lowercase: true,
     },
     password: {
       type: String,
@@ -21,43 +21,30 @@ const userSchema = mongoose.Schema(
     },
     phone: {
       type: String,
+      required: [true, "Please add a phone number"],
     },
-    // 🔥 Role Management with Enum for Security
     role: {
       type: String,
       required: true,
       enum: ["user", "admin", "delivery_partner", "restaurant_owner"],
       default: "user",
     },
-    // 🔥 Admin Flag (Backwards compatibility and quick checks)
     isAdmin: {
       type: Boolean,
       default: false,
     },
-    image: {
-      type: String,
-    },
-    description: {
-      type: String,
-    },
-    // Shop Reordering Index (For Restaurant Owners)
-    orderIndex: {
-      type: Number,
-      default: 0,
-    },
-    // OTP Security Fields
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    otp: {
-      type: String,
-    },
-    otpExpires: {
-      type: Date,
-    },
+    image: String,
+    description: String,
+    orderIndex: { type: Number, default: 0 },
+    isVerified: { type: Boolean, default: false },
+    otp: String,
+    otpExpires: Date,
     resetPasswordToken: String,
     resetPasswordExpire: Date,
+
+    // For Delivery Partners
+    currentLocation: { lat: Number, lng: Number },
+    isAvailable: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
@@ -70,22 +57,27 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 // ==========================================
-// 🔒 PASSWORD HASHING (Modern Pre-Save)
+// 🔒 PASSWORD HASHING (✅ PURE ASYNC FIX)
 // ==========================================
-userSchema.pre("save", async function (next) {
+// Note: Humne yahan se 'next' parameter hata diya hai.
+// Async function automatic Promise return karta hai, isliye next() ki zaroorat nahi hai.
+
+userSchema.pre("save", async function () {
   // 1. Sync isAdmin flag based on role
   if (this.isModified("role")) {
     this.isAdmin = this.role === "admin";
   }
 
-  // 2. Hash password if modified
+  // 2. Agar password modify nahi hua to kuch mat karo (return)
   if (!this.isModified("password")) {
-    return next();
+    return;
   }
 
+  // 3. Password Hash karo
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
+
+  // Yahan next() call karne ki zaroorat nahi hai.
 });
 
 // ==========================================
@@ -99,7 +91,7 @@ userSchema.methods.getResetPasswordToken = function () {
     .update(resetToken)
     .digest("hex");
 
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 Minutes
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
 
   return resetToken;
 };
