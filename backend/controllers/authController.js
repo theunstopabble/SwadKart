@@ -5,9 +5,14 @@ import sendEmail from "../utils/sendEmail.js";
 import {
   getOtpTemplate,
   getResetPasswordTemplate,
+  getWelcomeTemplate, // ✅ IMPORTED: Welcome Template
 } from "../utils/emailTemplates.js";
 
-// @desc    Register user
+// =================================================================
+// 🔐 AUTHENTICATION CONTROLLERS
+// =================================================================
+
+// @desc    Register user (Sends OTP)
 export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, phone, role } = req.body;
@@ -25,7 +30,7 @@ export const registerUser = async (req, res, next) => {
         res.status(400);
         throw new Error("User already exists");
       } else {
-        // Resend Logic
+        // Resend Logic for Unverified User
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         userExists.otp = otp;
@@ -97,8 +102,7 @@ export const registerUser = async (req, res, next) => {
   }
 };
 
-// ... (Verify aur Login waale functions same rahenge, bas logs hata dena agar wahan hon to) ...
-// (Baaki poora code same rakhna jo abhi chal raha hai)
+// @desc    Verify OTP (Sends Welcome Email)
 export const verifyEmailAPI = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
@@ -114,6 +118,21 @@ export const verifyEmailAPI = async (req, res, next) => {
       user.otp = undefined;
       user.otpExpires = undefined;
       await user.save();
+
+      // 🎉 SEND WELCOME EMAIL HERE
+      // Hum try-catch use karenge taaki agar email fail bhi ho, to login na ruke
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: "Welcome to the SwadKart Family! 🍕",
+          html: getWelcomeTemplate(user.name),
+        });
+        console.log("✅ Welcome Email Sent!");
+      } catch (emailError) {
+        console.error("⚠️ Welcome Email Failed:", emailError.message);
+        // Error throw nahi karenge, user ko login hone denge
+      }
+
       const token = generateToken(res, user._id);
       return res.json({
         _id: user._id,
@@ -131,6 +150,7 @@ export const verifyEmailAPI = async (req, res, next) => {
   }
 };
 
+// @desc    Login user
 export const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -159,6 +179,7 @@ export const loginUser = async (req, res, next) => {
   }
 };
 
+// @desc    Forgot Password
 export const forgotPassword = async (req, res, next) => {
   try {
     const user = await User.findOne({ email: req.body.email });
@@ -182,6 +203,7 @@ export const forgotPassword = async (req, res, next) => {
   }
 };
 
+// @desc    Reset Password
 export const resetPassword = async (req, res, next) => {
   try {
     const resetPasswordToken = crypto

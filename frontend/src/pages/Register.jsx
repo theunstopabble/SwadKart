@@ -7,7 +7,7 @@ import {
   Lock,
   Phone,
   ArrowRight,
-  Loader2,
+  Loader, // Changed from Loader2 to match Login
   KeyRound,
   RefreshCw,
   ShieldCheck,
@@ -109,180 +109,170 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center bg-black overflow-hidden font-sans">
-      {/* Background Ambience */}
-      <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1974&auto=format&fit=crop')] bg-cover bg-center opacity-30"></div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
-
-      {/* Main Card */}
-      <div className="relative z-10 w-full max-w-[450px] mx-4">
-        {/* Brand Logo */}
-        <div className="text-center mb-8 animate-in slide-in-from-top-4 duration-700">
-          <h1 className="text-5xl font-black italic tracking-tighter text-white drop-shadow-2xl">
-            Swad<span className="text-primary">Kart</span>
-          </h1>
-          
-        </div>
-
-        <div className="bg-black/40 backdrop-blur-xl border border-white/10 p-8 rounded-[2.5rem] shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-black text-white uppercase italic tracking-wide flex items-center justify-center gap-2">
-              {otpSent ? (
-                <>
-                  <ShieldCheck className="text-green-500" /> Verify Identity
-                </>
-              ) : (
-                "Create Account"
-              )}
-            </h2>
-            <p className="text-xs font-medium text-gray-400 mt-2">
-              {otpSent
-                ? `Enter the code sent to ${email}`
-                : "Join the food revolution today!"}
-            </p>
-          </div>
-
-          {!otpSent ? (
-            <form onSubmit={submitHandler} className="space-y-4">
-              {[
-                {
-                  icon: User,
-                  type: "text",
-                  placeholder: "Full Name",
-                  val: name,
-                  set: setName,
-                },
-                {
-                  icon: Mail,
-                  type: "email",
-                  placeholder: "Email Address",
-                  val: email,
-                  set: setEmail,
-                },
-                {
-                  icon: Phone,
-                  type: "tel",
-                  placeholder: "Phone Number",
-                  val: phone,
-                  set: setPhone,
-                },
-                {
-                  icon: Lock,
-                  type: "password",
-                  placeholder: "Password",
-                  val: password,
-                  set: setPassword,
-                },
-                {
-                  icon: Lock,
-                  type: "password",
-                  placeholder: "Confirm Password",
-                  val: confirmPassword,
-                  set: setConfirmPassword,
-                },
-              ].map((field, idx) => (
-                <div key={idx} className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <field.icon className="h-5 w-5 text-gray-500 group-focus-within:text-primary transition-colors duration-300" />
-                  </div>
-                  <input
-                    type={field.type}
-                    placeholder={field.placeholder}
-                    className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all placeholder:text-gray-600 font-medium"
-                    value={field.val}
-                    onChange={(e) => field.set(e.target.value)}
-                    required
-                    maxLength={
-                      field.placeholder === "Phone Number" ? 10 : undefined
-                    }
-                  />
-                </div>
-              ))}
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-primary hover:bg-red-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all transform active:scale-95 shadow-lg shadow-primary/20 flex items-center justify-center gap-2 mt-4"
-              >
-                {isLoading ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <>
-                    Get OTP <ArrowRight size={16} />
-                  </>
-                )}
-              </button>
-            </form>
+    <div className="min-h-screen flex items-center justify-center bg-black px-4">
+      <div className="max-w-md w-full bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-800">
+        {/* Header Section */}
+        <h2 className="text-3xl font-extrabold text-white text-center mb-2">
+          {otpSent ? (
+            <>
+              Verify <span className="text-green-500">Identity</span>
+            </>
           ) : (
-            <form onSubmit={verifyOtpHandler} className="space-y-6">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                  <KeyRound className="h-6 w-6 text-primary" />
-                </div>
+            <>
+              Hungry? Join <br />
+              <span className="text-primary tracking-tight">Swad</span>Kart
+            </>
+          )}
+        </h2>
+
+        <p className="text-gray-400 text-center mb-6 text-sm">
+          {otpSent
+            ? `Code sent to ${email}`
+            : "Create an account to start ordering"}
+        </p>
+
+        {!otpSent ? (
+          /* Registration Form */
+          <form onSubmit={submitHandler} className="space-y-5">
+            {[
+              {
+                icon: User,
+                type: "text",
+                placeholder: "Full Name",
+                val: name,
+                set: setName,
+              },
+              {
+                icon: Mail,
+                type: "email",
+                placeholder: "Email Address",
+                val: email,
+                set: setEmail,
+              },
+              {
+                icon: Phone,
+                type: "tel",
+                placeholder: "Phone Number",
+                val: phone,
+                set: setPhone,
+              },
+              {
+                icon: Lock,
+                type: "password",
+                placeholder: "Password",
+                val: password,
+                set: setPassword,
+              },
+              {
+                icon: Lock,
+                type: "password",
+                placeholder: "Confirm Password",
+                val: confirmPassword,
+                set: setConfirmPassword,
+              },
+            ].map((field, idx) => (
+              <div key={idx} className="relative">
+                <field.icon
+                  className="absolute left-4 top-3.5 text-gray-500"
+                  size={20}
+                />
                 <input
-                  type="text"
-                  placeholder="• • • • • •"
-                  className="w-full bg-black/60 border border-primary/30 text-white text-3xl font-black text-center rounded-2xl py-5 pl-12 tracking-[0.5em] focus:outline-none focus:border-primary focus:shadow-[0_0_20px_rgba(255,71,87,0.3)] transition-all placeholder:text-gray-700"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  maxLength={6}
-                  autoFocus
+                  type={field.type}
+                  placeholder={field.placeholder}
+                  className="w-full pl-12 p-3.5 rounded-xl bg-black/50 border border-gray-700 text-white focus:border-primary focus:outline-none transition-all placeholder:text-gray-600"
+                  value={field.val}
+                  onChange={(e) => field.set(e.target.value)}
+                  required
+                  maxLength={
+                    field.placeholder === "Phone Number" ? 10 : undefined
+                  }
                 />
               </div>
+            ))}
 
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-primary hover:bg-red-600 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25 disabled:opacity-50"
+            >
+              {isLoading ? (
+                <Loader className="animate-spin" />
+              ) : (
+                <>
+                  Get OTP <ArrowRight size={20} />
+                </>
+              )}
+            </button>
+          </form>
+        ) : (
+          /* OTP Form */
+          <form onSubmit={verifyOtpHandler} className="space-y-6">
+            <div className="relative">
+              <KeyRound
+                className="absolute left-4 top-3.5 text-primary"
+                size={24}
+              />
+              <input
+                type="text"
+                placeholder="• • • • • •"
+                className="w-full pl-12 p-3.5 rounded-xl bg-black/50 border border-primary/50 text-white text-center text-2xl font-black tracking-[0.5em] focus:outline-none focus:border-primary transition-all placeholder:text-gray-700"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                maxLength={6}
+                autoFocus
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-green-600/25 disabled:opacity-50"
+            >
+              {isLoading ? (
+                <Loader className="animate-spin" />
+              ) : (
+                <>
+                  Verify & Login <ShieldCheck size={20} />
+                </>
+              )}
+            </button>
+
+            {/* OTP Actions */}
+            <div className="flex justify-between items-center px-1">
               <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all transform active:scale-95 shadow-lg shadow-green-500/20 flex items-center justify-center gap-2"
+                type="button"
+                onClick={() => setOtpSent(false)}
+                className="text-xs font-bold text-gray-500 hover:text-white transition-colors"
               >
-                {isLoading ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  "Verify & Login"
-                )}
+                ← Change Email
               </button>
 
-              <div className="flex justify-between items-center px-2">
-                <button
-                  type="button"
-                  onClick={() => setOtpSent(false)}
-                  className="text-[10px] font-bold text-gray-500 hover:text-white uppercase tracking-wider transition-colors"
-                >
-                  ← Edit Email
-                </button>
-
-                <button
-                  type="button"
-                  disabled={timer > 0 || isLoading}
-                  onClick={() => submitHandler()}
-                  className={`text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${
-                    timer > 0
-                      ? "text-gray-600"
-                      : "text-primary hover:text-red-400"
-                  }`}
-                >
-                  <RefreshCw
-                    size={10}
-                    className={timer > 0 ? "animate-spin" : ""}
-                  />
-                  {timer > 0 ? `Resend in ${timer}s` : "Resend OTP"}
-                </button>
-              </div>
-            </form>
-          )}
-
-          <div className="mt-8 text-center border-t border-white/5 pt-6">
-            <p className="text-gray-500 text-xs font-medium">
-              Already have an account?{" "}
-              <Link
-                to="/login"
-                className="text-white font-bold hover:text-primary transition-colors"
+              <button
+                type="button"
+                disabled={timer > 0 || isLoading}
+                onClick={() => submitHandler()}
+                className={`text-xs font-bold flex items-center gap-1.5 ${
+                  timer > 0
+                    ? "text-gray-600"
+                    : "text-primary hover:text-red-400"
+                }`}
               >
-                Log In
-              </Link>
-            </p>
-          </div>
-        </div>
+                <RefreshCw
+                  size={12}
+                  className={timer > 0 ? "animate-spin" : ""}
+                />
+                {timer > 0 ? `Resend in ${timer}s` : "Resend OTP"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        <p className="text-gray-400 text-center mt-8 text-sm">
+          Already have an account?{" "}
+          <Link to="/login" className="text-primary font-bold hover:underline">
+            Log In
+          </Link>
+        </p>
       </div>
     </div>
   );

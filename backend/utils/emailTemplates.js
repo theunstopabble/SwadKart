@@ -7,10 +7,13 @@ const BRAND_DARK = "#1f2937"; // Dark text
 const BRAND_GRAY = "#9ca3af"; // Light text
 const BG_COLOR = "#f3f4f6"; // Modern Light Grey Background
 
-// 👇 YOUR FRONTEND URL
-const FRONTEND_URL = "https://swadkart-pro.vercel.app";
+// 👇 YOUR FRONTEND URL (Dynamic based on Environment)
+const FRONTEND_URL =
+  process.env.FRONTEND_URL || "https://swadkart-pro.vercel.app";
 
-// 🏗️ 1. MODERN BASE LAYOUT
+// =================================================================
+// 🏗️ 1. BASE LAYOUT (WRAPPER)
+// =================================================================
 const wrapEmail = (content, title = "Notification") => {
   return `
   <!DOCTYPE html>
@@ -96,7 +99,11 @@ const wrapEmail = (content, title = "Notification") => {
   `;
 };
 
-// 🔐 2. OTP TEMPLATE (Modern Clean Look)
+// =================================================================
+// 🔐 2. AUTHENTICATION TEMPLATES
+// =================================================================
+
+// OTP Template
 export const getOtpTemplate = (otp) => {
   const content = `
     <div style="text-align: center;">
@@ -113,7 +120,7 @@ export const getOtpTemplate = (otp) => {
   return wrapEmail(content, "Verification Code");
 };
 
-// 👋 3. WELCOME TEMPLATE
+// Welcome Template
 export const getWelcomeTemplate = (name) => {
   const content = `
     <div style="text-align: center;">
@@ -130,7 +137,7 @@ export const getWelcomeTemplate = (name) => {
   return wrapEmail(content, "Welcome to SwadKart");
 };
 
-// 🔑 4. RESET PASSWORD
+// Reset Password
 export const getResetPasswordTemplate = (resetUrl) => {
   const content = `
     <div style="text-align: center;">
@@ -147,7 +154,11 @@ export const getResetPasswordTemplate = (resetUrl) => {
   return wrapEmail(content, "Reset Password");
 };
 
-// 📦 5. ORDER CONFIRMATION (Receipt Style)
+// =================================================================
+// 📦 3. ORDER & NOTIFICATION TEMPLATES
+// =================================================================
+
+// Order Confirmation
 export const getOrderConfirmationTemplate = (order, isPaid) => {
   const statusColor = isPaid ? "#10b981" : "#f59e0b"; // Green or Amber
   const statusText = isPaid ? "Payment Successful" : "Order Placed (COD)";
@@ -227,7 +238,7 @@ export const getOrderConfirmationTemplate = (order, isPaid) => {
   return wrapEmail(content, "Order Confirmation");
 };
 
-// 🚨 6. ADMIN ALERT
+// Admin Alert
 export const getAdminOrderAlertTemplate = (order) => {
   const itemsHtml = order.orderItems
     .map((item) => {
@@ -272,7 +283,7 @@ export const getAdminOrderAlertTemplate = (order) => {
   return wrapEmail(content, "New Order Received");
 };
 
-// 🏪 7. RESTAURANT ALERT
+// Restaurant Alert
 export const getRestaurantOrderAlertTemplate = (order, restaurantName) => {
   const itemsHtml = order.orderItems
     .map((item) => {
@@ -313,7 +324,7 @@ export const getRestaurantOrderAlertTemplate = (order, restaurantName) => {
   return wrapEmail(content, "New Kitchen Order");
 };
 
-// 🛵 8. DELIVERY PARTNER REQUEST
+// Delivery Request
 export const getDeliveryRequestTemplate = (order, partner) => {
   const itemsHtml = order.orderItems
     .map((item) => {
@@ -363,7 +374,7 @@ export const getDeliveryRequestTemplate = (order, partner) => {
   return wrapEmail(content, "New Delivery Request");
 };
 
-// 👤 9. DRIVER ASSIGNED
+// Driver Assigned
 export const getUserDriverAssignedTemplate = (order, partner) => {
   const content = `
     <div style="text-align: center;">
@@ -386,7 +397,7 @@ export const getUserDriverAssignedTemplate = (order, partner) => {
   return wrapEmail(content, "Driver Assigned");
 };
 
-// 🚫 10. ORDER CANCELLED
+// Order Cancelled
 export const getOrderCancelledTemplate = (order, reason) => {
   const content = `
     <div style="text-align: center;">
