@@ -1,5 +1,6 @@
 import express from "express";
-// 👇 1. Import Auth Controller (Login/Register/OTP)
+const router = express.Router();
+
 import {
   registerUser,
   verifyEmailAPI,
@@ -8,7 +9,6 @@ import {
   resetPassword,
 } from "../controllers/authController.js";
 
-// 👇 2. Import User Controller (Profile/Admin/Data)
 import {
   getUserProfile,
   updateUserProfile,
@@ -25,85 +25,49 @@ import {
 
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 
-// 👇 DEBUG LOG (Imports ke baad hi chalega)
-console.log("🔍 ROUTE DEBUG: registerUser type is ->", typeof registerUser);
-
-const router = express.Router();
-
-// =================================================================
-// 🔓 PUBLIC ROUTES (Auth)
-// =================================================================
-
-// 👇 WRAPPER FIX: Isse 'next' guarantee pass hoga
-router.post("/register", (req, res, next) => {
-  console.log("⚡ Route Handler: Calling registerUser...");
-  if (typeof registerUser !== "function") {
-    console.error("❌ CRITICAL ERROR: registerUser is not a function!");
-    return res
-      .status(500)
-      .json({ message: "Server Config Error: Auth Controller Missing" });
-  }
-  registerUser(req, res, next);
-});
-
+// ✅ Clean Standard Routes
+router.post("/register", registerUser);
 router.post("/verify-email", verifyEmailAPI);
 router.post("/login", loginUser);
 router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
 
-// =================================================================
-// 🔓 PUBLIC DATA ROUTES
-// =================================================================
-// Publicly restaurants dekhne ke liye (Home Screen)
+// Public Data
 router.get("/restaurants", getAllRestaurantsPublic);
 
-// =================================================================
-// 🔐 PROTECTED ROUTES (Logged-in Users)
-// =================================================================
+// Protected
 router
   .route("/profile")
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);
 
-// =================================================================
-// 👑 ADMIN ONLY ROUTES
-// =================================================================
-
-// 1. Manage Restaurants
+// Admin
 router.get("/admin/all", protect, authorizeRoles("admin"), getAllRestaurants);
-
 router.post(
   "/admin/create-shop",
   protect,
   authorizeRoles("admin"),
   createRestaurantByAdmin
 );
-
 router.post(
   "/admin/create-dummy",
   protect,
   authorizeRoles("admin"),
   createDummyRestaurant
 );
-
-// 2. Manage Delivery Partners
 router.get(
   "/delivery-partners",
   protect,
   authorizeRoles("admin"),
   getDeliveryPartners
 );
-
-// 3. System Tools
 router.post("/admin/seed", protect, authorizeRoles("admin"), seedDatabase);
 
-// =================================================================
-// 🆔 ID BASED ROUTES (Must be at the bottom)
-// =================================================================
+// ID Routes
 router
   .route("/:id")
-  .get(getRestaurantById) // Publicly get single restaurant details
-  .put(protect, authorizeRoles("admin"), updateUserByAdmin) // Admin can Edit/Reorder
-  .delete(protect, authorizeRoles("admin"), deleteUserByAdmin); // Admin can Delete
+  .get(getRestaurantById)
+  .put(protect, authorizeRoles("admin"), updateUserByAdmin)
+  .delete(protect, authorizeRoles("admin"), deleteUserByAdmin);
 
 export default router;
