@@ -121,9 +121,7 @@ const Register = () => {
           <h1 className="text-5xl font-black italic tracking-tighter text-white drop-shadow-2xl">
             Swad<span className="text-primary">Kart</span>
           </h1>
-          <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-gray-400 mt-2">
-            Taste Delivered Fast
-          </p>
+          
         </div>
 
         <div className="bg-black/40 backdrop-blur-xl border border-white/10 p-8 rounded-[2.5rem] shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500">
