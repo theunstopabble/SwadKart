@@ -22,7 +22,7 @@ import {
   seedDatabase,
   updateUserByAdmin,
   deleteUserByAdmin,
-  subscribeToNewsletter, // ✅ Controller से इम्पोर्ट सुनिश्चित किया
+  subscribeToNewsletter,
 } from "../controllers/userController.js";
 
 // Middleware Import
@@ -37,29 +37,37 @@ router.post("/verify-email", verifyEmailAPI);
 router.post("/login", loginUser);
 router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
-
-// 📧 Newsletter Route
 router.post("/newsletter", subscribeToNewsletter);
 
 // Restaurants Public Data
 router.get("/restaurants", getAllRestaurantsPublic);
-router.get("/:id", getRestaurantById);
 
-// =================================================================
+// ✅ FIX 1: Static routes must come BEFORE dynamic "/:id" routes
+// Isse CastError: "delivery-partners" failed for ObjectId wala error khatam ho jayega
+router.get(
+  "/delivery-partners",
+  protect,
+  authorizeRoles("admin", "restaurant_owner"),
+  getDeliveryPartners
+);
+
 // 🔐 PROTECTED ROUTES (User Login Required)
-// =================================================================
-
 router
   .route("/profile")
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);
 
 // =================================================================
-// 👑 ADMIN ROUTES (Admin Privileges Required)
+// 👑 ADMIN & OWNER ROUTES
 // =================================================================
 
-// Get all users/restaurants list
-router.get("/admin/all", protect, authorizeRoles("admin"), getAllRestaurants);
+// ✅ FIX 2: Added "restaurant_owner" to authorized roles so dashboard doesn't go blank
+router.get(
+  "/admin/all",
+  protect,
+  authorizeRoles("admin", "restaurant_owner"),
+  getAllRestaurants
+);
 
 // Shop Management
 router.post(
@@ -76,20 +84,19 @@ router.post(
   createDummyRestaurant
 );
 
-// Delivery Fleet Management
-router.get(
-  "/delivery-partners",
-  protect,
-  authorizeRoles("admin"),
-  getDeliveryPartners
-);
-
 // Database Seeding (Dev only)
 router.post("/admin/seed", protect, authorizeRoles("admin"), seedDatabase);
 
-// Admin User/Restaurant Control by ID
+// =================================================================
+// 🆔 DYNAMIC ID ROUTES (MUST BE AT THE END)
+// =================================================================
+
+// Publicly get single restaurant
+router.get("/:id", getRestaurantById);
+
+// Admin Control by ID
 router
-  .route("/:id")
+  .route("/admin/user/:id") // ✅ FIX 3: Route path changed to avoid conflict with public /:id
   .put(protect, authorizeRoles("admin"), updateUserByAdmin)
   .delete(protect, authorizeRoles("admin"), deleteUserByAdmin);
 

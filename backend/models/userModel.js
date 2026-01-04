@@ -1,13 +1,11 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import sendEmail from "../utils/sendEmail.js";
 
 const userSchema = mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: [true, "Please add a name"],
-    },
+    name: { type: String, required: [true, "Please add a name"] },
     email: {
       type: String,
       required: [true, "Please add an email"],
@@ -19,20 +17,14 @@ const userSchema = mongoose.Schema(
       required: [true, "Please add a password"],
       minlength: 6,
     },
-    phone: {
-      type: String,
-      required: [true, "Please add a phone number"],
-    },
+    phone: { type: String, required: [true, "Please add a phone number"] },
     role: {
       type: String,
       required: true,
       enum: ["user", "admin", "delivery_partner", "restaurant_owner"],
       default: "user",
     },
-    isAdmin: {
-      type: Boolean,
-      default: false,
-    },
+    isAdmin: { type: Boolean, default: false },
     image: String,
     description: String,
     orderIndex: { type: Number, default: 0 },
@@ -46,16 +38,13 @@ const userSchema = mongoose.Schema(
     currentLocation: { lat: Number, lng: Number },
     isAvailable: { type: Boolean, default: true },
 
-    // 💳 WALLET SYSTEM (New)
-    walletBalance: {
-      type: Number,
-      default: 0, // Starts with 0 balance
-    },
+    // 💳 WALLET SYSTEM
+    walletBalance: { type: Number, default: 0 },
     walletTransactions: [
       {
         amount: { type: Number, required: true },
-        type: { type: String, enum: ["Credit", "Debit"], required: true }, // Credit (Refund/Add), Debit (Payment)
-        description: { type: String }, // e.g., "Refund for Order #123"
+        type: { type: String, enum: ["Credit", "Debit"], required: true },
+        description: { type: String },
         date: { type: Date, default: Date.now },
       },
     ],
@@ -63,50 +52,75 @@ const userSchema = mongoose.Schema(
   { timestamps: true }
 );
 
-// ==========================================
 // 🛡️ PASSWORD MATCHING METHOD
-// ==========================================
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// ==========================================
-// 🔒 PASSWORD HASHING (✅ PURE ASYNC FIX)
-// ==========================================
-// Note: Humne yahan se 'next' parameter hata diya hai.
-// Async function automatic Promise return karta hai, isliye next() ki zaroorat nahi hai.
-
+// 🔒 PRE-SAVE HOOK (Hashing & Role Sync)
+// ✅ FIXED: Removed 'next' parameter. Modern Mongoose automatically handles async hooks.
 userSchema.pre("save", async function () {
-  // 1. Sync isAdmin flag based on role
-  if (this.isModified("role")) {
-    this.isAdmin = this.role === "admin";
+  try {
+    // Role to Admin Sync
+    if (this.isModified("role")) {
+      this.isAdmin = this.role === "admin";
+    }
+
+    // Password Hashing
+    if (this.isModified("password")) {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+
+    // Yahan next() call nahi karna hai, async function apne aap complete ho jata hai.
+  } catch (error) {
+    throw new Error(error);
   }
-
-  // 2. Agar password modify nahi hua to kuch mat karo (return)
-  if (!this.isModified("password")) {
-    return;
-  }
-
-  // 3. Password Hash karo
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-
-  // Yahan next() call karne ki zaroorat nahi hai.
 });
 
-// ==========================================
+// 🔔 ADMIN ALERT HOOK (Post-Save)
+// ✅ FIXED: post hooks strictly should not use 'next' with async logic.
+userSchema.post("save", function (doc) {
+  // Check if newly created (createdAt and updatedAt match)
+  const isNewUser = doc.createdAt.getTime() === doc.updatedAt.getTime();
+
+  if (isNewUser) {
+    setTimeout(async () => {
+      try {
+        const adminMail = process.env.SMTP_MAIL || "swadkartt@gmail.com";
+        console.log(`🚀 Dispatching Registration Alert for: ${doc.email}`);
+
+        await sendEmail({
+          email: adminMail,
+          subject: "🆕 New User Registration Alert - SwadKart",
+          html: `
+            <div style="font-family: sans-serif; border: 2px solid #ef4444; padding: 25px; border-radius: 15px; background-color: #000; color: #fff; max-width: 600px;">
+              <h1 style="color: #ef4444; text-align: center;">New Entry Detected! 🚀</h1>
+              <div style="background: #111; padding: 20px; border-radius: 10px; border: 1px solid #333; line-height: 1.8;">
+                <p><strong>👤 Name:</strong> ${doc.name}</p>
+                <p><strong>📧 Email:</strong> ${doc.email}</p>
+                <p><strong>🛡️ Role:</strong> ${doc.role}</p>
+                <p><strong>📞 Phone:</strong> ${doc.phone || "N/A"}</p>
+              </div>
+            </div>
+          `,
+        });
+        console.log("✅ Admin Notified Successfully!");
+      } catch (error) {
+        console.error("❌ Admin Alert Failed:", error.message);
+      }
+    }, 1000);
+  }
+});
+
 // 🔑 RESET PASSWORD TOKEN GENERATION
-// ==========================================
 userSchema.methods.getResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(20).toString("hex");
-
   this.resetPasswordToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
-
   this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
-
   return resetToken;
 };
 

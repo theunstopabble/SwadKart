@@ -1,6 +1,7 @@
 import User from "../models/userModel.js";
 import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
+import mongoose from "mongoose";
 
 // =================================================================
 // 👤 1. USER PROFILE OPERATIONS
@@ -64,7 +65,7 @@ export const getAllRestaurantsPublic = async (req, res, next) => {
   }
 };
 
-// @desc    Get all restaurants (Admin)
+// @desc    Get all restaurants (Admin/Owner Dashboard)
 export const getAllRestaurants = async (req, res, next) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
@@ -90,6 +91,7 @@ export const updateUserByAdmin = async (req, res, next) => {
 
       const updatedUser = await user.save();
 
+      // Real-time update using socket if available
       if (req.io) {
         req.io.emit("restaurantUpdated", updatedUser);
       }
@@ -171,7 +173,15 @@ export const createDummyRestaurant = async (req, res, next) => {
 // @desc    Get specific restaurant detail
 export const getRestaurantById = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
+    const { id } = req.params;
+
+    // Fix: Validate ObjectId to prevent CastError
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400);
+      throw new Error("Invalid ID format");
+    }
+
+    const user = await User.findById(id).select("-password");
     if (user) return res.json(user);
     else {
       res.status(404);
@@ -194,12 +204,13 @@ export const getDeliveryPartners = async (req, res, next) => {
   }
 };
 
+// @desc    Database Seeding
 export const seedDatabase = async (req, res, next) => {
   return res.json({ message: "Seed functionality called." });
 };
 
 // ==========================================
-// 📧 3. NEWSLETTER SUBSCRIPTION (FIXED)
+// 📧 3. NEWSLETTER SUBSCRIPTION
 // ==========================================
 // @desc    Handle newsletter signups & notify admin via Brevo
 export const subscribeToNewsletter = async (req, res) => {
@@ -212,30 +223,29 @@ export const subscribeToNewsletter = async (req, res) => {
   try {
     console.log(`📨 Newsletter request for: ${email}`);
 
-    // Admin ko email bhejo (Using Brevo Utility)
+    // Notify Admin safely
     await sendEmail({
-      email: process.env.SMTP_MAIL || "swadkartt@gmail.com", // Admin email
+      email: process.env.SMTP_MAIL || "swadkartt@gmail.com",
       subject: "🔔 New Newsletter Subscriber!",
       html: `
-        <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px; max-width: 600px;">
-          <h2 style="color: #ef4444; text-transform: uppercase;">New Subscriber Alert! 🚀</h2>
-          <p>Hi Admin,</p>
-          <p>Good news! A new user wants to stay updated with SwadKart.</p>
-          <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; font-weight: bold;">
-             Email: <a href="mailto:${email}" style="color: #ef4444;">${email}</a>
+        <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px; max-width: 600px; background-color: #f9f9f9;">
+          <h2 style="color: #ef4444;">New Subscriber Alert! 🚀</h2>
+          <p>Hi Admin, a new user subscribed to the SwadKart newsletter.</p>
+          <div style="background: #fff; padding: 15px; border-radius: 5px; border-left: 4px solid #ef4444; font-weight: bold;">
+              Email: <a href="mailto:${email}" style="color: #ef4444;">${email}</a>
           </div>
-          <p style="margin-top: 20px; font-size: 12px; color: #777;">
-            Sent automatically by SwadKart System.
-          </p>
+          <p style="margin-top: 20px; font-size: 12px; color: #777;">Sent by SwadKart Automated System.</p>
         </div>
       `,
     });
 
-    res.status(200).json({ message: "Success! You are now subscribed. 🚀" });
+    return res
+      .status(200)
+      .json({ message: "Success! You are now subscribed. 🚀" });
   } catch (error) {
     console.error("Newsletter Controller Error:", error.message);
-    res
+    return res
       .status(500)
-      .json({ message: "Subscription failed. Please check backend logs." });
+      .json({ message: "Subscription failed. Please try again later." });
   }
 };

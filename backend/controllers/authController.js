@@ -5,12 +5,8 @@ import sendEmail from "../utils/sendEmail.js";
 import {
   getOtpTemplate,
   getResetPasswordTemplate,
-  getWelcomeTemplate, // ✅ IMPORTED: Welcome Template
+  getWelcomeTemplate,
 } from "../utils/emailTemplates.js";
-
-// =================================================================
-// 🔐 AUTHENTICATION CONTROLLERS
-// =================================================================
 
 // @desc    Register user (Sends OTP)
 export const registerUser = async (req, res, next) => {
@@ -22,22 +18,20 @@ export const registerUser = async (req, res, next) => {
       throw new Error("🚫 All fields are mandatory!");
     }
 
-    // Check Exists
     const userExists = await User.findOne({ email });
 
+    // Handle Unverified User Resend
     if (userExists) {
       if (userExists.isVerified) {
         res.status(400);
         throw new Error("User already exists");
       } else {
-        // Resend Logic for Unverified User
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
         userExists.otp = otp;
         userExists.otpExpires = Date.now() + 10 * 60 * 1000;
         userExists.name = name;
         userExists.phone = phone;
-        userExists.password = password; // Will be hashed by model
+        userExists.password = password;
 
         await userExists.save();
 
@@ -47,27 +41,28 @@ export const registerUser = async (req, res, next) => {
             subject: `🔐 ${otp} is your Verification Code`,
             html: getOtpTemplate(otp),
           });
-          return res.status(200).json({
-            message: `OTP Resent to ${userExists.email}`,
-            email: userExists.email,
-          });
+          return res
+            .status(200)
+            .json({
+              message: `OTP Resent to ${userExists.email}`,
+              email: userExists.email,
+            });
         } catch (e) {
           res.status(500);
-          throw new Error("Email sending failed");
+          throw new Error("Email sending failed. Please try again.");
         }
       }
     }
 
-    // Phone Check
     const phoneExists = await User.findOne({ phone });
     if (phoneExists) {
       res.status(400);
       throw new Error("Phone number already used.");
     }
 
-    // New User
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // Create New User
     const user = await User.create({
       name,
       email,
@@ -87,14 +82,16 @@ export const registerUser = async (req, res, next) => {
           html: getOtpTemplate(otp),
         });
 
-        return res.status(201).json({
-          message: `OTP sent to ${user.email}`,
-          email: user.email,
-        });
+        return res
+          .status(201)
+          .json({ message: `OTP sent to ${user.email}`, email: user.email });
       } catch (e) {
+        // Cleanup if email fails
         await User.findByIdAndDelete(user._id);
         res.status(500);
-        throw new Error("Email sending failed. Please check email address.");
+        throw new Error(
+          "Email sending failed. Please check your email address."
+        );
       }
     }
   } catch (error) {
@@ -102,7 +99,7 @@ export const registerUser = async (req, res, next) => {
   }
 };
 
-// @desc    Verify OTP (Sends Welcome Email)
+// @desc    Verify OTP
 export const verifyEmailAPI = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
@@ -119,18 +116,15 @@ export const verifyEmailAPI = async (req, res, next) => {
       user.otpExpires = undefined;
       await user.save();
 
-      // 🎉 SEND WELCOME EMAIL HERE
-      // Hum try-catch use karenge taaki agar email fail bhi ho, to login na ruke
+      // Non-blocking Welcome Email
       try {
         await sendEmail({
           email: user.email,
           subject: "Welcome to the SwadKart Family! 🍕",
           html: getWelcomeTemplate(user.name),
         });
-        console.log("✅ Welcome Email Sent!");
       } catch (emailError) {
-        console.error("⚠️ Welcome Email Failed:", emailError.message);
-        // Error throw nahi karenge, user ko login hone denge
+        console.error("⚠️ Welcome Email Failed (Silent):", emailError.message);
       }
 
       const token = generateToken(res, user._id);
@@ -139,7 +133,7 @@ export const verifyEmailAPI = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token: token,
+        token,
       });
     } else {
       res.status(400);
@@ -168,7 +162,7 @@ export const loginUser = async (req, res, next) => {
         phone: user.phone,
         role: user.role,
         image: user.image,
-        token: token,
+        token,
       });
     } else {
       res.status(401);
