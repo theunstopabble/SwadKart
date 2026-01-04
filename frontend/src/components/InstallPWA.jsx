@@ -46,7 +46,8 @@ const InstallPWA = () => {
   return (
     <button
       onClick={handleInstallClick}
-      className="hidden md:flex items-center gap-2 bg-gray-800 hover:bg-primary text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all shadow-lg border border-gray-700 hover:border-primary animate-in fade-in slide-in-from-top-4"
+      // 👇 FIX: 'hidden' class hata di taaki Mobile pe bhi dikhe
+      className="flex items-center gap-2 bg-gray-800 hover:bg-primary text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all shadow-lg border border-gray-700 hover:border-primary animate-in fade-in slide-in-from-top-4 cursor-pointer"
     >
       <Smartphone size={16} />
       <span>Install App</span>
