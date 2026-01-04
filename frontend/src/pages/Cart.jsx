@@ -55,7 +55,6 @@ const Cart = () => {
 
     fetchCoupons();
 
-    // Persistence Check (Local Storage)
     const savedCoupon = localStorage.getItem("appliedCoupon");
     const savedDiscount = localStorage.getItem("couponDiscount");
     if (savedCoupon && savedDiscount) {
@@ -68,12 +67,10 @@ const Cart = () => {
   // --- 4. Handlers ---
   const addToCartHandler = (item, qty) => {
     if (qty > 10) return toast.error("Max limit reached");
-    // Redux will regenerate ID based on content, keeping variants safe
     dispatch(addToCart({ ...item, qty }));
   };
 
   const removeFromCartHandler = (cartUniqueId) => {
-    // ✅ CRITICAL FIX: Passing unique Cart ID instead of Product ID
     dispatch(removeFromCart(cartUniqueId));
     toast.success("Item removed");
   };
@@ -83,12 +80,9 @@ const Cart = () => {
     navigate(userInfo ? "/shipping" : "/login?redirect=/shipping");
   };
 
-  // Coupon Handler
   const applyCouponHandler = async (codeOverride) => {
     const codeToApply = codeOverride || couponCode;
-
     if (!codeToApply) return toast.error("Enter a coupon code");
-
     if (!userInfo) {
       toast.error("Please login to verify coupon eligibility");
       return navigate("/login?redirect=/cart");
@@ -115,10 +109,8 @@ const Cart = () => {
         setDiscount(data.discountAmount);
         setAppliedCoupon(codeToApply);
         setCouponCode(codeToApply);
-
         localStorage.setItem("couponDiscount", data.discountAmount);
         localStorage.setItem("appliedCoupon", JSON.stringify(codeToApply));
-
         toast.success(
           `Coupon ${codeToApply} Applied! Saved ₹${data.discountAmount}`
         );
@@ -151,7 +143,7 @@ const Cart = () => {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center pt-20">
         <ShoppingBag size={80} className="text-gray-800 mb-6" />
-        <h2 className="text-3xl font-black italic uppercase mb-2">
+        <h2 className="text-3xl font-extrabold italic uppercase mb-2">
           Your Bag is Empty
         </h2>
         <p className="text-gray-500 mb-8">
@@ -159,7 +151,7 @@ const Cart = () => {
         </p>
         <Link
           to="/"
-          className="bg-primary hover:bg-red-600 text-white px-8 py-3 rounded-xl font-bold uppercase transition-all"
+          className="bg-primary hover:bg-red-600 text-white px-8 py-3.5 rounded-xl font-bold uppercase transition-all shadow-lg shadow-primary/25"
         >
           Browse Menu
         </Link>
@@ -175,7 +167,7 @@ const Cart = () => {
         <div className="flex items-center gap-4 mb-8">
           <ShoppingBag className="text-primary" size={32} />
           <div>
-            <h1 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter">
+            <h1 className="text-3xl md:text-4xl font-extrabold italic uppercase tracking-tighter">
               Your <span className="text-primary">Food Bag</span>
             </h1>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.3em]">
@@ -189,19 +181,19 @@ const Cart = () => {
           <div className="lg:w-2/3 space-y-4">
             {cartItems.map((item) => (
               <div
-                key={item.cartUniqueId || item._id} // Fallback for old items
-                className="flex flex-col sm:flex-row items-center bg-[#0a0a0a] border border-gray-900 p-4 rounded-2xl hover:border-gray-800 transition-all group"
+                key={item.cartUniqueId || item._id}
+                className="flex flex-col sm:flex-row items-center bg-gray-900 border border-gray-800 p-5 rounded-2xl hover:border-gray-700 transition-all group"
               >
                 <img
                   src={item.image}
                   alt={item.name}
-                  className="w-24 h-24 object-cover rounded-xl mb-4 sm:mb-0 grayscale group-hover:grayscale-0 transition-all duration-500"
+                  className="w-24 h-24 object-cover rounded-xl mb-4 sm:mb-0 grayscale group-hover:grayscale-0 transition-all duration-500 border border-gray-800"
                 />
 
                 <div className="sm:ml-6 flex-1 text-center sm:text-left">
                   <Link
                     to={`/product/${item.product}`}
-                    className="text-lg font-black italic uppercase text-white hover:text-primary transition-colors"
+                    className="text-lg font-bold italic uppercase text-white hover:text-primary transition-colors"
                   >
                     {item.name}
                   </Link>
@@ -209,16 +201,14 @@ const Cart = () => {
                     ₹{item.price}
                   </p>
 
-                  {/* 🟢 VARIANTS & ADDONS DISPLAY (NEW) */}
+                  {/* 🟢 VARIANTS & ADDONS */}
                   <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
-                    {/* Size Badge */}
                     {item.selectedVariant && (
-                      <span className="text-[9px] bg-gray-800 px-2 py-1 rounded text-white uppercase font-black tracking-wider border border-gray-700">
+                      <span className="text-[9px] bg-black/50 px-2 py-1 rounded text-gray-400 uppercase font-bold tracking-wider border border-gray-700">
                         Size: {item.selectedVariant.name}
                       </span>
                     )}
 
-                    {/* Addons Badges */}
                     {item.selectedAddons && item.selectedAddons.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {item.selectedAddons.map((addon, idx) => (
@@ -235,29 +225,28 @@ const Cart = () => {
                 </div>
 
                 <div className="flex items-center gap-4 mt-4 sm:mt-0">
-                  <div className="flex items-center bg-black border border-gray-800 rounded-lg">
+                  <div className="flex items-center bg-black/50 border border-gray-700 rounded-xl overflow-hidden">
                     <button
                       onClick={() => addToCartHandler(item, item.qty - 1)}
                       disabled={item.qty === 1}
-                      className="p-2 text-gray-400 hover:text-white disabled:opacity-30"
+                      className="p-2.5 text-gray-500 hover:text-white hover:bg-gray-800 disabled:opacity-20 transition-all"
                     >
                       <Minus size={14} />
                     </button>
-                    <span className="px-2 font-black text-sm w-8 text-center">
+                    <span className="px-3 font-bold text-sm w-10 text-center text-white">
                       {item.qty}
                     </span>
                     <button
                       onClick={() => addToCartHandler(item, item.qty + 1)}
-                      className="p-2 text-gray-400 hover:text-white"
+                      className="p-2.5 text-gray-500 hover:text-white hover:bg-gray-800 transition-all"
                     >
                       <Plus size={14} />
                     </button>
                   </div>
 
-                  {/* ❌ REMOVE BUTTON (Fixed ID) */}
                   <button
                     onClick={() => removeFromCartHandler(item.cartUniqueId)}
-                    className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                    className="p-3 bg-red-500/5 text-red-500 border border-red-500/10 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
                   >
                     <Trash2 size={18} />
                   </button>
@@ -267,29 +256,33 @@ const Cart = () => {
 
             <Link
               to="/"
-              className="inline-flex items-center gap-2 text-gray-500 hover:text-white mt-6 font-bold text-xs uppercase tracking-widest transition-colors"
+              className="inline-flex items-center gap-2 text-gray-500 hover:text-primary mt-6 font-bold text-xs uppercase tracking-widest transition-colors group"
             >
-              <ArrowLeft size={16} /> Continue Shopping
+              <ArrowLeft
+                size={16}
+                className="group-hover:-translate-x-1 transition-transform"
+              />{" "}
+              Continue Shopping
             </Link>
           </div>
 
           {/* 🧾 Right: Bill Details */}
           <div className="lg:w-1/3">
-            <div className="bg-[#050505] p-8 rounded-[2.5rem] border border-gray-900 sticky top-28 shadow-2xl">
-              <h2 className="text-xl font-black italic uppercase border-b border-gray-800 pb-4 mb-6">
+            <div className="bg-gray-900 p-8 rounded-[2rem] border border-gray-800 sticky top-28 shadow-2xl">
+              <h2 className="text-xl font-extrabold italic uppercase border-b border-gray-800 pb-4 mb-6 text-white">
                 Bill Details
               </h2>
 
-              <div className="space-y-4 mb-6">
-                <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-wider">
+              <div className="space-y-4 mb-8">
+                <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
                   <span>Subtotal</span>
                   <span className="text-white">₹{itemsPrice.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
                   <span>GST (5%)</span>
                   <span className="text-white">₹{taxPrice.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
                   <span>Delivery Fee</span>
                   <span
                     className={
@@ -307,11 +300,11 @@ const Cart = () => {
                   </div>
                 )}
 
-                <div className="border-t border-gray-800 pt-4 flex justify-between items-end">
-                  <span className="text-sm font-black text-gray-200 uppercase italic">
+                <div className="border-t border-gray-800 pt-5 flex justify-between items-end">
+                  <span className="text-sm font-bold text-gray-400 uppercase italic">
                     To Pay
                   </span>
-                  <span className="text-3xl font-black text-primary italic tracking-tighter">
+                  <span className="text-4xl font-extrabold text-primary italic tracking-tighter">
                     ₹{totalPrice}
                   </span>
                 </div>
@@ -331,7 +324,7 @@ const Cart = () => {
 
               <button
                 onClick={checkoutHandler}
-                className="w-full bg-primary hover:bg-red-600 text-white py-4 rounded-xl font-black uppercase text-sm tracking-[0.2em] shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2 group mt-6"
+                className="w-full bg-primary hover:bg-red-600 text-white py-4 rounded-xl font-bold uppercase text-sm tracking-[0.15em] shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 group mt-8 active:scale-[0.98]"
               >
                 Checkout Now{" "}
                 <ArrowRight

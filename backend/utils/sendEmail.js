@@ -1,29 +1,39 @@
-import axios from "axios"; // 👈 Axios use karna zyada stable hai backend ke liye
+import axios from "axios";
 
+/**
+ * @desc Sends an email using Brevo (formerly Sendinblue) API v3
+ */
 const sendEmail = async (options) => {
-  console.log("📨 Email Sending Started (via Brevo API)...");
+  console.log(
+    `📨 Attempting to send email to: ${options.email} (via Brevo API)`
+  );
 
   const url = "https://api.brevo.com/v3/smtp/email";
 
-  // HTML content handle karna agar options me na ho
+  // 🛠️ HTML content fallback: Agar options.html nahi hai toh message ko HTML me convert karo
   const htmlContent = options.html
     ? options.html
-    : `<html><body><p>${
-        options.message ? options.message.replace(/\n/g, "<br>") : ""
-      }</p></body></html>`;
+    : `<html><body style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <p>${
+          options.message
+            ? options.message.replace(/\n/g, "<br>")
+            : "No message content provided."
+        }</p>
+      </body></html>`;
 
+  // API Payload setup
   const data = {
     sender: {
       name: "SwadKart Support",
-      email: "swadkartt@gmail.com", // 👈 Ensure this email is verified in Brevo Dashboard
+      email: process.env.SMTP_MAIL || "swadkartt@gmail.com", // Brevo me verified hona chahiye
     },
     to: [
       {
         email: options.email,
-        name: options.email.split("@")[0],
+        name: options.email ? options.email.split("@")[0] : "User",
       },
     ],
-    subject: options.subject,
+    subject: options.subject || "SwadKart Notification",
     htmlContent: htmlContent,
   };
 
@@ -31,25 +41,27 @@ const sendEmail = async (options) => {
     const response = await axios.post(url, data, {
       headers: {
         accept: "application/json",
-        "api-key": process.env.BREVO_API_KEY, // 👈 Render Dashboard se pick karega
+        "api-key": process.env.BREVO_API_KEY, // Render/Local Dashboard key
         "content-type": "application/json",
       },
     });
 
+    // Brevo usually returns 201 Created for successful sends
     if (response.status === 201 || response.status === 200) {
-      console.log("✅ Email Sent Successfully via Brevo API!");
+      console.log("✅ Email Dispatched Successfully!");
       return true;
     }
   } catch (error) {
-    // 🔍 Detailed Error Logging
-    console.error(
-      "❌ EMAIL FAILED (Brevo):",
-      error.response ? error.response.data : error.message
-    );
+    // 🔍 Error Traceability
+    const errorDetail = error.response ? error.response.data : error.message;
+    console.error("❌ EMAIL FAILED (Brevo API):", errorDetail);
 
-    // Note: Hum yahan error throw kar rahe hain taaki Controller ko pata chale ki email fail ho gaya
-    // Agar ye silent rahega to user ko lagega OTP chala gaya jabki wo fail ho chuka hoga.
-    throw new Error("Email could not be sent. Please try again later.");
+    // Controller ko error pass karna zaroori hai
+    throw new Error(
+      `Email Service Error: ${
+        errorDetail.message || "Could not reach Brevo gateway."
+      }`
+    );
   }
 };
 

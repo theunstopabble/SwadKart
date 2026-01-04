@@ -8,9 +8,6 @@ import { getOrderConfirmationTemplate } from "../utils/emailTemplates.js";
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
 // ==========================================
-// @desc    Create new order & Notify Restaurant
-// @route   POST /api/v1/orders
-// @access  Private
 export const addOrderItems = async (req, res) => {
   const {
     orderItems,
@@ -25,7 +22,7 @@ export const addOrderItems = async (req, res) => {
   } = req.body;
 
   try {
-    if (orderItems && orderItems.length === 0) {
+    if (!orderItems || orderItems.length === 0) {
       return res.status(400).json({ message: "No order items detected." });
     }
 
@@ -33,24 +30,36 @@ export const addOrderItems = async (req, res) => {
     const deliveryOTP = Math.floor(1000 + Math.random() * 9000);
 
     const order = new Order({
+      user: req.user._id,
       orderItems: orderItems.map((x) => ({
-        ...x,
+        name: x.name,
+        qty: Number(x.qty),
+        image: x.image,
+        price: Number(x.price),
         product: x.product,
         restaurant: x.restaurant,
-        // ✅ CRITICAL: Save Variants/Addons explicitly
         selectedVariant: x.selectedVariant || null,
         selectedAddons: x.selectedAddons || [],
       })),
-      user: req.user._id,
-      shippingAddress,
+      shippingAddress: {
+        fullName: shippingAddress.fullName,
+        address: shippingAddress.address,
+        city: shippingAddress.city,
+        postalCode: shippingAddress.postalCode,
+        state: shippingAddress.state || "Rajasthan", // Prevent validation error
+        country: shippingAddress.country || "India",
+        phone: shippingAddress.phone,
+      },
       paymentMethod,
-      itemsPrice,
-      taxPrice,
-      shippingPrice,
-      totalPrice,
-      couponCode,
-      couponDiscount,
-      deliveryOTP, // Saved for later verification
+      itemsPrice: Number(itemsPrice),
+      taxPrice: Number(taxPrice),
+      shippingPrice: Number(shippingPrice),
+      totalPrice: Number(totalPrice),
+      couponCode: couponCode || "",
+      couponDiscount: Number(couponDiscount) || 0,
+      deliveryOTP,
+      isPaid: false, // Default false for online or COD
+      orderStatus: "Placed",
     });
 
     const createdOrder = await order.save();
@@ -60,23 +69,17 @@ export const addOrderItems = async (req, res) => {
       await Coupon.findOneAndUpdate(
         { code: couponCode.toUpperCase() },
         { $addToSet: { usedBy: req.user._id } }
-      );
+      ).catch((err) => console.log("Coupon Log Update Error:", err.message));
     }
 
-    // 🔔 REAL-TIME SOCKET: Notify Restaurant Owner immediately
+    // 🔔 REAL-TIME SOCKET: Notify Restaurant Owner
     if (req.io) {
-      // Logic: Notify the owner of the restaurant for the first item
-      // In a multi-vendor cart, this would need a loop, but assuming single-vendor per order for now.
-      // Note: 'restaurant' in OrderItem refers to the User ID of the owner/vendor.
       const restaurantOwnerId = createdOrder.orderItems[0].restaurant;
-
       if (restaurantOwnerId) {
         req.io
           .to(restaurantOwnerId.toString())
           .emit("newOrderReceived", createdOrder);
-        console.log(
-          `🔔 Socket: New order alert sent to owner ${restaurantOwnerId}`
-        );
+        console.log(`🔔 Socket: Order Alert sent to ${restaurantOwnerId}`);
       }
     }
 
@@ -97,23 +100,19 @@ export const addOrderItems = async (req, res) => {
 
     res.status(201).json(createdOrder);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("❌ Order Creation Failed:", error.message);
+    res.status(500).json({ message: "Validation Failed: " + error.message });
   }
 };
 
 // ==========================================
 // 🔍 2. GET ORDER BY ID
 // ==========================================
-// @desc    Get order details
-// @route   GET /api/v1/orders/:id
-// @access  Private
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate("user", "name email")
       .populate("deliveryPartner", "name phone")
-      // ✅ CRITICAL: Populate product details so name/image are available even if not saved in orderItems directly
-      // Although orderItems usually saves name/image snapshot, populating ensures we have latest/fallback data
       .populate({
         path: "orderItems.product",
         select: "name image category",
@@ -122,7 +121,7 @@ export const getOrderById = async (req, res) => {
     if (order) {
       res.json(order);
     } else {
-      res.status(404).json({ message: "Order not found in records." });
+      res.status(404).json({ message: "Order not found." });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -132,9 +131,6 @@ export const getOrderById = async (req, res) => {
 // ==========================================
 // 💳 3. UPDATE ORDER TO PAID
 // ==========================================
-// @desc    Update order to paid (For Online Payments)
-// @route   PUT /api/v1/orders/:id/pay
-// @access  Private
 export const updateOrderToPaid = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
@@ -142,7 +138,6 @@ export const updateOrderToPaid = async (req, res) => {
     if (order) {
       order.isPaid = true;
       order.paidAt = Date.now();
-      // Payment Result from Gateway (Razorpay/PayPal)
       order.paymentResult = {
         id: req.body.id,
         status: req.body.status,
@@ -152,7 +147,6 @@ export const updateOrderToPaid = async (req, res) => {
 
       const updatedOrder = await order.save();
 
-      // 🔔 Socket Notification
       if (req.io) {
         req.io
           .to(updatedOrder._id.toString())
@@ -169,11 +163,8 @@ export const updateOrderToPaid = async (req, res) => {
 };
 
 // ==========================================
-// 🚚 4. UPDATE ORDER TO DELIVERED (Specific)
+// 🚚 4. UPDATE ORDER TO DELIVERED
 // ==========================================
-// @desc    Update order to delivered
-// @route   PUT /api/v1/orders/:id/deliver
-// @access  Private/Admin/Delivery
 export const updateOrderToDelivered = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
@@ -183,7 +174,6 @@ export const updateOrderToDelivered = async (req, res) => {
       order.deliveredAt = Date.now();
       order.orderStatus = "Delivered";
 
-      // If COD, mark as paid upon delivery
       if (order.paymentMethod === "COD") {
         order.isPaid = true;
         order.paidAt = Date.now();
@@ -191,7 +181,6 @@ export const updateOrderToDelivered = async (req, res) => {
 
       const updatedOrder = await order.save();
 
-      // 🔔 Socket Notification
       if (req.io) {
         req.io
           .to(updatedOrder._id.toString())
@@ -210,9 +199,6 @@ export const updateOrderToDelivered = async (req, res) => {
 // ==========================================
 // 🛠️ 5. UPDATE ORDER STATUS (Generic)
 // ==========================================
-// @desc    Update order status & Trigger notifications
-// @route   PUT /api/v1/orders/:id/status
-// @access  Private/Admin/Restaurant
 export const updateOrderStatus = async (req, res) => {
   const { status } = req.body;
   try {
@@ -232,11 +218,8 @@ export const updateOrderStatus = async (req, res) => {
 
     const updatedOrder = await order.save();
 
-    // 🔔 Real-time Updates via Socket
     if (req.io) {
       req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
-
-      // Broadcast to delivery partners if Ready
       if (status === "Ready") {
         req.io.emit("newDeliveryTask", updatedOrder);
       }
@@ -251,9 +234,6 @@ export const updateOrderStatus = async (req, res) => {
 // ==========================================
 // 📜 6. USER ORDER HISTORY
 // ==========================================
-// @desc    Get logged in user orders
-// @route   GET /api/v1/orders/myorders
-// @access  Private
 export const getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id }).sort({
@@ -268,13 +248,10 @@ export const getMyOrders = async (req, res) => {
 // ==========================================
 // 👑 7. ADMIN: ALL ORDERS
 // ==========================================
-// @desc    Get all orders
-// @route   GET /api/v1/orders
-// @access  Private/Admin
 export const getOrders = async (req, res) => {
   try {
     const orders = await Order.find({})
-      .populate("user", "id name email") // Populate User details for Admin UI
+      .populate("user", "id name email")
       .sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
@@ -297,7 +274,7 @@ export const getSalesStats = async (req, res) => {
         },
       },
       { $sort: { _id: 1 } },
-      { $limit: 7 }, // Last 7 days stats
+      { $limit: 7 },
     ]);
     res.json(stats);
   } catch (error) {
@@ -315,7 +292,6 @@ export const cancelOrder = async (req, res) => {
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Restriction: Cannot cancel if already dispatched
     const restrictedStatuses = ["Out for Delivery", "Delivered"];
     if (restrictedStatuses.includes(order.orderStatus)) {
       return res

@@ -23,7 +23,6 @@ import CouponsTab from "../components/admin/CouponsTab";
 import UsersTab from "../components/admin/UsersTab";
 import HeatmapTab from "../components/admin/HeatmapTab";
 
-
 const AdminDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
   const navigate = useNavigate();
@@ -46,16 +45,13 @@ const AdminDashboard = () => {
     };
 
     try {
-      // 1. Fetch Restaurants (✅ FIXED ROUTE)
-      // Backend: router.get("/admin/all", protect, authorizeRoles("admin"), getAllRestaurants);
+      // 1. Fetch Restaurants
       const resRest = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
         headers,
       });
       if (resRest.ok) {
         const dataRest = await resRest.json();
         setRestaurants(dataRest);
-        // Note: Stats me 'users' ka count sirf restaurants nahi hona chahiye,
-        // par abhi ke liye ye logic theek hai.
         setStats((prev) => ({ ...prev, users: dataRest.length }));
       }
 
@@ -97,7 +93,6 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    // Only Admin can access
     if (userInfo && (userInfo.isAdmin || userInfo.role === "admin")) {
       fetchAllData();
     } else {
@@ -106,22 +101,22 @@ const AdminDashboard = () => {
   }, [userInfo, activeTab, navigate]);
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 pb-10 px-4 md:px-10">
+    <div className="min-h-screen bg-black text-white pt-28 pb-10 px-4 md:px-10 font-sans">
       <div className="max-w-7xl mx-auto">
         <header className="mb-10">
-          <h1 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter flex items-center gap-4">
-            <span className="bg-primary text-white p-2 rounded-2xl shadow-lg shadow-primary/30 rotate-2">
+          <h1 className="text-4xl md:text-5xl font-extrabold italic uppercase tracking-tighter flex items-center gap-4">
+            <span className="bg-primary text-white p-3 rounded-2xl shadow-lg shadow-primary/25 rotate-2">
               👑
             </span>
             Admin <span className="text-primary">Control</span> Center
           </h1>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.5em] mt-2 pl-2">
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.5em] mt-3 pl-2">
             Platform wide intelligence & oversight
           </p>
         </header>
 
-        {/* --- TABS NAVIGATION (Modern & Clean) --- */}
-        <div className="flex overflow-x-auto gap-3 mb-10 pb-4 no-scrollbar border-b border-gray-900">
+        {/* --- TABS NAVIGATION (Matched with Login Theme) --- */}
+        <div className="flex overflow-x-auto gap-3 mb-10 pb-4 no-scrollbar border-b border-gray-800">
           {[
             { id: "overview", label: "Analytics", icon: LayoutDashboard },
             { id: "heatmap", label: "Heatmap", icon: Flame },
@@ -134,10 +129,10 @@ const AdminDashboard = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap border ${
+              className={`flex items-center gap-2 px-6 py-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all whitespace-nowrap border ${
                 activeTab === tab.id
-                  ? "bg-primary border-primary text-white shadow-xl shadow-primary/20 scale-105"
-                  : "bg-gray-950 border-gray-900 text-gray-500 hover:text-white hover:border-gray-700"
+                  ? "bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-105"
+                  : "bg-gray-900 border-gray-800 text-gray-500 hover:text-white hover:border-gray-700"
               }`}
             >
               <tab.icon size={16} /> {tab.label}
@@ -147,42 +142,43 @@ const AdminDashboard = () => {
 
         {/* --- RENDER ACTIVE TAB --- */}
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {activeTab === "overview" && <OverviewTab userInfo={userInfo} />}
-          {/* 🔥 NEW HEATMAP RENDER */}
-          {activeTab === "heatmap" && <HeatmapTab userInfo={userInfo} />}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
+            {activeTab === "overview" && <OverviewTab userInfo={userInfo} />}
+            {activeTab === "heatmap" && <HeatmapTab userInfo={userInfo} />}
 
-          {activeTab === "orders" && (
-            <OrdersTab
-              orders={orders}
-              deliveryPartners={deliveryPartners}
-              userInfo={userInfo}
-              fetchAllData={fetchAllData}
-            />
-          )}
+            {activeTab === "orders" && (
+              <OrdersTab
+                orders={orders}
+                deliveryPartners={deliveryPartners}
+                userInfo={userInfo}
+                fetchAllData={fetchAllData}
+              />
+            )}
 
-          {activeTab === "users" && (
-            <UsersTab userInfo={userInfo} fetchAllData={fetchAllData} />
-          )}
+            {activeTab === "users" && (
+              <UsersTab userInfo={userInfo} fetchAllData={fetchAllData} />
+            )}
 
-          {activeTab === "shops" && (
-            <ShopsTab
-              restaurants={restaurants}
-              userInfo={userInfo}
-              fetchAllData={fetchAllData}
-            />
-          )}
+            {activeTab === "shops" && (
+              <ShopsTab
+                restaurants={restaurants}
+                userInfo={userInfo}
+                fetchAllData={fetchAllData}
+              />
+            )}
 
-          {activeTab === "menu" && (
-            <MenuTab restaurants={restaurants} userInfo={userInfo} />
-          )}
+            {activeTab === "menu" && (
+              <MenuTab restaurants={restaurants} userInfo={userInfo} />
+            )}
 
-          {activeTab === "coupons" && (
-            <CouponsTab
-              coupons={coupons}
-              userInfo={userInfo}
-              fetchAllData={fetchAllData}
-            />
-          )}
+            {activeTab === "coupons" && (
+              <CouponsTab
+                coupons={coupons}
+                userInfo={userInfo}
+                fetchAllData={fetchAllData}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

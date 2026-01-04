@@ -31,7 +31,7 @@ const Payment = () => {
 
       <div className="max-w-xl mx-auto mt-10">
         <header className="mb-10 text-center">
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter flex items-center justify-center gap-3">
+          <h1 className="text-4xl font-extrabold italic uppercase tracking-tighter flex items-center justify-center gap-3">
             <CreditCard className="text-primary" size={32} /> Payment{" "}
             <span className="text-primary">Mode</span>
           </h1>
@@ -40,19 +40,19 @@ const Payment = () => {
           </p>
         </header>
 
-        <div className="bg-gray-950 p-8 rounded-[2.5rem] border border-gray-900 shadow-2xl space-y-8 relative overflow-hidden">
-          {/* Security Badge */}
-          <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest text-green-500/60 mb-2">
+        <div className="bg-gray-900 p-8 rounded-2xl border border-gray-800 shadow-2xl space-y-8 relative overflow-hidden">
+          {/* Security Badge - Polished */}
+          <div className="flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-widest text-green-500/80 mb-2 bg-green-500/5 py-2 rounded-full border border-green-500/10">
             <ShieldCheck size={14} /> 256-bit Secure Transaction
           </div>
 
           <form onSubmit={submitHandler} className="space-y-4">
             {/* Online Payment Option */}
             <label
-              className={`flex items-center gap-5 p-6 rounded-3xl border-2 cursor-pointer transition-all duration-300 ${
+              className={`flex items-center gap-5 p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
                 paymentMethod === "Online"
-                  ? "bg-primary/5 border-primary shadow-[0_0_20px_rgba(255,193,7,0.1)]"
-                  : "bg-black border-gray-900 hover:border-gray-800"
+                  ? "bg-primary/5 border-primary shadow-lg shadow-primary/10"
+                  : "bg-black/50 border-gray-700 hover:border-gray-600"
               }`}
             >
               <div className="relative flex items-center justify-center">
@@ -62,20 +62,20 @@ const Payment = () => {
                   value="Online"
                   checked={paymentMethod === "Online"}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-6 h-6 accent-primary cursor-pointer"
+                  className="w-5 h-5 accent-primary cursor-pointer"
                 />
               </div>
               <div
-                className={`p-3 rounded-2xl transition-colors ${
+                className={`p-3 rounded-xl transition-colors ${
                   paymentMethod === "Online"
-                    ? "bg-primary text-black"
-                    : "bg-gray-900 text-gray-500"
+                    ? "bg-primary text-white"
+                    : "bg-gray-800 text-gray-500"
                 }`}
               >
                 <CreditCard size={24} />
               </div>
               <div className="flex-1">
-                <span className="block font-black uppercase italic tracking-tight text-lg">
+                <span className="block font-extrabold uppercase italic tracking-tight text-lg">
                   Online Payment
                 </span>
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
@@ -86,10 +86,10 @@ const Payment = () => {
 
             {/* COD Option */}
             <label
-              className={`flex items-center gap-5 p-6 rounded-3xl border-2 cursor-pointer transition-all duration-300 ${
+              className={`flex items-center gap-5 p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
                 paymentMethod === "COD"
-                  ? "bg-primary/5 border-primary shadow-[0_0_20px_rgba(255,193,7,0.1)]"
-                  : "bg-black border-gray-900 hover:border-gray-800"
+                  ? "bg-primary/5 border-primary shadow-lg shadow-primary/10"
+                  : "bg-black/50 border-gray-700 hover:border-gray-600"
               }`}
             >
               <div className="relative flex items-center justify-center">
@@ -99,20 +99,20 @@ const Payment = () => {
                   value="COD"
                   checked={paymentMethod === "COD"}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-6 h-6 accent-primary cursor-pointer"
+                  className="w-5 h-5 accent-primary cursor-pointer"
                 />
               </div>
               <div
-                className={`p-3 rounded-2xl transition-colors ${
+                className={`p-3 rounded-xl transition-colors ${
                   paymentMethod === "COD"
-                    ? "bg-primary text-black"
-                    : "bg-gray-900 text-gray-500"
+                    ? "bg-primary text-white"
+                    : "bg-gray-800 text-gray-500"
                 }`}
               >
                 <Banknote size={24} />
               </div>
               <div className="flex-1">
-                <span className="block font-black uppercase italic tracking-tight text-lg">
+                <span className="block font-extrabold uppercase italic tracking-tight text-lg">
                   Cash on Delivery
                 </span>
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
@@ -124,7 +124,7 @@ const Payment = () => {
             <div className="pt-6">
               <button
                 type="submit"
-                className="w-full bg-primary hover:bg-red-600 text-white font-black uppercase text-xs tracking-[0.2em] py-5 rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all active:scale-95 shadow-primary/20 group"
+                className="w-full bg-primary hover:bg-red-600 text-white font-bold uppercase text-xs tracking-[0.2em] py-4 rounded-xl shadow-lg shadow-primary/25 flex justify-center items-center gap-2 transition-all active:scale-[0.98] group"
               >
                 Next Step: Review Order{" "}
                 <ArrowRight

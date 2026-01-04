@@ -81,12 +81,12 @@ const Footer = () => {
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         {/* --- TOP SECTION: NEWSLETTER --- */}
-        <div className="flex flex-col lg:flex-row justify-between items-center bg-gray-900/60 backdrop-blur-md p-8 md:p-10 rounded-3xl border border-gray-800 mb-16 shadow-2xl hover:border-primary/30 transition-all duration-500">
-          <div className="mb-8 lg:mb-0 text-center lg:text-left max-w-lg">
-            <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter mb-3">
-              Subscribe to <span className="text-primary">Swad</span> News 📰
+        <div className="flex flex-col items-center bg-[#0d1117] p-8 md:p-12 rounded-[2.5rem] border border-gray-800 mb-16 shadow-2xl relative overflow-hidden">
+          <div className="text-center max-w-2xl mb-10">
+            <h3 className="text-3xl md:text-4xl font-extrabold uppercase tracking-tight mb-4 leading-tight">
+              SUBSCRIBE TO <span className="text-primary">SWAD</span> NEWS 📰
             </h3>
-            <p className="text-gray-400 text-sm font-medium leading-relaxed">
+            <p className="text-gray-400 text-sm font-medium">
               Get the latest updates, secret menu offers, and special promos
               delivered to your inbox.
             </p>
@@ -94,28 +94,31 @@ const Footer = () => {
 
           <form
             onSubmit={handleSubscribe}
-            className="flex w-full lg:w-auto bg-black border border-gray-700 rounded-full p-1.5 pl-6 focus-within:border-primary transition-all shadow-lg group"
+            className="flex w-full max-w-2xl bg-black border border-gray-800 rounded-full p-1.5 focus-within:border-gray-700 transition-all shadow-lg group relative"
           >
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email address..."
-              className="bg-transparent text-white outline-none w-full md:w-80 placeholder-gray-600 text-sm font-medium"
+              className="bg-transparent text-white outline-none flex-1 placeholder-gray-600 text-sm font-medium px-6 py-2"
             />
+
             <button
               type="submit"
-              className="bg-primary hover:bg-red-600 text-white px-8 py-3 rounded-full font-black uppercase text-xs tracking-widest transition-all flex items-center gap-2 hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
+              disabled={loading}
+              className="bg-primary hover:bg-red-600 text-white px-8 md:px-12 py-3 rounded-full font-extrabold uppercase text-[10px] md:text-[11px] tracking-widest transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,71,87,0.3)] active:scale-95 disabled:opacity-50"
             >
-              Subscribe{" "}
-              <Send
-                size={14}
-                className="group-hover:translate-x-1 transition-transform"
-              />
+              {loading ? (
+                "..."
+              ) : (
+                <>
+                  SUBSCRIBE <Send size={16} />
+                </>
+              )}
             </button>
           </form>
         </div>
-
         {/* --- MIDDLE SECTION: LINKS GRID --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 mb-16">
           {/* Column 1: Brand & Social */}
@@ -264,12 +267,14 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* --- BOTTOM SECTION: COPYRIGHT --- */}
         <div className="border-t border-gray-900 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 font-medium gap-4">
-          <p className="text-center md:text-left hover:text-gray-400 transition-colors cursor-default">
-            &copy; {new Date().getFullYear()}{" "}
-            <span className="text-white font-bold">SwadKart</span>. All rights
-            reserved.
+          <p className="text-center md:text-left hover:text-gray-400 transition-colors cursor-default flex items-center gap-1">
+            © {new Date().getFullYear()}
+            <span className="font-extrabold  tracking-tighter ml-1">
+              <span className="text-primary">Swad</span>
+              <span className="text-white">Kart</span>
+            </span>
+            . All rights reserved.
           </p>
 
           <div className="flex items-center gap-1.5 bg-gray-900/50 hover:bg-gray-900 px-4 py-2 rounded-full border border-gray-800 transition-all group">

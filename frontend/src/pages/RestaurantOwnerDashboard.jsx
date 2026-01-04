@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
-import { Loader2 } from "lucide-react";
+import {
+  Loader2,
+  Bell,
+  BellOff,
+  LayoutDashboard,
+  Utensils,
+} from "lucide-react";
 import { BASE_URL } from "../config";
 import { toast } from "react-hot-toast";
 import { io } from "socket.io-client";
@@ -59,13 +65,8 @@ const RestaurantOwnerDashboard = () => {
   const fetchData = async () => {
     if (!userInfo) return;
     try {
-      // 1. Fetch Orders (This route should return orders specific to this restaurant ideally,
-      // or filtering logic needs to happen if endpoint returns all orders)
-      // Assuming GET /api/v1/orders returns all orders for now, filtering might be needed if user is not admin
-      // But for Restaurant Owner, let's assume the endpoint is smart or we filter here.
-      // NOTE: In a real app, backend should filter. Here we fetch all and filter by restaurant check if needed.
       const [resOrders, resMenu, resPartners, resGraph] = await Promise.all([
-        fetch(`${BASE_URL}/api/v1/orders`, getFetchOptions()), // Adjust endpoint if needed for specific restaurant orders
+        fetch(`${BASE_URL}/api/v1/orders`, getFetchOptions()),
         fetch(
           `${BASE_URL}/api/v1/products/restaurant/${userInfo._id}`,
           getFetchOptions()
@@ -83,9 +84,8 @@ const RestaurantOwnerDashboard = () => {
       setMenuItems(dMenu || []);
       setDeliveryPartners(dPartners || []);
 
-      // Graph Data Formatting
       setGraphData(
-        dGraph.map((i) => ({
+        (dGraph || []).map((i) => ({
           day: new Date(i._id).toLocaleDateString("en-US", {
             weekday: "short",
           }),
@@ -93,19 +93,19 @@ const RestaurantOwnerDashboard = () => {
         }))
       );
 
-      // Stats Calculation
       setStats({
-        revenue: dOrders.reduce(
+        revenue: (dOrders || []).reduce(
           (acc, o) => acc + (o.isPaid ? o.totalPrice : 0),
           0
         ),
-        pending: dOrders.filter(
+        pending: (dOrders || []).filter(
           (o) => o.orderStatus !== "Delivered" && o.orderStatus !== "Cancelled"
         ).length,
-        delivered: dOrders.filter((o) => o.orderStatus === "Delivered").length,
+        delivered: (dOrders || []).filter((o) => o.orderStatus === "Delivered")
+          .length,
       });
     } catch (e) {
-      toast.error("Sync error");
+      toast.error("Radar sync error");
     } finally {
       setLoading(false);
     }
@@ -114,7 +114,6 @@ const RestaurantOwnerDashboard = () => {
   useEffect(() => {
     fetchData();
     if (userInfo) {
-      // Joining room with User ID because Restaurant Model uses User as Owner
       socket.emit("joinOrder", userInfo._id);
 
       socket.on("newOrderReceived", (newOrder) => {
@@ -126,6 +125,12 @@ const RestaurantOwnerDashboard = () => {
         toast.success(`🔔 NEW ORDER! #${newOrder._id.slice(-6)}`, {
           duration: 6000,
           icon: "🍕",
+          style: {
+            borderRadius: "12px",
+            background: "#111827",
+            color: "#fff",
+            border: "1px solid #ef4444",
+          },
         });
         fetchData();
       });
@@ -133,7 +138,6 @@ const RestaurantOwnerDashboard = () => {
     return () => socket.off("newOrderReceived");
   }, [userInfo, isSoundEnabled]);
 
-  // Handlers
   const handleToggleStock = async (id) => {
     const res = await fetch(
       `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
@@ -141,46 +145,38 @@ const RestaurantOwnerDashboard = () => {
     );
     if (res.ok) {
       fetchData();
-      toast.success("Stock Toggled");
+      toast.success("Stock status updated");
     }
   };
 
   const handleAssignPartner = async (orderId) => {
     const pId = selectedPartner[orderId];
-    if (!pId) return toast.error("Select partner");
-
-    // Assuming backend has this route. If not, use updateOrderStatus route or similar.
-    // Usually: PUT /api/v1/orders/:id with { deliveryPartner: pId, status: "Ready" }
-    // Let's assume standard update logic or specific route if created.
-    // If specific route doesn't exist, we might need to create it or update order manually.
-    // Based on previous code, let's try the update logic:
+    if (!pId) return toast.error("Please select a partner");
 
     try {
       const res = await fetch(
-        `${BASE_URL}/api/v1/orders/${orderId}/assign`, // Ensure this route exists in backend!
+        `${BASE_URL}/api/v1/orders/${orderId}/assign`,
         getFetchOptions("PUT", { deliveryPartnerId: pId })
       );
 
       if (res.ok) {
         fetchData();
-        toast.success("Driver Assigned 🛵");
+        toast.success("Pilot Assigned 🛵");
       } else {
-        // Fallback if specific route missing
-        toast.error("Assignment failed. Check backend route.");
+        toast.error("Assignment failed");
       }
     } catch (e) {
       toast.error("Network error");
     }
   };
 
-  // Status Update Handler (Accepted -> Preparing -> Ready)
   const handleStatusUpdate = async (orderId, newStatus) => {
     const res = await fetch(
       `${BASE_URL}/api/v1/orders/${orderId}/status`,
       getFetchOptions("PUT", { status: newStatus })
     );
     if (res.ok) {
-      toast.success(`Order marked as ${newStatus}`);
+      toast.success(`Order set to ${newStatus}`);
       fetchData();
     }
   };
@@ -196,87 +192,144 @@ const RestaurantOwnerDashboard = () => {
       ...newItem,
       price: Number(newItem.price),
       isVeg: newItem.isVeg === "true",
-      restaurantId: userInfo._id, // Explicitly link
-      variants: newItem.variants.map((v) => ({ ...v, price: Number(v.price) })),
-      addons: newItem.addons.map((a) => ({ ...a, price: Number(a.price) })),
+      restaurantId: userInfo._id,
+      variants: (newItem.variants || []).map((v) => ({
+        ...v,
+        price: Number(v.price),
+      })),
+      addons: (newItem.addons || []).map((a) => ({
+        ...a,
+        price: Number(a.price),
+      })),
     };
 
     const res = await fetch(url, getFetchOptions(method, payload));
     if (res.ok) {
       setShowModal(false);
       fetchData();
-      toast.success("Menu Updated!");
+      toast.success("Kitchen Menu Updated!");
     } else {
-      toast.error("Operation failed");
+      toast.error("Update failed");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 pt-24 pb-12 px-4 md:px-8 text-white font-sans">
+    <div className="min-h-screen bg-black text-white pt-24 pb-12 px-4 md:px-8 font-sans">
       <audio ref={audioPlayer} src="/notification.mp3" preload="auto" />
+
       <div className="max-w-7xl mx-auto">
-        <DashboardHeader
-          isSoundEnabled={isSoundEnabled}
-          setIsSoundEnabled={setIsSoundEnabled}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-        />
+        {/* Header Section with Theme Consistency */}
+        <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-extrabold italic uppercase tracking-tighter flex items-center gap-4">
+              <span className="bg-primary text-white p-3 rounded-2xl shadow-lg shadow-primary/25 rotate-2">
+                🍳
+              </span>
+              Kitchen <span className="text-primary">Control</span>
+            </h1>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.5em] mt-3 pl-2">
+              Manage your orders & culinary lab
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 bg-gray-900 border border-gray-800 px-6 py-3 rounded-xl shadow-lg">
+            <button
+              onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+              className={`flex items-center gap-2 transition-colors ${
+                isSoundEnabled ? "text-green-500" : "text-gray-500"
+              }`}
+            >
+              {isSoundEnabled ? <Bell size={18} /> : <BellOff size={18} />}
+              <span className="text-[11px] font-extrabold uppercase tracking-widest">
+                {isSoundEnabled ? "Alerts On" : "Muted"}
+              </span>
+            </button>
+          </div>
+        </header>
+
+        {/* --- TABS NAVIGATION --- */}
+        <div className="flex bg-gray-900/50 p-1.5 rounded-2xl mb-12 border border-gray-800 shadow-inner max-w-md">
+          {[
+            { id: "overview", label: "Analytics", icon: LayoutDashboard },
+            { id: "menu", label: "Menu Lab", icon: Utensils },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl font-extrabold text-[10px] uppercase tracking-[0.2em] transition-all duration-300 ${
+                activeTab === tab.id
+                  ? `bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]`
+                  : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
+              }`}
+            >
+              <tab.icon size={18} /> {tab.label}
+            </button>
+          ))}
+        </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="animate-spin text-primary h-10 w-10" />
+          <div className="flex flex-col items-center justify-center py-32">
+            <Loader2 className="animate-spin text-primary h-12 w-12" />
+            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px] mt-6 animate-pulse">
+              Heating up the stoves...
+            </p>
           </div>
         ) : activeTab === "overview" ? (
-          <div className="space-y-12">
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 space-y-12">
             <AnalyticsSection stats={stats} graphData={graphData} />
-            <LiveOrders
-              orders={orders}
-              deliveryPartners={deliveryPartners}
-              selectedPartner={selectedPartner}
-              setSelectedPartner={setSelectedPartner}
-              handleAssignPartner={handleAssignPartner}
-              handleStatusUpdate={handleStatusUpdate} // Passed down
-            />
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
+              <LiveOrders
+                orders={orders}
+                deliveryPartners={deliveryPartners}
+                selectedPartner={selectedPartner}
+                setSelectedPartner={setSelectedPartner}
+                handleAssignPartner={handleAssignPartner}
+                handleStatusUpdate={handleStatusUpdate}
+              />
+            </div>
           </div>
         ) : (
-          <MenuManagement
-            menuItems={menuItems}
-            handleToggleStock={handleToggleStock}
-            handleDeleteItem={async (id) => {
-              if (window.confirm("Delete?")) {
-                await fetch(
-                  `${BASE_URL}/api/v1/products/${id}`,
-                  getFetchOptions("DELETE")
-                );
-                fetchData();
-              }
-            }}
-            openAddModal={() => {
-              setIsEditing(false);
-              setNewItem({
-                name: "",
-                price: "",
-                description: "",
-                category: "",
-                image: "",
-                isVeg: "true",
-                variants: [],
-                addons: [],
-              });
-              setShowModal(true);
-            }}
-            openEditModal={(item) => {
-              setIsEditing(true);
-              setEditId(item._id);
-              setNewItem({
-                ...item,
-                isVeg: item.isVeg ? "true" : "false",
-                variants: item.variants || [],
-                addons: item.addons || [],
-              });
-              setShowModal(true);
-            }}
-          />
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
+            <MenuManagement
+              menuItems={menuItems}
+              handleToggleStock={handleToggleStock}
+              handleDeleteItem={async (id) => {
+                if (window.confirm("Permanent removal from menu?")) {
+                  await fetch(
+                    `${BASE_URL}/api/v1/products/${id}`,
+                    getFetchOptions("DELETE")
+                  );
+                  fetchData();
+                  toast.success("Item removed");
+                }
+              }}
+              openAddModal={() => {
+                setIsEditing(false);
+                setNewItem({
+                  name: "",
+                  price: "",
+                  description: "",
+                  category: "",
+                  image: "",
+                  isVeg: "true",
+                  variants: [],
+                  addons: [],
+                });
+                setShowModal(true);
+              }}
+              openEditModal={(item) => {
+                setIsEditing(true);
+                setEditId(item._id);
+                setNewItem({
+                  ...item,
+                  isVeg: item.isVeg ? "true" : "false",
+                  variants: item.variants || [],
+                  addons: item.addons || [],
+                });
+                setShowModal(true);
+              }}
+            />
+          </div>
         )}
       </div>
 

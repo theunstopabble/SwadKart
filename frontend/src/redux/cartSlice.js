@@ -3,8 +3,8 @@ import { createSlice } from "@reduxjs/toolkit";
 // ==========================================
 // 🛠️ HELPER: Generate Unique ID based on Customization
 // ==========================================
-// This ensures that items with different variants or addons are treated as separate entries.
 const generateCartId = (item) => {
+  const id = item.product || item._id; // Ensure we get the ID
   const variantPart = item.selectedVariant
     ? `-${item.selectedVariant.name}`
     : "";
@@ -15,7 +15,14 @@ const generateCartId = (item) => {
           .sort()
           .join("-")}`
       : "";
-  return `${item._id}${variantPart}${addonPart}`;
+  return `${id}${variantPart}${addonPart}`;
+};
+
+// ==========================================
+// 🛠️ HELPER: Update LocalStorage
+// ==========================================
+const updateCartStorage = (cartItems) => {
+  localStorage.setItem("cartItems", JSON.stringify(cartItems));
 };
 
 const initialState = {
@@ -36,44 +43,42 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
-    // ✅ ADD TO CART (With Variant Logic)
+    // ✅ ADD TO CART (With Product ID Fix)
     addToCart: (state, action) => {
       const item = action.payload;
 
-      // 1. Generate Unique ID
-      const uniqueId = generateCartId(item);
+      // 🛠️ CRITICAL FIX: Backend needs 'product' field (the ID).
+      // Ensuring it's set from either item.product or item._id
+      const productId = item.product || item._id;
 
-      // 2. Attach this ID to the item object
-      const itemWithId = { ...item, cartUniqueId: uniqueId };
+      const itemWithCorrectId = {
+        ...item,
+        product: productId, // Required by Backend OrderModel
+        cartUniqueId: generateCartId(item),
+      };
 
-      // 3. Check if this EXACT combination exists using the unique ID
       const existItem = state.cartItems.find(
-        (x) => x.cartUniqueId === uniqueId
+        (x) => x.cartUniqueId === itemWithCorrectId.cartUniqueId
       );
 
       if (existItem) {
-        // Update existing item
         state.cartItems = state.cartItems.map((x) =>
-          x.cartUniqueId === existItem.cartUniqueId ? itemWithId : x
+          x.cartUniqueId === existItem.cartUniqueId ? itemWithCorrectId : x
         );
       } else {
-        // Add new item
-        state.cartItems = [...state.cartItems, itemWithId];
+        state.cartItems = [...state.cartItems, itemWithCorrectId];
       }
 
-      localStorage.setItem("cartItems", JSON.stringify(state.cartItems));
+      updateCartStorage(state.cartItems);
     },
 
-    // ✅ REMOVE FROM CART (Using Unique ID)
+    // ✅ REMOVE FROM CART
     removeFromCart: (state, action) => {
-      // The payload must be 'cartUniqueId' to accurately target the correct item variant
-      const idToRemove = action.payload;
-
+      const idToRemove = action.payload; // This is cartUniqueId
       state.cartItems = state.cartItems.filter(
         (x) => x.cartUniqueId !== idToRemove
       );
-
-      localStorage.setItem("cartItems", JSON.stringify(state.cartItems));
+      updateCartStorage(state.cartItems);
     },
 
     saveShippingAddress: (state, action) => {

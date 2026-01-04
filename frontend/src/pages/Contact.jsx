@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 const Contact = () => {
-  const whatsappNumber = "916207793196"; // 👈 अपना व्हाट्सएप नंबर यहाँ डालें (देश कोड के साथ)
+  const whatsappNumber = "1234567890";
   const supportEmail = "swadkartt@gmail.com";
 
   const openWhatsApp = () => {
@@ -19,14 +19,14 @@ const Contact = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pt-24 pb-20 px-6">
+    <div className="min-h-screen bg-black text-white pt-24 pb-20 px-6 font-sans">
       <div className="max-w-6xl mx-auto">
         {/* Header Section */}
         <div className="text-center mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-primary text-[10px] font-black uppercase tracking-[0.3em] mb-6">
             <Headphones size={14} /> 24/7 Live Support
           </div>
-          <h1 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter mb-4">
+          <h1 className="text-5xl md:text-7xl font-extrabold italic uppercase tracking-tighter mb-4">
             Get In <span className="text-primary">Touch</span>
           </h1>
           <p className="text-gray-500 max-w-2xl mx-auto font-medium text-sm md:text-base leading-relaxed italic">
@@ -38,33 +38,34 @@ const Contact = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Quick Contact Cards */}
           <div className="lg:col-span-1 space-y-6">
-            {/* WhatsApp Card - Primary CTA */}
+            {/* WhatsApp Card */}
             <button
               onClick={openWhatsApp}
-              className="w-full bg-[#25D366]/10 border border-[#25D366]/20 p-8 rounded-[2.5rem] flex flex-col items-center text-center group hover:bg-[#25D366]/20 transition-all duration-500 shadow-[0_20px_40px_rgba(37,211,102,0.1)]"
+              className="w-full bg-gray-900 border border-gray-800 p-8 rounded-[2rem] flex flex-col items-center text-center group hover:border-green-500/50 transition-all duration-500 shadow-2xl relative overflow-hidden"
             >
-              <div className="h-16 w-16 bg-[#25D366] rounded-3xl flex items-center justify-center text-white mb-6 shadow-lg group-hover:scale-110 transition-transform">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+              <div className="h-16 w-16 bg-[#25D366] rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-green-900/20 group-hover:scale-110 transition-transform">
                 <MessageSquare size={32} />
               </div>
-              <h3 className="text-xl font-black uppercase italic tracking-tighter mb-2">
+              <h3 className="text-xl font-extrabold uppercase italic tracking-tighter mb-2">
                 WhatsApp Us
               </h3>
               <p className="text-gray-500 text-xs font-bold mb-6">
                 Instant support for order tracking & issues.
               </p>
-              <span className="bg-[#25D366] text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl">
+              <span className="w-full bg-[#25D366] text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-transform">
                 Start Chat
               </span>
             </button>
 
             {/* Email & Phone Card */}
-            <div className="bg-gray-950 border border-gray-900 p-8 rounded-[2.5rem] space-y-8">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
+            <div className="bg-gray-900 border border-gray-800 p-8 rounded-[2rem] space-y-8 shadow-2xl">
+              <div className="flex items-center gap-4 group">
+                <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-primary border border-gray-800 group-hover:border-primary/50 transition-colors">
                   <Mail size={20} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">
                     Email Inquiry
                   </p>
                   <p className="text-sm font-bold text-gray-300">
@@ -73,12 +74,12 @@ const Contact = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 border border-blue-500/20">
+              <div className="flex items-center gap-4 group">
+                <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-blue-500 border border-gray-800 group-hover:border-blue-500/50 transition-colors">
                   <Clock size={20} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">
                     Service Hours
                   </p>
                   <p className="text-sm font-bold text-gray-300">
@@ -87,12 +88,12 @@ const Contact = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-500 border border-orange-500/20">
+              <div className="flex items-center gap-4 group">
+                <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-orange-500 border border-gray-800 group-hover:border-orange-500/50 transition-colors">
                   <MapPin size={20} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">
                     Headquarters
                   </p>
                   <p className="text-sm font-bold text-gray-300">
@@ -104,11 +105,11 @@ const Contact = () => {
           </div>
 
           {/* Contact Form Section */}
-          <div className="lg:col-span-2 bg-gray-950 border border-gray-900 p-10 md:p-12 rounded-[3rem] shadow-2xl relative overflow-hidden">
+          <div className="lg:col-span-2 bg-gray-900 border border-gray-800 p-10 md:p-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
 
-            <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-8 flex items-center gap-3">
-              <div className="h-8 w-1 bg-primary rounded-full"></div> Send a
+            <h2 className="text-3xl font-extrabold italic uppercase tracking-tighter mb-8 flex items-center gap-3">
+              <div className="h-8 w-1.5 bg-primary rounded-full"></div> Send a
               Message
             </h2>
 
@@ -121,7 +122,7 @@ const Contact = () => {
                   <input
                     type="text"
                     placeholder="John Doe"
-                    className="w-full bg-black border border-gray-900 rounded-2xl p-4 text-sm font-bold focus:border-primary/50 transition-all outline-none"
+                    className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -131,7 +132,7 @@ const Contact = () => {
                   <input
                     type="text"
                     placeholder="Order Issue"
-                    className="w-full bg-black border border-gray-900 rounded-2xl p-4 text-sm font-bold focus:border-primary/50 transition-all outline-none"
+                    className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all"
                   />
                 </div>
               </div>
@@ -143,13 +144,13 @@ const Contact = () => {
                 <textarea
                   rows="5"
                   placeholder="How can we help you today?"
-                  className="w-full bg-black border border-gray-900 rounded-[2rem] p-6 text-sm font-bold focus:border-primary/50 transition-all outline-none resize-none"
+                  className="w-full bg-black/50 border border-gray-700 rounded-[1.5rem] p-6 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all resize-none"
                 ></textarea>
               </div>
 
               <button
                 type="submit"
-                className="group w-full bg-white hover:bg-primary text-black hover:text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all duration-500 flex items-center justify-center gap-3 shadow-xl transform active:scale-95"
+                className="group w-full bg-primary hover:bg-red-600 text-white py-4 rounded-xl font-extrabold text-xs uppercase tracking-[0.3em] transition-all duration-500 flex items-center justify-center gap-3 shadow-lg shadow-primary/20 transform active:scale-95"
               >
                 Dispatch Message{" "}
                 <Send

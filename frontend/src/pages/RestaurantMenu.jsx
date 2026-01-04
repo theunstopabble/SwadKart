@@ -106,7 +106,6 @@ const RestaurantMenu = () => {
       navigate("/login");
       return;
     }
-    // If Customization needed
     if (item.variants?.length > 0 || item.addons?.length > 0) {
       setSelectedItem(item);
       setSelectedVariant(item.variants?.[0] || null);
@@ -122,7 +121,7 @@ const RestaurantMenu = () => {
     dispatch(
       addToCart({
         ...selectedItem,
-        price: finalPrice, // Override base price
+        price: finalPrice,
         selectedVariant,
         selectedAddons,
         qty: 1,
@@ -136,7 +135,7 @@ const RestaurantMenu = () => {
     return (
       <div className="h-screen bg-black flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-gray-500 font-black italic tracking-widest text-xs uppercase">
+        <p className="text-gray-500 font-extrabold italic tracking-widest text-xs uppercase">
           Loading Menu...
         </p>
       </div>
@@ -154,18 +153,18 @@ const RestaurantMenu = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {Object.keys(categorizedMenu).length === 0 ? (
-          <div className="text-center py-24 bg-gray-950 rounded-[3rem] border-2 border-dashed border-gray-900">
-            <UtensilsCrossed size={48} className="mx-auto text-gray-800 mb-4" />
-            <p className="text-gray-600 text-lg font-black uppercase italic tracking-widest">
+          <div className="text-center py-24 bg-gray-900 rounded-2xl border-2 border-dashed border-gray-800 shadow-xl">
+            <UtensilsCrossed size={48} className="mx-auto text-gray-700 mb-4" />
+            <p className="text-gray-500 text-lg font-extrabold uppercase italic tracking-widest">
               No dishes match your craving
             </p>
           </div>
         ) : (
           Object.entries(categorizedMenu).map(([category, items]) => (
             <section key={category} className="mb-16">
-              <h2 className="text-2xl font-black uppercase italic text-white mb-8 border-l-4 border-primary pl-4 flex items-center gap-3">
+              <h2 className="text-2xl font-extrabold uppercase italic text-white mb-8 border-l-4 border-primary pl-4 flex items-center gap-3">
                 {category}{" "}
-                <span className="text-xs text-gray-600 font-bold bg-gray-900 px-2 py-1 rounded-md not-italic tracking-normal">
+                <span className="text-xs text-gray-400 font-bold bg-gray-900 px-3 py-1 rounded-lg border border-gray-800 not-italic tracking-normal">
                   {items.length}
                 </span>
               </h2>
@@ -173,54 +172,54 @@ const RestaurantMenu = () => {
                 {items.map((item) => (
                   <div
                     key={item._id}
-                    className="bg-gray-950 border border-gray-900 rounded-[2.5rem] overflow-hidden group flex flex-col shadow-2xl relative hover:border-primary/30 transition-all"
+                    className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden group flex flex-col shadow-2xl relative hover:border-primary/40 transition-all duration-300"
                   >
                     <div className="relative h-52 overflow-hidden">
                       <img
                         src={item.image || "https://placehold.co/600x400"}
                         className={`w-full h-full object-cover transition-all duration-700 ${
                           item.countInStock === 0
-                            ? "grayscale opacity-30"
+                            ? "grayscale opacity-20"
                             : "group-hover:scale-110"
                         }`}
                         alt=""
                       />
                       {item.countInStock === 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                          <span className="text-red-500 font-black border-4 border-red-500 px-4 py-2 rotate-[-12deg] text-xl tracking-widest uppercase">
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
+                          <span className="text-red-500 font-extrabold border-4 border-red-500 px-4 py-2 rotate-[-12deg] text-xl tracking-widest uppercase">
                             Sold Out
                           </span>
                         </div>
                       )}
                       <span
-                        className={`absolute top-4 right-4 text-[9px] font-black px-3 py-1.5 rounded-full border shadow-lg uppercase tracking-wider ${
+                        className={`absolute top-4 right-4 text-[9px] font-extrabold px-3 py-1.5 rounded-full border shadow-lg uppercase tracking-wider ${
                           item.isVeg
-                            ? "bg-green-950/80 text-green-400 border-green-500/50 backdrop-blur-md"
-                            : "bg-red-950/80 text-red-400 border-red-500/50 backdrop-blur-md"
+                            ? "bg-green-950/80 text-green-400 border-green-500/30 backdrop-blur-md"
+                            : "bg-red-950/80 text-red-400 border-red-500/30 backdrop-blur-md"
                         }`}
                       >
                         {item.isVeg ? "VEG" : "NON-VEG"}
                       </span>
                     </div>
-                    <div className="p-6 flex flex-col flex-1">
+                    <div className="p-6 flex flex-col flex-1 bg-gray-900">
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-xl font-black uppercase italic text-white group-hover:text-primary transition-colors leading-none">
+                        <h3 className="text-xl font-extrabold uppercase italic text-white group-hover:text-primary transition-colors leading-none">
                           {item.name}
                         </h3>
-                        <span className="text-xl font-black text-white italic">
+                        <span className="text-xl font-extrabold text-white italic">
                           ₹{item.price}
                         </span>
                       </div>
-                      <p className="text-gray-500 text-xs font-bold italic mb-6 line-clamp-2">
+                      <p className="text-gray-500 text-xs font-bold italic mb-6 line-clamp-2 leading-relaxed">
                         {item.description}
                       </p>
                       <button
                         onClick={() => handleAddToCartClick(item)}
                         disabled={item.countInStock === 0}
-                        className={`mt-auto w-full font-black py-4 rounded-2xl transition-all uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 ${
+                        className={`mt-auto w-full font-extrabold py-4 rounded-xl transition-all uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 ${
                           item.countInStock === 0
-                            ? "bg-gray-900 text-gray-700 cursor-not-allowed"
-                            : "bg-white text-black hover:bg-primary hover:text-white shadow-lg hover:shadow-primary/30"
+                            ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                            : "bg-white text-black hover:bg-primary hover:text-white shadow-lg active:scale-[0.98]"
                         }`}
                       >
                         {item.countInStock === 0 ? (
@@ -246,12 +245,11 @@ const RestaurantMenu = () => {
 
       {/* 🥘 Customization Modal */}
       {showModal && selectedItem && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex justify-center items-center z-[9999] p-4 animate-in fade-in zoom-in duration-300">
-          <div className="bg-gray-950 w-full max-w-lg rounded-[3rem] border border-gray-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative flex flex-col max-h-[90vh]">
-            {/* Header */}
-            <div className="p-8 pb-4 border-b border-gray-900 flex justify-between items-start">
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-sm flex justify-center items-center z-[9999] p-4 animate-in fade-in zoom-in duration-300">
+          <div className="bg-gray-900 w-full max-w-lg rounded-2xl border border-gray-800 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <div className="p-8 pb-4 border-b border-gray-800 flex justify-between items-start">
               <div>
-                <h3 className="text-2xl font-black uppercase italic text-white leading-none mb-1">
+                <h3 className="text-2xl font-extrabold uppercase italic text-white leading-none mb-1">
                   {selectedItem.name}
                 </h3>
                 <p className="text-primary font-bold text-xs uppercase tracking-widest">
@@ -260,29 +258,28 @@ const RestaurantMenu = () => {
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="bg-gray-900 text-gray-400 hover:text-white p-2 rounded-full transition-colors"
+                className="bg-gray-800 text-gray-400 hover:text-white p-2 rounded-lg transition-colors border border-gray-700"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Scrollable Content */}
             <div className="p-8 overflow-y-auto no-scrollbar space-y-8 flex-1">
               {/* Variants */}
               {selectedItem.variants?.length > 0 && (
                 <div className="space-y-4">
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>{" "}
+                  <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary"></span>
                     Select Size
                   </p>
                   <div className="grid grid-cols-1 gap-3">
                     {selectedItem.variants.map((v) => (
                       <label
                         key={v.name}
-                        className={`flex justify-between items-center p-4 rounded-2xl border-2 transition-all cursor-pointer group ${
+                        className={`flex justify-between items-center p-4 rounded-xl border-2 transition-all cursor-pointer group ${
                           selectedVariant === v
-                            ? "bg-primary/10 border-primary text-white"
-                            : "bg-black border-gray-900 text-gray-500 hover:border-gray-800"
+                            ? "bg-primary/10 border-primary text-white shadow-lg shadow-primary/10"
+                            : "bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700"
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -301,10 +298,11 @@ const RestaurantMenu = () => {
                             {v.name}
                           </span>
                         </div>
-                        <span className="font-black italic">₹{v.price}</span>
+                        <span className="font-extrabold italic">
+                          ₹{v.price}
+                        </span>
                         <input
                           type="radio"
-                          name="variant"
                           className="hidden"
                           checked={selectedVariant === v}
                           onChange={() => setSelectedVariant(v)}
@@ -318,8 +316,8 @@ const RestaurantMenu = () => {
               {/* Addons */}
               {selectedItem.addons?.length > 0 && (
                 <div className="space-y-4">
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>{" "}
+                  <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary"></span>
                     Add Extras
                   </p>
                   <div className="grid grid-cols-1 gap-3">
@@ -330,17 +328,17 @@ const RestaurantMenu = () => {
                       return (
                         <label
                           key={a._id}
-                          className={`flex justify-between items-center p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                          className={`flex justify-between items-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
                             isSel
-                              ? "bg-green-900/10 border-green-600 text-white"
-                              : "bg-black border-gray-900 text-gray-500 hover:border-gray-800"
+                              ? "bg-primary/5 border-primary/50 text-white"
+                              : "bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700"
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                              className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                                 isSel
-                                  ? "bg-green-600 border-green-600"
+                                  ? "bg-primary border-primary"
                                   : "border-gray-700 bg-transparent"
                               }`}
                             >
@@ -352,7 +350,7 @@ const RestaurantMenu = () => {
                               {a.name}
                             </span>
                           </div>
-                          <span className="font-black italic text-gray-400">
+                          <span className="font-extrabold italic text-gray-400">
                             +₹{a.price}
                           </span>
                           <input
@@ -375,14 +373,13 @@ const RestaurantMenu = () => {
               )}
             </div>
 
-            {/* Footer Action */}
-            <div className="p-8 bg-black border-t border-gray-900 rounded-b-[3rem]">
+            <div className="p-8 bg-gray-900 border-t border-gray-800 rounded-b-2xl">
               <button
                 onClick={confirmCustomization}
-                className="w-full bg-primary text-white py-5 rounded-2xl font-black uppercase flex justify-between items-center px-8 transition-all active:scale-95 shadow-2xl shadow-primary/30 hover:bg-red-600 text-xs tracking-[0.2em]"
+                className="w-full bg-primary hover:bg-red-600 text-white py-4 rounded-xl font-extrabold uppercase flex justify-between items-center px-8 transition-all active:scale-[0.98] shadow-lg shadow-primary/25 text-xs tracking-[0.2em]"
               >
                 <span>Add to Cart</span>
-                <span className="bg-black/20 px-3 py-1 rounded-lg">
+                <span className="bg-black/30 px-3 py-1 rounded-lg border border-white/10">
                   ₹{finalPrice}
                 </span>
               </button>

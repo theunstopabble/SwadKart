@@ -124,17 +124,22 @@ const PlaceOrder = () => {
         }
       }
 
-      // ✅ FIXED: Using item.product (Clean ID) instead of parsing ID string
       const formattedItems = cart.cartItems.map((item) => ({
         name: item.name,
         qty: item.qty,
         image: item.image,
         price: item.price,
-        product: item.product, // Directly use the product ID stored in Redux
+        product: item.product,
         restaurant: item.restaurant,
         selectedVariant: item.selectedVariant || null,
         selectedAddons: item.selectedAddons || [],
       }));
+
+      const finalShippingAddress = {
+        ...cart.shippingAddress,
+        state: cart.shippingAddress.state || "Rajasthan", // Fallback if state is empty
+        country: cart.shippingAddress.country || "India",
+      };
 
       const res = await fetch(`${BASE_URL}/api/v1/orders`, {
         method: "POST",
@@ -144,7 +149,7 @@ const PlaceOrder = () => {
         },
         body: JSON.stringify({
           orderItems: formattedItems,
-          shippingAddress: cart.shippingAddress,
+          shippingAddress: finalShippingAddress, // ✅ Updated this line
           paymentMethod: cart.paymentMethod,
           itemsPrice,
           taxPrice,
@@ -217,27 +222,28 @@ const PlaceOrder = () => {
     );
 
   return (
-    <div className="min-h-screen bg-[#030712] text-white pt-24 px-4 md:px-10 pb-20 font-sans">
+    <div className="min-h-screen bg-black text-white pt-24 px-4 md:px-10 pb-20 font-sans">
       <CheckoutSteps step1 step2 step3 step4 />
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 mt-12 items-start">
         {/* 📝 LEFT COLUMN (8 Units) */}
         <div className="lg:col-span-8 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+          {/* Delivery Section */}
           <PlaceOrderSection
-            icon={<MapPin size={24} />}
+            icon={<MapPin size={24} className="text-primary" />}
             title="Delivery"
             label="To"
           >
-            <div className="space-y-1">
-              <p className="font-black uppercase text-lg tracking-tight italic">
+            <div className="space-y-1 bg-gray-900/50 p-6 rounded-2xl border border-gray-800 shadow-sm">
+              <p className="font-extrabold uppercase text-lg tracking-tight italic text-white">
                 {cart.shippingAddress.fullName}
               </p>
-              <p className="text-sm text-gray-500 font-bold italic">
+              <p className="text-sm text-gray-400 font-medium italic leading-relaxed">
                 {cart.shippingAddress.address}, {cart.shippingAddress.city} -{" "}
                 {cart.shippingAddress.postalCode}
               </p>
               <div className="flex items-center gap-3 mt-4">
-                <div className="flex items-center gap-2 bg-green-500/10 text-green-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-500/20">
+                <div className="flex items-center gap-2 bg-green-500/10 text-green-500 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-green-500/20">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>{" "}
                   Verified: {cart.shippingAddress.phone}
                 </div>
@@ -245,45 +251,54 @@ const PlaceOrder = () => {
             </div>
           </PlaceOrderSection>
 
+          {/* Payment Section */}
           <PlaceOrderSection
-            icon={<Wallet size={24} />}
+            icon={<Wallet size={24} className="text-primary" />}
             title="Payment"
             label="Method"
           >
-            <div className="flex items-center gap-4 bg-blue-500/5 border border-blue-500/10 p-5 rounded-[1.8rem]">
-              <ShieldCheck size={28} className="text-blue-500" />
+            <div className="flex items-center gap-4 bg-gray-900 border border-gray-800 p-6 rounded-2xl shadow-sm">
+              <div className="bg-blue-500/10 p-3 rounded-xl border border-blue-500/20">
+                <ShieldCheck size={28} className="text-blue-500" />
+              </div>
               <div>
-                <p className="text-xs font-black text-blue-400 uppercase tracking-[0.2em] italic">
+                <p className="text-xs font-extrabold text-blue-400 uppercase tracking-[0.2em] italic">
                   {cart.paymentMethod === "Online"
                     ? "Secure Digital Transaction"
                     : "Manual Cash Protocol"}
                 </p>
-                <p className="text-[9px] text-gray-600 font-bold uppercase tracking-widest mt-0.5">
+                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
                   Encrypted End-to-End
                 </p>
               </div>
             </div>
           </PlaceOrderSection>
 
-          <div className="bg-gray-950 p-8 rounded-[3rem] border border-gray-900 shadow-2xl relative">
+          {/* Review Section */}
+          <div className="bg-gray-900 p-8 rounded-2xl border border-gray-800 shadow-2xl relative">
             <div className="flex items-center gap-4 mb-8">
-              <div className="p-3 bg-orange-500/10 rounded-2xl text-orange-500 border border-orange-500/20">
+              <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20">
                 <ShoppingBag size={24} />
               </div>
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">
+              <h2 className="text-2xl font-extrabold italic uppercase tracking-tighter text-white">
                 Order <span className="text-orange-500">Review</span>
               </h2>
             </div>
 
             <div className="space-y-4 max-h-[500px] overflow-y-auto no-scrollbar pr-2">
               {cart.cartItems.map((item, i) => (
-                <OrderItemCard key={i} item={item} />
+                <div
+                  key={i}
+                  className="bg-black/50 border border-gray-800 rounded-xl p-2"
+                >
+                  <OrderItemCard item={item} />
+                </div>
               ))}
             </div>
 
             <Link
               to="/cart"
-              className="mt-8 inline-flex items-center gap-2 text-[10px] font-black text-gray-600 hover:text-primary uppercase tracking-[0.3em] transition-all italic border-b border-gray-900 pb-1"
+              className="mt-8 inline-flex items-center gap-2 text-[10px] font-extrabold text-gray-500 hover:text-primary uppercase tracking-[0.3em] transition-all italic border-b border-gray-800 pb-1"
             >
               <ArrowLeft size={12} /> Modify Selection
             </Link>
@@ -291,18 +306,20 @@ const PlaceOrder = () => {
         </div>
 
         {/* 💰 RIGHT COLUMN (4 Units) */}
-        <div className="lg:col-span-4 sticky top-28">
-          <OrderSummary
-            isPlaceOrder={true}
-            itemsPrice={itemsPrice}
-            taxPrice={taxPrice}
-            shippingPrice={shippingPrice}
-            couponDiscount={couponDiscount}
-            appliedCouponCode={appliedCouponCode}
-            totalPrice={totalPrice}
-            isProcessing={isProcessing}
-            placeOrderHandler={placeOrderHandler}
-          />
+        <div className="lg:col-span-4 sticky top-28 animate-in fade-in slide-in-from-right-8 duration-700">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-1 shadow-2xl overflow-hidden">
+            <OrderSummary
+              isPlaceOrder={true}
+              itemsPrice={itemsPrice}
+              taxPrice={taxPrice}
+              shippingPrice={shippingPrice}
+              couponDiscount={couponDiscount}
+              appliedCouponCode={appliedCouponCode}
+              totalPrice={totalPrice}
+              isProcessing={isProcessing}
+              placeOrderHandler={placeOrderHandler}
+            />
+          </div>
         </div>
       </div>
     </div>

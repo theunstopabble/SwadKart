@@ -3,7 +3,7 @@ import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 
 // =================================================================
-// 👤 USER PROFILE OPERATIONS
+// 👤 1. USER PROFILE OPERATIONS
 // =================================================================
 
 // @desc    Get profile
@@ -49,9 +49,10 @@ export const updateUserProfile = async (req, res, next) => {
 };
 
 // =================================================================
-// 🏙️ ADMIN & RESTAURANT OPERATIONS
+// 🏙️ 2. ADMIN & RESTAURANT OPERATIONS
 // =================================================================
 
+// @desc    Get all restaurants for public view
 export const getAllRestaurantsPublic = async (req, res, next) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
@@ -63,6 +64,7 @@ export const getAllRestaurantsPublic = async (req, res, next) => {
   }
 };
 
+// @desc    Get all restaurants (Admin)
 export const getAllRestaurants = async (req, res, next) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
@@ -74,7 +76,7 @@ export const getAllRestaurants = async (req, res, next) => {
   }
 };
 
-// @desc    Update User by Admin
+// @desc    Update Restaurant/User by Admin
 export const updateUserByAdmin = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
@@ -102,6 +104,7 @@ export const updateUserByAdmin = async (req, res, next) => {
   }
 };
 
+// @desc    Delete User/Restaurant
 export const deleteUserByAdmin = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
@@ -121,6 +124,7 @@ export const deleteUserByAdmin = async (req, res, next) => {
   }
 };
 
+// @desc    Admin: Add new restaurant partner
 export const createRestaurantByAdmin = async (req, res, next) => {
   try {
     const { name, email, password, image } = req.body;
@@ -140,6 +144,7 @@ export const createRestaurantByAdmin = async (req, res, next) => {
   }
 };
 
+// @desc    Admin: Create dummy shop for testing
 export const createDummyRestaurant = async (req, res, next) => {
   try {
     const { name, image } = req.body;
@@ -163,19 +168,21 @@ export const createDummyRestaurant = async (req, res, next) => {
   }
 };
 
+// @desc    Get specific restaurant detail
 export const getRestaurantById = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
     if (user) return res.json(user);
     else {
       res.status(404);
-      throw new Error("Not found");
+      throw new Error("Restaurant not found");
     }
   } catch (error) {
     next(error);
   }
 };
 
+// @desc    Get delivery fleet list
 export const getDeliveryPartners = async (req, res, next) => {
   try {
     const partners = await User.find({ role: "delivery_partner" }).select(
@@ -192,8 +199,9 @@ export const seedDatabase = async (req, res, next) => {
 };
 
 // ==========================================
-// 📧 NEWSLETTER SUBSCRIPTION
+// 📧 3. NEWSLETTER SUBSCRIPTION (FIXED)
 // ==========================================
+// @desc    Handle newsletter signups & notify admin via Brevo
 export const subscribeToNewsletter = async (req, res) => {
   const { email } = req.body;
 
@@ -202,23 +210,32 @@ export const subscribeToNewsletter = async (req, res) => {
   }
 
   try {
-    // Admin ko email bhejo
+    console.log(`📨 Newsletter request for: ${email}`);
+
+    // Admin ko email bhejo (Using Brevo Utility)
     await sendEmail({
-      email: process.env.SMTP_MAIL, // Admin/Owner ka email (jo .env me hai)
+      email: process.env.SMTP_MAIL || "swadkartt@gmail.com", // Admin email
       subject: "🔔 New Newsletter Subscriber!",
-      message: `
-        <h1>New Subscriber Alert! 🚀</h1>
-        <p>Hey Admin,</p>
-        <p>A new user has subscribed to the SwadKart Newsletter.</p>
-        <p><strong>Subscriber Email:</strong> <a href="mailto:${email}">${email}</a></p>
-        <br/>
-        <p>Cheers,<br/>SwadKart Bot 🤖</p>
+      html: `
+        <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px; max-width: 600px;">
+          <h2 style="color: #ef4444; text-transform: uppercase;">New Subscriber Alert! 🚀</h2>
+          <p>Hi Admin,</p>
+          <p>Good news! A new user wants to stay updated with SwadKart.</p>
+          <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; font-weight: bold;">
+             Email: <a href="mailto:${email}" style="color: #ef4444;">${email}</a>
+          </div>
+          <p style="margin-top: 20px; font-size: 12px; color: #777;">
+            Sent automatically by SwadKart System.
+          </p>
+        </div>
       `,
     });
 
-    res.status(200).json({ message: "Subscription successful!" });
+    res.status(200).json({ message: "Success! You are now subscribed. 🚀" });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Failed to send email" });
+    console.error("Newsletter Controller Error:", error.message);
+    res
+      .status(500)
+      .json({ message: "Subscription failed. Please check backend logs." });
   }
 };

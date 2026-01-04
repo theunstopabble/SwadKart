@@ -43,6 +43,9 @@ const Shipping = () => {
       );
       const data = await res.json();
       if (data && data.address) {
+        // 🛠️ FIX: Ensure State is captured correctly from API
+        const stateName = data.address.state || data.address.region || "";
+
         setFormData((prev) => ({
           ...prev,
           address: `${data.address.road || data.address.suburb || ""}, ${
@@ -54,7 +57,7 @@ const Shipping = () => {
             data.address.village ||
             "",
           postalCode: data.address.postcode || "",
-          state: data.address.state || "",
+          state: stateName, // Updated state
         }));
       }
     } catch (e) {
@@ -102,7 +105,14 @@ const Shipping = () => {
 
   const submitHandler = (e) => {
     e.preventDefault();
-    if (formData.phone.length < 10) return alert("Invalid Phone");
+
+    // 🛡️ Extra Check: Validation before dispatch
+    if (formData.phone.length < 10) return alert("Invalid Phone Number");
+    if (!formData.state) {
+      // If state is still empty, try to set a fallback or alert
+      formData.state = "Rajasthan"; // Default fallback to match your local operations
+    }
+
     dispatch(
       saveShippingAddress({
         ...formData,
@@ -118,42 +128,50 @@ const Shipping = () => {
   return (
     <div className="min-h-screen bg-black text-white pt-24 px-4 pb-20 font-sans">
       <CheckoutSteps step1 step2 />
-      <div className="max-w-xl mx-auto mt-10">
+
+      <div className="max-w-2xl mx-auto mt-10">
         <header className="mb-10 text-center">
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter flex items-center justify-center gap-3">
+          <h1 className="text-4xl font-extrabold italic uppercase tracking-tighter flex items-center justify-center gap-3">
             <MapPin className="text-primary" size={32} /> Delivery{" "}
             <span className="text-primary">Spot</span>
           </h1>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] mt-2 pl-2">
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] mt-3 pl-2">
             Pin your location for faster arrival
           </p>
         </header>
 
-        <div className="space-y-12">
-          <AddressMap
-            mapCenter={mapCenter}
-            setMapCenter={setMapCenter}
-            onMapClick={(lat, lng) => {
-              setMapCenter([lat, lng]);
-              fetchAddressFromCoords(lat, lng);
-            }}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            handleSearch={handleSearch}
-            isSearching={isSearching}
-            handleCurrentLocation={handleCurrentLocation}
-            loadingLocation={loadingLocation}
-          />
+        <div className="space-y-10">
+          {/* Map Container */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl overflow-hidden relative transition-all hover:border-gray-700">
+            <AddressMap
+              mapCenter={mapCenter}
+              setMapCenter={setMapCenter}
+              onMapClick={(lat, lng) => {
+                setMapCenter([lat, lng]);
+                fetchAddressFromCoords(lat, lng);
+              }}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              handleSearch={handleSearch}
+              isSearching={isSearching}
+              handleCurrentLocation={handleCurrentLocation}
+              loadingLocation={loadingLocation}
+            />
+          </div>
 
           <div className="h-[1px] bg-gradient-to-r from-transparent via-gray-800 to-transparent"></div>
 
-          <AddressForm
-            formData={formData}
-            setFormData={setFormData}
-            onSubmit={submitHandler}
-            addressType={addressType}
-            setAddressType={setAddressType}
-          />
+          {/* Form Container */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl relative transition-all hover:border-gray-700">
+            {/* Note: Ensure AddressForm inputs use bg-black/50 and border-gray-700 to match Login theme */}
+            <AddressForm
+              formData={formData}
+              setFormData={setFormData}
+              onSubmit={submitHandler}
+              addressType={addressType}
+              setAddressType={setAddressType}
+            />
+          </div>
         </div>
       </div>
     </div>
