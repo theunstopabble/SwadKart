@@ -1,8 +1,16 @@
 import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
 import dotenv from "dotenv";
+import multerStorageCloudinary from "multer-storage-cloudinary";
 
 dotenv.config();
+
+// 🛠️ UNIVERSAL FIX: CloudinaryStorage ko dhoondne ka logic
+// Kabhi ye direct hota hai, kabhi .default ke andar, kabhi .CloudinaryStorage ke andar
+const CloudinaryStorage =
+  multerStorageCloudinary.CloudinaryStorage ||
+  multerStorageCloudinary.default?.CloudinaryStorage ||
+  multerStorageCloudinary.default ||
+  multerStorageCloudinary;
 
 // 1. Cloudinary Setup
 cloudinary.config({
@@ -11,12 +19,13 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// 2. Storage Setup (Jahan images save hongi)
+// 2. Storage Setup
+// Ab 'CloudinaryStorage' ek valid Constructor hona chahiye
 const storage = new CloudinaryStorage({
-  cloudinary,
+  cloudinary: cloudinary,
   params: {
-    folder: "swadkart_products", // Cloudinary par is naam ka folder banega
-    allowedFormats: ["jpeg", "png", "jpg", "webp"],
+    folder: "swadkart_products",
+    allowed_formats: ["jpg", "png", "jpeg", "webp"],
   },
 });
 

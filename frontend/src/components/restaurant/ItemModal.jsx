@@ -89,7 +89,7 @@ const ItemModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
-      <div className="bg-gray-900 border border-gray-800 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto no-scrollbar">
+      <div className="bg-gray-900 border border-gray-800 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto no-scrollbar animate-in zoom-in-95 duration-200">
         {/* Close Button */}
         <button
           onClick={() => setShowModal(false)}
@@ -110,7 +110,8 @@ const ItemModal = ({
             </label>
             <input
               type="text"
-              className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white focus:border-primary outline-none transition-all uppercase font-bold"
+              className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white focus:border-primary outline-none transition-all uppercase font-bold placeholder-gray-700"
+              placeholder="e.g. Maharajas Burger"
               value={newItem.name}
               onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
               required
@@ -125,7 +126,8 @@ const ItemModal = ({
               </label>
               <input
                 type="number"
-                className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white focus:border-primary outline-none transition-all font-black italic"
+                className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white focus:border-primary outline-none transition-all font-black italic placeholder-gray-700"
+                placeholder="299"
                 value={newItem.price}
                 onChange={(e) =>
                   setNewItem({ ...newItem, price: e.target.value })
@@ -133,6 +135,7 @@ const ItemModal = ({
                 required
               />
             </div>
+
             {/* Type Selection */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">
@@ -154,11 +157,12 @@ const ItemModal = ({
           {/* Category Field */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">
-              Menu Category (e.g. Starters)
+              Menu Category
             </label>
             <input
               type="text"
-              className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white focus:border-primary outline-none transition-all uppercase font-bold"
+              className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white focus:border-primary outline-none transition-all uppercase font-bold placeholder-gray-700"
+              placeholder="e.g. Starters, Main Course"
               value={newItem.category}
               onChange={(e) =>
                 setNewItem({ ...newItem, category: e.target.value })
@@ -167,7 +171,7 @@ const ItemModal = ({
             />
           </div>
 
-          {/* 🔥 New: Image Upload Logic */}
+          {/* 🔥 Image Upload Logic */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">
               Dish Image
@@ -207,7 +211,7 @@ const ItemModal = ({
               <button
                 type="button"
                 onClick={handleAddVariant}
-                className="text-[10px] font-black bg-primary/10 text-primary px-3 py-1 rounded-full uppercase"
+                className="text-[10px] font-black bg-primary/10 text-primary px-3 py-1 rounded-full uppercase hover:bg-primary/20 transition-colors"
               >
                 + Add
               </button>
@@ -220,7 +224,7 @@ const ItemModal = ({
                 <input
                   type="text"
                   placeholder="Small / Half"
-                  className="w-2/3 bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white"
+                  className="w-2/3 bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white outline-none focus:border-primary"
                   value={v.name}
                   onChange={(e) =>
                     handleVariantChange(i, "name", e.target.value)
@@ -230,7 +234,7 @@ const ItemModal = ({
                 <input
                   type="number"
                   placeholder="Price"
-                  className="w-1/4 bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white"
+                  className="w-1/4 bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white outline-none focus:border-primary"
                   value={v.price}
                   onChange={(e) =>
                     handleVariantChange(i, "price", e.target.value)
@@ -258,7 +262,7 @@ const ItemModal = ({
               <button
                 type="button"
                 onClick={handleAddAddon}
-                className="text-[10px] font-black bg-green-500/10 text-green-500 px-3 py-1 rounded-full uppercase"
+                className="text-[10px] font-black bg-green-500/10 text-green-500 px-3 py-1 rounded-full uppercase hover:bg-green-500/20 transition-colors"
               >
                 + Add
               </button>
@@ -271,7 +275,7 @@ const ItemModal = ({
                 <input
                   type="text"
                   placeholder="Extra Cheese"
-                  className="w-2/3 bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white"
+                  className="w-2/3 bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white outline-none focus:border-green-500"
                   value={a.name}
                   onChange={(e) => handleAddonChange(i, "name", e.target.value)}
                   required
@@ -279,7 +283,7 @@ const ItemModal = ({
                 <input
                   type="number"
                   placeholder="Price"
-                  className="w-1/4 bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white"
+                  className="w-1/4 bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white outline-none focus:border-green-500"
                   value={a.price}
                   onChange={(e) =>
                     handleAddonChange(i, "price", e.target.value)

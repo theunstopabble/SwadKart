@@ -12,10 +12,15 @@ import {
 import StatsCards from "./StatsCards";
 
 const AnalyticsSection = ({ stats, graphData }) => {
+  // 🛡️ CRASH PROTECTION: Ensure graphData is an array
+  const safeGraphData = Array.isArray(graphData) ? graphData : [];
+
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
+      {/* Stats Cards Component */}
       <StatsCards stats={stats} />
 
+      {/* Revenue Graph Section */}
       <div className="bg-gray-900/50 border border-gray-800 p-8 rounded-[3rem] shadow-2xl">
         <div className="flex justify-between items-center mb-8">
           <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
@@ -29,7 +34,7 @@ const AnalyticsSection = ({ stats, graphData }) => {
 
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={graphData}>
+            <AreaChart data={safeGraphData}>
               <defs>
                 <linearGradient id="restroColor" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
@@ -59,7 +64,9 @@ const AnalyticsSection = ({ stats, graphData }) => {
                   backgroundColor: "#000",
                   border: "1px solid #374151",
                   borderRadius: "15px",
+                  color: "#fff",
                 }}
+                itemStyle={{ color: "#ef4444" }}
               />
               <Area
                 type="monotone"

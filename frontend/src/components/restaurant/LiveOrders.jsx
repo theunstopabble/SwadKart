@@ -56,7 +56,7 @@ const LiveOrders = ({
                 {order.orderStatus}
               </div>
 
-              {/* 🖨️ PRINT BUTTON (New) */}
+              {/* 🖨️ PRINT BUTTON */}
               <button
                 onClick={() => generateInvoice(order)}
                 className="absolute top-0 left-0 bg-gray-800/50 hover:bg-white hover:text-black text-gray-400 p-2 rounded-br-2xl transition-all"
@@ -65,6 +65,7 @@ const LiveOrders = ({
                 <Printer size={16} />
               </button>
 
+              {/* Header: ID & Address */}
               <div className="flex justify-between mb-4 border-b border-gray-800 pb-4">
                 <div>
                   <h3 className="text-xl font-black flex items-center gap-2">
@@ -83,7 +84,7 @@ const LiveOrders = ({
                 </div>
               </div>
 
-              {/* 📋 ORDER ITEMS (The Fix) */}
+              {/* 📋 ORDER ITEMS */}
               <div className="space-y-3 mb-6 bg-black/40 p-4 rounded-xl border border-gray-800">
                 {order.orderItems.map((item, idx) => (
                   <div

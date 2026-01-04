@@ -10,9 +10,11 @@ import {
   ShoppingBag,
   ArrowLeft,
 } from "lucide-react";
-import CouponSection from "../components/order/CouponSection";
+import { toast } from "react-hot-toast";
+
+// Config & Components
 import { BASE_URL } from "../config";
-import toast from "react-hot-toast";
+import CouponSection from "../components/order/CouponSection";
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -23,23 +25,31 @@ const Cart = () => {
   const { userInfo } = useSelector((state) => state.user);
   const { cartItems } = cart;
 
+  // 2. Local State
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [loading, setLoading] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState([]);
 
-  // --- 2. Calculations ---
+  // --- 3. Calculations ---
   const itemsPrice = cartItems.reduce(
     (acc, item) => acc + item.price * item.qty,
     0
   );
-  const taxPrice = Number((0.05 * itemsPrice).toFixed(2));
-  const shippingPrice = itemsPrice > 500 ? 0 : 40;
-  const totalBeforeDiscount = itemsPrice + taxPrice + shippingPrice;
-  const totalPrice = (totalBeforeDiscount - discount).toFixed(2);
 
-  // --- 3. Fetch Coupons (On Load) ---
+  // 5% Tax
+  const taxPrice = Number((0.05 * itemsPrice).toFixed(2));
+
+  // Free shipping over ₹500, else ₹40
+  const shippingPrice = itemsPrice > 500 ? 0 : 40;
+
+  const totalBeforeDiscount = itemsPrice + taxPrice + shippingPrice;
+
+  // Ensure total never goes below 0
+  const totalPrice = Math.max(0, totalBeforeDiscount - discount).toFixed(2);
+
+  // --- 4. Fetch Coupons & Load Saved Coupon ---
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
@@ -55,8 +65,10 @@ const Cart = () => {
 
     fetchCoupons();
 
+    // Check Local Storage for previously applied coupons
     const savedCoupon = localStorage.getItem("appliedCoupon");
     const savedDiscount = localStorage.getItem("couponDiscount");
+
     if (savedCoupon && savedDiscount) {
       setAppliedCoupon(JSON.parse(savedCoupon));
       setCouponCode(JSON.parse(savedCoupon));
@@ -64,24 +76,28 @@ const Cart = () => {
     }
   }, []);
 
-  // --- 4. Handlers ---
+  // --- 5. Handlers ---
+
   const addToCartHandler = (item, qty) => {
-    if (qty > 10) return toast.error("Max limit reached");
+    if (qty > 10) return toast.error("Max limit reached (10 items)");
+    if (qty < 1) return; // Prevent going below 1 via this handler
     dispatch(addToCart({ ...item, qty }));
   };
 
   const removeFromCartHandler = (cartUniqueId) => {
     dispatch(removeFromCart(cartUniqueId));
-    toast.success("Item removed");
+    toast.success("Item removed from bag");
   };
 
   const checkoutHandler = () => {
     if (cartItems.length === 0) return toast.error("Cart is empty");
+    // Redirect logic
     navigate(userInfo ? "/shipping" : "/login?redirect=/shipping");
   };
 
   const applyCouponHandler = async (codeOverride) => {
     const codeToApply = codeOverride || couponCode;
+
     if (!codeToApply) return toast.error("Enter a coupon code");
     if (!userInfo) {
       toast.error("Please login to verify coupon eligibility");
@@ -109,12 +125,15 @@ const Cart = () => {
         setDiscount(data.discountAmount);
         setAppliedCoupon(codeToApply);
         setCouponCode(codeToApply);
+
         localStorage.setItem("couponDiscount", data.discountAmount);
         localStorage.setItem("appliedCoupon", JSON.stringify(codeToApply));
+
         toast.success(
           `Coupon ${codeToApply} Applied! Saved ₹${data.discountAmount}`
         );
       } else {
+        // Reset if invalid
         setDiscount(0);
         setAppliedCoupon("");
         localStorage.removeItem("couponDiscount");
@@ -123,7 +142,7 @@ const Cart = () => {
       }
     } catch (error) {
       console.error(error);
-      toast.error("Something went wrong");
+      toast.error("Something went wrong validating coupon");
     } finally {
       setLoading(false);
     }
@@ -138,7 +157,7 @@ const Cart = () => {
     toast.success("Coupon Removed");
   };
 
-  // --- Render Empty Cart ---
+  // --- 6. Render: Empty Cart State ---
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center pt-20">
@@ -159,7 +178,7 @@ const Cart = () => {
     );
   }
 
-  // --- Render Main Cart ---
+  // --- 7. Render: Main Cart UI ---
   return (
     <div className="min-h-screen bg-black text-white pt-28 px-4 md:px-10 pb-20 font-sans">
       <div className="max-w-7xl mx-auto">
@@ -177,19 +196,21 @@ const Cart = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-12">
-          {/* 🛒 Left: Cart Items */}
+          {/* 🛒 Left Column: Cart Items List */}
           <div className="lg:w-2/3 space-y-4">
             {cartItems.map((item) => (
               <div
                 key={item.cartUniqueId || item._id}
                 className="flex flex-col sm:flex-row items-center bg-gray-900 border border-gray-800 p-5 rounded-2xl hover:border-gray-700 transition-all group"
               >
+                {/* Product Image */}
                 <img
                   src={item.image}
                   alt={item.name}
                   className="w-24 h-24 object-cover rounded-xl mb-4 sm:mb-0 grayscale group-hover:grayscale-0 transition-all duration-500 border border-gray-800"
                 />
 
+                {/* Product Details */}
                 <div className="sm:ml-6 flex-1 text-center sm:text-left">
                   <Link
                     to={`/product/${item.product}`}
@@ -201,14 +222,16 @@ const Cart = () => {
                     ₹{item.price}
                   </p>
 
-                  {/* 🟢 VARIANTS & ADDONS */}
+                  {/* Variants & Addons Display */}
                   <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
+                    {/* Size/Variant */}
                     {item.selectedVariant && (
                       <span className="text-[9px] bg-black/50 px-2 py-1 rounded text-gray-400 uppercase font-bold tracking-wider border border-gray-700">
                         Size: {item.selectedVariant.name}
                       </span>
                     )}
 
+                    {/* Addons */}
                     {item.selectedAddons && item.selectedAddons.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {item.selectedAddons.map((addon, idx) => (
@@ -224,6 +247,7 @@ const Cart = () => {
                   </div>
                 </div>
 
+                {/* Quantity Controls & Delete */}
                 <div className="flex items-center gap-4 mt-4 sm:mt-0">
                   <div className="flex items-center bg-black/50 border border-gray-700 rounded-xl overflow-hidden">
                     <button
@@ -266,7 +290,7 @@ const Cart = () => {
             </Link>
           </div>
 
-          {/* 🧾 Right: Bill Details */}
+          {/* 🧾 Right Column: Bill Details */}
           <div className="lg:w-1/3">
             <div className="bg-gray-900 p-8 rounded-[2rem] border border-gray-800 sticky top-28 shadow-2xl">
               <h2 className="text-xl font-extrabold italic uppercase border-b border-gray-800 pb-4 mb-6 text-white">
@@ -274,14 +298,19 @@ const Cart = () => {
               </h2>
 
               <div className="space-y-4 mb-8">
+                {/* Subtotal */}
                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
                   <span>Subtotal</span>
                   <span className="text-white">₹{itemsPrice.toFixed(2)}</span>
                 </div>
+
+                {/* GST */}
                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
                   <span>GST (5%)</span>
                   <span className="text-white">₹{taxPrice.toFixed(2)}</span>
                 </div>
+
+                {/* Delivery Fee */}
                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
                   <span>Delivery Fee</span>
                   <span
@@ -293,6 +322,7 @@ const Cart = () => {
                   </span>
                 </div>
 
+                {/* Discount Display */}
                 {discount > 0 && (
                   <div className="flex justify-between text-xs font-black text-green-500 uppercase tracking-wider animate-pulse">
                     <span>Coupon ({appliedCoupon})</span>
@@ -300,6 +330,7 @@ const Cart = () => {
                   </div>
                 )}
 
+                {/* Total */}
                 <div className="border-t border-gray-800 pt-5 flex justify-between items-end">
                   <span className="text-sm font-bold text-gray-400 uppercase italic">
                     To Pay
@@ -322,6 +353,7 @@ const Cart = () => {
                 discount={discount}
               />
 
+              {/* Checkout Button */}
               <button
                 onClick={checkoutHandler}
                 className="w-full bg-primary hover:bg-red-600 text-white py-4 rounded-xl font-bold uppercase text-sm tracking-[0.15em] shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 group mt-8 active:scale-[0.98]"

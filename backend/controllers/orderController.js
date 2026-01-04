@@ -37,7 +37,7 @@ export const addOrderItems = async (req, res) => {
         image: x.image,
         price: Number(x.price),
         product: x.product,
-        restaurant: x.restaurant,
+        restaurant: x.restaurant, // ✅ CRITICAL: This links the order to the restaurant
         selectedVariant: x.selectedVariant || null,
         selectedAddons: x.selectedAddons || [],
       })),
@@ -74,11 +74,21 @@ export const addOrderItems = async (req, res) => {
 
     // 🔔 REAL-TIME SOCKET: Notify Restaurant Owner
     if (req.io) {
-      // Assuming all items in one order belong to the same restaurant
-      const restaurantOwnerId = createdOrder.orderItems[0].restaurant;
-      if (restaurantOwnerId) {
-        // Emit to the specific restaurant room or owner
-        req.io.emit("newOrderReceived", createdOrder);
+      try {
+        // 1. Get the Restaurant ID from the first item
+        const restaurantId = createdOrder.orderItems[0].restaurant;
+
+        // 2. Find the Restaurant Document to get the OWNER'S User ID
+        const restaurantDoc = await Restaurant.findById(restaurantId);
+
+        if (restaurantDoc && restaurantDoc.user) {
+          // 3. Emit to the Owner's User ID (because Dashboard joins room 'userInfo._id')
+          const ownerId = restaurantDoc.user.toString();
+          req.io.to(ownerId).emit("newOrderReceived", createdOrder);
+          console.log(`🔔 Socket: Notification sent to Owner ID: ${ownerId}`);
+        }
+      } catch (socketError) {
+        console.error("Socket Notification Failed:", socketError.message);
       }
     }
 
@@ -256,10 +266,9 @@ export const getMyRestaurantOrders = async (req, res) => {
     const restaurant = await Restaurant.findOne({ user: req.user._id });
 
     if (!restaurant) {
-      // If user is a restaurant owner but hasn't created a restaurant profile yet
       return res
         .status(404)
-        .json({ message: "No restaurant found for this user." });
+        .json({ message: "No restaurant profile found. Please create one." });
     }
 
     // 2. Find orders that contain items from this restaurant

@@ -1,72 +1,127 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Product from "../models/productModel.js";
+import Order from "../models/orderModel.js";
 
-// 🔑 Initialize Gemini with API Key from .env
+// 🔑 Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export const chatWithGenie = async (req, res) => {
   try {
     const { message } = req.body;
+    const userId = req.user ? req.user._id : null;
 
     if (!message) {
-      return res.status(400).json({ reply: "Message missing! 🧞‍♂️" });
+      return res
+        .status(400)
+        .json({ reply: "Kuch boliyega toh hi madat karunga na! 🧞‍♂️" });
     }
 
-    // 1. Fetch live menu - Hum sirf wahi dikhayenge jo inStock hai
-    // Note: Agar aapke model me 'countInStock' field hai to wahan check badal lena
-    const products = await Product.find({})
-      .select("name price category description isVeg countInStock restaurant")
-      .populate("restaurant", "name");
+    // =================================================
+    // 1️⃣ DATA GATHERING (Context Creation)
+    // =================================================
+
+    // A. Fetch Live Menu (Items in Stock only)
+    const products = await Product.find({ countInStock: { $gt: 0 } })
+      .select("name price category isVeg restaurant")
+      .populate("restaurant", "name")
+      .limit(30); // Optimizing token usage
 
     const menuContext = products
       .map(
         (p) =>
-          `- ${p.name} [${p.category}] from ${
+          `- ${p.name} (${p.category}) from ${
             p.restaurant?.name || "SwadKart"
-          }: ₹${p.price} (${p.isVeg ? "Veg" : "Non-Veg"})`
+          }: ₹${p.price} [${p.isVeg ? "Veg" : "Non-Veg"}]`
       )
       .join("\n");
 
-    // 2. Configure Gemini Model - Using your preferred "gemini-flash-latest"
-    const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
-      generationConfig: {
-        maxOutputTokens: 250,
-        temperature: 0.8, // Slightly higher for more creative "Hinglish"
-      },
-    });
+    // B. Fetch Recent Order (If User Logged In)
+    let orderContext =
+      "User is currently not logged in or has no recent orders.";
+
+    if (userId) {
+      const lastOrder = await Order.findOne({ user: userId }).sort({
+        createdAt: -1,
+      });
+      if (lastOrder) {
+        orderContext = `
+          Latest Order ID: #${lastOrder._id.toString().slice(-6)}
+          Status: ${lastOrder.orderStatus}
+          Items: ${lastOrder.orderItems.map((i) => i.name).join(", ")}
+          Total: ₹${lastOrder.totalPrice}
+          Payment: ${lastOrder.isPaid ? "Paid" : "Pending"}
+        `;
+      }
+    }
+
+    // =================================================
+    // 2️⃣ BRAIN CONFIGURATION (Smart Model Selector)
+    // =================================================
+
+    // 🧠 INDUSTRY STANDARD APPROACH:
+    // Try the newest/fastest model first. If it fails (404/API limits), fallback to the stable one.
+    const modelsToTry = [
+      
+      "gemini-flash-latest",
+      "gemini-2.5-flash",
+    ];
+
+    let generatedText = "";
+    let success = false;
 
     const prompt = `
-      You are 'SwadKart Genie' 🧞‍♂️, a witty and helpful Hinglish-speaking food assistant for SwadKart App. 
-      Your personality: Super friendly, food expert, and a bit funny.
-
-      CURRENT LIVE MENU:
+      You are 'SwadKart Genie' 🧞‍♂️, a funny, witty, and helpful food assistant for India.
+      
+      🛑 CONTEXT DATA:
+      [USER'S LAST ORDER]: ${orderContext}
+      [LIVE MENU]: 
       ${menuContext}
 
-      STRICT RULES:
-      1. Recommendation: ONLY suggest items from the LIVE MENU above. 
-      2. Missing Item: If the user asks for something not in the list, say: "Arre yaar, ye toh kitchen mein nahi hai, par humara [Similar Item] try karo! 😋"
-      3. Style: Speak in Hinglish (Mix of Hindi + English). Use Indian food slang if needed.
-      4. Length: Keep it short (2-3 sentences). Use Emojis.
-      5. Action: Always tell them to "Add to Cart" or "Explore the Menu".
-      6. Mood Matching: Recommend heavy meals for "Hungry", light snacks for "Bored", and sweets for "Happy".
+      🎯 RULES:
+      1. **Language:** Hinglish (Hindi + English mix). Use slang like "Boss", "Arre", "Bindaas".
+      2. **Order Status:** If asked "Where is my order?", use [USER'S LAST ORDER] info.
+      3. **Food Recs:** ONLY recommend items from [LIVE MENU]. Do not invent dishes.
+      4. **Navigation:**
+         - Cart? -> "Check the Cart bag 🛍️ icon on top!"
+         - Profile? -> "Menu mein Profile section check karo."
+      5. **Tone:** Short (max 2-3 sentences), helpful, and use emojis 🍕🍔.
 
-      User Message: ${message}
-      Genie Response:
+      👤 User: "${message}"
+      🧞‍♂️ Genie:
     `;
 
-    // 3. Generate content from AI
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // 🔄 Robust Fallback Loop
+    for (const modelName of modelsToTry) {
+      try {
+        // console.log(`🤖 Trying AI Model: ${modelName}...`); // Optional Debug Log
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        generatedText = response.text();
 
-    // 4. Send clean response
-    res.json({ reply: text.trim() });
+        if (generatedText) {
+          success = true;
+          break; // Stop loop if successful
+        }
+      } catch (err) {
+        console.warn(`⚠️ Model ${modelName} failed. Switching to backup...`);
+        // Continue to next model in the list
+      }
+    }
+
+    if (!success) {
+      throw new Error("All AI models failed to respond.");
+    }
+
+    // =================================================
+    // 3️⃣ SEND RESPONSE
+    // =================================================
+    res.json({ reply: generatedText.trim() });
   } catch (error) {
-    console.error("Genie Brain Error:", error);
+    console.error("🧞‍♂️ Genie Brain Freeze:", error.message);
     res.status(500).json({
       reply:
-        "Arre yaar! Genie thoda thak gaya hai 😴. Ek baar fir se try karna? ✨",
+        "Arre boss! Server thoda busy hai. 2 minute baad try karna! 😴 (AI Service Unavailable)",
     });
   }
 };

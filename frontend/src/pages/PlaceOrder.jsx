@@ -38,6 +38,8 @@ const PlaceOrder = () => {
   const couponDiscount = Number(localStorage.getItem("couponDiscount")) || 0;
   const appliedCouponCode =
     JSON.parse(localStorage.getItem("appliedCoupon")) || "";
+
+  // Calculate Total
   const totalPrice = (
     itemsPrice +
     shippingPrice +
@@ -45,11 +47,16 @@ const PlaceOrder = () => {
     couponDiscount
   ).toFixed(2);
 
+  // --- Redirect if missing data ---
   useEffect(() => {
-    if (!cart.shippingAddress.address) navigate("/shipping");
-    else if (!cart.paymentMethod) navigate("/payment");
+    if (!cart.shippingAddress.address) {
+      navigate("/shipping");
+    } else if (!cart.paymentMethod) {
+      navigate("/payment");
+    }
   }, [cart, navigate]);
 
+  // --- Razorpay SDK Loader ---
   const loadRazorpay = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -60,6 +67,7 @@ const PlaceOrder = () => {
     });
   };
 
+  // --- Success Logic ---
   const handleOrderSuccess = (dbOrderId, paymentId) => {
     setPaymentDetails({
       id: paymentId,
@@ -73,9 +81,12 @@ const PlaceOrder = () => {
     });
     setIsProcessing(false);
     setShowSuccessScreen(true);
+
+    // Clear Local Storage Coupons
     localStorage.removeItem("couponDiscount");
     localStorage.removeItem("appliedCoupon");
 
+    // Countdown and Redirect
     let timer = 4;
     const interval = setInterval(() => {
       timer -= 1;
@@ -88,6 +99,7 @@ const PlaceOrder = () => {
     }, 1000);
   };
 
+  // --- Verify Online Payment ---
   const verifyPayment = async (response, dbOrderId) => {
     try {
       const res = await fetch(`${BASE_URL}/api/v1/payment/verify`, {
@@ -104,17 +116,22 @@ const PlaceOrder = () => {
         }),
       });
       const data = await res.json();
-      if (data.success)
+      if (data.success) {
         handleOrderSuccess(dbOrderId, response.razorpay_payment_id);
-      else toast.error("Security Alert: Payment verification failed!");
+      } else {
+        toast.error("Security Alert: Payment verification failed!");
+      }
     } catch (error) {
       toast.error("Verification protocol error");
     }
   };
 
+  // --- Main Order Handler ---
   const placeOrderHandler = async () => {
     try {
       setIsProcessing(true);
+
+      // 1. Check Gateway for Online Payment
       if (cart.paymentMethod === "Online") {
         const sdkLoaded = await loadRazorpay();
         if (!sdkLoaded) {
@@ -124,23 +141,26 @@ const PlaceOrder = () => {
         }
       }
 
+      // 2. Format Items (CRITICAL: Ensure 'restaurant' ID is passed)
       const formattedItems = cart.cartItems.map((item) => ({
         name: item.name,
-        qty: item.qty,
+        qty: Number(item.qty),
         image: item.image,
-        price: item.price,
+        price: Number(item.price),
         product: item.product,
-        restaurant: item.restaurant,
+        restaurant: item.restaurant, // 👈 THIS MUST EXIST FOR OWNER DASHBOARD
         selectedVariant: item.selectedVariant || null,
         selectedAddons: item.selectedAddons || [],
       }));
 
+      // 3. Format Address
       const finalShippingAddress = {
         ...cart.shippingAddress,
-        state: cart.shippingAddress.state || "Rajasthan", // Fallback if state is empty
+        state: cart.shippingAddress.state || "Rajasthan",
         country: cart.shippingAddress.country || "India",
       };
 
+      // 4. Create Order in Database
       const res = await fetch(`${BASE_URL}/api/v1/orders`, {
         method: "POST",
         headers: {
@@ -149,7 +169,7 @@ const PlaceOrder = () => {
         },
         body: JSON.stringify({
           orderItems: formattedItems,
-          shippingAddress: finalShippingAddress, // ✅ Updated this line
+          shippingAddress: finalShippingAddress,
           paymentMethod: cart.paymentMethod,
           itemsPrice,
           taxPrice,
@@ -163,12 +183,15 @@ const PlaceOrder = () => {
       const dbData = await res.json();
       if (!res.ok) throw new Error(dbData.message);
 
+      // 5. Handle Payment Flow
       if (cart.paymentMethod === "COD") {
+        // COD Flow
         handleOrderSuccess(
           dbData._id,
           "COD-" + dbData._id.slice(-6).toUpperCase()
         );
       } else {
+        // Online Flow (Razorpay)
         const orderRes = await fetch(
           `${BASE_URL}/api/v1/payment/create-order`,
           {
@@ -181,11 +204,11 @@ const PlaceOrder = () => {
           }
         );
         const { order: razorpayOrder } = await orderRes.json();
-        const { key } = await (
-          await fetch(`${BASE_URL}/api/v1/payment/key`, {
-            headers: { Authorization: `Bearer ${userInfo.token}` },
-          })
-        ).json();
+
+        const keyRes = await fetch(`${BASE_URL}/api/v1/payment/key`, {
+          headers: { Authorization: `Bearer ${userInfo.token}` },
+        });
+        const { key } = await keyRes.json();
 
         const options = {
           key,
@@ -208,6 +231,7 @@ const PlaceOrder = () => {
       }
     } catch (error) {
       setIsProcessing(false);
+      console.error(error);
       toast.error(error.message || "Mission Failed: Order error");
     }
   };
