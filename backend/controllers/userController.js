@@ -1,4 +1,5 @@
 import User from "../models/userModel.js";
+import Restaurant from "../models/restaurantModel.js"; // 👈 Added Restaurant Model
 import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import mongoose from "mongoose";
@@ -7,7 +8,6 @@ import mongoose from "mongoose";
 // 👤 1. USER PROFILE OPERATIONS
 // =================================================================
 
-// @desc    Get profile
 export const getUserProfile = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
@@ -22,7 +22,6 @@ export const getUserProfile = async (req, res, next) => {
   }
 };
 
-// @desc    Update profile
 export const updateUserProfile = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
@@ -53,7 +52,6 @@ export const updateUserProfile = async (req, res, next) => {
 // 🏙️ 2. ADMIN & RESTAURANT OPERATIONS
 // =================================================================
 
-// @desc    Get all restaurants for public view
 export const getAllRestaurantsPublic = async (req, res, next) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
@@ -65,7 +63,6 @@ export const getAllRestaurantsPublic = async (req, res, next) => {
   }
 };
 
-// @desc    Get all restaurants (Admin/Owner Dashboard)
 export const getAllRestaurants = async (req, res, next) => {
   try {
     const restaurants = await User.find({ role: "restaurant_owner" })
@@ -77,7 +74,6 @@ export const getAllRestaurants = async (req, res, next) => {
   }
 };
 
-// @desc    Update Restaurant/User by Admin
 export const updateUserByAdmin = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
@@ -91,7 +87,6 @@ export const updateUserByAdmin = async (req, res, next) => {
 
       const updatedUser = await user.save();
 
-      // Real-time update using socket if available
       if (req.io) {
         req.io.emit("restaurantUpdated", updatedUser);
       }
@@ -106,7 +101,6 @@ export const updateUserByAdmin = async (req, res, next) => {
   }
 };
 
-// @desc    Delete User/Restaurant
 export const deleteUserByAdmin = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
@@ -115,8 +109,12 @@ export const deleteUserByAdmin = async (req, res, next) => {
         res.status(400);
         throw new Error("Cannot delete Admin");
       }
+
+      // ✅ Also delete the associated restaurant profile
+      await Restaurant.findOneAndDelete({ owner: user._id });
       await user.deleteOne();
-      return res.json({ message: "User removed successfully" });
+
+      return res.json({ message: "Merchant and Shop Profile removed" });
     } else {
       res.status(404);
       throw new Error("User not found");
@@ -126,10 +124,12 @@ export const deleteUserByAdmin = async (req, res, next) => {
   }
 };
 
-// @desc    Admin: Add new restaurant partner
+// ✅ FIX: Admin: Add new restaurant partner (User + Restaurant Entry)
 export const createRestaurantByAdmin = async (req, res, next) => {
   try {
     const { name, email, password, image } = req.body;
+
+    // 1. Create User Identity
     const user = await User.create({
       name,
       email,
@@ -140,17 +140,32 @@ export const createRestaurantByAdmin = async (req, res, next) => {
       isVerified: true,
       orderIndex: 0,
     });
+
+    if (user) {
+      // 2. 🔥 Create Restaurant Profile (Important!)
+      await Restaurant.create({
+        name: `${name} (Shop)`,
+        owner: user._id,
+        image: user.image,
+        address: "Default Address, India",
+        isVerified: false, // Authorize button click will make it true
+        isActive: true,
+      });
+    }
+
     return res.status(201).json(user);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Admin: Create dummy shop for testing
+// ✅ FIX: Admin: Create dummy shop (User + Restaurant Entry)
 export const createDummyRestaurant = async (req, res, next) => {
   try {
     const { name, image } = req.body;
     const uniqueTime = Date.now();
+
+    // 1. Create Synthetic User Identity
     const user = await User.create({
       name: name || "New Dummy Shop",
       email: `${(name || "dummy")
@@ -164,18 +179,29 @@ export const createDummyRestaurant = async (req, res, next) => {
       isVerified: true,
       orderIndex: 0,
     });
+
+    if (user) {
+      // 2. 🔥 Create Synthetic Restaurant Profile
+      await Restaurant.create({
+        name: `${user.name} (Shop)`,
+        owner: user._id,
+        image: user.image,
+        address: "Synthetic Street, Cyber City",
+        isVerified: false,
+        isDummy: true, // Flag for dummy data
+        isActive: true,
+      });
+    }
+
     return res.status(201).json(user);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Get specific restaurant detail
 export const getRestaurantById = async (req, res, next) => {
   try {
     const { id } = req.params;
-
-    // Fix: Validate ObjectId to prevent CastError
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400);
       throw new Error("Invalid ID format");
@@ -192,7 +218,6 @@ export const getRestaurantById = async (req, res, next) => {
   }
 };
 
-// @desc    Get delivery fleet list
 export const getDeliveryPartners = async (req, res, next) => {
   try {
     const partners = await User.find({ role: "delivery_partner" }).select(
@@ -204,7 +229,6 @@ export const getDeliveryPartners = async (req, res, next) => {
   }
 };
 
-// @desc    Database Seeding
 export const seedDatabase = async (req, res, next) => {
   return res.json({ message: "Seed functionality called." });
 };
@@ -212,7 +236,6 @@ export const seedDatabase = async (req, res, next) => {
 // ==========================================
 // 📧 3. NEWSLETTER SUBSCRIPTION
 // ==========================================
-// @desc    Handle newsletter signups & notify admin via Brevo
 export const subscribeToNewsletter = async (req, res) => {
   const { email } = req.body;
 
@@ -221,9 +244,6 @@ export const subscribeToNewsletter = async (req, res) => {
   }
 
   try {
-    console.log(`📨 Newsletter request for: ${email}`);
-
-    // Notify Admin safely
     await sendEmail({
       email: process.env.SMTP_MAIL || "swadkartt@gmail.com",
       subject: "🔔 New Newsletter Subscriber!",
@@ -243,9 +263,6 @@ export const subscribeToNewsletter = async (req, res) => {
       .status(200)
       .json({ message: "Success! You are now subscribed. 🚀" });
   } catch (error) {
-    console.error("Newsletter Controller Error:", error.message);
-    return res
-      .status(500)
-      .json({ message: "Subscription failed. Please try again later." });
+    return res.status(500).json({ message: "Subscription failed." });
   }
 };
