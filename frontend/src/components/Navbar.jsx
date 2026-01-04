@@ -13,6 +13,7 @@ import {
   Truck,
   Package,
 } from "lucide-react";
+
 // 👇 Import PWA Button
 import InstallPWA from "./InstallPWA";
 
@@ -34,10 +35,10 @@ const Navbar = () => {
 
   return (
     /* FIXED: Added pt-8 for Mobile Status Bar compatibility and md:pt-0 for Desktop */
-    <nav className="bg-gray-950 text-white border-b border-gray-800 fixed w-full z-50 top-0 pt-8 md:pt-0">
+    <nav className="bg-gray-950 text-white border-b border-gray-800 fixed w-full z-50 top-0 pt-8 md:pt-0 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          {/* LOGO */}
+          {/* ======================= LOGO ======================= */}
           <Link
             to="/"
             className="text-2xl font-extrabold text-primary tracking-tight flex items-center"
@@ -47,7 +48,7 @@ const Navbar = () => {
             <span className="w-2.5 h-2.5 rounded-full bg-primary mt-4 animate-bounce"></span>
           </Link>
 
-          {/* 🖥️ DESKTOP MENU */}
+          {/* ======================= 🖥️ DESKTOP MENU ======================= */}
           <div className="hidden md:flex items-center space-x-8">
             <Link
               to="/"
@@ -56,7 +57,7 @@ const Navbar = () => {
               Home
             </Link>
 
-            {/* 👇 INSTALL APP BUTTON (Only visible on supported browsers) */}
+            {/* 👇 INSTALL APP BUTTON (Desktop Position) */}
             <InstallPWA />
 
             {userInfo ? (
@@ -142,19 +143,24 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* MOBILE MENU BUTTON (Cart + Hamburger) */}
-          <div className="flex items-center gap-4 md:hidden">
+          {/* ======================= 📱 MOBILE MENU BUTTONS ======================= */}
+          {/* Cart + Install Button + Hamburger */}
+          <div className="flex items-center gap-3 md:hidden">
+            {/* 👇 INSTALL APP BUTTON (Mobile Position: Before Cart) */}
+            <InstallPWA />
+
             <Link to="/cart" className="relative" onClick={closeMenu}>
-              <ShoppingCart size={22} />
+              <ShoppingCart size={22} className="text-gray-300" />
               {cartItems.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold w-4 h-4 flex items-center justify-center rounded-full">
                   {cartItems.length}
                 </span>
               )}
             </Link>
+
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-300 hover:text-white focus:outline-none"
+              className="text-gray-300 hover:text-white focus:outline-none ml-1"
             >
               {isOpen ? <X size={28} /> : <Menu size={28} />}
             </button>
@@ -162,9 +168,9 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* 📱 MOBILE MENU DROPDOWN */}
+      {/* ======================= 📱 MOBILE MENU DROPDOWN ======================= */}
       {isOpen && (
-        <div className="md:hidden bg-gray-900 border-b border-gray-800 animate-fade-in-down">
+        <div className="md:hidden bg-gray-900 border-b border-gray-800 animate-fade-in-down shadow-2xl">
           <div className="px-4 pt-2 pb-6 space-y-2">
             <Link
               to="/"
@@ -235,7 +241,7 @@ const Navbar = () => {
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <Link
                   to="/login"
-                  className="text-center py-2 border border-gray-600 rounded-lg font-bold hover:bg-gray-800"
+                  className="text-center py-2 border border-gray-600 rounded-lg font-bold hover:bg-gray-800 text-white"
                   onClick={closeMenu}
                 >
                   Login
