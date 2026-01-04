@@ -45,6 +45,20 @@ const userSchema = mongoose.Schema(
     // For Delivery Partners
     currentLocation: { lat: Number, lng: Number },
     isAvailable: { type: Boolean, default: true },
+
+    // 💳 WALLET SYSTEM (New)
+    walletBalance: {
+      type: Number,
+      default: 0, // Starts with 0 balance
+    },
+    walletTransactions: [
+      {
+        amount: { type: Number, required: true },
+        type: { type: String, enum: ["Credit", "Debit"], required: true }, // Credit (Refund/Add), Debit (Payment)
+        description: { type: String }, // e.g., "Refund for Order #123"
+        date: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -14,16 +14,16 @@ export const chatWithGenie = async (req, res) => {
 
     // 1. Fetch live menu - Hum sirf wahi dikhayenge jo inStock hai
     // Note: Agar aapke model me 'countInStock' field hai to wahan check badal lena
-    const products = await Product.find({}).select(
-      "name price category description isVeg countInStock"
-    );
+    const products = await Product.find({})
+      .select("name price category description isVeg countInStock restaurant")
+      .populate("restaurant", "name");
 
     const menuContext = products
       .map(
         (p) =>
-          `- ${p.name} (${p.category}): ₹${p.price} [${
-            p.isVeg ? "Veg" : "Non-Veg"
-          }] - ${p.description}`
+          `- ${p.name} [${p.category}] from ${
+            p.restaurant?.name || "SwadKart"
+          }: ₹${p.price} (${p.isVeg ? "Veg" : "Non-Veg"})`
       )
       .join("\n");
 

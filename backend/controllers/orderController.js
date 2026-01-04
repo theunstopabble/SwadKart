@@ -37,6 +37,9 @@ export const addOrderItems = async (req, res) => {
         ...x,
         product: x.product,
         restaurant: x.restaurant,
+        // ✅ CRITICAL: Save Variants/Addons explicitly
+        selectedVariant: x.selectedVariant || null,
+        selectedAddons: x.selectedAddons || [],
       })),
       user: req.user._id,
       shippingAddress,
@@ -62,16 +65,17 @@ export const addOrderItems = async (req, res) => {
 
     // 🔔 REAL-TIME SOCKET: Notify Restaurant Owner immediately
     if (req.io) {
-      // Assuming first item's restaurant is the vendor
-      const restaurantId = createdOrder.orderItems[0].restaurant;
-      const restaurant = await Restaurant.findById(restaurantId);
+      // Logic: Notify the owner of the restaurant for the first item
+      // In a multi-vendor cart, this would need a loop, but assuming single-vendor per order for now.
+      // Note: 'restaurant' in OrderItem refers to the User ID of the owner/vendor.
+      const restaurantOwnerId = createdOrder.orderItems[0].restaurant;
 
-      if (restaurant && restaurant.owner) {
+      if (restaurantOwnerId) {
         req.io
-          .to(restaurant.owner.toString())
+          .to(restaurantOwnerId.toString())
           .emit("newOrderReceived", createdOrder);
         console.log(
-          `🔔 Socket: New order alert sent to owner ${restaurant.owner}`
+          `🔔 Socket: New order alert sent to owner ${restaurantOwnerId}`
         );
       }
     }
@@ -107,7 +111,13 @@ export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate("user", "name email")
-      .populate("deliveryPartner", "name phone");
+      .populate("deliveryPartner", "name phone")
+      // ✅ CRITICAL: Populate product details so name/image are available even if not saved in orderItems directly
+      // Although orderItems usually saves name/image snapshot, populating ensures we have latest/fallback data
+      .populate({
+        path: "orderItems.product",
+        select: "name image category",
+      });
 
     if (order) {
       res.json(order);

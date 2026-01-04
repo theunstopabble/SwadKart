@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Search, MapPin, Clock, Star, ArrowRight, Loader2 } from "lucide-react";
 import { BASE_URL } from "../config";
 import io from "socket.io-client";
+import VoiceSearch from "../components/VoiceSearch";
 
 // --- Category Bar Component (Internal for easy access) ---
 const CategoryBar = ({ activeCategory, setActiveCategory }) => {
@@ -109,18 +110,23 @@ const Home = () => {
           </p>
 
           {/* Search Bar (Original UI) */}
-          <div className="flex bg-white rounded-full overflow-hidden p-1 w-full max-w-xl shadow-2xl shadow-primary/20">
-            <input
-              type="text"
-              placeholder="Search for restaurants or food..."
-              className="flex-1 px-6 py-3 text-black outline-none font-medium"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <button className="bg-primary hover:bg-red-600 text-white px-8 py-3 rounded-full font-bold transition-all flex items-center gap-2">
-              <Search size={20} /> Search
-            </button>
+         {/* 👇 UPDATED SEARCH BAR UI */}
+         <div className="flex items-center gap-2 w-full max-w-xl">
+            <div className="flex-1 flex bg-white rounded-full overflow-hidden p-1 shadow-2xl shadow-primary/20 items-center">
+              <input
+                type="text"
+                placeholder="Search for restaurants or food..."
+                className="flex-1 px-6 py-3 text-black outline-none font-medium placeholder:text-gray-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {/* Manual Search Button */}
+              <button className="bg-primary hover:bg-red-600 text-white px-6 py-3 rounded-full font-bold transition-all flex items-center gap-2">
+                <Search size={20} />
+              </button>
           </div>
+          <VoiceSearch setSearchTerm={setSearchTerm} />
+        </div>
         </div>
       </div>
 

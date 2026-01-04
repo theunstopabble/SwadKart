@@ -23,7 +23,8 @@ import { BASE_URL } from "../config";
 import OrderProgress from "../components/order/OrderProgress";
 import OrderItemList from "../components/order/OrderItemList";
 import ReviewModal from "../components/ReviewModal";
-import LiveTrackingMap from "../components/order/LiveTrackingMap"; // ✅ Added Map Component
+// ✅ Conditional Import: Ensure LiveTrackingMap exists before using, or comment out if not ready
+import LiveTrackingMap from "../components/order/LiveTrackingMap";
 import { toast } from "react-hot-toast";
 
 const socket = io(BASE_URL);
@@ -167,8 +168,11 @@ const OrderDetails = () => {
             </h2>
             <LiveTrackingMap
               orderId={order._id}
-              restaurantCoords={[26.9124, 75.7873]} // Ideally from order.orderItems[0].restaurant.location
-              userCoords={[26.922, 75.7788]} // From cart.shippingAddress coords
+              restaurantCoords={[26.9124, 75.7873]}
+              userCoords={[
+                order.shippingAddress.lat || 26.922,
+                order.shippingAddress.lng || 75.7788,
+              ]}
             />
           </div>
         )}

@@ -7,7 +7,9 @@ import {
   getOrderById,
   getMyOrders,
   cancelOrder,
-  getOrders, // ✅ NEW IMPORT: Admin ko orders dikhane ke liye zaroori hai
+  getOrders,
+  updateOrderStatus, // ✅ NEW: Restaurant status update ke liye
+  updateOrderToPaid, // ✅ NEW: Online payment confirmation ke liye
 } from "../controllers/orderController.js";
 
 // 2. 👇 Delivery Controller
@@ -26,6 +28,8 @@ import {
 
 // 👇 Auth Middlewares
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { triggerSOS } from "../controllers/deliveryController.js";
+import { getHeatmapData } from "../controllers/adminController.js";
 
 // ============================================================
 // 👑 ROOT ROUTES (CREATE & ADMIN LIST)
@@ -34,13 +38,14 @@ import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 router
   .route("/")
   .post(protect, addOrderItems) // 🛒 User: Create New Order
-  .get(protect, authorizeRoles("admin"), getOrders); // 👑 Admin: Get All Orders (FIXED)
-
+  .get(protect, authorizeRoles("admin"), getOrders); // 👑 Admin: Get All Orders
+router.post("/sos", protect, authorizeRoles("delivery_partner"), triggerSOS);
 // ============================================================
 // 📊 ANALYTICS & STATS
 // ============================================================
 
 router.get("/sales-stats", protect, authorizeRoles("admin"), getSalesStats);
+
 
 router.get(
   "/analytics",
@@ -48,7 +53,7 @@ router.get(
   authorizeRoles("admin", "restaurant_owner"),
   getDashboardStats
 );
-
+router.get("/heatmap", protect, authorizeRoles("admin"), getHeatmapData);
 // ============================================================
 // 🛵 DELIVERY PARTNER ROUTES
 // ============================================================
@@ -60,6 +65,7 @@ router.get(
   getMyDeliveryOrders
 );
 
+// Driver Accept/Reject Logic
 router.put(
   "/:id/delivery-action",
   protect,
@@ -67,6 +73,7 @@ router.put(
   updateDeliveryAction
 );
 
+// Verify OTP & Mark Delivered
 router.put(
   "/:id/deliver",
   protect,
@@ -83,16 +90,31 @@ router.get("/myorders", protect, getMyOrders);
 router.put("/:id/cancel", protect, cancelOrder);
 
 // ============================================================
-// 🔧 ADMIN OPERATIONS
+// 🔧 RESTAURANT & ADMIN OPERATIONS
 // ============================================================
 
-// Assign Delivery Partner
+// ✅ Restaurant: Update Status (Preparing/Ready)
+router.put(
+  "/:id/status",
+  protect,
+  authorizeRoles("admin", "restaurant_owner"),
+  updateOrderStatus
+);
+
+// ✅ Admin/Restaurant: Assign Delivery Partner
 router.put(
   "/:id/assign",
   protect,
   authorizeRoles("admin", "restaurant_owner"),
   assignDeliveryPartner
 );
+
+// ============================================================
+// 💳 PAYMENT CONFIRMATION
+// ============================================================
+
+// ✅ Mark as Paid (Called after successful Razorpay transaction)
+router.put("/:id/pay", protect, updateOrderToPaid);
 
 // ============================================================
 // 🔍 FETCHING BY ID (Must be at the end)

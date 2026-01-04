@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -9,6 +10,7 @@ import {
   UtensilsCrossed,
   Tag,
   Users as UsersIcon,
+  Flame,
 } from "lucide-react";
 import { BASE_URL } from "../config";
 
@@ -19,6 +21,8 @@ import ShopsTab from "../components/admin/ShopsTab";
 import MenuTab from "../components/admin/MenuTab";
 import CouponsTab from "../components/admin/CouponsTab";
 import UsersTab from "../components/admin/UsersTab";
+import HeatmapTab from "../components/admin/HeatmapTab";
+
 
 const AdminDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -42,20 +46,20 @@ const AdminDashboard = () => {
     };
 
     try {
-      // 1. Fetch Users/Restaurants for Management
-      // Note: Make sure this route exists in userRoutes, otherwise use /api/v1/users
-      const resRest = await fetch(`${BASE_URL}/api/v1/users`, {
+      // 1. Fetch Restaurants (✅ FIXED ROUTE)
+      // Backend: router.get("/admin/all", protect, authorizeRoles("admin"), getAllRestaurants);
+      const resRest = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
         headers,
       });
       if (resRest.ok) {
         const dataRest = await resRest.json();
-        // Assuming the API returns all users, filter restaurants if needed or use backend logic
         setRestaurants(dataRest);
+        // Note: Stats me 'users' ka count sirf restaurants nahi hona chahiye,
+        // par abhi ke liye ye logic theek hai.
         setStats((prev) => ({ ...prev, users: dataRest.length }));
       }
 
       // 2. Fetch Orders & Calculate Revenue
-      // ✅ FIX: Changed endpoint from '/admin/all' to '/' because we fixed the route in backend
       const resOrders = await fetch(`${BASE_URL}/api/v1/orders`, {
         headers,
       });
@@ -72,8 +76,6 @@ const AdminDashboard = () => {
           revenue: totalRev,
           orders: dataOrders.length,
         }));
-      } else {
-        console.error("Failed to fetch orders");
       }
 
       // 3. Delivery Partners
@@ -104,7 +106,7 @@ const AdminDashboard = () => {
   }, [userInfo, activeTab, navigate]);
 
   return (
-    <div className="min-h-screen bg-black text-white pt-24 pb-10 px-4 md:px-10">
+    <div className="min-h-screen bg-black text-white pt-28 pb-10 px-4 md:px-10">
       <div className="max-w-7xl mx-auto">
         <header className="mb-10">
           <h1 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter flex items-center gap-4">
@@ -122,6 +124,7 @@ const AdminDashboard = () => {
         <div className="flex overflow-x-auto gap-3 mb-10 pb-4 no-scrollbar border-b border-gray-900">
           {[
             { id: "overview", label: "Analytics", icon: LayoutDashboard },
+            { id: "heatmap", label: "Heatmap", icon: Flame },
             { id: "orders", label: "Orders", icon: ShoppingBag },
             { id: "users", label: "Users", icon: UsersIcon },
             { id: "shops", label: "Shops", icon: Store },
@@ -145,6 +148,8 @@ const AdminDashboard = () => {
         {/* --- RENDER ACTIVE TAB --- */}
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
           {activeTab === "overview" && <OverviewTab userInfo={userInfo} />}
+          {/* 🔥 NEW HEATMAP RENDER */}
+          {activeTab === "heatmap" && <HeatmapTab userInfo={userInfo} />}
 
           {activeTab === "orders" && (
             <OrdersTab

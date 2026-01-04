@@ -13,6 +13,8 @@ import {
   Truck,
   Package,
 } from "lucide-react";
+// 👇 Import PWA Button
+import InstallPWA from "./InstallPWA";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -52,6 +54,9 @@ const Navbar = () => {
             >
               Home
             </Link>
+
+            {/* 👇 INSTALL APP BUTTON (Only visible on supported browsers) */}
+            <InstallPWA />
 
             {userInfo ? (
               <>

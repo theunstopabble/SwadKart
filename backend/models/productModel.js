@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 // =================================================
-// ⭐ 0. REVIEW SCHEMA (Separate logic inside same file)
+// ⭐ 0. REVIEW SCHEMA
 // =================================================
 const reviewSchema = mongoose.Schema(
   {
@@ -45,7 +45,7 @@ const productSchema = mongoose.Schema(
     price: { type: Number, required: true },
 
     // =================================================
-    // 🛠️ 3. CUSTOMIZATION
+    // 🛠️ 3. CUSTOMIZATION (Core of Phase 2)
     // =================================================
     variants: [
       {
@@ -69,9 +69,9 @@ const productSchema = mongoose.Schema(
     orderIndex: { type: Number, default: 0 },
 
     // =================================================
-    // ⭐ 5. REVIEWS & RATINGS (Fixed & Integrated)
+    // ⭐ 5. REVIEWS & RATINGS
     // =================================================
-    reviews: [reviewSchema], // 👈 Array of reviews
+    reviews: [reviewSchema],
     rating: {
       type: Number,
       required: true,

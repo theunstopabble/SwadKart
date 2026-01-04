@@ -24,6 +24,7 @@ import {
 } from "../controllers/userController.js";
 
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { subscribeToNewsletter } from "../controllers/userController.js";
 
 // ✅ Clean Standard Routes
 router.post("/register", registerUser);
@@ -31,7 +32,7 @@ router.post("/verify-email", verifyEmailAPI);
 router.post("/login", loginUser);
 router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
-
+router.post("/newsletter", subscribeToNewsletter);
 // Public Data
 router.get("/restaurants", getAllRestaurantsPublic);
 

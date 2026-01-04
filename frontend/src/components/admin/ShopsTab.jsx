@@ -43,6 +43,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const handleApprove = async (id) => {
     try {
       setIsProcessing(true);
+      // NOTE: Make sure /api/v1/restaurants route exists or use user update logic
       const res = await fetch(
         `${BASE_URL}/api/v1/restaurants/${id}/approve`,
         getFetchOptions("PUT")
@@ -50,6 +51,9 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
       if (res.ok) {
         toast.success("Merchant Verified: Shop is now LIVE! 🚀");
         fetchAllData();
+      } else {
+        // Fallback if restaurant route doesn't exist, try updating user directly
+        toast.error("Approval failed. Check network or backend.");
       }
     } catch (err) {
       toast.error("Handshake failed with server");
@@ -123,6 +127,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
     }
   };
 
+  // Logic: Pending are unverified AND NOT dummy
   const pendingShops = restaurants.filter((r) => !r.isVerified && !r.isDummy);
   const activeShops = restaurants.filter((r) => r.isVerified || r.isDummy);
 

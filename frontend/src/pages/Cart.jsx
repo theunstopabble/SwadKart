@@ -20,7 +20,7 @@ const Cart = () => {
 
   // 1. Get Cart & User Info from Redux
   const cart = useSelector((state) => state.cart);
-  const { userInfo } = useSelector((state) => state.user); // ✅ Necessary for Auth Token
+  const { userInfo } = useSelector((state) => state.user);
   const { cartItems } = cart;
 
   const [couponCode, setCouponCode] = useState("");
@@ -43,7 +43,6 @@ const Cart = () => {
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
-        // Public route (no token needed for listing now)
         const res = await fetch(`${BASE_URL}/api/v1/coupons/available`);
         const data = await res.json();
         if (res.ok) {
@@ -69,11 +68,14 @@ const Cart = () => {
   // --- 4. Handlers ---
   const addToCartHandler = (item, qty) => {
     if (qty > 10) return toast.error("Max limit reached");
+    // Redux will regenerate ID based on content, keeping variants safe
     dispatch(addToCart({ ...item, qty }));
   };
 
-  const removeFromCartHandler = (id) => {
-    dispatch(removeFromCart(id));
+  const removeFromCartHandler = (cartUniqueId) => {
+    // ✅ CRITICAL FIX: Passing unique Cart ID instead of Product ID
+    dispatch(removeFromCart(cartUniqueId));
+    toast.success("Item removed");
   };
 
   const checkoutHandler = () => {
@@ -81,13 +83,12 @@ const Cart = () => {
     navigate(userInfo ? "/shipping" : "/login?redirect=/shipping");
   };
 
-  // ✅ CRITICAL FIX: Apply Coupon Handler
+  // Coupon Handler
   const applyCouponHandler = async (codeOverride) => {
     const codeToApply = codeOverride || couponCode;
 
     if (!codeToApply) return toast.error("Enter a coupon code");
 
-    // 🔒 Security Check: User must be logged in to apply coupon
     if (!userInfo) {
       toast.error("Please login to verify coupon eligibility");
       return navigate("/login?redirect=/cart");
@@ -99,11 +100,11 @@ const Cart = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`, // ✅ FIX: Sending Token
+          Authorization: `Bearer ${userInfo.token}`,
         },
         body: JSON.stringify({
-          code: codeToApply, // ✅ FIX: Matching Backend Key
-          orderAmount: itemsPrice, // ✅ FIX: Matching Backend Key
+          code: codeToApply,
+          orderAmount: itemsPrice,
         }),
       };
 
@@ -188,7 +189,7 @@ const Cart = () => {
           <div className="lg:w-2/3 space-y-4">
             {cartItems.map((item) => (
               <div
-                key={item._id}
+                key={item.cartUniqueId || item._id} // Fallback for old items
                 className="flex flex-col sm:flex-row items-center bg-[#0a0a0a] border border-gray-900 p-4 rounded-2xl hover:border-gray-800 transition-all group"
               >
                 <img
@@ -208,11 +209,27 @@ const Cart = () => {
                     ₹{item.price}
                   </p>
 
+                  {/* 🟢 VARIANTS & ADDONS DISPLAY (NEW) */}
                   <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
+                    {/* Size Badge */}
                     {item.selectedVariant && (
-                      <span className="text-[9px] bg-gray-800 px-2 py-1 rounded text-gray-300 uppercase font-bold">
-                        {item.selectedVariant.name}
+                      <span className="text-[9px] bg-gray-800 px-2 py-1 rounded text-white uppercase font-black tracking-wider border border-gray-700">
+                        Size: {item.selectedVariant.name}
                       </span>
+                    )}
+
+                    {/* Addons Badges */}
+                    {item.selectedAddons && item.selectedAddons.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {item.selectedAddons.map((addon, idx) => (
+                          <span
+                            key={idx}
+                            className="text-[9px] bg-primary/10 px-2 py-1 rounded text-primary uppercase font-bold border border-primary/20"
+                          >
+                            + {addon.name}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -237,8 +254,9 @@ const Cart = () => {
                     </button>
                   </div>
 
+                  {/* ❌ REMOVE BUTTON (Fixed ID) */}
                   <button
-                    onClick={() => removeFromCartHandler(item._id)}
+                    onClick={() => removeFromCartHandler(item.cartUniqueId)}
                     className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"
                   >
                     <Trash2 size={18} />

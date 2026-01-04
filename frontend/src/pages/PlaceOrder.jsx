@@ -124,12 +124,13 @@ const PlaceOrder = () => {
         }
       }
 
+      // ✅ FIXED: Using item.product (Clean ID) instead of parsing ID string
       const formattedItems = cart.cartItems.map((item) => ({
         name: item.name,
         qty: item.qty,
         image: item.image,
         price: item.price,
-        product: item._id.includes("-") ? item._id.split("-")[0] : item._id,
+        product: item.product, // Directly use the product ID stored in Redux
         restaurant: item.restaurant,
         selectedVariant: item.selectedVariant || null,
         selectedAddons: item.selectedAddons || [],

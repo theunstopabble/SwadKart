@@ -32,7 +32,8 @@ import { BASE_URL } from "./config";
 import {
   requestNotificationPermission,
   sendNotification,
-} from "./components/notificationHelper"; // ✅ Fixed Import Path
+} from "./components/notificationHelper";
+import InfoPage from "./pages/InfoPage"; // ✅ Fixed Import Path
 
 // ✨ ScrollToTop Helper
 const ScrollToTop = () => {
@@ -111,6 +112,7 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/password/reset/:token" element={<ResetPassword />} />
+          <Route path="/page/:type" element={<InfoPage />} />
 
           {/* ============================== */}
           {/* 🔒 USER PROTECTED ROUTES */}

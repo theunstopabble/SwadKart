@@ -7,7 +7,7 @@ import {
   Lock,
   Phone,
   ArrowRight,
-  Loader, // Changed from Loader2 to match Login
+  Loader,
   KeyRound,
   RefreshCw,
   ShieldCheck,
@@ -23,7 +23,6 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // OTP & Timer States
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -109,31 +108,33 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black px-4">
-      <div className="max-w-md w-full bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-800">
+    // 👇 FIX HERE: Added 'pt-28' (Padding Top) to push content down from Navbar
+    <div className="min-h-screen w-full flex items-center justify-center bg-black px-4 pt-28 pb-12 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-gray-900/80 backdrop-blur-md p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-800">
         {/* Header Section */}
-        <h2 className="text-3xl font-extrabold text-white text-center mb-2">
-          {otpSent ? (
-            <>
-              Verify <span className="text-green-500">Identity</span>
-            </>
-          ) : (
-            <>
-              Hungry? Join <br />
-              <span className="text-primary tracking-tight">Swad</span>Kart
-            </>
-          )}
-        </h2>
-
-        <p className="text-gray-400 text-center mb-6 text-sm">
-          {otpSent
-            ? `Code sent to ${email}`
-            : "Create an account to start ordering"}
-        </p>
+        <div className="text-center">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">
+            {otpSent ? (
+              <>
+                Verify <span className="text-green-500">Identity</span>
+              </>
+            ) : (
+              <>
+                Hungry? Join <br />
+                <span className="text-primary tracking-tight">Swad</span>Kart
+              </>
+            )}
+          </h2>
+          <p className="text-gray-400 text-xs sm:text-sm">
+            {otpSent
+              ? `Code sent to ${email}`
+              : "Create an account to start ordering"}
+          </p>
+        </div>
 
         {!otpSent ? (
           /* Registration Form */
-          <form onSubmit={submitHandler} className="space-y-5">
+          <form onSubmit={submitHandler} className="mt-8 space-y-4">
             {[
               {
                 icon: User,
@@ -171,15 +172,15 @@ const Register = () => {
                 set: setConfirmPassword,
               },
             ].map((field, idx) => (
-              <div key={idx} className="relative">
-                <field.icon
-                  className="absolute left-4 top-3.5 text-gray-500"
-                  size={20}
-                />
+              <div key={idx} className="relative group">
+                {/* Fixed Icon Centering */}
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <field.icon className="h-5 w-5 text-gray-500 group-focus-within:text-primary transition-colors" />
+                </div>
                 <input
                   type={field.type}
                   placeholder={field.placeholder}
-                  className="w-full pl-12 p-3.5 rounded-xl bg-black/50 border border-gray-700 text-white focus:border-primary focus:outline-none transition-all placeholder:text-gray-600"
+                  className="block w-full pl-11 pr-4 py-3.5 bg-black/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all sm:text-sm"
                   value={field.val}
                   onChange={(e) => field.set(e.target.value)}
                   required
@@ -193,29 +194,28 @@ const Register = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-primary hover:bg-red-600 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25 disabled:opacity-50"
+              className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-primary hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
               {isLoading ? (
-                <Loader className="animate-spin" />
+                <Loader className="animate-spin h-5 w-5" />
               ) : (
                 <>
-                  Get OTP <ArrowRight size={20} />
+                  Get OTP <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}
             </button>
           </form>
         ) : (
           /* OTP Form */
-          <form onSubmit={verifyOtpHandler} className="space-y-6">
+          <form onSubmit={verifyOtpHandler} className="mt-8 space-y-6">
             <div className="relative">
-              <KeyRound
-                className="absolute left-4 top-3.5 text-primary"
-                size={24}
-              />
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <KeyRound className="h-6 w-6 text-primary" />
+              </div>
               <input
                 type="text"
                 placeholder="• • • • • •"
-                className="w-full pl-12 p-3.5 rounded-xl bg-black/50 border border-primary/50 text-white text-center text-2xl font-black tracking-[0.5em] focus:outline-none focus:border-primary transition-all placeholder:text-gray-700"
+                className="block w-full pl-12 pr-4 py-4 bg-black/50 border border-primary/50 rounded-xl text-center text-white text-2xl font-black tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder-gray-700"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 maxLength={6}
@@ -226,23 +226,23 @@ const Register = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-green-600/25 disabled:opacity-50"
+              className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all shadow-lg shadow-green-600/25 disabled:opacity-50"
             >
               {isLoading ? (
-                <Loader className="animate-spin" />
+                <Loader className="animate-spin h-5 w-5" />
               ) : (
                 <>
-                  Verify & Login <ShieldCheck size={20} />
+                  Verify & Login <ShieldCheck className="ml-2 h-5 w-5" />
                 </>
               )}
             </button>
 
             {/* OTP Actions */}
-            <div className="flex justify-between items-center px-1">
+            <div className="flex justify-between items-center text-sm px-1">
               <button
                 type="button"
                 onClick={() => setOtpSent(false)}
-                className="text-xs font-bold text-gray-500 hover:text-white transition-colors"
+                className="font-semibold text-gray-500 hover:text-white transition-colors"
               >
                 ← Change Email
               </button>
@@ -251,14 +251,14 @@ const Register = () => {
                 type="button"
                 disabled={timer > 0 || isLoading}
                 onClick={() => submitHandler()}
-                className={`text-xs font-bold flex items-center gap-1.5 ${
+                className={`font-bold flex items-center gap-1.5 ${
                   timer > 0
-                    ? "text-gray-600"
-                    : "text-primary hover:text-red-400"
+                    ? "text-gray-600 cursor-not-allowed"
+                    : "text-primary hover:text-red-400 cursor-pointer"
                 }`}
               >
                 <RefreshCw
-                  size={12}
+                  size={14}
                   className={timer > 0 ? "animate-spin" : ""}
                 />
                 {timer > 0 ? `Resend in ${timer}s` : "Resend OTP"}
@@ -267,12 +267,17 @@ const Register = () => {
           </form>
         )}
 
-        <p className="text-gray-400 text-center mt-8 text-sm">
-          Already have an account?{" "}
-          <Link to="/login" className="text-primary font-bold hover:underline">
-            Log In
-          </Link>
-        </p>
+        <div className="mt-6 text-center border-t border-gray-800 pt-6">
+          <p className="text-gray-400 text-sm">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="font-bold text-primary hover:text-white transition-colors"
+            >
+              Log In
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

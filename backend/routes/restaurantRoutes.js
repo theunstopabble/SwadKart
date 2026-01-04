@@ -6,6 +6,7 @@ import {
   getAllRestaurantsAdmin,
 } from "../controllers/restaurantController.js";
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { updateStoreSettings } from "../controllers/restaurantController.js";
 
 // 1. Home Page Route (Public)
 router.route("/").get(getRestaurants);
@@ -19,5 +20,11 @@ router
 router
   .route("/:id/approve")
   .put(protect, authorizeRoles("admin"), approveRestaurant);
+  router.put(
+    "/settings",
+    protect,
+    authorizeRoles("restaurant_owner"),
+    updateStoreSettings
+  );
 
 export default router;

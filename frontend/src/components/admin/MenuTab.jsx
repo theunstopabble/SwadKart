@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { X, Plus, Trash2, Loader2 } from "lucide-react";
+import { X, Plus, Trash2, Loader2, Layers, Tag } from "lucide-react";
 import { BASE_URL } from "../../config";
 import MenuHeader from "./MenuHeader";
 import MenuItemCard from "./MenuItemCard";
@@ -77,18 +77,28 @@ const MenuTab = ({ restaurants, userInfo }) => {
     const url = isEditingItem
       ? `${BASE_URL}/api/v1/products/${editItemId}`
       : `${BASE_URL}/api/v1/products`;
+
+    // Data Formatting
+    const payload = {
+      ...newItem,
+      price: Number(newItem.price),
+      isVeg: newItem.isVeg === "true",
+      restaurantId: selectedRestaurant,
+      // Ensure variants/addons prices are numbers
+      variants: newItem.variants.map((v) => ({ ...v, price: Number(v.price) })),
+      addons: newItem.addons.map((a) => ({ ...a, price: Number(a.price) })),
+    };
+
     const res = await fetch(
       url,
-      getFetchOptions(isEditingItem ? "PUT" : "POST", {
-        ...newItem,
-        isVeg: newItem.isVeg === "true",
-        restaurantId: selectedRestaurant,
-      })
+      getFetchOptions(isEditingItem ? "PUT" : "POST", payload)
     );
     if (res.ok) {
       setShowItemModal(false);
       fetchMenu();
       toast.success("Menu Synchronized!");
+    } else {
+      toast.error("Operation Failed");
     }
   };
 
@@ -98,6 +108,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
       ...newItem,
       variants: [...newItem.variants, { name: "", price: "" }],
     });
+
   const addAddon = () =>
     setNewItem({
       ...newItem,
@@ -136,7 +147,12 @@ const MenuTab = ({ restaurants, userInfo }) => {
               onEdit={(i) => {
                 setIsEditingItem(true);
                 setEditItemId(i._id);
-                setNewItem({ ...i, isVeg: i.isVeg ? "true" : "false" });
+                setNewItem({
+                  ...i,
+                  isVeg: i.isVeg ? "true" : "false",
+                  variants: i.variants || [],
+                  addons: i.addons || [],
+                });
                 setShowItemModal(true);
               }}
               onDelete={handleDeleteItem}
@@ -154,7 +170,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
       {/* 📂 ITEM MODAL */}
       {showItemModal && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl flex justify-center items-center z-[9999] p-6 animate-in zoom-in-95 duration-300">
-          <div className="bg-gray-950 p-10 rounded-[3.5rem] w-full max-w-xl relative border border-gray-900 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl">
+          <div className="bg-gray-950 p-10 rounded-[3.5rem] w-full max-w-2xl relative border border-gray-900 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl">
             <button
               onClick={() => setShowItemModal(false)}
               className="absolute top-8 right-8 text-gray-700 hover:text-white transition-all bg-gray-900 p-2 rounded-full"
@@ -179,7 +195,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
               <div className="flex gap-4">
                 <input
                   type="number"
-                  placeholder="Price"
+                  placeholder="Base Price"
                   className="flex-1 bg-black border border-gray-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-primary"
                   value={newItem.price}
                   onChange={(e) =>
@@ -227,11 +243,11 @@ const MenuTab = ({ restaurants, userInfo }) => {
                 }
               />
 
-              {/* Variants Section */}
+              {/* === VARIANTS SECTION === */}
               <div className="bg-black/50 p-6 rounded-3xl border border-gray-900 space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                    Variants (Sizes)
+                  <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <Layers size={14} /> Variants (Sizes)
                   </h3>
                   <button
                     type="button"
@@ -245,8 +261,8 @@ const MenuTab = ({ restaurants, userInfo }) => {
                   <div key={i} className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Name"
-                      className="flex-1 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs"
+                      placeholder="Name (e.g. Small)"
+                      className="flex-1 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white"
                       value={v.name}
                       onChange={(e) => {
                         let x = [...newItem.variants];
@@ -257,7 +273,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
                     <input
                       type="number"
                       placeholder="Price"
-                      className="w-24 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs"
+                      className="w-24 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white"
                       value={v.price}
                       onChange={(e) => {
                         let x = [...newItem.variants];
@@ -273,6 +289,60 @@ const MenuTab = ({ restaurants, userInfo }) => {
                           variants: newItem.variants.filter(
                             (_, idx) => idx !== i
                           ),
+                        })
+                      }
+                      className="text-red-500 p-2"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* === ADDONS SECTION === */}
+              <div className="bg-black/50 p-6 rounded-3xl border border-gray-900 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <Tag size={14} /> Add-ons (Extras)
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={addAddon}
+                    className="text-primary font-black text-[10px] uppercase flex items-center gap-1 hover:underline"
+                  >
+                    <Plus size={14} /> Add Addon
+                  </button>
+                </div>
+                {newItem.addons.map((v, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Name (e.g. Cheese)"
+                      className="flex-1 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white"
+                      value={v.name}
+                      onChange={(e) => {
+                        let x = [...newItem.addons];
+                        x[i].name = e.target.value;
+                        setNewItem({ ...newItem, addons: x });
+                      }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Price"
+                      className="w-24 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white"
+                      value={v.price}
+                      onChange={(e) => {
+                        let x = [...newItem.addons];
+                        x[i].price = e.target.value;
+                        setNewItem({ ...newItem, addons: x });
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNewItem({
+                          ...newItem,
+                          addons: newItem.addons.filter((_, idx) => idx !== i),
                         })
                       }
                       className="text-red-500 p-2"

@@ -5,6 +5,7 @@ import {
   getDeliveryRequestTemplate,
   getUserDriverAssignedTemplate,
 } from "../utils/emailTemplates.js";
+import Emergency from "../models/emergencyModel.js";
 
 // ============================================================
 // 🛵 1. GET MY ASSIGNED DELIVERIES
@@ -177,5 +178,36 @@ export const updateOrderToDelivered = async (req, res) => {
     res
       .status(500)
       .json({ message: "Server error during delivery completion." });
+  }
+};
+
+// ============================================================
+// 🆘 5. TRIGGER SOS (Driver Emergency)
+// ============================================================
+export const triggerSOS = async (req, res) => {
+  const { lat, lng, address } = req.body;
+
+  try {
+    const emergency = new Emergency({
+      driver: req.user._id,
+      location: { lat, lng, address },
+    });
+
+    const savedEmergency = await emergency.save();
+
+    // 🔔 Notify Admin via Socket
+    if (req.io) {
+      req.io.emit("emergencyAlert", {
+        message: `🆘 EMERGENCY! Driver ${req.user.name} needs help!`,
+        driverName: req.user.name,
+        phone: req.user.phone, // Ensure phone is in user model
+        location: { lat, lng },
+        time: new Date(),
+      });
+    }
+
+    res.status(201).json({ message: "SOS Sent! Help is on the way." });
+  } catch (error) {
+    res.status(500).json({ message: "SOS Failed: " + error.message });
   }
 };

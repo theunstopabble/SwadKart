@@ -16,6 +16,7 @@ import { BASE_URL } from "../config";
 // Modular Components
 import DeliveryCard from "../components/delivery/DeliveryCard";
 import EarningsHistory from "../components/delivery/EarningsHistory";
+import SOSButton from "../components/delivery/SOSButton";
 
 // 🔌 Socket Connection
 const socket = io(BASE_URL);
@@ -30,7 +31,7 @@ const DeliveryPartnerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [otpInputs, setOtpInputs] = useState({});
 
-  // --- Fetch Logic (Optimized) ---
+  // --- Fetch Logic ---
   const fetchMyDeliveries = useCallback(async () => {
     if (!userInfo || !userInfo.token) return;
     try {
@@ -39,10 +40,13 @@ const DeliveryPartnerDashboard = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        // Sort: Active tasks on top
-        const sortedTasks = (data || []).sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-        );
+        // Sort: Assigned & Accepted on top, Delivered at bottom
+        const sortedTasks = (data || []).sort((a, b) => {
+          if (a.isDelivered === b.isDelivered) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          }
+          return a.isDelivered ? 1 : -1;
+        });
         setTasks(sortedTasks);
       }
     } catch (error) {
@@ -112,7 +116,7 @@ const DeliveryPartnerDashboard = () => {
   const markAsDelivered = async (id) => {
     const otp = otpInputs[id];
     if (!otp || otp.toString().length !== 4)
-      return toast.error("Enter 4-digit Secure OTP");
+      return toast.error("Enter valid 4-digit OTP");
 
     try {
       const res = await fetch(`${BASE_URL}/api/v1/orders/${id}/deliver`, {
@@ -128,6 +132,7 @@ const DeliveryPartnerDashboard = () => {
 
       if (res.ok) {
         toast.success("Target Reached: Order Delivered! 🏁");
+        // Clear OTP input for this order
         setOtpInputs((prev) => ({ ...prev, [id]: "" }));
         fetchMyDeliveries();
       } else {
@@ -251,6 +256,8 @@ const DeliveryPartnerDashboard = () => {
           )}
         </div>
       </div>
+      {/* 🔴 SOS Button Rendered Here */}
+      <SOSButton />
     </div>
   );
 };

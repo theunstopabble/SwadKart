@@ -95,6 +95,33 @@ export const getDashboardStats = async (req, res) => {
 };
 
 // ==========================================
+// 🔥 3. GET HEATMAP DATA (New)
+// ==========================================
+export const getHeatmapData = async (req, res) => {
+  try {
+    // Only fetch necessary fields: Lat/Lng and Total Price
+    // Ensure orders have valid coordinates
+    const orders = await Order.find({
+      "shippingAddress.lat": { $exists: true, $ne: null },
+      "shippingAddress.lng": { $exists: true, $ne: null },
+    }).select("shippingAddress.lat shippingAddress.lng totalPrice");
+
+    const heatmapData = orders.map((order) => ({
+      lat: order.shippingAddress.lat,
+      lng: order.shippingAddress.lng,
+      // Normalize intensity: Higher price = Higher intensity (capped at some value)
+      // Or just count density. Let's use price as weight for "value hotspots".
+      weight: Math.min(order.totalPrice / 500, 1), // Example normalization
+    }));
+
+    res.json(heatmapData);
+  } catch (error) {
+    res.status(500).json({ message: "Heatmap data fetch failed." });
+  }
+};
+
+
+// ==========================================
 // 🛡️ 3. USER MANAGEMENT (Admin)
 // ==========================================
 export const getAllUsersAdmin = async (req, res) => {

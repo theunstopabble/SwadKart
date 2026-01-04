@@ -1,5 +1,6 @@
 import User from "../models/userModel.js";
 import generateToken from "../utils/generateToken.js";
+import sendEmail from "../utils/sendEmail.js";
 
 // =================================================================
 // 👤 USER PROFILE OPERATIONS
@@ -188,4 +189,36 @@ export const getDeliveryPartners = async (req, res, next) => {
 
 export const seedDatabase = async (req, res, next) => {
   return res.json({ message: "Seed functionality called." });
+};
+
+// ==========================================
+// 📧 NEWSLETTER SUBSCRIPTION
+// ==========================================
+export const subscribeToNewsletter = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    // Admin ko email bhejo
+    await sendEmail({
+      email: process.env.SMTP_MAIL, // Admin/Owner ka email (jo .env me hai)
+      subject: "🔔 New Newsletter Subscriber!",
+      message: `
+        <h1>New Subscriber Alert! 🚀</h1>
+        <p>Hey Admin,</p>
+        <p>A new user has subscribed to the SwadKart Newsletter.</p>
+        <p><strong>Subscriber Email:</strong> <a href="mailto:${email}">${email}</a></p>
+        <br/>
+        <p>Cheers,<br/>SwadKart Bot 🤖</p>
+      `,
+    });
+
+    res.status(200).json({ message: "Subscription successful!" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to send email" });
+  }
 };

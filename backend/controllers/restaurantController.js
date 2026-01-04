@@ -1,6 +1,31 @@
 import Restaurant from "../models/restaurantModel.js";
 
 // ==========================================
+// 🛠️ HELPER: Check if Store is Open
+// ==========================================
+const checkIsOpen = (openTime, closeTime) => {
+  if (!openTime || !closeTime) return true; // Default open if no time set
+
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const [openH, openM] = openTime.split(":").map(Number);
+  const startMinutes = openH * 60 + openM;
+
+  const [closeH, closeM] = closeTime.split(":").map(Number);
+  const endMinutes = closeH * 60 + closeM;
+
+  // Case 1: Same day (10:00 to 22:00)
+  if (endMinutes > startMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  } 
+  // Case 2: Overnight (22:00 to 02:00)
+  else {
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  }
+};
+
+// ==========================================
 // 🏠 1. GET RESTAURANTS (Public - Home Page)
 // ==========================================
 // @desc    Get all active/verified restaurants for users
@@ -12,7 +37,38 @@ export const getRestaurants = async (req, res) => {
       $or: [{ isVerified: true }, { isDummy: true }],
     }).sort({ createdAt: -1 });
 
-    res.json(restaurants);
+    // ✨ Compute 'isOpenNow' dynamically for frontend
+    const updatedRestaurants = restaurants.map((rest) => {
+      const isOpen = checkIsOpen(rest.openingTime, rest.closingTime);
+      return { ...rest._doc, isOpenNow: isOpen };
+    });
+
+    res.json(updatedRestaurants);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// ⚙️ UPDATE STORE TIMINGS (Owner Action)
+// ==========================================
+// @route   PUT /api/v1/restaurants/settings
+export const updateStoreSettings = async (req, res) => {
+  const { openingTime, closingTime } = req.body;
+  
+  try {
+    // Find restaurant owned by this user
+    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+
+    if (restaurant) {
+      restaurant.openingTime = openingTime || restaurant.openingTime;
+      restaurant.closingTime = closingTime || restaurant.closingTime;
+      
+      const updatedRestaurant = await restaurant.save();
+      res.json(updatedRestaurant);
+    } else {
+      res.status(404).json({ message: "Restaurant not found for this owner" });
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -74,7 +130,12 @@ export const getRestaurantById = async (req, res) => {
     );
 
     if (restaurant) {
-      res.json(restaurant);
+      const isOpen = checkIsOpen(
+        restaurant.openingTime,
+        restaurant.closingTime
+      );
+      res.json({ ...restaurant._doc, isOpenNow: isOpen });
+     
     } else {
       res.status(404).json({ message: "Restaurant not found" });
     }

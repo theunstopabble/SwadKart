@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { User, Mail, Lock, Save, FileText } from "lucide-react";
+import {
+  User,
+  Mail,
+  Lock,
+  Save,
+  FileText,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import { updateUserProfile } from "../redux/userSlice"; // 👈 Action Import Kiya
 
 const Profile = () => {
@@ -192,10 +201,12 @@ const Profile = () => {
             </form>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 flex flex-col items-center text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-primary/20 to-transparent"></div>
-              <div className="relative w-24 h-24 bg-black rounded-full border-4 border-gray-800 flex items-center justify-center text-3xl font-bold text-primary mb-4 shadow-xl">
+          {/* RIGHT: Profile Card & Wallet */}
+          <div className="space-y-8">
+            {/* Profile Card */}
+            <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-8 flex flex-col items-center text-center relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/20 to-transparent"></div>
+              <div className="relative w-28 h-28 bg-black rounded-full border-4 border-gray-800 flex items-center justify-center text-4xl font-black text-primary mb-4 shadow-xl uppercase">
                 {userInfo?.image ? (
                   <img
                     src={userInfo.image}
@@ -203,22 +214,66 @@ const Profile = () => {
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
-                  // Safe check for name
                   userInfo?.name?.charAt(0) || "U"
                 )}
               </div>
-              <h2 className="text-2xl font-bold">{userInfo?.name}</h2>
-              <p className="text-gray-400 text-sm mb-4">{userInfo?.email}</p>
-              <span className="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/20">
+              <h2 className="text-2xl font-black italic tracking-tighter text-white">
+                {userInfo?.name}
+              </h2>
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-6">
+                {userInfo?.email}
+              </p>
+              <span className="bg-blue-500/10 text-blue-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-500/20">
                 {userInfo?.role === "restaurant_owner"
-                  ? "Restaurant Owner"
-                  : "Verified User"}
+                  ? "Restaurant Partner"
+                  : "Swad Club Member"}
               </span>
             </div>
+
+            {/* 💳 SWAD WALLET (New) */}
+            <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
+              <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/30 transition-all"></div>
+              
+              <div className="flex justify-between items-start mb-6 relative z-10">
+                <div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-1">Swad Balance</p>
+                  <h3 className="text-4xl font-black text-white italic tracking-tighter">₹{userInfo?.walletBalance || 0}</h3>
+                </div>
+                <div className="p-3 bg-gray-800 rounded-2xl text-primary border border-gray-700">
+                  <Wallet size={24} />
+                </div>
+              </div>
+
+              {/* Transactions Mini List */}
+              <div className="space-y-3 relative z-10">
+                <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest mb-2">Recent Activity</p>
+                {userInfo?.walletTransactions && userInfo.walletTransactions.length > 0 ? (
+                  userInfo.walletTransactions.slice(0, 3).map((txn, index) => (
+                    <div key={index} className="flex justify-between items-center bg-gray-800/50 p-3 rounded-xl border border-gray-700/50">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded-lg ${txn.type === 'Credit' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                          {txn.type === 'Credit' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-white uppercase">{txn.description || "Transaction"}</p>
+                          <p className="text-[9px] text-gray-500">{new Date(txn.date).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-black ${txn.type === 'Credit' ? 'text-green-400' : 'text-white'}`}>
+                        {txn.type === 'Credit' ? '+' : '-'} ₹{txn.amount}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-600 italic text-center py-4">No transactions yet.</p>
+                )}
+              </div>
           </div>
         </div>
       </div>
     </div>
+     </div>
+    
   );
 };
 

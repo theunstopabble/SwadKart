@@ -1,8 +1,10 @@
 import React from "react";
-import { Power, Edit2, Trash2, Layers } from "lucide-react";
+import { Power, Edit2, Trash2, Layers, Tag } from "lucide-react";
 
 const MenuItemCard = ({ item, onToggleStock, onEdit, onDelete }) => {
   const inStock = item.countInStock > 0;
+  const hasVariants = item.variants && item.variants.length > 0;
+  const hasAddons = item.addons && item.addons.length > 0;
 
   return (
     <div className="bg-gray-950 border border-gray-900 rounded-[2.5rem] overflow-hidden group relative hover:border-primary/40 transition-all shadow-2xl">
@@ -27,6 +29,17 @@ const MenuItemCard = ({ item, onToggleStock, onEdit, onDelete }) => {
         </button>
 
         <div className="absolute top-4 right-4 flex gap-2">
+          {hasVariants && (
+            <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[8px] font-black px-2 py-1 rounded-full uppercase">
+              <Layers size={10} />
+            </span>
+          )}
+          {hasAddons && (
+            <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[8px] font-black px-2 py-1 rounded-full uppercase">
+              <Tag size={10} />
+            </span>
+          )}
+
           <span
             className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest border ${
               item.isVeg

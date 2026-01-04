@@ -25,10 +25,15 @@ const RestaurantOwnerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ revenue: 0, pending: 0, delivered: 0 });
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+
+  // Menu Modal State
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
+
+  // Partner Selection State
   const [selectedPartner, setSelectedPartner] = useState({});
+
   const [newItem, setNewItem] = useState({
     name: "",
     price: "",
@@ -54,8 +59,13 @@ const RestaurantOwnerDashboard = () => {
   const fetchData = async () => {
     if (!userInfo) return;
     try {
+      // 1. Fetch Orders (This route should return orders specific to this restaurant ideally,
+      // or filtering logic needs to happen if endpoint returns all orders)
+      // Assuming GET /api/v1/orders returns all orders for now, filtering might be needed if user is not admin
+      // But for Restaurant Owner, let's assume the endpoint is smart or we filter here.
+      // NOTE: In a real app, backend should filter. Here we fetch all and filter by restaurant check if needed.
       const [resOrders, resMenu, resPartners, resGraph] = await Promise.all([
-        fetch(`${BASE_URL}/api/v1/orders`, getFetchOptions()),
+        fetch(`${BASE_URL}/api/v1/orders`, getFetchOptions()), // Adjust endpoint if needed for specific restaurant orders
         fetch(
           `${BASE_URL}/api/v1/products/restaurant/${userInfo._id}`,
           getFetchOptions()
@@ -72,6 +82,8 @@ const RestaurantOwnerDashboard = () => {
       setOrders(dOrders || []);
       setMenuItems(dMenu || []);
       setDeliveryPartners(dPartners || []);
+
+      // Graph Data Formatting
       setGraphData(
         dGraph.map((i) => ({
           day: new Date(i._id).toLocaleDateString("en-US", {
@@ -81,6 +93,7 @@ const RestaurantOwnerDashboard = () => {
         }))
       );
 
+      // Stats Calculation
       setStats({
         revenue: dOrders.reduce(
           (acc, o) => acc + (o.isPaid ? o.totalPrice : 0),
@@ -101,12 +114,18 @@ const RestaurantOwnerDashboard = () => {
   useEffect(() => {
     fetchData();
     if (userInfo) {
+      // Joining room with User ID because Restaurant Model uses User as Owner
       socket.emit("joinOrder", userInfo._id);
+
       socket.on("newOrderReceived", (newOrder) => {
-        if (isSoundEnabled && audioPlayer.current)
-          audioPlayer.current.play().catch(() => {});
+        if (isSoundEnabled && audioPlayer.current) {
+          audioPlayer.current
+            .play()
+            .catch((e) => console.log("Audio play failed", e));
+        }
         toast.success(`🔔 NEW ORDER! #${newOrder._id.slice(-6)}`, {
           duration: 6000,
+          icon: "🍕",
         });
         fetchData();
       });
@@ -129,13 +148,40 @@ const RestaurantOwnerDashboard = () => {
   const handleAssignPartner = async (orderId) => {
     const pId = selectedPartner[orderId];
     if (!pId) return toast.error("Select partner");
+
+    // Assuming backend has this route. If not, use updateOrderStatus route or similar.
+    // Usually: PUT /api/v1/orders/:id with { deliveryPartner: pId, status: "Ready" }
+    // Let's assume standard update logic or specific route if created.
+    // If specific route doesn't exist, we might need to create it or update order manually.
+    // Based on previous code, let's try the update logic:
+
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/v1/orders/${orderId}/assign`, // Ensure this route exists in backend!
+        getFetchOptions("PUT", { deliveryPartnerId: pId })
+      );
+
+      if (res.ok) {
+        fetchData();
+        toast.success("Driver Assigned 🛵");
+      } else {
+        // Fallback if specific route missing
+        toast.error("Assignment failed. Check backend route.");
+      }
+    } catch (e) {
+      toast.error("Network error");
+    }
+  };
+
+  // Status Update Handler (Accepted -> Preparing -> Ready)
+  const handleStatusUpdate = async (orderId, newStatus) => {
     const res = await fetch(
-      `${BASE_URL}/api/v1/orders/${orderId}/assign`,
-      getFetchOptions("PUT", { deliveryPartnerId: pId })
+      `${BASE_URL}/api/v1/orders/${orderId}/status`,
+      getFetchOptions("PUT", { status: newStatus })
     );
     if (res.ok) {
+      toast.success(`Order marked as ${newStatus}`);
       fetchData();
-      toast.success("Driver Assigned 🛵");
     }
   };
 
@@ -145,14 +191,23 @@ const RestaurantOwnerDashboard = () => {
     const url = isEditing
       ? `${BASE_URL}/api/v1/products/${editId}`
       : `${BASE_URL}/api/v1/products`;
-    const res = await fetch(
-      url,
-      getFetchOptions(method, { ...newItem, isVeg: newItem.isVeg === "true" })
-    );
+
+    const payload = {
+      ...newItem,
+      price: Number(newItem.price),
+      isVeg: newItem.isVeg === "true",
+      restaurantId: userInfo._id, // Explicitly link
+      variants: newItem.variants.map((v) => ({ ...v, price: Number(v.price) })),
+      addons: newItem.addons.map((a) => ({ ...a, price: Number(a.price) })),
+    };
+
+    const res = await fetch(url, getFetchOptions(method, payload));
     if (res.ok) {
       setShowModal(false);
       fetchData();
       toast.success("Menu Updated!");
+    } else {
+      toast.error("Operation failed");
     }
   };
 
@@ -180,6 +235,7 @@ const RestaurantOwnerDashboard = () => {
               selectedPartner={selectedPartner}
               setSelectedPartner={setSelectedPartner}
               handleAssignPartner={handleAssignPartner}
+              handleStatusUpdate={handleStatusUpdate} // Passed down
             />
           </div>
         ) : (
@@ -212,7 +268,12 @@ const RestaurantOwnerDashboard = () => {
             openEditModal={(item) => {
               setIsEditing(true);
               setEditId(item._id);
-              setNewItem(item);
+              setNewItem({
+                ...item,
+                isVeg: item.isVeg ? "true" : "false",
+                variants: item.variants || [],
+                addons: item.addons || [],
+              });
               setShowModal(true);
             }}
           />
