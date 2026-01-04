@@ -8,8 +8,9 @@ import {
   getMyOrders,
   cancelOrder,
   getOrders,
-  updateOrderStatus, // ✅ NEW: Restaurant status update ke liye
-  updateOrderToPaid, // ✅ NEW: Online payment confirmation ke liye
+  updateOrderStatus, // ✅ Restaurant status update (Preparing/Ready)
+  updateOrderToPaid, // ✅ Online payment confirmation
+  getMyRestaurantOrders, // 👈 NEW: For Restaurant Dashboard (Fixes 403 Error)
 } from "../controllers/orderController.js";
 
 // 2. 👇 Delivery Controller
@@ -18,18 +19,18 @@ import {
   updateDeliveryAction,
   updateOrderToDelivered,
   getMyDeliveryOrders,
+  triggerSOS,
 } from "../controllers/deliveryController.js";
 
 // 3. 👇 Admin Controller
 import {
   getSalesStats,
   getDashboardStats,
+  getHeatmapData,
 } from "../controllers/adminController.js";
 
 // 👇 Auth Middlewares
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
-import { triggerSOS } from "../controllers/deliveryController.js";
-import { getHeatmapData } from "../controllers/adminController.js";
 
 // ============================================================
 // 👑 ROOT ROUTES (CREATE & ADMIN LIST)
@@ -39,13 +40,20 @@ router
   .route("/")
   .post(protect, addOrderItems) // 🛒 User: Create New Order
   .get(protect, authorizeRoles("admin"), getOrders); // 👑 Admin: Get All Orders
-router.post("/sos", protect, authorizeRoles("delivery_partner"), triggerSOS);
+
 // ============================================================
 // 📊 ANALYTICS & STATS
 // ============================================================
 
-router.get("/sales-stats", protect, authorizeRoles("admin"), getSalesStats);
+router.post("/sos", protect, authorizeRoles("delivery_partner"), triggerSOS);
 
+// ✅ FIX: Added "restaurant_owner" to allow access to sales stats
+router.get(
+  "/sales-stats",
+  protect,
+  authorizeRoles("admin", "restaurant_owner"),
+  getSalesStats
+);
 
 router.get(
   "/analytics",
@@ -53,7 +61,22 @@ router.get(
   authorizeRoles("admin", "restaurant_owner"),
   getDashboardStats
 );
+
 router.get("/heatmap", protect, authorizeRoles("admin"), getHeatmapData);
+
+// ============================================================
+// 👨‍🍳 RESTAURANT OWNER SPECIFIC ROUTES (NEW)
+// ============================================================
+
+// ✅ FIX: Restaurant Dashboard Data Load
+// Ye route "/:id" se pehle hona chahiye warna error aayega (404 fix)
+router.get(
+  "/restaurant-orders",
+  protect,
+  authorizeRoles("restaurant_owner"),
+  getMyRestaurantOrders
+);
+
 // ============================================================
 // 🛵 DELIVERY PARTNER ROUTES
 // ============================================================
@@ -120,6 +143,7 @@ router.put("/:id/pay", protect, updateOrderToPaid);
 // 🔍 FETCHING BY ID (Must be at the end)
 // ============================================================
 
+// ⚠️ IMPORTANT: Ye hamesha last me rakho, warna baaki routes break ho jayenge
 router.get("/:id", protect, getOrderById);
 
 export default router;

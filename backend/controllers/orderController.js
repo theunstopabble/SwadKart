@@ -46,7 +46,7 @@ export const addOrderItems = async (req, res) => {
         address: shippingAddress.address,
         city: shippingAddress.city,
         postalCode: shippingAddress.postalCode,
-        state: shippingAddress.state || "Rajasthan", // Prevent validation error
+        state: shippingAddress.state || "Rajasthan",
         country: shippingAddress.country || "India",
         phone: shippingAddress.phone,
       },
@@ -58,7 +58,7 @@ export const addOrderItems = async (req, res) => {
       couponCode: couponCode || "",
       couponDiscount: Number(couponDiscount) || 0,
       deliveryOTP,
-      isPaid: false, // Default false for online or COD
+      isPaid: false,
       orderStatus: "Placed",
     });
 
@@ -74,12 +74,11 @@ export const addOrderItems = async (req, res) => {
 
     // 🔔 REAL-TIME SOCKET: Notify Restaurant Owner
     if (req.io) {
+      // Assuming all items in one order belong to the same restaurant
       const restaurantOwnerId = createdOrder.orderItems[0].restaurant;
       if (restaurantOwnerId) {
-        req.io
-          .to(restaurantOwnerId.toString())
-          .emit("newOrderReceived", createdOrder);
-        console.log(`🔔 Socket: Order Alert sent to ${restaurantOwnerId}`);
+        // Emit to the specific restaurant room or owner
+        req.io.emit("newOrderReceived", createdOrder);
       }
     }
 
@@ -218,8 +217,11 @@ export const updateOrderStatus = async (req, res) => {
 
     const updatedOrder = await order.save();
 
+    // 🔔 Notify User & Delivery Partner
     if (req.io) {
       req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
+
+      // If ready, notify delivery partners
       if (status === "Ready") {
         req.io.emit("newDeliveryTask", updatedOrder);
       }
@@ -246,7 +248,37 @@ export const getMyOrders = async (req, res) => {
 };
 
 // ==========================================
-// 👑 7. ADMIN: ALL ORDERS
+// 👨‍🍳 7. RESTAURANT OWNER ORDERS (FIXED)
+// ==========================================
+export const getMyRestaurantOrders = async (req, res) => {
+  try {
+    // 1. Find the restaurant owned by this user
+    const restaurant = await Restaurant.findOne({ user: req.user._id });
+
+    if (!restaurant) {
+      // If user is a restaurant owner but hasn't created a restaurant profile yet
+      return res
+        .status(404)
+        .json({ message: "No restaurant found for this user." });
+    }
+
+    // 2. Find orders that contain items from this restaurant
+    const orders = await Order.find({
+      "orderItems.restaurant": restaurant._id,
+    })
+      .populate("user", "name email")
+      .populate("deliveryPartner", "name phone")
+      .sort({ createdAt: -1 });
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Error in getMyRestaurantOrders:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// 👑 8. ADMIN: ALL ORDERS
 // ==========================================
 export const getOrders = async (req, res) => {
   try {
@@ -260,7 +292,7 @@ export const getOrders = async (req, res) => {
 };
 
 // ==========================================
-// 📈 8. SALES ANALYTICS
+// 📈 9. SALES ANALYTICS
 // ==========================================
 export const getSalesStats = async (req, res) => {
   try {
@@ -283,7 +315,7 @@ export const getSalesStats = async (req, res) => {
 };
 
 // ==========================================
-// 🚫 9. CANCEL ORDER
+// 🚫 10. CANCEL ORDER
 // ==========================================
 export const cancelOrder = async (req, res) => {
   const { reason } = req.body;

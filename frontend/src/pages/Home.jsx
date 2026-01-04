@@ -5,54 +5,25 @@ import { BASE_URL } from "../config";
 import io from "socket.io-client";
 import VoiceSearch from "../components/VoiceSearch";
 
-// --- Category Bar Component (Internal for easy access) ---
-const CategoryBar = ({ activeCategory, setActiveCategory }) => {
-  const categories = [
-    { name: "All", icon: "🍱" },
-    { name: "Pizza", icon: "🍕" },
-    { name: "Burgers", icon: "🍔" },
-    { name: "Starters", icon: "🍟" },
-    { name: "Main Course", icon: "🍛" },
-    { name: "Desserts", icon: "🍰" },
-    { name: "Drinks", icon: "🥤" },
-  ];
-
-  return (
-    <div className="flex overflow-x-auto gap-4 py-6 no-scrollbar mb-4">
-      {categories.map((cat) => (
-        <button
-          key={cat.name}
-          onClick={() => setActiveCategory(cat.name)}
-          className={`flex items-center gap-2 px-6 py-2 rounded-full whitespace-nowrap transition-all border ${
-            activeCategory === cat.name
-              ? "bg-primary border-primary text-white"
-              : "bg-gray-900 border-gray-800 text-gray-400 hover:border-gray-600"
-          }`}
-        >
-          <span>{cat.icon}</span>
-          <span className="text-xs font-bold uppercase">{cat.name}</span>
-        </button>
-      ))}
-    </div>
-  );
-};
-
 const Home = () => {
   const [restaurants, setRestaurants] = useState([]);
   const [filteredRestaurants, setFilteredRestaurants] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All"); // 👈 Added state
   const [loading, setLoading] = useState(true);
 
+  // 1. Fetch Restaurants
   const fetchRestaurants = async () => {
     try {
       const res = await fetch(`${BASE_URL}/api/v1/users/restaurants`);
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       const data = await res.json();
       const allShops = Array.isArray(data) ? data : data.restaurants || [];
+
+      // Sort by orderIndex
       const sortedShops = allShops.sort(
         (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
       );
+
       setRestaurants(sortedShops);
       setFilteredRestaurants(sortedShops);
     } catch (error) {
@@ -62,43 +33,44 @@ const Home = () => {
     }
   };
 
+  // 2. Real-time Updates via Socket.io
   useEffect(() => {
     fetchRestaurants();
     const socket = io(BASE_URL);
+
     socket.on("restaurantUpdated", (updatedShop) => {
       setRestaurants((prevShops) => {
         let updatedList = prevShops.map((shop) =>
           shop._id === updatedShop._id ? updatedShop : shop
         );
+
+        // If new restaurant added via admin panel
         const exists = prevShops.find((s) => s._id === updatedShop._id);
         if (!exists) updatedList.push(updatedShop);
+
         return [...updatedList].sort(
           (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
         );
       });
     });
+
     return () => socket.disconnect();
   }, []);
 
-  // 🔍 Logic for BOTH Search and Category
+  // 3. Search Filtering Logic (Category removed)
   useEffect(() => {
     const results = restaurants.filter((shop) => {
-      const matchSearch =
+      return (
         shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        shop.description?.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchCategory =
-        activeCategory === "All" ||
-        shop.category?.toLowerCase() === activeCategory.toLowerCase();
-
-      return matchSearch && matchCategory;
+        shop.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     });
     setFilteredRestaurants(results);
-  }, [searchTerm, activeCategory, restaurants]);
+  }, [searchTerm, restaurants]);
 
   return (
     <div className="bg-black min-h-screen text-white pt-20">
-      {/* Hero Section (Original UI) */}
+      {/* ================= HERO SECTION ================= */}
       <div className="relative h-[500px] w-full bg-[url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80')] bg-cover bg-center">
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent flex flex-col justify-center items-center text-center px-4">
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight">
@@ -109,61 +81,49 @@ const Home = () => {
             your doorstep.
           </p>
 
-          {/* Search Bar (Original UI) */}
-         {/* 👇 UPDATED SEARCH BAR UI */}
-         <div className="w-full max-w-xl mx-auto mt-6">
-  {/* Main Container */}
-  <div className="flex items-center bg-white rounded-full shadow-2xl shadow-primary/20 p-1.5 border border-transparent focus-within:border-primary/50 transition-all">
-    
-    {/* 1. INPUT FIELD */}
-    <input
-      type="text"
-      placeholder="Search for restaurants..."
-      className="flex-1 bg-transparent px-4 md:px-6 py-2 text-black outline-none font-medium placeholder:text-gray-400 min-w-0 text-sm md:text-base"
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-    />
+          {/* 👇 SEARCH BAR UI */}
+          <div className="w-full max-w-xl mx-auto mt-6">
+            <div className="flex items-center bg-white rounded-full shadow-2xl shadow-primary/20 p-1.5 border border-transparent focus-within:border-primary/50 transition-all">
+              {/* Input Field */}
+              <input
+                type="text"
+                placeholder="Search for restaurants..."
+                className="flex-1 bg-transparent px-4 md:px-6 py-2 text-black outline-none font-medium placeholder:text-gray-400 min-w-0 text-sm md:text-base"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
 
-    {/* 2. VOICE SEARCH (Inside the box) */}
-    {/* 'pr-2' diya taaki divider se chipke nahi */}
-    <div className="shrink-0 pr-2 cursor-pointer hover:scale-110 transition-transform">
-       <VoiceSearch setSearchTerm={setSearchTerm} />
-    </div>
+              {/* Voice Search */}
+              <div className="shrink-0 pr-2 cursor-pointer hover:scale-110 transition-transform">
+                <VoiceSearch setSearchTerm={setSearchTerm} />
+              </div>
 
-    {/* 3. DIVIDER (Visual Separation) */}
-    {/* Ye line mobile pe dikhegi taaki buttons alag lagen */}
-    <div className="h-6 w-[1px] bg-gray-300 mx-1"></div>
+              {/* Divider */}
+              <div className="h-6 w-[1px] bg-gray-300 mx-1"></div>
 
-    {/* 4. MAIN SEARCH BUTTON */}
-    <button className="bg-primary hover:bg-red-600 text-white p-3 md:px-6 md:py-3 rounded-full font-bold transition-all flex items-center justify-center gap-2 shrink-0 shadow-md">
-      <Search size={20} />
-      {/* Mobile pe text hidden, Desktop pe visible */}
-      <span className="hidden md:block">Search</span>
-    </button>
-  </div>
-</div>
+              {/* Search Button */}
+              <button className="bg-primary hover:bg-red-600 text-white p-3 md:px-6 md:py-3 rounded-full font-bold transition-all flex items-center justify-center gap-2 shrink-0 shadow-md">
+                <Search size={20} />
+                <span className="hidden md:block">Search</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-
-
-      {/* Restaurants List Section (Original UI) */}
+      {/* ================= RESTAURANT LIST ================= */}
       <div className="max-w-7xl mx-auto px-6 py-16">
-        {/* 🔥 NEW FEATURE: Category Bar (Minimal UI impact) */}
-        <CategoryBar
-          activeCategory={activeCategory}
-          setActiveCategory={setActiveCategory}
-        />
-
+        {/* Header */}
         <div className="flex items-center gap-4 mb-10">
           <div className="w-1 h-10 bg-primary rounded-full"></div>
           <h2 className="text-3xl md:text-4xl font-bold">
-            {searchTerm || activeCategory !== "All"
-              ? `Results for your craving`
+            {searchTerm
+              ? `Results for "${searchTerm}"`
               : "Top Restaurants in Jaipur"}
           </h2>
         </div>
 
+        {/* Loading / No Data / List */}
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="animate-spin text-primary h-12 w-12" />
@@ -182,6 +142,7 @@ const Home = () => {
                 key={shop._id}
                 className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/10 group block"
               >
+                {/* Image Section */}
                 <div className="relative h-60 overflow-hidden">
                   <img
                     src={
@@ -199,6 +160,7 @@ const Home = () => {
                   </div>
                 </div>
 
+                {/* Details Section */}
                 <div className="p-6">
                   <h3 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors">
                     {shop.name}

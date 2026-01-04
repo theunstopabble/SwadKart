@@ -101,7 +101,12 @@ app.use(
 
 // --- Core API Routes ---
 app.use("/api/v1/users", userRoutes);
+
+// 👇 IMPORTANT: This creates the base URL '/api/v1/orders'
+// Since orderRoutes has '/restaurant-orders', the full URL becomes:
+// /api/v1/orders/restaurant-orders
 app.use("/api/v1/orders", orderRoutes);
+
 app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/coupons", couponRoutes);

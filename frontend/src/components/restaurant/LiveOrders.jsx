@@ -8,6 +8,7 @@ import {
   Check,
   Clock,
   Printer,
+  ChefHat,
 } from "lucide-react";
 import { generateInvoice } from "../../utils/invoiceGenerator";
 
@@ -19,8 +20,11 @@ const LiveOrders = ({
   handleAssignPartner,
   handleStatusUpdate,
 }) => {
+  // 🛡️ CRASH FIX: Check if orders is an array before filtering
+  const safeOrders = Array.isArray(orders) ? orders : [];
+
   // Filter only active orders (Not Delivered/Cancelled)
-  const activeOrders = orders.filter(
+  const activeOrders = safeOrders.filter(
     (o) => o.orderStatus !== "Delivered" && o.orderStatus !== "Cancelled"
   );
 
@@ -34,6 +38,9 @@ const LiveOrders = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {activeOrders.length === 0 ? (
           <div className="col-span-full text-center py-20 bg-gray-900/50 rounded-3xl border border-gray-800 border-dashed">
+            <div className="bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ChefHat className="text-gray-500" size={32} />
+            </div>
             <p className="text-gray-500 italic text-lg">
               Kitchen is quiet... Waiting for orders 🍕
             </p>

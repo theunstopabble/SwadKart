@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import {
   Loader2,
   Bell,
@@ -12,16 +13,17 @@ import { toast } from "react-hot-toast";
 import { io } from "socket.io-client";
 
 // Modular Components
-import DashboardHeader from "../components/restaurant/DashboardHeader";
 import AnalyticsSection from "../components/restaurant/AnalyticsSection";
 import LiveOrders from "../components/restaurant/LiveOrders";
 import MenuManagement from "../components/restaurant/MenuManagement";
 import ItemModal from "../components/restaurant/ItemModal";
 
-const socket = io(BASE_URL);
+// Socket Instance
+const socket = io(BASE_URL, { autoConnect: false });
 
 const RestaurantOwnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("overview");
   const [orders, setOrders] = useState([]);
@@ -53,6 +55,14 @@ const RestaurantOwnerDashboard = () => {
 
   const audioPlayer = useRef(null);
 
+  // 🛡️ Security Check
+  useEffect(() => {
+    if (userInfo && userInfo.role !== "restaurant_owner") {
+      toast.error("Access Denied: Restaurant Owners Only");
+      navigate("/");
+    }
+  }, [userInfo, navigate]);
+
   const getFetchOptions = (method = "GET", body = null) => ({
     method,
     headers: {
@@ -65,27 +75,52 @@ const RestaurantOwnerDashboard = () => {
   const fetchData = async () => {
     if (!userInfo) return;
     try {
-      const [resOrders, resMenu, resPartners, resGraph] = await Promise.all([
-        fetch(`${BASE_URL}/api/v1/orders`, getFetchOptions()),
-        fetch(
-          `${BASE_URL}/api/v1/products/restaurant/${userInfo._id}`,
-          getFetchOptions()
+      // Helper to safely parse JSON
+      const safeJson = async (promise) => {
+        try {
+          const res = await promise;
+          if (!res.ok) return [];
+          return res.json();
+        } catch (err) {
+          console.error("Fetch error:", err);
+          return [];
+        }
+      };
+
+      // ✅ Calling Correct Routes
+      const [dOrders, dMenu, dPartners, dGraph] = await Promise.all([
+        safeJson(
+          fetch(
+            `${BASE_URL}/api/v1/orders/restaurant-orders`,
+            getFetchOptions()
+          )
         ),
-        fetch(`${BASE_URL}/api/v1/users/delivery-partners`, getFetchOptions()),
-        fetch(`${BASE_URL}/api/v1/orders/sales-stats`, getFetchOptions()),
+        safeJson(
+          fetch(
+            `${BASE_URL}/api/v1/products/restaurant/${userInfo._id}`,
+            getFetchOptions()
+          )
+        ),
+        safeJson(
+          fetch(`${BASE_URL}/api/v1/users/delivery-partners`, getFetchOptions())
+        ),
+        safeJson(
+          fetch(`${BASE_URL}/api/v1/orders/sales-stats`, getFetchOptions())
+        ),
       ]);
 
-      const dOrders = await resOrders.json();
-      const dMenu = await resMenu.json();
-      const dPartners = await resPartners.json();
-      const dGraph = await resGraph.json();
+      // 🛡️ CRASH PROTECTION: Ensure data is strictly an array
+      const safeOrders = Array.isArray(dOrders) ? dOrders : [];
+      const safeMenu = Array.isArray(dMenu) ? dMenu : [];
+      const safePartners = Array.isArray(dPartners) ? dPartners : [];
+      const safeGraph = Array.isArray(dGraph) ? dGraph : [];
 
-      setOrders(dOrders || []);
-      setMenuItems(dMenu || []);
-      setDeliveryPartners(dPartners || []);
+      setOrders(safeOrders);
+      setMenuItems(safeMenu);
+      setDeliveryPartners(safePartners);
 
       setGraphData(
-        (dGraph || []).map((i) => ({
+        safeGraph.map((i) => ({
           day: new Date(i._id).toLocaleDateString("en-US", {
             weekday: "short",
           }),
@@ -94,26 +129,29 @@ const RestaurantOwnerDashboard = () => {
       );
 
       setStats({
-        revenue: (dOrders || []).reduce(
+        revenue: safeOrders.reduce(
           (acc, o) => acc + (o.isPaid ? o.totalPrice : 0),
           0
         ),
-        pending: (dOrders || []).filter(
+        pending: safeOrders.filter(
           (o) => o.orderStatus !== "Delivered" && o.orderStatus !== "Cancelled"
         ).length,
-        delivered: (dOrders || []).filter((o) => o.orderStatus === "Delivered")
+        delivered: safeOrders.filter((o) => o.orderStatus === "Delivered")
           .length,
       });
     } catch (e) {
-      toast.error("Radar sync error");
+      console.error("Dashboard Sync Error:", e);
+      setOrders([]); // Fallback
     } finally {
       setLoading(false);
     }
   };
 
+  // 🔌 Socket Connection Logic
   useEffect(() => {
     fetchData();
     if (userInfo) {
+      socket.connect();
       socket.emit("joinOrder", userInfo._id);
 
       socket.on("newOrderReceived", (newOrder) => {
@@ -132,12 +170,18 @@ const RestaurantOwnerDashboard = () => {
             border: "1px solid #ef4444",
           },
         });
-        fetchData();
+        fetchData(); // Refresh Data
       });
     }
-    return () => socket.off("newOrderReceived");
+
+    // Cleanup on Unmount
+    return () => {
+      socket.off("newOrderReceived");
+      socket.disconnect();
+    };
   }, [userInfo, isSoundEnabled]);
 
+  // ✅ Fixed Duplicate Function
   const handleToggleStock = async (id) => {
     const res = await fetch(
       `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
@@ -218,7 +262,6 @@ const RestaurantOwnerDashboard = () => {
       <audio ref={audioPlayer} src="/notification.mp3" preload="auto" />
 
       <div className="max-w-7xl mx-auto">
-        {/* Header Section with Theme Consistency */}
         <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
           <div>
             <h1 className="text-4xl md:text-5xl font-extrabold italic uppercase tracking-tighter flex items-center gap-4">
@@ -247,7 +290,7 @@ const RestaurantOwnerDashboard = () => {
           </div>
         </header>
 
-        {/* --- TABS NAVIGATION --- */}
+        {/* --- TABS --- */}
         <div className="flex bg-gray-900/50 p-1.5 rounded-2xl mb-12 border border-gray-800 shadow-inner max-w-md">
           {[
             { id: "overview", label: "Analytics", icon: LayoutDashboard },
