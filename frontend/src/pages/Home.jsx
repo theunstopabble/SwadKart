@@ -111,24 +111,41 @@ const Home = () => {
 
           {/* Search Bar (Original UI) */}
          {/* 👇 UPDATED SEARCH BAR UI */}
-         <div className="flex items-center gap-2 w-full max-w-xl">
-            <div className="flex-1 flex bg-white rounded-full overflow-hidden p-1 shadow-2xl shadow-primary/20 items-center">
-              <input
-                type="text"
-                placeholder="Search for restaurants or food..."
-                className="flex-1 px-6 py-3 text-black outline-none font-medium placeholder:text-gray-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              {/* Manual Search Button */}
-              <button className="bg-primary hover:bg-red-600 text-white px-6 py-3 rounded-full font-bold transition-all flex items-center gap-2">
-                <Search size={20} />
-              </button>
-          </div>
-          <VoiceSearch setSearchTerm={setSearchTerm} />
-        </div>
+         <div className="w-full max-w-xl mx-auto mt-6">
+  {/* Main Container */}
+  <div className="flex items-center bg-white rounded-full shadow-2xl shadow-primary/20 p-1.5 border border-transparent focus-within:border-primary/50 transition-all">
+    
+    {/* 1. INPUT FIELD */}
+    <input
+      type="text"
+      placeholder="Search for restaurants..."
+      className="flex-1 bg-transparent px-4 md:px-6 py-2 text-black outline-none font-medium placeholder:text-gray-400 min-w-0 text-sm md:text-base"
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+
+    {/* 2. VOICE SEARCH (Inside the box) */}
+    {/* 'pr-2' diya taaki divider se chipke nahi */}
+    <div className="shrink-0 pr-2 cursor-pointer hover:scale-110 transition-transform">
+       <VoiceSearch setSearchTerm={setSearchTerm} />
+    </div>
+
+    {/* 3. DIVIDER (Visual Separation) */}
+    {/* Ye line mobile pe dikhegi taaki buttons alag lagen */}
+    <div className="h-6 w-[1px] bg-gray-300 mx-1"></div>
+
+    {/* 4. MAIN SEARCH BUTTON */}
+    <button className="bg-primary hover:bg-red-600 text-white p-3 md:px-6 md:py-3 rounded-full font-bold transition-all flex items-center justify-center gap-2 shrink-0 shadow-md">
+      <Search size={20} />
+      {/* Mobile pe text hidden, Desktop pe visible */}
+      <span className="hidden md:block">Search</span>
+    </button>
+  </div>
+</div>
         </div>
       </div>
+
+
 
       {/* Restaurants List Section (Original UI) */}
       <div className="max-w-7xl mx-auto px-6 py-16">

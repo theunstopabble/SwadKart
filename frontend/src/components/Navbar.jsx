@@ -44,6 +44,7 @@ const Navbar = () => {
             onClick={closeMenu}
           >
             Swad<span className="text-white">Kart</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-primary mt-4 animate-bounce"></span>
           </Link>
 
           {/* 🖥️ DESKTOP MENU */}

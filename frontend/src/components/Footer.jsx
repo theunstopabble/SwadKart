@@ -94,28 +94,22 @@ const Footer = () => {
 
           <form
             onSubmit={handleSubscribe}
-            className="flex w-full max-w-2xl bg-black border border-gray-800 rounded-full p-1.5 focus-within:border-gray-700 transition-all shadow-lg group relative"
+            className="flex items-center bg-[#000] border border-gray-700 rounded-full w-full overflow-hidden focus-within:border-[#ef4444] transition-all"
           >
             <input
               type="email"
+              placeholder="Enter your email address..."
+              // 👇 min-w-0 zaroori hai taaki input mobile pe overflow na kare
+              className="flex-1 bg-transparent px-4 py-3 text-gray-300 outline-none min-w-0"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email address..."
-              className="bg-transparent text-white outline-none flex-1 placeholder-gray-600 text-sm font-medium px-6 py-2"
             />
-
             <button
               type="submit"
-              disabled={loading}
-              className="bg-primary hover:bg-red-600 text-white px-8 md:px-12 py-3 rounded-full font-extrabold uppercase text-[10px] md:text-[11px] tracking-widest transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,71,87,0.3)] active:scale-95 disabled:opacity-50"
+              // 👇 YAHAN HAI MAGIC FIX: 'shrink-0' add kiya hai
+              className="bg-[#ef4444] hover:bg-red-600 text-white font-bold px-4 py-3 h-full transition-all shrink-0"
             >
-              {loading ? (
-                "..."
-              ) : (
-                <>
-                  SUBSCRIBE <Send size={16} />
-                </>
-              )}
+              Subscribe
             </button>
           </form>
         </div>
