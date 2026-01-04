@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Store,
   Plus,
@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../../config";
+// 👇 1. Import Socket.io
+import { io } from "socket.io-client";
 
 const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const [showAddShopModal, setShowAddShopModal] = useState(false);
@@ -30,6 +32,29 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   });
   const [dummyShopData, setDummyShopData] = useState({ name: "", image: "" });
 
+  // 👇 Reliable Placeholder Image
+  const PLACEHOLDER_IMG =
+    "https://placehold.co/600x400/1f2937/white?text=No+Image";
+
+  // 👇 2. SOCKET LISTENER (Real-time Update)
+  useEffect(() => {
+    // Connect to Backend Socket
+    const socket = io(BASE_URL);
+
+    // Listen for 'shopStatusUpdated' event from Backend
+    socket.on("shopStatusUpdated", (updatedShop) => {
+      console.log("Socket Signal Received: Updating List...");
+      // Refresh Data without Page Reload
+      if (fetchAllData) fetchAllData();
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socket.off("shopStatusUpdated");
+      socket.disconnect();
+    };
+  }, [fetchAllData]);
+
   const getFetchOptions = (method = "GET", body = null) => ({
     method,
     headers: {
@@ -43,19 +68,25 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const handleApprove = async (id) => {
     try {
       setIsProcessing(true);
-      // NOTE: Make sure /api/v1/restaurants route exists or use user update logic
+      // ✅ API Call
       const res = await fetch(
         `${BASE_URL}/api/v1/restaurants/${id}/approve`,
         getFetchOptions("PUT")
       );
+
+      const data = await res.json();
+
       if (res.ok) {
         toast.success("Merchant Verified: Shop is now LIVE! 🚀");
-        fetchAllData();
+        // ❌ Auto-Reload Removed
+        // ✅ Socket will handle the refresh now.
+        // We can call fetchAllData() once here for instant feedback before socket arrives
+        if (fetchAllData) fetchAllData();
       } else {
-        // Fallback if restaurant route doesn't exist, try updating user directly
-        toast.error("Approval failed. Check network or backend.");
+        toast.error(data.message || "Approval failed.");
       }
     } catch (err) {
+      console.error(err);
       toast.error("Handshake failed with server");
     } finally {
       setIsProcessing(false);
@@ -76,7 +107,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
       );
       if (res.ok) {
         toast.success("Merchant decommissioned successfully");
-        fetchAllData();
+        if (fetchAllData) fetchAllData();
       }
     } catch (error) {
       toast.error("Destruction sequence failed");
@@ -85,51 +116,70 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
 
   const handleAddShop = async (e) => {
     e.preventDefault();
-    const res = await fetch(
-      `${BASE_URL}/api/v1/users/admin/create-shop`,
-      getFetchOptions("POST", newShop)
-    );
-    if (res.ok) {
-      setShowAddShopModal(false);
-      setNewShop({ name: "", email: "", password: "", image: "" });
-      fetchAllData();
-      toast.success("Identity Created: Merchant onboarded!");
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/v1/users/admin/create-shop`,
+        getFetchOptions("POST", newShop)
+      );
+      if (res.ok) {
+        setShowAddShopModal(false);
+        setNewShop({ name: "", email: "", password: "", image: "" });
+        if (fetchAllData) fetchAllData();
+        toast.success("Identity Created: Merchant onboarded!");
+      } else {
+        toast.error("Failed to create shop");
+      }
+    } catch (error) {
+      toast.error("Network error");
     }
   };
 
   const handleUpdateShop = async (e) => {
     e.preventDefault();
-    const res = await fetch(
-      `${BASE_URL}/api/v1/users/${editingShop._id}`,
-      getFetchOptions("PUT", {
-        name: editingShop.name,
-        image: editingShop.image,
-      })
-    );
-    if (res.ok) {
-      setShowShopModal(false);
-      fetchAllData();
-      toast.success("Merchant parameters updated");
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/v1/users/${editingShop._id}`,
+        getFetchOptions("PUT", {
+          name: editingShop.name,
+          image: editingShop.image,
+        })
+      );
+      if (res.ok) {
+        setShowShopModal(false);
+        if (fetchAllData) fetchAllData();
+        toast.success("Merchant parameters updated");
+      }
+    } catch (error) {
+      toast.error("Update failed");
     }
   };
 
   const handleCreateDummyShop = async (e) => {
     e.preventDefault();
-    const res = await fetch(
-      `${BASE_URL}/api/v1/users/admin/create-dummy`,
-      getFetchOptions("POST", dummyShopData)
-    );
-    if (res.ok) {
-      setShowDummyModal(false);
-      setDummyShopData({ name: "", image: "" });
-      fetchAllData();
-      toast.success("Synthetic merchant deployed to production");
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/v1/users/admin/create-dummy`,
+        getFetchOptions("POST", dummyShopData)
+      );
+      if (res.ok) {
+        setShowDummyModal(false);
+        setDummyShopData({ name: "", image: "" });
+        if (fetchAllData) fetchAllData();
+        toast.success("Synthetic merchant deployed to production");
+      }
+    } catch (error) {
+      toast.error("Failed to create dummy");
     }
   };
 
   // Logic: Pending are unverified AND NOT dummy
   const pendingShops = restaurants.filter((r) => !r.isVerified && !r.isDummy);
   const activeShops = restaurants.filter((r) => r.isVerified || r.isDummy);
+
+  // Helper for Image Fallback
+  const handleImageError = (e) => {
+    e.target.src = PLACEHOLDER_IMG;
+  };
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20 font-sans">
@@ -140,10 +190,11 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
             <Store className="text-primary" size={40} /> Merchant{" "}
             <span className="text-primary">Registry</span>
           </h2>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] mt-3 flex items-center gap-2 pl-1">
+          {/* ✅ FIX: Changed <p> to <div> to solve Hydration Error */}
+          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] mt-3 flex items-center gap-2 pl-1">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>{" "}
             Marketplace Infrastructure Control
-          </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-4 justify-center">
           <button
@@ -179,7 +230,9 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
                     {shop.image ? (
                       <img
                         src={shop.image}
+                        onError={handleImageError} // 👈 Handle broken images
                         className="w-full h-full object-cover grayscale group-hover:grayscale-0"
+                        alt={shop.name}
                       />
                     ) : (
                       <ImageIcon className="text-gray-700" />
@@ -225,7 +278,8 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
             >
               <div className="h-56 relative overflow-hidden">
                 <img
-                  src={shop.image || "https://via.placeholder.com/300"}
+                  src={shop.image || PLACEHOLDER_IMG}
+                  onError={handleImageError} // 👈 Handle broken images
                   alt={shop.name}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-40 group-hover:opacity-60 grayscale group-hover:grayscale-0"
                 />

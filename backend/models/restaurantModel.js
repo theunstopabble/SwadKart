@@ -2,31 +2,35 @@ import mongoose from "mongoose";
 
 const restaurantSchema = mongoose.Schema(
   {
+    // 👇 Basic Info
     name: { type: String, required: true },
     description: { type: String },
     address: { type: String, default: "Main Street, City" },
     image: { type: String },
+
+    // 👇 Stats
     rating: { type: Number, default: 0 },
     numReviews: { type: Number, default: 0 },
 
-    // 👇 Sabse Zaruri: Ownership
+    // 👇 Ownership (Link to User)
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: "User",
     },
 
-    // 👇 Approval & Dummy Logic
+    // 👇 APPROVAL LOGIC (The Fix)
     isVerified: {
       type: Boolean,
-      default: false, // Naya restaurant hamesha false rahega jab tak admin approve na kare
+      required: true,
+      default: false, // Default false: Pending authorization
     },
-    isDummy: {
-      type: Boolean,
-      default: false, // Seeded data ke liye true
-    },
-    isActive: { type: Boolean, default: true },
 
+    // 👇 Operational Status
+    isActive: { type: Boolean, default: true }, // Can owner turn it off?
+    isDummy: { type: Boolean, default: false }, // For seeded data
+
+    // 👇 Timings
     openingTime: { type: String, default: "10:00" },
     closingTime: { type: String, default: "22:00" },
     isOpenNow: { type: Boolean, default: true },

@@ -10,7 +10,7 @@ import { Server } from "socket.io";
 
 import connectDB from "./config/db.js";
 
-// 👇 FIX: Import from errorMiddleware, NOT authMiddleware
+// Error Middlewares
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
 // Routes Import
@@ -29,7 +29,9 @@ connectDB(); // 🗄️ Database Connection
 const app = express();
 const httpServer = createServer(app);
 
-// 🔌 Socket.io Elite Setup
+// ---------------------------------------------------------
+// 🔌 Socket.io Setup (For Realtime Updates)
+// ---------------------------------------------------------
 const io = new Server(httpServer, {
   cors: {
     origin: [
@@ -37,13 +39,14 @@ const io = new Server(httpServer, {
       "https://swadkart-pro.vercel.app",
       "https://swadkart-pro.onrender.com",
     ],
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
   transports: ["websocket", "polling"],
 });
 
-// Middleware to inject 'io' into controllers
+// 👇 CRITICAL MIDDLEWARE: Attach 'io' to every request
+// Isse hi Controller mein 'req.io.emit' kaam karega
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -72,7 +75,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// --- Professional Middleware ---
+// ---------------------------------------------------------
+// 🛡️ Standard Middleware
+// ---------------------------------------------------------
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -99,14 +104,11 @@ app.use(
   })
 );
 
-// --- Core API Routes ---
+// ---------------------------------------------------------
+// 🛣️ API Routes
+// ---------------------------------------------------------
 app.use("/api/v1/users", userRoutes);
-
-// 👇 IMPORTANT: This creates the base URL '/api/v1/orders'
-// Since orderRoutes has '/restaurant-orders', the full URL becomes:
-// /api/v1/orders/restaurant-orders
 app.use("/api/v1/orders", orderRoutes);
-
 app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/coupons", couponRoutes);
@@ -114,31 +116,30 @@ app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/restaurants", restaurantRoutes);
 
-// --- File Stream Protocol ---
+// ---------------------------------------------------------
+// 📂 Static Files & Deployment Logic
+// ---------------------------------------------------------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
-// --- Deployment Logic (Render/Vercel Sync) ---
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  // 👇 Regex Fix for SPA Routing
+  // Fix for SPA Routing (React Router)
   app.get(/^\/(?!api).*/, (req, res) => {
     res.sendFile(
       path.resolve(__dirname, "..", "frontend", "dist", "index.html")
     );
   });
 } else {
-  app.get("/ping", (req, res) =>
-    res.status(200).send("Mainframe is online. 🍕")
-  );
   app.get("/", (req, res) =>
     res.send("🚀 SwadKart Beast Engine is running...")
   );
 }
 
-// Global Exception Handling
-// 👇 Ensure these are used AFTER routes
+// ---------------------------------------------------------
+// 🚨 Error Handling
+// ---------------------------------------------------------
 app.use(notFound);
 app.use(errorHandler);
 

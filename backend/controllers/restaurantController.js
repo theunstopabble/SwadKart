@@ -15,29 +15,29 @@ const checkIsOpen = (openTime, closeTime) => {
   const [closeH, closeM] = closeTime.split(":").map(Number);
   const endMinutes = closeH * 60 + closeM;
 
-  // Case 1: Same day (10:00 to 22:00)
+  // Case 1: Same day (e.g., 10:00 to 22:00)
   if (endMinutes > startMinutes) {
     return currentMinutes >= startMinutes && currentMinutes < endMinutes;
-  } 
-  // Case 2: Overnight (22:00 to 02:00)
+  }
+  // Case 2: Overnight (e.g., 22:00 to 02:00)
   else {
     return currentMinutes >= startMinutes || currentMinutes < endMinutes;
   }
 };
 
 // ==========================================
-// 🏠 1. GET RESTAURANTS (Public - Home Page)
+// 🏠 1. GET ALL RESTAURANTS (Public)
 // ==========================================
 // @desc    Get all active/verified restaurants for users
 // @route   GET /api/v1/restaurants
-export const getRestaurants = async (req, res) => {
+const getRestaurants = async (req, res) => {
   try {
-    // Logic: Home page par sirf Verified ya Dummy restaurants dikhao
+    // Show only Verified OR Dummy restaurants to public
     const restaurants = await Restaurant.find({
       $or: [{ isVerified: true }, { isDummy: true }],
     }).sort({ createdAt: -1 });
 
-    // ✨ Compute 'isOpenNow' dynamically for frontend
+    // ✨ Compute 'isOpenNow' dynamically
     const updatedRestaurants = restaurants.map((rest) => {
       const isOpen = checkIsOpen(rest.openingTime, rest.closingTime);
       return { ...rest._doc, isOpenNow: isOpen };
@@ -50,39 +50,15 @@ export const getRestaurants = async (req, res) => {
 };
 
 // ==========================================
-// ⚙️ UPDATE STORE TIMINGS (Owner Action)
+// 👑 2. GET ALL SHOPS FOR ADMIN (The Missing Link)
 // ==========================================
-// @route   PUT /api/v1/restaurants/settings
-export const updateStoreSettings = async (req, res) => {
-  const { openingTime, closingTime } = req.body;
-  
-  try {
-    // Find restaurant owned by this user
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
-
-    if (restaurant) {
-      restaurant.openingTime = openingTime || restaurant.openingTime;
-      restaurant.closingTime = closingTime || restaurant.closingTime;
-      
-      const updatedRestaurant = await restaurant.save();
-      res.json(updatedRestaurant);
-    } else {
-      res.status(404).json({ message: "Restaurant not found for this owner" });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// ==========================================
-// 👑 2. GET ALL RESTAURANTS (Admin Only)
-// ==========================================
-// @desc    Get all restaurants (Pending + Verified + Dummy)
+// @desc    Get ALL restaurants (Verified + Pending) for Admin Dashboard
 // @route   GET /api/v1/restaurants/admin/all
-export const getAllRestaurantsAdmin = async (req, res) => {
+const getAllRestaurantsAdmin = async (req, res) => {
   try {
+    // Hamein saare restaurants chahiye (active, pending, dummy sab)
     const restaurants = await Restaurant.find({})
-      .populate("owner", "name email")
+      .populate("owner", "name email") // Owner ki details bhi le lo
       .sort({ createdAt: -1 });
 
     res.json(restaurants);
@@ -92,23 +68,22 @@ export const getAllRestaurantsAdmin = async (req, res) => {
 };
 
 // ==========================================
-// ✅ 3. APPROVE RESTAURANT (Admin Action)
+// 🏢 3. GET SINGLE RESTAURANT
 // ==========================================
-// @desc    Verify/Approve a pending restaurant
-// @route   PUT /api/v1/restaurants/:id/approve
-export const approveRestaurant = async (req, res) => {
+// @route   GET /api/v1/restaurants/:id
+const getRestaurantById = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(req.params.id);
+    const restaurant = await Restaurant.findById(req.params.id).populate(
+      "owner",
+      "name email"
+    );
 
     if (restaurant) {
-      restaurant.isVerified = true;
-      restaurant.isActive = true; // Approve hote hi active bhi kar do
-
-      const updatedRestaurant = await restaurant.save();
-      res.json({
-        message: "Restaurant Approved & Live! 🍕",
-        restaurant: updatedRestaurant,
-      });
+      const isOpen = checkIsOpen(
+        restaurant.openingTime,
+        restaurant.closingTime
+      );
+      res.json({ ...restaurant._doc, isOpenNow: isOpen });
     } else {
       res.status(404).json({ message: "Restaurant not found" });
     }
@@ -118,28 +93,203 @@ export const approveRestaurant = async (req, res) => {
 };
 
 // ==========================================
-// 🏢 4. GET SINGLE RESTAURANT DETAILS
+// ⭐ 4. GET TOP RESTAURANTS
 // ==========================================
-// @desc    Get restaurant by ID
-// @route   GET /api/v1/restaurants/:id
-export const getRestaurantById = async (req, res) => {
+// @route   GET /api/v1/restaurants/top
+const getTopRestaurants = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(req.params.id).populate(
-      "owner",
-      "name"
-    );
+    const restaurants = await Restaurant.find({ isVerified: true })
+      .sort({ rating: -1 })
+      .limit(3);
+    res.json(restaurants);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// ➕ 5. CREATE RESTAURANT (Seller)
+// ==========================================
+// @route   POST /api/v1/restaurants
+const createRestaurant = async (req, res) => {
+  try {
+    const { name, address, image, description } = req.body;
+
+    const restaurantExists = await Restaurant.findOne({ name });
+    if (restaurantExists) {
+      return res.status(400).json({ message: "Restaurant name already taken" });
+    }
+
+    const restaurant = new Restaurant({
+      user: req.user._id, // legacy field reference
+      owner: req.user._id, // new field reference
+      name,
+      address,
+      image,
+      description,
+      isVerified: false, // Always false initially
+    });
+
+    const createdRestaurant = await restaurant.save();
+    res.status(201).json(createdRestaurant);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// 🛍️ 6. GET OWNER'S RESTAURANT (Dashboard)
+// ==========================================
+// @route   GET /api/v1/restaurants/mine
+const getOwnerRestaurant = async (req, res) => {
+  try {
+    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+    if (restaurant) {
+      res.json(restaurant);
+    } else {
+      res.status(404).json({ message: "No restaurant found for this owner" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================================
+// ⚙️ 7. UPDATE SETTINGS (Timings/Profile)
+// ==========================================
+// @route   PUT /api/v1/restaurants/settings
+const updateRestaurantSettings = async (req, res) => {
+  const { openingTime, closingTime, name, description, address, image } =
+    req.body;
+
+  try {
+    const restaurant = await Restaurant.findOne({ owner: req.user._id });
 
     if (restaurant) {
-      const isOpen = checkIsOpen(
-        restaurant.openingTime,
-        restaurant.closingTime
-      );
-      res.json({ ...restaurant._doc, isOpenNow: isOpen });
-     
+      // Update Timings
+      if (openingTime) restaurant.openingTime = openingTime;
+      if (closingTime) restaurant.closingTime = closingTime;
+
+      // Update Profile Info
+      if (name) restaurant.name = name;
+      if (description) restaurant.description = description;
+      if (address) restaurant.address = address;
+      if (image) restaurant.image = image;
+
+      const updatedRestaurant = await restaurant.save();
+      res.json(updatedRestaurant);
     } else {
       res.status(404).json({ message: "Restaurant not found" });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+// ==========================================
+// 👮 8. ADMIN VERIFY / AUTHORIZE (With Socket & ID Fix)
+// ==========================================
+// @route   PUT /api/v1/restaurants/:id/approve
+const verifyRestaurant = async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    // 1. Find by ID or Owner ID (Dono check karo)
+    let restaurant = await Restaurant.findById(id);
+    if (!restaurant) {
+      restaurant = await Restaurant.findOne({ owner: id });
+    }
+
+    if (restaurant) {
+      restaurant.isVerified = !restaurant.isVerified;
+      if (restaurant.isVerified) {
+        restaurant.isActive = true;
+      }
+
+      const updatedRestaurant = await restaurant.save();
+
+      // 🔥 REAL-TIME UPDATE TRIGGER (Socket)
+      if (req.io) {
+        req.io.emit("shopStatusUpdated", updatedRestaurant);
+        req.io.emit("restaurantUpdated", updatedRestaurant);
+      }
+
+      res.json({
+        message: restaurant.isVerified
+          ? "Restaurant Authorized ✅"
+          : "Authorization Revoked ❌",
+        restaurant: updatedRestaurant,
+      });
+    } else {
+      res.status(404).json({ message: "Restaurant not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// ==========================================
+// 💬 9. CREATE REVIEW
+// ==========================================
+// @route   POST /api/v1/restaurants/:id/reviews
+const createRestaurantReview = async (req, res) => {
+  const { rating, comment } = req.body;
+
+  try {
+    const restaurant = await Restaurant.findById(req.params.id);
+
+    if (restaurant) {
+      const alreadyReviewed = restaurant.reviews.find(
+        (r) => r.user.toString() === req.user._id.toString()
+      );
+
+      if (alreadyReviewed) {
+        return res
+          .status(400)
+          .json({ message: "You already reviewed this place" });
+      }
+
+      const review = {
+        name: req.user.name,
+        rating: Number(rating),
+        comment,
+        user: req.user._id,
+      };
+
+      restaurant.reviews.push(review);
+
+      // Recalculate Rating
+      restaurant.numReviews = restaurant.reviews.length;
+      restaurant.rating =
+        restaurant.reviews.reduce((acc, item) => item.rating + acc, 0) /
+        restaurant.reviews.length;
+
+      await restaurant.save();
+      res.status(201).json({ message: "Review added" });
+    } else {
+      res.status(404).json({ message: "Restaurant not found" });
+    }
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Placeholder if needed for routes compatibility
+const updateRestaurantProfile = updateRestaurantSettings;
+
+// ==========================================
+// 📤 EXPORTS
+// ==========================================
+export {
+  getRestaurants,
+  getRestaurantById,
+  getTopRestaurants,
+  getAllRestaurantsAdmin, // 👈 Ye naya wala zaroori hai Dashboard ke liye
+  createRestaurant,
+  getOwnerRestaurant,
+  updateRestaurantSettings,
+  updateRestaurantProfile,
+  verifyRestaurant,
+  createRestaurantReview,
 };

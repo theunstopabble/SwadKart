@@ -2,29 +2,60 @@ import express from "express";
 const router = express.Router();
 import {
   getRestaurants,
-  approveRestaurant,
-  getAllRestaurantsAdmin,
+  getRestaurantById,
+  getTopRestaurants,
+  createRestaurant,
+  getOwnerRestaurant,
+  updateRestaurantSettings,
+  verifyRestaurant,
+  createRestaurantReview,
 } from "../controllers/restaurantController.js";
+
+// ✅ FIX: 'seller' aur 'admin' hata diya, 'authorizeRoles' use kiya
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
-import { updateStoreSettings } from "../controllers/restaurantController.js";
 
-// 1. Home Page Route (Public)
-router.route("/").get(getRestaurants);
-
-// 2. Admin: Get All for Dashboard
+// =================================================================
+// 🟢 PUBLIC & GENERAL ROUTES
+// =================================================================
 router
-  .route("/admin/all")
-  .get(protect, authorizeRoles("admin"), getAllRestaurantsAdmin);
+  .route("/")
+  .get(getRestaurants) // Home Page (Verified + Dummy)
+  // ✅ FIX: 'seller' ki jagah 'authorizeRoles("restaurant_owner")'
+  .post(protect, authorizeRoles("restaurant_owner"), createRestaurant);
 
-// 3. Admin: Approve Restaurant
-router
-  .route("/:id/approve")
-  .put(protect, authorizeRoles("admin"), approveRestaurant);
-  router.put(
-    "/settings",
-    protect,
-    authorizeRoles("restaurant_owner"),
-    updateStoreSettings
-  );
+router.get("/top", getTopRestaurants); // Top Rated
+
+// =================================================================
+// 🟠 OWNER DASHBOARD ROUTES
+// =================================================================
+router.get(
+  "/mine",
+  protect,
+  authorizeRoles("restaurant_owner"), // ✅ FIX
+  getOwnerRestaurant
+);
+
+router.put(
+  "/settings",
+  protect,
+  authorizeRoles("restaurant_owner"), // ✅ FIX
+  updateRestaurantSettings
+);
+
+// =================================================================
+// 🔴 ADMIN ROUTES
+// =================================================================
+router.put(
+  "/:id/approve",
+  protect,
+  authorizeRoles("admin"), // ✅ FIX: 'admin' middleware ki jagah authorizeRoles use kiya
+  verifyRestaurant
+);
+
+// =================================================================
+// 🔵 SINGLE RESTAURANT & REVIEWS
+// =================================================================
+router.route("/:id/reviews").post(protect, createRestaurantReview);
+router.route("/:id").get(getRestaurantById);
 
 export default router;
