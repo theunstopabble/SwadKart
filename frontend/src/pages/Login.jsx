@@ -116,7 +116,7 @@ const Login = () => {
         <div className="my-6 flex items-center gap-4 opacity-50">
           <div className="flex-1 h-[1px] bg-gray-700"></div>
           <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-            OR CONTINUE WITH
+            OR 
           </span>
           <div className="flex-1 h-[1px] bg-gray-700"></div>
         </div>
