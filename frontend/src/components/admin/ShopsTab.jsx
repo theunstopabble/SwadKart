@@ -90,7 +90,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
       return;
     try {
       const res = await fetch(
-        `${BASE_URL}/api/v1/users/${id}`,
+        `${BASE_URL}/api/v1/users/admin/user/${id}`,
         getFetchOptions("DELETE")
       );
       if (res.ok) {
@@ -122,23 +122,29 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
     }
   };
 
+  // ✅ CRITICAL FIX: Endpoint updated to avoid 404
   const handleUpdateShop = async (e) => {
     e.preventDefault();
     try {
+      // 🎯 FIXED URL: admin specific update endpoint
       const res = await fetch(
-        `${BASE_URL}/api/v1/users/${editingShop._id}`,
+        `${BASE_URL}/api/v1/users/admin/user/${editingShop._id}`,
         getFetchOptions("PUT", {
           name: editingShop.name,
           image: editingShop.image,
         })
       );
+
       if (res.ok) {
         setShowShopModal(false);
         if (fetchAllData) fetchAllData();
-        toast.success("Merchant parameters updated");
+        toast.success("Merchant parameters updated! ✨");
+      } else {
+        const errData = await res.json();
+        toast.error(errData.message || "Update sequence failed");
       }
     } catch (error) {
-      toast.error("Update failed");
+      toast.error("Update failed: Server unreachable");
     }
   };
 
@@ -160,15 +166,10 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
     }
   };
 
-  // ✅ CRITICAL FIX: Filter out normal users! Only show 'restaurant_owner'
-  // Ab 'restaurants' prop me saare users aa rahe hain, isliye filter lagana zaroori hai.
   const onlyShops = restaurants.filter((r) => r.role === "restaurant_owner");
-
-  // Logic: Pending are unverified AND NOT dummy
   const pendingShops = onlyShops.filter((r) => !r.isVerified && !r.isDummy);
   const activeShops = onlyShops.filter((r) => r.isVerified || r.isDummy);
 
-  // Helper for Image Fallback
   const handleImageError = (e) => {
     e.target.src = PLACEHOLDER_IMG;
   };
@@ -203,7 +204,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
         </div>
       </div>
 
-      {/* ⚠️ 1. PENDING APPROVALS */}
+      {/* ⚠️ PENDING APPROVALS */}
       {pendingShops.length > 0 && (
         <div className="space-y-6">
           <h3 className="text-xs font-black text-primary uppercase tracking-[0.5em] flex items-center gap-3 pl-4">
@@ -218,16 +219,12 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
               >
                 <div className="flex items-center gap-6">
                   <div className="h-20 w-20 bg-gray-900 rounded-[2rem] overflow-hidden border border-gray-800 shadow-inner group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
-                    {shop.image ? (
-                      <img
-                        src={shop.image}
-                        onError={handleImageError}
-                        className="w-full h-full object-cover grayscale group-hover:grayscale-0"
-                        alt={shop.name}
-                      />
-                    ) : (
-                      <ImageIcon className="text-gray-700" />
-                    )}
+                    <img
+                      src={shop.image || PLACEHOLDER_IMG}
+                      onError={handleImageError}
+                      className="w-full h-full object-cover grayscale group-hover:grayscale-0"
+                      alt={shop.name}
+                    />
                   </div>
                   <div className="space-y-1">
                     <h4 className="font-black text-white uppercase italic text-2xl tracking-tighter leading-tight">
@@ -255,7 +252,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
         </div>
       )}
 
-      {/* ✅ 2. ACTIVE MARKETPLACE */}
+      {/* ✅ ACTIVE MARKETPLACE */}
       <div className="space-y-6">
         <h3 className="text-xs font-black text-gray-600 uppercase tracking-[0.5em] flex items-center gap-3 pl-4">
           <CheckCircle size={20} /> Active Infrastructure Matrix (
@@ -285,7 +282,6 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
                     </span>
                   )}
                 </div>
-                {/* Cyber Actions */}
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all gap-4 backdrop-blur-md">
                   <button
                     onClick={() => {
@@ -322,15 +318,19 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
         </div>
       </div>
 
-      {/* ==========================================
-          MODALS ENGINE
-      ========================================== */}
-      {[
-        {
-          show: showAddShopModal,
-          close: setShowAddShopModal,
-          title: "Initialize Partnership",
-          form: (
+      {/* MODALS */}
+      {showAddShopModal && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl flex justify-center items-center z-[9999] p-6 animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-gray-950 p-12 rounded-[4rem] w-full max-w-lg relative border border-gray-900 shadow-[0_0_100px_rgba(225,29,72,0.1)]">
+            <button
+              onClick={() => setShowAddShopModal(false)}
+              className="absolute top-10 right-10 text-gray-700 hover:text-white transition-all bg-gray-900 p-3 rounded-full"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-3xl font-black italic uppercase text-white mb-10 tracking-tighter border-l-8 border-primary pl-6 leading-none">
+              Initialize Partnership
+            </h2>
             <form onSubmit={handleAddShop} className="space-y-5">
               <input
                 type="text"
@@ -369,13 +369,22 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
                 Initiate Onboarding
               </button>
             </form>
-          ),
-        },
-        {
-          show: showShopModal,
-          close: setShowShopModal,
-          title: "Modify Identity",
-          form: (
+          </div>
+        </div>
+      )}
+
+      {showShopModal && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl flex justify-center items-center z-[9999] p-6 animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-gray-950 p-12 rounded-[4rem] w-full max-w-lg relative border border-gray-900 shadow-[0_0_100px_rgba(225,29,72,0.1)]">
+            <button
+              onClick={() => setShowShopModal(false)}
+              className="absolute top-10 right-10 text-gray-700 hover:text-white transition-all bg-gray-900 p-3 rounded-full"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-3xl font-black italic uppercase text-white mb-10 tracking-tighter border-l-8 border-primary pl-6 leading-none">
+              Modify Identity
+            </h2>
             <form onSubmit={handleUpdateShop} className="space-y-5">
               <input
                 type="text"
@@ -402,13 +411,22 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
                 Save Modifications
               </button>
             </form>
-          ),
-        },
-        {
-          show: showDummyModal,
-          close: setShowDummyModal,
-          title: "Create Synthetic Node",
-          form: (
+          </div>
+        </div>
+      )}
+
+      {showDummyModal && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl flex justify-center items-center z-[9999] p-6 animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-gray-950 p-12 rounded-[4rem] w-full max-w-lg relative border border-gray-900 shadow-[0_0_100px_rgba(225,29,72,0.1)]">
+            <button
+              onClick={() => setShowDummyModal(false)}
+              className="absolute top-10 right-10 text-gray-700 hover:text-white transition-all bg-gray-900 p-3 rounded-full"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-3xl font-black italic uppercase text-white mb-10 tracking-tighter border-l-8 border-primary pl-6 leading-none">
+              Create Synthetic Node
+            </h2>
             <form onSubmit={handleCreateDummyShop} className="space-y-5">
               <input
                 type="text"
@@ -436,29 +454,8 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
                 Push to Production
               </button>
             </form>
-          ),
-        },
-      ].map(
-        (modal, i) =>
-          modal.show && (
-            <div
-              key={i}
-              className="fixed inset-0 bg-black/95 backdrop-blur-2xl flex justify-center items-center z-[9999] p-6 animate-in fade-in zoom-in-95 duration-300"
-            >
-              <div className="bg-gray-950 p-12 rounded-[4rem] w-full max-w-lg relative border border-gray-900 shadow-[0_0_100px_rgba(225,29,72,0.1)]">
-                <button
-                  onClick={() => modal.close(false)}
-                  className="absolute top-10 right-10 text-gray-700 hover:text-white transition-all bg-gray-900 p-3 rounded-full"
-                >
-                  <X size={24} />
-                </button>
-                <h2 className="text-3xl font-black italic uppercase text-white mb-10 tracking-tighter border-l-8 border-primary pl-6 leading-none">
-                  {modal.title}
-                </h2>
-                {modal.form}
-              </div>
-            </div>
-          )
+          </div>
+        </div>
       )}
     </div>
   );
