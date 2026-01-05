@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { X, Plus, Trash2, Loader2, Layers, Tag } from "lucide-react";
+import { X, Plus, Trash2, Layers, Tag } from "lucide-react";
 import { BASE_URL } from "../../config";
 import MenuHeader from "./MenuHeader";
 import MenuItemCard from "./MenuItemCard";
@@ -23,6 +23,10 @@ const MenuTab = ({ restaurants, userInfo }) => {
     addons: [],
   });
 
+  // ✅ Filtering Restaurants: सुनिश्चित करना कि ड्रॉपडाउन में सिर्फ दुकानदार हों
+  const shopOwners =
+    restaurants?.filter((r) => r.role === "restaurant_owner") || [];
+
   const getFetchOptions = (method = "GET", body = null) => ({
     method,
     headers: {
@@ -39,7 +43,8 @@ const MenuTab = ({ restaurants, userInfo }) => {
         `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`,
         getFetchOptions()
       );
-      setMenuItems(await res.json());
+      const data = await res.json();
+      setMenuItems(Array.isArray(data) ? data : []);
     } catch (e) {
       toast.error("Sync error");
     }
@@ -78,13 +83,11 @@ const MenuTab = ({ restaurants, userInfo }) => {
       ? `${BASE_URL}/api/v1/products/${editItemId}`
       : `${BASE_URL}/api/v1/products`;
 
-    // Data Formatting
     const payload = {
       ...newItem,
       price: Number(newItem.price),
       isVeg: newItem.isVeg === "true",
       restaurantId: selectedRestaurant,
-      // Ensure variants/addons prices are numbers
       variants: newItem.variants.map((v) => ({ ...v, price: Number(v.price) })),
       addons: newItem.addons.map((a) => ({ ...a, price: Number(a.price) })),
     };
@@ -102,7 +105,6 @@ const MenuTab = ({ restaurants, userInfo }) => {
     }
   };
 
-  // Variants/Addons Handlers
   const addVariant = () =>
     setNewItem({
       ...newItem,
@@ -116,12 +118,15 @@ const MenuTab = ({ restaurants, userInfo }) => {
     });
 
   return (
-    <div className="animate-in fade-in duration-700 pb-20">
+    <div className="animate-in fade-in duration-700 pb-20 px-4 md:px-0">
+      {/* ✅ Header with filtered merchants */}
       <MenuHeader
-        restaurants={restaurants}
+        restaurants={shopOwners} // यहाँ सिर्फ दुकानदार भेजे जा रहे हैं
         selectedRestaurant={selectedRestaurant}
         setSelectedRestaurant={setSelectedRestaurant}
         openAddItemModal={() => {
+          if (!selectedRestaurant)
+            return toast.error("Select a merchant first!");
           setIsEditingItem(false);
           setNewItem({
             name: "",
@@ -138,7 +143,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
       />
 
       {selectedRestaurant ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-10">
           {menuItems.map((item) => (
             <MenuItemCard
               key={item._id}
@@ -158,9 +163,14 @@ const MenuTab = ({ restaurants, userInfo }) => {
               onDelete={handleDeleteItem}
             />
           ))}
+          {menuItems.length === 0 && (
+            <div className="col-span-full text-center py-20 text-gray-500 font-bold uppercase tracking-widest bg-gray-900/20 rounded-3xl">
+              No items found for this merchant
+            </div>
+          )}
         </div>
       ) : (
-        <div className="text-center py-32 bg-gray-950 rounded-[4rem] border-2 border-dashed border-gray-900">
+        <div className="text-center py-32 bg-gray-950 rounded-[4rem] border-2 border-dashed border-gray-900 mt-10">
           <p className="text-gray-700 font-black uppercase italic tracking-[0.4em]">
             Initialize merchant to view inventory
           </p>
@@ -170,14 +180,14 @@ const MenuTab = ({ restaurants, userInfo }) => {
       {/* 📂 ITEM MODAL */}
       {showItemModal && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl flex justify-center items-center z-[9999] p-6 animate-in zoom-in-95 duration-300">
-          <div className="bg-gray-950 p-10 rounded-[3.5rem] w-full max-w-2xl relative border border-gray-900 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl">
+          <div className="bg-gray-950 p-6 md:p-10 rounded-[2.5rem] md:rounded-[3.5rem] w-full max-w-2xl relative border border-gray-900 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl">
             <button
               onClick={() => setShowItemModal(false)}
-              className="absolute top-8 right-8 text-gray-700 hover:text-white transition-all bg-gray-900 p-2 rounded-full"
+              className="absolute top-6 right-6 text-gray-700 hover:text-white transition-all bg-gray-900 p-2 rounded-full"
             >
               <X size={20} />
             </button>
-            <h2 className="text-3xl font-black italic uppercase text-white mb-8 border-l-8 border-primary pl-6 leading-none">
+            <h2 className="text-2xl md:text-3xl font-black italic uppercase text-white mb-8 border-l-8 border-primary pl-6 leading-none">
               {isEditingItem ? "Modify" : "Deploy"}{" "}
               <span className="text-primary">Dish</span>
             </h2>
@@ -185,18 +195,18 @@ const MenuTab = ({ restaurants, userInfo }) => {
               <input
                 type="text"
                 placeholder="Dish Name"
-                className="w-full bg-black border border-gray-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-primary"
+                className="w-full bg-black border border-gray-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-primary transition-all"
                 value={newItem.name}
                 onChange={(e) =>
                   setNewItem({ ...newItem, name: e.target.value })
                 }
                 required
               />
-              <div className="flex gap-4">
+              <div className="flex flex-col md:flex-row gap-4">
                 <input
                   type="number"
                   placeholder="Base Price"
-                  className="flex-1 bg-black border border-gray-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-primary"
+                  className="flex-1 bg-black border border-gray-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-primary transition-all"
                   value={newItem.price}
                   onChange={(e) =>
                     setNewItem({ ...newItem, price: e.target.value })
@@ -204,7 +214,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
                   required
                 />
                 <select
-                  className="flex-1 bg-black border border-gray-800 p-4 rounded-2xl text-white font-black uppercase text-xs outline-none focus:border-primary"
+                  className="flex-1 bg-black border border-gray-800 p-4 rounded-2xl text-white font-black uppercase text-xs outline-none focus:border-primary transition-all"
                   value={newItem.isVeg}
                   onChange={(e) =>
                     setNewItem({ ...newItem, isVeg: e.target.value })
@@ -217,7 +227,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
               <input
                 type="text"
                 placeholder="Category (e.g. Burgers)"
-                className="w-full bg-black border border-gray-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-primary"
+                className="w-full bg-black border border-gray-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-primary transition-all"
                 value={newItem.category}
                 onChange={(e) =>
                   setNewItem({ ...newItem, category: e.target.value })
@@ -226,7 +236,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
               />
               <textarea
                 placeholder="Description..."
-                className="w-full bg-black border border-gray-800 p-4 rounded-2xl text-white font-medium outline-none focus:border-primary h-24"
+                className="w-full bg-black border border-gray-800 p-4 rounded-2xl text-white font-medium outline-none focus:border-primary h-24 transition-all"
                 value={newItem.description}
                 onChange={(e) =>
                   setNewItem({ ...newItem, description: e.target.value })
@@ -236,14 +246,14 @@ const MenuTab = ({ restaurants, userInfo }) => {
               <input
                 type="text"
                 placeholder="Asset URL (Image)"
-                className="w-full bg-black border border-gray-800 p-4 rounded-2xl text-white outline-none focus:border-primary"
+                className="w-full bg-black border border-gray-800 p-4 rounded-2xl text-white outline-none focus:border-primary transition-all"
                 value={newItem.image}
                 onChange={(e) =>
                   setNewItem({ ...newItem, image: e.target.value })
                 }
               />
 
-              {/* === VARIANTS SECTION === */}
+              {/* VARIANTS */}
               <div className="bg-black/50 p-6 rounded-3xl border border-gray-900 space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
@@ -252,17 +262,20 @@ const MenuTab = ({ restaurants, userInfo }) => {
                   <button
                     type="button"
                     onClick={addVariant}
-                    className="text-primary font-black text-[10px] uppercase flex items-center gap-1 hover:underline"
+                    className="text-primary font-black text-[10px] uppercase flex items-center gap-1 hover:underline transition-all"
                   >
                     <Plus size={14} /> Add Variant
                   </button>
                 </div>
                 {newItem.variants.map((v, i) => (
-                  <div key={i} className="flex gap-2">
+                  <div
+                    key={i}
+                    className="flex gap-2 animate-in slide-in-from-right-2 duration-300"
+                  >
                     <input
                       type="text"
                       placeholder="Name (e.g. Small)"
-                      className="flex-1 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white"
+                      className="flex-1 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white outline-none focus:border-primary"
                       value={v.name}
                       onChange={(e) => {
                         let x = [...newItem.variants];
@@ -273,7 +286,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
                     <input
                       type="number"
                       placeholder="Price"
-                      className="w-24 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white"
+                      className="w-24 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white outline-none focus:border-primary"
                       value={v.price}
                       onChange={(e) => {
                         let x = [...newItem.variants];
@@ -291,7 +304,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
                           ),
                         })
                       }
-                      className="text-red-500 p-2"
+                      className="text-red-500 p-2 hover:bg-red-500/10 rounded-lg transition-all"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -299,7 +312,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
                 ))}
               </div>
 
-              {/* === ADDONS SECTION === */}
+              {/* ADDONS */}
               <div className="bg-black/50 p-6 rounded-3xl border border-gray-900 space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
@@ -308,17 +321,20 @@ const MenuTab = ({ restaurants, userInfo }) => {
                   <button
                     type="button"
                     onClick={addAddon}
-                    className="text-primary font-black text-[10px] uppercase flex items-center gap-1 hover:underline"
+                    className="text-primary font-black text-[10px] uppercase flex items-center gap-1 hover:underline transition-all"
                   >
                     <Plus size={14} /> Add Addon
                   </button>
                 </div>
                 {newItem.addons.map((v, i) => (
-                  <div key={i} className="flex gap-2">
+                  <div
+                    key={i}
+                    className="flex gap-2 animate-in slide-in-from-right-2 duration-300"
+                  >
                     <input
                       type="text"
                       placeholder="Name (e.g. Cheese)"
-                      className="flex-1 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white"
+                      className="flex-1 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white outline-none focus:border-primary"
                       value={v.name}
                       onChange={(e) => {
                         let x = [...newItem.addons];
@@ -329,7 +345,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
                     <input
                       type="number"
                       placeholder="Price"
-                      className="w-24 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white"
+                      className="w-24 bg-gray-900 border border-gray-800 p-3 rounded-xl text-xs text-white outline-none focus:border-primary"
                       value={v.price}
                       onChange={(e) => {
                         let x = [...newItem.addons];
@@ -345,7 +361,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
                           addons: newItem.addons.filter((_, idx) => idx !== i),
                         })
                       }
-                      className="text-red-500 p-2"
+                      className="text-red-500 p-2 hover:bg-red-500/10 rounded-lg transition-all"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -355,7 +371,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
 
               <button
                 type="submit"
-                className="w-full bg-primary font-black py-5 rounded-[1.5rem] uppercase text-xs tracking-[0.3em] shadow-2xl shadow-primary/30 active:scale-95"
+                className="w-full bg-primary text-white font-black py-5 rounded-[1.5rem] uppercase text-xs tracking-[0.3em] shadow-2xl shadow-primary/30 active:scale-95 transition-all"
               >
                 Commit to Inventory
               </button>

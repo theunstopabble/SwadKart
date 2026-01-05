@@ -22,7 +22,7 @@ import RestaurantMenu from "./pages/RestaurantMenu";
 import RestaurantOwnerDashboard from "./pages/RestaurantOwnerDashboard";
 import DeliveryPartnerDashboard from "./pages/DeliveryPartnerDashboard";
 import InfoPage from "./pages/InfoPage";
-import Contact from "./pages/Contact"; // ✅ Contact Page Import
+import Contact from "./pages/Contact";
 
 // Components
 import Navbar from "./components/Navbar";
@@ -48,31 +48,21 @@ const ScrollToTop = () => {
 
 function App() {
   const { userInfo } = useSelector((state) => state.user);
-  const location = useLocation();
 
-  // 🔔 Push Notification & Global Socket Logic
   useEffect(() => {
     requestNotificationPermission();
-
     const socket = io(BASE_URL);
 
     if (userInfo) {
-      // Join private room
       socket.emit("joinOrder", userInfo._id);
-
-      // Listen for updates
       socket.on("orderUpdated", (order) => {
         sendNotification(`SwadKart: Order Update! 🛵`, {
           body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${
             order.orderStatus
           }".`,
         });
-
-        // Audible Alert
         const audio = new Audio("/notification.mp3");
-        audio
-          .play()
-          .catch((e) => console.log("Audio alert blocked by browser"));
+        audio.play().catch((e) => console.log("Audio alert blocked"));
       });
     }
 
@@ -81,12 +71,6 @@ function App() {
       socket.disconnect();
     };
   }, [userInfo]);
-
-  // Hide Navbar/Footer on Dashboards
-  const hideLayout =
-    location.pathname.startsWith("/admin") ||
-    location.pathname.startsWith("/restaurant/dashboard") ||
-    location.pathname.startsWith("/delivery/dashboard");
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white flex flex-col justify-between">
@@ -106,14 +90,12 @@ function App() {
         }}
       />
 
-      {/* ✅ Navbar shows everywhere except dashboards */}
-      {!hideLayout && <Navbar />}
+      {/* ✅ FIXED: Navbar ab har page par dikhega */}
+      <Navbar />
 
       <main className="flex-grow">
         <Routes>
-          {/* ============================== */}
-          {/* 🌍 PUBLIC ROUTES */}
-          {/* ============================== */}
+          {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/search" element={<Home />} />
           <Route path="/restaurant/:id" element={<RestaurantMenu />} />
@@ -122,16 +104,10 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/password/forgot" element={<ForgotPassword />} />
           <Route path="/password/reset/:token" element={<ResetPassword />} />
-
-          {/* ✅ Contact Route Added */}
           <Route path="/contact" element={<Contact />} />
-
-          {/* Dynamic Info Pages */}
           <Route path="/page/:type" element={<InfoPage />} />
 
-          {/* ============================== */}
-          {/* 🔒 USER PROTECTED ROUTES */}
-          {/* ============================== */}
+          {/* User Protected Routes */}
           <Route element={<PrivateRoute />}>
             <Route path="/shipping" element={<Shipping />} />
             <Route path="/payment" element={<Payment />} />
@@ -141,59 +117,47 @@ function App() {
             <Route path="/profile" element={<Profile />} />
           </Route>
 
-          {/* ============================== */}
-          {/* 👑 ADMIN ROUTES */}
-          {/* ============================== */}
+          {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminRoute />}>
             <Route index element={<AdminDashboard />} />
           </Route>
 
-          {/* ============================== */}
-          {/* 🏪 RESTAURANT OWNER ROUTES */}
-          {/* ============================== */}
+          {/* Restaurant Owner Routes */}
           <Route element={<RestaurantRoute />}>
-            <Route
-              path="/restaurant-dashboard"
-              element={<RestaurantOwnerDashboard />}
-            />
             <Route
               path="/restaurant/dashboard"
               element={<RestaurantOwnerDashboard />}
             />
+            <Route
+              path="/restaurant-dashboard"
+              element={<RestaurantOwnerDashboard />}
+            />
           </Route>
 
-          {/* ============================== */}
-          {/* 🛵 DELIVERY PARTNER ROUTES */}
-          {/* ============================== */}
+          {/* Delivery Partner Routes */}
           <Route element={<DeliveryRoute />}>
-            <Route
-              path="/delivery-dashboard"
-              element={<DeliveryPartnerDashboard />}
-            />
             <Route
               path="/delivery/dashboard"
               element={<DeliveryPartnerDashboard />}
             />
+            <Route
+              path="/delivery-dashboard"
+              element={<DeliveryPartnerDashboard />}
+            />
           </Route>
 
-          {/* 404 Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
-      {/* ✅ Footer shows everywhere except dashboards */}
-      {!hideLayout && <Footer />}
-
-      {/* AI Chatbot */}
-      {!hideLayout && <ChatBot />}
+      {/* ✅ FIXED: Footer aur Chatbot ab Admin Panel me bhi dikhenge */}
+      <Footer />
+      <ChatBot />
     </div>
   );
 }
 
-// ==========================================
-// 🛡️ ROUTE GUARDS (Security Logic)
-// ==========================================
-
+// 🛡️ ROUTE GUARDS
 const PrivateRoute = () => {
   const { userInfo } = useSelector((state) => state.user);
   return userInfo ? <Outlet /> : <Navigate to="/login" replace />;

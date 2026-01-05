@@ -1,5 +1,6 @@
 import express from "express";
 import { contactSupport } from "../controllers/supportController.js";
+import { sendWhatsAppOTP } from "../controllers/whatsappAuthController.js";
 
 // Controllers Import
 import {
@@ -45,6 +46,7 @@ router.post("/login", loginUser);
 router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
 router.post("/contact-support", contactSupport);
+router.post("/whatsapp-otp", sendWhatsAppOTP);
 
 
 // Google Authentication
