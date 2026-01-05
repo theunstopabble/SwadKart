@@ -1,4 +1,5 @@
 import express from "express";
+import { contactSupport } from "../controllers/supportController.js";
 
 // Controllers Import
 import {
@@ -43,6 +44,8 @@ router.post("/verify-email", verifyEmailAPI);
 router.post("/login", loginUser);
 router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
+router.post("/contact-support", contactSupport);
+
 
 // Google Authentication
 router.post("/google-check", googleCheck);

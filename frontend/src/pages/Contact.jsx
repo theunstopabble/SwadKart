@@ -1,16 +1,58 @@
-import React from "react";
+import React, { useState } from "react";
 import { Mail, MapPin, Send, Clock, Headphones, Phone } from "lucide-react";
+import { toast } from "react-hot-toast";
+import { BASE_URL } from "../config";
 
 const Contact = () => {
-  // ✅ FIX: Hardcoded email removed. Now uses Env variable or fallback.
+  // ✅ Environment variables for Email & Phone
   const supportEmail =
     import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
   const supportPhone = "+91 98765 43210";
 
-  const handleFormSubmit = (e) => {
+  // 📝 Form State
+  const [formData, setFormData] = useState({
+    name: "",
+    subject: "",
+    message: "",
+  });
+  const [loading, setLoading] = useState(false);
+
+  // 🔄 Handle Input Change
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // 🚀 Handle Form Submission
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    // Yahan future me API integration kar sakte ho agar chaho to
-    alert("Message Feature coming soon! Please email us directly.");
+
+    if (!formData.name || !formData.subject || !formData.message) {
+      return toast.error("Please fill all fields! ✍️");
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/v1/users/contact-support`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success(data.message || "Message dispatched successfully! 🚀");
+        setFormData({ name: "", subject: "", message: "" }); // Reset form
+      } else {
+        toast.error(data.message || "Failed to send message ❌");
+      }
+    } catch (error) {
+      toast.error("Network Error: Could not reach the server 🌐");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,7 +75,6 @@ const Contact = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Quick Contact Cards */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Email & Phone Card (WhatsApp Removed) */}
             <div className="bg-gray-900 border border-gray-800 p-8 rounded-[2rem] space-y-8 shadow-2xl h-full">
               {/* Email Section */}
               <div className="flex items-center gap-4 group">
@@ -71,7 +112,7 @@ const Contact = () => {
                 </div>
               </div>
 
-              {/* Hours Section */}
+              {/* Service Hours */}
               <div className="flex items-center gap-4 group">
                 <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-blue-500 border border-gray-800 group-hover:border-blue-500/50 transition-colors">
                   <Clock size={20} />
@@ -86,7 +127,7 @@ const Contact = () => {
                 </div>
               </div>
 
-              {/* HQ Section */}
+              {/* HQ Location */}
               <div className="flex items-center gap-4 group">
                 <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-orange-500 border border-gray-800 group-hover:border-orange-500/50 transition-colors">
                   <MapPin size={20} />
@@ -123,6 +164,9 @@ const Contact = () => {
                   </label>
                   <input
                     type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
                     placeholder="John Doe"
                     className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all"
                   />
@@ -133,6 +177,9 @@ const Contact = () => {
                   </label>
                   <input
                     type="text"
+                    name="subject"
+                    value={formData.subject}
+                    onChange={handleChange}
                     placeholder="Order Issue"
                     className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all"
                   />
@@ -145,6 +192,9 @@ const Contact = () => {
                 </label>
                 <textarea
                   rows="5"
+                  name="message"
+                  value={formData.message}
+                  onChange={handleChange}
                   placeholder="How can we help you today?"
                   className="w-full bg-black/50 border border-gray-700 rounded-[1.5rem] p-6 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all resize-none"
                 ></textarea>
@@ -152,12 +202,17 @@ const Contact = () => {
 
               <button
                 type="submit"
-                className="group w-full bg-primary hover:bg-red-600 text-white py-4 rounded-xl font-extrabold text-xs uppercase tracking-[0.3em] transition-all duration-500 flex items-center justify-center gap-3 shadow-lg shadow-primary/20 transform active:scale-95"
+                disabled={loading}
+                className="group w-full bg-primary hover:bg-red-600 text-white py-4 rounded-xl font-extrabold text-xs uppercase tracking-[0.3em] transition-all duration-500 flex items-center justify-center gap-3 shadow-lg shadow-primary/20 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Dispatch Message{" "}
+                {loading ? "Dispatching..." : "Dispatch Message"}
                 <Send
                   size={18}
-                  className="group-hover:translate-x-2 group-hover:-translate-y-1 transition-transform"
+                  className={`${
+                    loading
+                      ? "hidden"
+                      : "group-hover:translate-x-2 group-hover:-translate-y-1 transition-transform"
+                  }`}
                 />
               </button>
             </form>
