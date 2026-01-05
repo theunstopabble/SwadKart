@@ -75,6 +75,11 @@ const RestaurantOwnerDashboard = () => {
   const fetchData = async () => {
     if (!userInfo) return;
     try {
+      console.log(
+        "Fetching from:",
+        `${BASE_URL}/api/v1/orders/restaurant-orders`
+      );
+      console.log("Token:", userInfo.token);
       // Helper to safely parse JSON
       const safeJson = async (promise) => {
         try {

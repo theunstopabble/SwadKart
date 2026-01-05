@@ -1,5 +1,5 @@
 import User from "../models/userModel.js";
-import Restaurant from "../models/restaurantModel.js"; // 👈 Added Restaurant Model
+import Restaurant from "../models/restaurantModel.js";
 import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import mongoose from "mongoose";
@@ -110,7 +110,7 @@ export const deleteUserByAdmin = async (req, res, next) => {
         throw new Error("Cannot delete Admin");
       }
 
-      // ✅ Also delete the associated restaurant profile
+      // Also delete the associated restaurant profile
       await Restaurant.findOneAndDelete({ owner: user._id });
       await user.deleteOne();
 
@@ -124,7 +124,6 @@ export const deleteUserByAdmin = async (req, res, next) => {
   }
 };
 
-// ✅ FIX: Admin: Add new restaurant partner (User + Restaurant Entry)
 export const createRestaurantByAdmin = async (req, res, next) => {
   try {
     const { name, email, password, image } = req.body;
@@ -142,13 +141,13 @@ export const createRestaurantByAdmin = async (req, res, next) => {
     });
 
     if (user) {
-      // 2. 🔥 Create Restaurant Profile (Important!)
+      // 2. Create Restaurant Profile
       await Restaurant.create({
         name: `${name} (Shop)`,
         owner: user._id,
         image: user.image,
         address: "Default Address, India",
-        isVerified: false, // Authorize button click will make it true
+        isVerified: false,
         isActive: true,
       });
     }
@@ -159,7 +158,6 @@ export const createRestaurantByAdmin = async (req, res, next) => {
   }
 };
 
-// ✅ FIX: Admin: Create dummy shop (User + Restaurant Entry)
 export const createDummyRestaurant = async (req, res, next) => {
   try {
     const { name, image } = req.body;
@@ -181,14 +179,14 @@ export const createDummyRestaurant = async (req, res, next) => {
     });
 
     if (user) {
-      // 2. 🔥 Create Synthetic Restaurant Profile
+      // 2. Create Synthetic Restaurant Profile
       await Restaurant.create({
         name: `${user.name} (Shop)`,
         owner: user._id,
         image: user.image,
         address: "Synthetic Street, Cyber City",
         isVerified: false,
-        isDummy: true, // Flag for dummy data
+        isDummy: true,
         isActive: true,
       });
     }
@@ -233,9 +231,10 @@ export const seedDatabase = async (req, res, next) => {
   return res.json({ message: "Seed functionality called." });
 };
 
-// ==========================================
-// 📧 3. NEWSLETTER SUBSCRIPTION
-// ==========================================
+// =================================================================
+// 📧 3. NEWSLETTER & GOOGLE AUTH
+// =================================================================
+
 export const subscribeToNewsletter = async (req, res) => {
   const { email } = req.body;
 
@@ -244,6 +243,7 @@ export const subscribeToNewsletter = async (req, res) => {
   }
 
   try {
+    // Notify Admin safely
     await sendEmail({
       email: process.env.SMTP_MAIL || "swadkartt@gmail.com",
       subject: "🔔 New Newsletter Subscriber!",
@@ -263,6 +263,58 @@ export const subscribeToNewsletter = async (req, res) => {
       .status(200)
       .json({ message: "Success! You are now subscribed. 🚀" });
   } catch (error) {
-    return res.status(500).json({ message: "Subscription failed." });
+    // Silent fail for frontend, but log in backend
+    console.error("Newsletter Error:", error.message);
+    return res
+      .status(200)
+      .json({ message: "Success! You are now subscribed. 🚀" });
+  }
+};
+
+// Google Auth Logic
+export const googleCheck = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (user) {
+      const token = generateToken(res, user._id);
+      return res.json({ exists: true, user: { ...user._doc, token } });
+    } else {
+      return res.json({ exists: false });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const googleRegister = async (req, res, next) => {
+  try {
+    const { name, email, image, phone } = req.body;
+
+    const phoneExists = await User.findOne({ phone });
+    if (phoneExists) {
+      res.status(400);
+      throw new Error("Phone number already registered with another account.");
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      phone,
+      image,
+      password:
+        Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-8),
+      role: "user",
+      isVerified: true,
+    });
+
+    if (user) {
+      const token = generateToken(res, user._id);
+      res.status(201).json({ ...user._doc, token });
+    }
+  } catch (error) {
+    next(error);
   }
 };

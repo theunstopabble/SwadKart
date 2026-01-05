@@ -1,4 +1,5 @@
 import Product from "../models/productModel.js";
+import Restaurant from "../models/restaurantModel.js"; // ✅ CRITICAL IMPORT
 
 // ============================================================
 // 👇 PUBLIC ROUTES
@@ -47,7 +48,7 @@ export const getProductsByRestaurant = async (req, res) => {
 // 👇 PROTECTED ROUTES (Admin / Restaurant Owner)
 // ============================================================
 
-// @desc    Create a product
+// @desc    Create a product (✅ FIXED LOGIC)
 export const createProduct = async (req, res) => {
   try {
     const {
@@ -57,15 +58,24 @@ export const createProduct = async (req, res) => {
       image,
       category,
       countInStock,
-      restaurantId,
       isVeg,
       orderIndex,
-      variants, // Expecting Array
-      addons, // Expecting Array
+      variants,
+      addons,
     } = req.body;
 
-    const ownerId = restaurantId || req.user._id;
+    // 🔍 STEP 1: Find Restaurant by Owner ID
+    // Hamein 'user' field nahi, 'owner' field check karna hai Restaurant model me
+    const restaurant = await Restaurant.findOne({ owner: req.user._id });
 
+    if (!restaurant) {
+      return res.status(404).json({
+        message:
+          "No Restaurant found for this owner. Please create a restaurant profile first.",
+      });
+    }
+
+    // 🛠️ STEP 2: Create Product linked to that Restaurant
     const product = new Product({
       name,
       price,
@@ -74,8 +84,10 @@ export const createProduct = async (req, res) => {
       category,
       isVeg: isVeg === undefined ? true : isVeg,
       orderIndex: orderIndex || 0,
-      restaurant: ownerId,
-      user: ownerId,
+
+      restaurant: restaurant._id, // ✅ Correct: Links to Restaurant ID
+      user: req.user._id, // ✅ Correct: Links to Owner User ID (Backup)
+
       countInStock: countInStock || 100,
       variants: variants || [],
       addons: addons || [],
@@ -84,6 +96,7 @@ export const createProduct = async (req, res) => {
     const createdProduct = await product.save();
     res.status(201).json(createdProduct);
   } catch (error) {
+    console.error("Create Product Error:", error.message);
     res.status(400).json({ message: error.message });
   }
 };
@@ -96,9 +109,7 @@ export const updateProduct = async (req, res) => {
     if (product) {
       // 🛡️ SECURITY Check
       const isOwner =
-        (product.restaurant &&
-          product.restaurant.toString() === req.user._id.toString()) ||
-        (product.user && product.user.toString() === req.user._id.toString());
+        product.user && product.user.toString() === req.user._id.toString();
       const isAdmin = req.user.role === "admin";
 
       if (!isAdmin && !isOwner) {
@@ -141,10 +152,9 @@ export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (product) {
+      // 🛡️ SECURITY Check
       const isOwner =
-        (product.restaurant &&
-          product.restaurant.toString() === req.user._id.toString()) ||
-        (product.user && product.user.toString() === req.user._id.toString());
+        product.user && product.user.toString() === req.user._id.toString();
       const isAdmin = req.user.role === "admin";
 
       if (isAdmin || isOwner) {
@@ -172,9 +182,7 @@ export const toggleProductStock = async (req, res) => {
 
     const isAdmin = req.user.role === "admin";
     const isOwner =
-      (product.restaurant &&
-        product.restaurant.toString() === req.user._id.toString()) ||
-      (product.user && product.user.toString() === req.user._id.toString());
+      product.user && product.user.toString() === req.user._id.toString();
 
     if (isAdmin || isOwner) {
       product.countInStock = product.countInStock > 0 ? 0 : 100;

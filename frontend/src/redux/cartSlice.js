@@ -1,10 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 // ==========================================
-// 🛠️ HELPER: Generate Unique ID based on Customization
+// 🛠️ HELPER: Generate Unique ID
 // ==========================================
 const generateCartId = (item) => {
-  const id = item.product || item._id; // Ensure we get the ID
+  const id = item.product || item._id;
   const variantPart = item.selectedVariant
     ? `-${item.selectedVariant.name}`
     : "";
@@ -43,17 +43,24 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
-    // ✅ ADD TO CART (With Product ID Fix)
+    // ✅ ADD TO CART (FIXED FOR RESTAURANT ID)
     addToCart: (state, action) => {
       const item = action.payload;
 
-      // 🛠️ CRITICAL FIX: Backend needs 'product' field (the ID).
-      // Ensuring it's set from either item.product or item._id
+      // 1. Fix Product ID
       const productId = item.product || item._id;
+
+      // 2. 🔥 CRITICAL FIX: Ensure Restaurant ID is captured
+      // Sometimes it comes as an object (populated) or a string. We need the ID string.
+      const restaurantId =
+        typeof item.restaurant === "object"
+          ? item.restaurant._id
+          : item.restaurant;
 
       const itemWithCorrectId = {
         ...item,
-        product: productId, // Required by Backend OrderModel
+        product: productId,
+        restaurant: restaurantId, // 👈 This links the order to the owner
         cartUniqueId: generateCartId(item),
       };
 
@@ -74,7 +81,7 @@ const cartSlice = createSlice({
 
     // ✅ REMOVE FROM CART
     removeFromCart: (state, action) => {
-      const idToRemove = action.payload; // This is cartUniqueId
+      const idToRemove = action.payload;
       state.cartItems = state.cartItems.filter(
         (x) => x.cartUniqueId !== idToRemove
       );

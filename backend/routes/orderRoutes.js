@@ -6,12 +6,13 @@ import {
   addOrderItems,
   getOrderById,
   getMyOrders,
-  cancelOrder,
   getOrders,
-  updateOrderStatus, // ✅ Restaurant status update (Preparing/Ready)
-  updateOrderToPaid, // ✅ Online payment confirmation
+  updateOrderStatus,
+  updateOrderToPaid,
+  cancelOrder,
   getMyRestaurantOrders, // 👈 NEW: For Restaurant Dashboard (Fixes 403 Error)
 } from "../controllers/orderController.js";
+import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 
 // 2. 👇 Delivery Controller
 import {
@@ -30,7 +31,7 @@ import {
 } from "../controllers/adminController.js";
 
 // 👇 Auth Middlewares
-import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+
 
 // ============================================================
 // 👑 ROOT ROUTES (CREATE & ADMIN LIST)

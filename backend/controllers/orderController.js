@@ -261,15 +261,20 @@ export const getMyOrders = async (req, res) => {
 // 👨‍🍳 7. RESTAURANT OWNER ORDERS (FIXED)
 // ==========================================
 export const getMyRestaurantOrders = async (req, res) => {
+
+  console.log("🔥 Controller Hit: getMyRestaurantOrders");
+  console.log("👤 User ID:", req.user._id);
   try {
     // 1. Find the restaurant owned by this user
-    const restaurant = await Restaurant.findOne({ user: req.user._id });
+    const restaurant = await Restaurant.findOne({ owner: req.user._id });
 
     if (!restaurant) {
+      console.log("❌ Error: No Restaurant Profile found for this user.");
       return res
         .status(404)
         .json({ message: "No restaurant profile found. Please create one." });
     }
+    console.log("✅ Restaurant Found:", restaurant.name);
 
     // 2. Find orders that contain items from this restaurant
     const orders = await Order.find({
@@ -278,6 +283,7 @@ export const getMyRestaurantOrders = async (req, res) => {
       .populate("user", "name email")
       .populate("deliveryPartner", "name phone")
       .sort({ createdAt: -1 });
+      console.log(`📦 Orders Found: ${orders.length}`);
 
     res.json(orders);
   } catch (error) {

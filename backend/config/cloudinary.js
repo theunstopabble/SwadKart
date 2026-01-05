@@ -1,28 +1,25 @@
 import { v2 as cloudinary } from "cloudinary";
-import dotenv from "dotenv";
 import multerStorageCloudinary from "multer-storage-cloudinary";
+import dotenv from "dotenv";
 
 dotenv.config();
 
-// 🛠️ UNIVERSAL FIX: CloudinaryStorage ko dhoondne ka logic
-// Kabhi ye direct hota hai, kabhi .default ke andar, kabhi .CloudinaryStorage ke andar
+// Fix for library import compatibility
 const CloudinaryStorage =
-  multerStorageCloudinary.CloudinaryStorage ||
-  multerStorageCloudinary.default?.CloudinaryStorage ||
-  multerStorageCloudinary.default ||
-  multerStorageCloudinary;
+  multerStorageCloudinary.CloudinaryStorage || multerStorageCloudinary;
 
-// 1. Cloudinary Setup
+// 1. Cloudinary Config
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// 2. Storage Setup
-// Ab 'CloudinaryStorage' ek valid Constructor hona chahiye
+// 2. Storage Setup (FIXED)
 const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
+  // 👇 MAGIC LINE: Isse 'uploader' wala error jayega
+  cloudinary: { v2: cloudinary },
+
   params: {
     folder: "swadkart_products",
     allowed_formats: ["jpg", "png", "jpeg", "webp"],

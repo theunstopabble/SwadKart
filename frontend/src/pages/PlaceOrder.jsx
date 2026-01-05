@@ -141,17 +141,22 @@ const PlaceOrder = () => {
         }
       }
 
-      // 2. Format Items (CRITICAL: Ensure 'restaurant' ID is passed)
-      const formattedItems = cart.cartItems.map((item) => ({
-        name: item.name,
-        qty: Number(item.qty),
-        image: item.image,
-        price: Number(item.price),
-        product: item.product,
-        restaurant: item.restaurant, // 👈 THIS MUST EXIST FOR OWNER DASHBOARD
-        selectedVariant: item.selectedVariant || null,
-        selectedAddons: item.selectedAddons || [],
-      }));
+      // 2. Format Items (CRITICAL: Ensuring Restaurant ID is Passed)
+      const formattedItems = cart.cartItems.map((item) => {
+        if (!item.restaurant) {
+          console.warn("⚠️ Warning: Item missing Restaurant ID", item);
+        }
+        return {
+          name: item.name,
+          qty: Number(item.qty),
+          image: item.image,
+          price: Number(item.price),
+          product: item.product,
+          restaurant: item.restaurant, // 👈 Must match what we saved in cartSlice
+          selectedVariant: item.selectedVariant || null,
+          selectedAddons: item.selectedAddons || [],
+        };
+      });
 
       // 3. Format Address
       const finalShippingAddress = {
@@ -185,13 +190,11 @@ const PlaceOrder = () => {
 
       // 5. Handle Payment Flow
       if (cart.paymentMethod === "COD") {
-        // COD Flow
         handleOrderSuccess(
           dbData._id,
           "COD-" + dbData._id.slice(-6).toUpperCase()
         );
       } else {
-        // Online Flow (Razorpay)
         const orderRes = await fetch(
           `${BASE_URL}/api/v1/payment/create-order`,
           {

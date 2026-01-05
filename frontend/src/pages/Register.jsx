@@ -15,6 +15,7 @@ import {
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../config";
 import { setCredentials } from "../redux/userSlice";
+import GoogleAuth from "../components/GoogleAuth"; // ✅ Google Auth Component
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -108,7 +109,6 @@ const Register = () => {
   };
 
   return (
-    // 👇 FIX HERE: Added 'pt-28' (Padding Top) to push content down from Navbar
     <div className="min-h-screen w-full flex items-center justify-center bg-black px-4 pt-28 pb-12 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-gray-900/80 backdrop-blur-md p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-800">
         {/* Header Section */}
@@ -134,77 +134,90 @@ const Register = () => {
 
         {!otpSent ? (
           /* Registration Form */
-          <form onSubmit={submitHandler} className="mt-8 space-y-4">
-            {[
-              {
-                icon: User,
-                type: "text",
-                placeholder: "Full Name",
-                val: name,
-                set: setName,
-              },
-              {
-                icon: Mail,
-                type: "email",
-                placeholder: "Email Address",
-                val: email,
-                set: setEmail,
-              },
-              {
-                icon: Phone,
-                type: "tel",
-                placeholder: "Phone Number",
-                val: phone,
-                set: setPhone,
-              },
-              {
-                icon: Lock,
-                type: "password",
-                placeholder: "Password",
-                val: password,
-                set: setPassword,
-              },
-              {
-                icon: Lock,
-                type: "password",
-                placeholder: "Confirm Password",
-                val: confirmPassword,
-                set: setConfirmPassword,
-              },
-            ].map((field, idx) => (
-              <div key={idx} className="relative group">
-                {/* Fixed Icon Centering */}
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <field.icon className="h-5 w-5 text-gray-500 group-focus-within:text-primary transition-colors" />
+          <>
+            <form onSubmit={submitHandler} className="mt-8 space-y-4">
+              {[
+                {
+                  icon: User,
+                  type: "text",
+                  placeholder: "Full Name",
+                  val: name,
+                  set: setName,
+                },
+                {
+                  icon: Mail,
+                  type: "email",
+                  placeholder: "Email Address",
+                  val: email,
+                  set: setEmail,
+                },
+                {
+                  icon: Phone,
+                  type: "tel",
+                  placeholder: "Phone Number",
+                  val: phone,
+                  set: setPhone,
+                },
+                {
+                  icon: Lock,
+                  type: "password",
+                  placeholder: "Password",
+                  val: password,
+                  set: setPassword,
+                },
+                {
+                  icon: Lock,
+                  type: "password",
+                  placeholder: "Confirm Password",
+                  val: confirmPassword,
+                  set: setConfirmPassword,
+                },
+              ].map((field, idx) => (
+                <div key={idx} className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <field.icon className="h-5 w-5 text-gray-500 group-focus-within:text-primary transition-colors" />
+                  </div>
+                  <input
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    className="block w-full pl-11 pr-4 py-3.5 bg-black/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all sm:text-sm"
+                    value={field.val}
+                    onChange={(e) => field.set(e.target.value)}
+                    required
+                    maxLength={
+                      field.placeholder === "Phone Number" ? 10 : undefined
+                    }
+                  />
                 </div>
-                <input
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  className="block w-full pl-11 pr-4 py-3.5 bg-black/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all sm:text-sm"
-                  value={field.val}
-                  onChange={(e) => field.set(e.target.value)}
-                  required
-                  maxLength={
-                    field.placeholder === "Phone Number" ? 10 : undefined
-                  }
-                />
-              </div>
-            ))}
+              ))}
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-primary hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-            >
-              {isLoading ? (
-                <Loader className="animate-spin h-5 w-5" />
-              ) : (
-                <>
-                  Get OTP <ArrowRight className="ml-2 h-5 w-5" />
-                </>
-              )}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-primary hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+              >
+                {isLoading ? (
+                  <Loader className="animate-spin h-5 w-5" />
+                ) : (
+                  <>
+                    Get OTP <ArrowRight className="ml-2 h-5 w-5" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* 👇 GOOGLE AUTH SECTION ADDED HERE */}
+            <div className="my-6 flex items-center gap-4 opacity-50">
+              <div className="flex-1 h-[1px] bg-gray-700"></div>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                OR 
+              </span>
+              <div className="flex-1 h-[1px] bg-gray-700"></div>
+            </div>
+
+            <GoogleAuth />
+            {/* 👆 GOOGLE AUTH END */}
+          </>
         ) : (
           /* OTP Form */
           <form onSubmit={verifyOtpHandler} className="mt-8 space-y-6">

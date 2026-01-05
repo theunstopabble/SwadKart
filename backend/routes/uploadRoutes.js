@@ -1,11 +1,10 @@
 import express from "express";
 import multer from "multer";
 import { storage } from "../config/cloudinary.js";
-import { protect } from "../middleware/authMiddleware.js"; // 🛡️ Security ke liye
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// 🛠️ File Filter: Taaki sirf images hi upload ho sakein
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith("image/")) {
     cb(null, true);
@@ -20,27 +19,37 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
-// @desc    Upload image to Cloudinary
-// @route   POST /api/v1/upload
-// @access  Private (Only logged in users)
 router.post("/", protect, (req, res) => {
   upload.single("image")(req, res, (err) => {
+    // 1. Error Handling
     if (err instanceof multer.MulterError) {
-      // Multer related errors (e.g. File too large)
       return res.status(400).json({ message: `Multer Error: ${err.message}` });
     } else if (err) {
-      // Other errors (e.g. Invalid file type)
       return res.status(400).json({ message: err.message });
     }
 
+    // 2. File Check
     if (!req.file) {
       return res.status(400).json({ message: "No image file provided" });
     }
 
-    // 🔥 Success: Cloudinary URL returns in req.file.path
+    // 🔍 DEBUGGING: Terminal me check karo ki Cloudinary ne kya bheja
+    console.log("☁️ Cloudinary Response:", req.file);
+
+    // 🛠️ SMART FIX: URL kahin bhi ho, hum dhund lenge
+    // Cloudinary kabhi 'path', kabhi 'secure_url', kabhi 'url' bhejta hai
+    const imageUrl = req.file.path || req.file.secure_url || req.file.url;
+
+    if (!imageUrl) {
+      return res
+        .status(500)
+        .json({ message: "Image uploaded but URL not found!" });
+    }
+
+    // 3. Success Response
     res.status(200).json({
       message: "Image Uploaded Successfully",
-      image: req.file.path,
+      image: imageUrl,
     });
   });
 });

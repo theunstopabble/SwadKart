@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setCredentials } from "../redux/userSlice";
 import { Mail, Lock, LogIn, Loader } from "lucide-react";
-import { toast } from "react-hot-toast"; // ✅ Toast add kiya (Better UI)
+import { toast } from "react-hot-toast";
+import GoogleAuth from "../components/GoogleAuth"; // ✅ Toast add kiya (Better UI)
 import { BASE_URL } from "../config";
 
 const Login = () => {
@@ -57,8 +58,9 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-black px-4">
       <div className="max-w-md w-full bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-800">
         <h2 className="text-3xl font-extrabold text-white text-center mb-2">
-          Hungry? Let's get you 
-          <br /><span className="text-primary tracking-tight">Swad</span>Kart
+          Hungry? Let's get you
+          <br />
+          <span className="text-primary tracking-tight">Swad</span>Kart
         </h2>
         <br />
 
@@ -111,6 +113,16 @@ const Login = () => {
             )}
           </button>
         </form>
+        <div className="my-6 flex items-center gap-4 opacity-50">
+          <div className="flex-1 h-[1px] bg-gray-700"></div>
+          <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+            OR CONTINUE WITH
+          </span>
+          <div className="flex-1 h-[1px] bg-gray-700"></div>
+        </div>
+
+        {/* The Magic Button */}
+        <GoogleAuth />
 
         <p className="text-gray-400 text-center mt-8 text-sm">
           Hungry for more?{" "}

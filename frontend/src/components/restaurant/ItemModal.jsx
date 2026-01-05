@@ -1,5 +1,13 @@
-import React, { useState } from "react";
-import { X, Layers, PlusCircle, Trash2, Upload, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+  X,
+  Layers,
+  PlusCircle,
+  Trash2,
+  Upload,
+  Loader2,
+  Link as LinkIcon,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../../config";
 import { useSelector } from "react-redux";
@@ -14,6 +22,20 @@ const ItemModal = ({
 }) => {
   const { userInfo } = useSelector((state) => state.user);
   const [uploading, setUploading] = useState(false);
+  const [imageMode, setImageMode] = useState("url"); // 'url' or 'upload'
+
+  // --- Logic to detect if editing existing item is URL or Uploaded ---
+  useEffect(() => {
+    if (showModal && newItem.image) {
+      // Agar image hai, aur wo Cloudinary ki nahi hai, to URL mode maan lo
+      // (Waise default URL mode safe rehta hai edit ke time)
+      if (!newItem.image.includes("cloudinary")) {
+        setImageMode("url");
+      } else {
+        setImageMode("upload");
+      }
+    }
+  }, [showModal, newItem.image]);
 
   if (!showModal) return null;
 
@@ -88,7 +110,7 @@ const ItemModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex justify-center items-center z-[9999] p-4 animate-in fade-in duration-200">
       <div className="bg-gray-900 border border-gray-800 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto no-scrollbar animate-in zoom-in-95 duration-200">
         {/* Close Button */}
         <button
@@ -171,35 +193,113 @@ const ItemModal = ({
             />
           </div>
 
-          {/* 🔥 Image Upload Logic */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">
-              Dish Image
-            </label>
-            <div className="flex gap-4 items-center">
-              <div className="relative flex-1 group">
-                <input
-                  type="file"
-                  onChange={uploadFileHandler}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="w-full bg-black border border-dashed border-gray-800 rounded-2xl p-4 text-xs text-gray-500 flex items-center justify-center gap-2 group-hover:border-primary transition-all">
-                  {uploading ? (
-                    <Loader2 size={16} className="animate-spin text-primary" />
-                  ) : (
-                    <Upload size={16} />
-                  )}
-                  {newItem.image ? "Change Photo" : "Upload Image"}
-                </div>
+          {/* 🔥 NEW: Image Upload & URL Logic */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-end">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">
+                Dish Image
+              </label>
+              {/* Toggle Buttons */}
+              <div className="flex bg-gray-800 rounded-lg p-1 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setImageMode("url")}
+                  className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    imageMode === "url"
+                      ? "bg-black text-white shadow-sm"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Paste Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageMode("upload")}
+                  className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    imageMode === "upload"
+                      ? "bg-black text-white shadow-sm"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Upload File
+                </button>
               </div>
+            </div>
+
+            <div className="flex gap-4 items-start">
+              {/* INPUT AREA */}
+              <div className="flex-1">
+                {imageMode === "url" ? (
+                  // 👉 OPTION 1: URL INPUT
+                  <div className="relative group">
+                    <LinkIcon
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors"
+                      size={16}
+                    />
+                    <input
+                      type="text"
+                      placeholder="https://images.unsplash.com/..."
+                      className="w-full bg-black border border-gray-800 rounded-2xl p-4 pl-12 text-sm text-white focus:border-primary outline-none transition-all font-mono placeholder-gray-700"
+                      value={newItem.image}
+                      onChange={(e) =>
+                        setNewItem({ ...newItem, image: e.target.value })
+                      }
+                    />
+                  </div>
+                ) : (
+                  // 👉 OPTION 2: FILE UPLOAD
+                  <div className="relative group w-full">
+                    <input
+                      type="file"
+                      onChange={uploadFileHandler}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="w-full bg-black border border-dashed border-gray-800 rounded-2xl p-4 text-xs text-gray-500 flex items-center justify-center gap-2 group-hover:border-primary transition-all">
+                      {uploading ? (
+                        <Loader2
+                          size={16}
+                          className="animate-spin text-primary"
+                        />
+                      ) : (
+                        <Upload size={16} />
+                      )}
+                      {newItem.image ? "Change File" : "Click to Upload"}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* PREVIEW AREA */}
               {newItem.image && (
-                <img
-                  src={newItem.image}
-                  alt="preview"
-                  className="h-14 w-14 rounded-2xl object-cover border border-gray-800 shadow-xl"
-                />
+                <div className="shrink-0">
+                  <img
+                    src={newItem.image}
+                    alt="preview"
+                    className="h-14 w-14 rounded-2xl object-cover border border-gray-800 shadow-xl bg-black"
+                    onError={(e) => {
+                      e.target.src =
+                        "https://via.placeholder.com/150?text=No+Img";
+                    }}
+                  />
+                </div>
               )}
             </div>
+          </div>
+          {/* 👇 MISSING DESCRIPTION FIELD ADDED HERE 👇 */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">
+              Description
+            </label>
+            <textarea
+              rows="3"
+              className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white focus:border-primary outline-none transition-all font-medium placeholder-gray-700 resize-none"
+              placeholder="Describe this delicious item (ingredients, taste)..."
+              value={newItem.description}
+              onChange={(e) =>
+                setNewItem({ ...newItem, description: e.target.value })
+              }
+              required
+            ></textarea>
           </div>
 
           {/* Variants Section */}
