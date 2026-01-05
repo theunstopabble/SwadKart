@@ -3,8 +3,6 @@ import {
   Trash2,
   ShieldCheck,
   User,
-  Truck,
-  Store,
   Search,
   Mail,
   ShieldAlert,
@@ -40,22 +38,24 @@ const UsersTab = ({ userInfo }) => {
     if (userInfo) fetchUsers();
   }, [userInfo]);
 
+  // ✅ FIX 1: URL & Method corrected for Role Update
   const handleRoleChange = async (userId, newRole) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/${userId}/role`, {
+      // Backend expects: /api/v1/users/admin/user/:id
+      const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userInfo.token}`,
         },
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify({ role: newRole }), // Send new role
       });
 
       if (res.ok) {
         toast.success(
           `Identity Protocol: Access level granted to ${newRole.toUpperCase()}! 🛡️`
         );
-        fetchUsers();
+        fetchUsers(); // Refresh list
       } else {
         const err = await res.json();
         toast.error(err.message || "Protocol Failure: Role update failed");
@@ -65,13 +65,15 @@ const UsersTab = ({ userInfo }) => {
     }
   };
 
+  // ✅ FIX 2: URL corrected for Delete
   const handleDelete = async (id) => {
     if (
       !window.confirm("WARNING: Permanent deletion of this identity. Proceed?")
     )
       return;
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/${id}`, {
+      // Backend expects: /api/v1/users/admin/user/:id
+      const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${userInfo.token}` },
       });

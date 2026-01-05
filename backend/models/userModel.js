@@ -87,11 +87,19 @@ userSchema.post("save", function (doc) {
   if (isNewUser) {
     setTimeout(async () => {
       try {
-        const adminMail = process.env.SMTP_MAIL || "swadkartt@gmail.com";
+        // 🛠️ FIX: Hardcoded email hata diya.
+        // Ab ye sirf Environment Variable (.env) se email uthayega.
+        const adminMail = process.env.SMTP_MAIL;
+
+        if (!adminMail) {
+          console.warn("⚠️ Admin Alert Skipped: SMTP_MAIL not set in .env");
+          return; // Email nahi hai to yahi ruk jao (Crash nahi hoga)
+        }
+
         console.log(`🚀 Dispatching Registration Alert for: ${doc.email}`);
 
         await sendEmail({
-          email: adminMail,
+          email: adminMail, // ✅ Using Secure Variable
           subject: "🆕 New User Registration Alert - SwadKart",
           html: `
             <div style="font-family: sans-serif; border: 2px solid #ef4444; padding: 25px; border-radius: 15px; background-color: #000; color: #fff; max-width: 600px;">
@@ -107,6 +115,7 @@ userSchema.post("save", function (doc) {
         });
         console.log("✅ Admin Notified Successfully!");
       } catch (error) {
+        // Silent fail (server crash hone se bachega)
         console.error("❌ Admin Alert Failed:", error.message);
       }
     }, 1000);

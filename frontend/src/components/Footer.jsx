@@ -9,41 +9,45 @@ import {
   Mail,
   Phone,
   MapPin,
-  Send,
-  Heart,
   ArrowRight,
+  Heart,
 } from "lucide-react";
-import { BASE_URL } from "../config"; // 👈 YE IMPORT ZARURI HAI
+import { BASE_URL } from "../config";
 
 const Footer = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 👇 1. YOUR SPECIFIC SOCIAL LINKS
+  // 👇 CONFIGURATION: Change these to update footer info centrally
+  // In Vite/React, frontend env vars usually need 'VITE_' prefix.
+  // Using a fallback here ensures it looks professional immediately.
+  const SUPPORT_EMAIL =
+    import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
+  const SUPPORT_PHONE = "+91 98765 43210";
+
   const socialLinks = [
     {
       Icon: Facebook,
-      url: "https://www.facebook.com/gautam.theunstopabble",
+      url: "https://www.facebook.com/", // Update with Brand Page later
       color: "hover:bg-[#1877F2]",
     },
     {
       Icon: Twitter,
-      url: "https://x.com/_unstopabble",
+      url: "https://x.com/",
       color: "hover:bg-[#1DA1F2]",
     },
     {
       Icon: Instagram,
-      url: "https://www.instagram.com/theunstopabble?igsh=MTRrdGMwaDdheWFuMw==",
+      url: "https://www.instagram.com/",
       color: "hover:bg-[#E4405F]",
     },
     {
       Icon: Linkedin,
-      url: "https://www.linkedin.com/in/gautamkr62/",
+      url: "https://www.linkedin.com/",
       color: "hover:bg-[#0A66C2]",
     },
   ];
 
-  // 👇 2. NEWSLETTER HANDLER
   const handleSubscribe = async (e) => {
     e.preventDefault();
     if (!email) return toast.error("Please enter your email 📧");
@@ -99,20 +103,20 @@ const Footer = () => {
             <input
               type="email"
               placeholder="Enter your email address..."
-              // 👇 min-w-0 zaroori hai taaki input mobile pe overflow na kare
               className="flex-1 bg-transparent px-4 py-3 text-gray-300 outline-none min-w-0"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
             <button
               type="submit"
-              // 👇 YAHAN HAI MAGIC FIX: 'shrink-0' add kiya hai
-              className="bg-[#ef4444] hover:bg-red-600 text-white font-bold px-4 py-3 h-full transition-all shrink-0"
+              disabled={loading}
+              className="bg-[#ef4444] hover:bg-red-600 text-white font-bold px-4 py-3 h-full transition-all shrink-0 disabled:opacity-50"
             >
-              Subscribe
+              {loading ? "..." : "Subscribe"}
             </button>
           </form>
         </div>
+
         {/* --- MIDDLE SECTION: LINKS GRID --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 mb-16">
           {/* Column 1: Brand & Social */}
@@ -147,7 +151,7 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Column 2: Quick Links (Mapped to InfoPage) */}
+          {/* Column 2: Quick Links */}
           <div>
             <h3 className="text-white font-black uppercase tracking-widest text-xs mb-8 border-b border-gray-800 pb-3 w-fit">
               Quick Links
@@ -156,9 +160,9 @@ const Footer = () => {
               {[
                 { name: "Home", path: "/" },
                 { name: "Menu", path: "/search" },
-                { name: "About Us", path: "/page/about-us" }, // 👉 Dynamic
+                { name: "About Us", path: "/page/about-us" },
                 { name: "Contact", path: "/contact" },
-                { name: "Blog", path: "/page/blog" }, // 👉 Dynamic
+                { name: "Blog", path: "/page/blog" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -178,17 +182,17 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Column 3: Support Links (Mapped to InfoPage) */}
+          {/* Column 3: Support Links */}
           <div>
             <h3 className="text-white font-black uppercase tracking-widest text-xs mb-8 border-b border-gray-800 pb-3 w-fit">
               Support
             </h3>
             <ul className="space-y-4">
               {[
-                { name: "FAQ", path: "/page/faq" }, // 👉 Dynamic
-                { name: "Help Center", path: "/page/help" }, // 👉 Dynamic
-                { name: "Terms of Service", path: "/page/terms" }, // 👉 Dynamic
-                { name: "Privacy Policy", path: "/page/privacy" }, // 👉 Dynamic
+                { name: "FAQ", path: "/page/faq" },
+                { name: "Help Center", path: "/page/help" },
+                { name: "Terms of Service", path: "/page/terms" },
+                { name: "Privacy Policy", path: "/page/privacy" },
                 { name: "Cookie Policy", path: "/page/privacy" },
               ].map((item) => (
                 <li key={item.name}>
@@ -215,10 +219,9 @@ const Footer = () => {
               Contact Us
             </h3>
             <ul className="space-y-6">
-              {/* 👇 LOCATION LINK ADDED HERE */}
               <li className="group">
                 <a
-                  href="https://www.google.com/maps/search/?api=1&query=Jagannath+University+Chaksu+Campus+Jaipur+Rajasthan"
+                  href="http://maps.google.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-start gap-4 text-gray-400 text-sm transition-all"
@@ -229,8 +232,6 @@ const Footer = () => {
                   <span className="leading-relaxed group-hover:text-gray-300 transition-colors">
                     Jagannath University
                     <br />
-                    (Chaksu Campus)
-                    <br />
                     Jaipur, Rajasthan, India
                   </span>
                 </a>
@@ -240,21 +241,22 @@ const Footer = () => {
                   <Phone size={18} />
                 </div>
                 <a
-                  href="tel:+911234567890"
+                  href={`tel:${SUPPORT_PHONE}`}
                   className="group-hover:text-gray-300 transition-colors font-mono"
                 >
-                  +91 12345 67890
+                  {SUPPORT_PHONE}
                 </a>
               </li>
               <li className="flex items-center gap-4 text-gray-400 text-sm group">
                 <div className="p-2.5 bg-gray-900 rounded-xl group-hover:bg-primary group-hover:text-white transition-colors duration-300 border border-gray-800">
                   <Mail size={18} />
                 </div>
+                {/* ✅ FIXED: Uses Variable now */}
                 <a
-                  href="mailto:swadkartt@gmail.com"
+                  href={`mailto:${SUPPORT_EMAIL}`}
                   className="group-hover:text-gray-300 transition-colors"
                 >
-                  swadkartt@gmail.com
+                  {SUPPORT_EMAIL}
                 </a>
               </li>
             </ul>
@@ -264,7 +266,7 @@ const Footer = () => {
         <div className="border-t border-gray-900 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 font-medium gap-4">
           <p className="text-center md:text-left hover:text-gray-400 transition-colors cursor-default flex items-center gap-1">
             © {new Date().getFullYear()}
-            <span className="font-extrabold  tracking-tighter ml-1">
+            <span className="font-extrabold tracking-tighter ml-1">
               <span className="text-primary">Swad</span>
               <span className="text-white">Kart</span>
             </span>
@@ -279,9 +281,7 @@ const Footer = () => {
             />
             by
             <a
-              href="https://www.linkedin.com/in/gautamkr62/"
-              target="_blank"
-              rel="noreferrer"
+              href="#"
               className="text-white font-bold group-hover:text-primary transition-colors"
             >
               Gautam Kumar

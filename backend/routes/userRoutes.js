@@ -1,5 +1,4 @@
 import express from "express";
-const router = express.Router();
 
 // Controllers Import
 import {
@@ -16,20 +15,23 @@ import {
   getAllRestaurantsPublic,
   getRestaurantById,
   getDeliveryPartners,
-  getAllRestaurants,
+  // 👇 IMPORTANT: Is function ko import kiya taaki Admin ko SAARA data mile
+  getUsers,
+  getAllRestaurants, // Ye abhi bhi chahiye specific kaam ke liye
   createRestaurantByAdmin,
   createDummyRestaurant,
   seedDatabase,
   updateUserByAdmin,
   deleteUserByAdmin,
   subscribeToNewsletter,
-  // 👇 Google Auth Controllers Added
   googleCheck,
   googleRegister,
 } from "../controllers/userController.js";
 
 // Middleware Import
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+
+const router = express.Router();
 
 // =================================================================
 // 🌍 PUBLIC ROUTES (No Auth Required)
@@ -42,21 +44,21 @@ router.post("/login", loginUser);
 router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
 
-// 👇 Google Authentication Routes (Added)
+// Google Authentication
 router.post("/google-check", googleCheck);
 router.post("/google-register", googleRegister);
 
 // Newsletter
 router.post("/newsletter", subscribeToNewsletter);
 
-// Restaurants Public Data
+// Restaurants Public List (For User App)
 router.get("/restaurants", getAllRestaurantsPublic);
 
 // =================================================================
 // 🔐 PROTECTED & SPECIFIC ROUTES (Must come BEFORE dynamic /:id)
 // =================================================================
 
-// ✅ FIX 1: Static routes must come BEFORE dynamic "/:id" routes
+// Get Delivery Partners (For Admin/Restaurant)
 router.get(
   "/delivery-partners",
   protect,
@@ -64,7 +66,7 @@ router.get(
   getDeliveryPartners
 );
 
-// User Profile
+// User Profile (Self Access)
 router
   .route("/profile")
   .get(protect, getUserProfile)
@@ -74,12 +76,13 @@ router
 // 👑 ADMIN & OWNER ROUTES
 // =================================================================
 
-// ✅ FIX 2: Added "restaurant_owner" authorization
+// ✅ CRITICAL FIX: Admin panel needs ALL users (User, Delivery, Owner)
+// Pahle ye 'getAllRestaurants' tha, isliye baaki log nahi dikh rahe the.
 router.get(
   "/admin/all",
   protect,
-  authorizeRoles("admin", "restaurant_owner"),
-  getAllRestaurants
+  authorizeRoles("admin"),
+  getUsers // 👈 Ab ye function call hoga
 );
 
 // Shop Management
@@ -108,9 +111,9 @@ router.post("/admin/seed", protect, authorizeRoles("admin"), seedDatabase);
 // ⚠️ WARNING: Keep this at the bottom to avoid conflicting with other GET routes
 router.get("/:id", getRestaurantById);
 
-// Admin Control by ID
+// Admin Control by ID (Update/Delete any user)
 router
-  .route("/admin/user/:id") // ✅ FIX 3: Route path specific to admin to avoid conflicts
+  .route("/admin/user/:id")
   .put(protect, authorizeRoles("admin"), updateUserByAdmin)
   .delete(protect, authorizeRoles("admin"), deleteUserByAdmin);
 

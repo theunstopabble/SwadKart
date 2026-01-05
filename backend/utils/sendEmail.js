@@ -2,10 +2,23 @@ import axios from "axios";
 
 /**
  * @desc Sends an email using Brevo (formerly Sendinblue) API v3
- * Fixed: This function will NOT throw errors that crash the main process.
+ * Fixed: Strictly uses .env variables. No hardcoded emails.
  */
 const sendEmail = async (options) => {
   try {
+    // 1. Env Variables Check
+    const senderEmail = process.env.SMTP_MAIL;
+    const apiKey = process.env.BREVO_API_KEY;
+
+    // 🛡️ Safety Check: Agar .env me ye nahi mile, to yahi ruk jao.
+    // Hardcoded email use karne se accha hai hum warning de de.
+    if (!senderEmail || !apiKey) {
+      console.warn(
+        "⚠️ EMAIL SKIPPED: Missing 'SMTP_MAIL' or 'BREVO_API_KEY' in .env file."
+      );
+      return false;
+    }
+
     console.log(`📨 Sending email to: ${options.email}`);
 
     const url = "https://api.brevo.com/v3/smtp/email";
@@ -24,7 +37,7 @@ const sendEmail = async (options) => {
     const data = {
       sender: {
         name: "SwadKart Support",
-        email: process.env.SMTP_MAIL || "swadkartt@gmail.com",
+        email: senderEmail, // ✅ Sirf .env se lega (Perfect!)
       },
       to: [
         {
@@ -39,7 +52,7 @@ const sendEmail = async (options) => {
     const response = await axios.post(url, data, {
       headers: {
         accept: "application/json",
-        "api-key": process.env.BREVO_API_KEY,
+        "api-key": apiKey, // ✅ Sirf .env se lega
         "content-type": "application/json",
       },
     });
@@ -52,10 +65,9 @@ const sendEmail = async (options) => {
     // 🔍 Error logging without crashing the server
     const errorDetail = error.response ? error.response.data : error.message;
 
-    // अगर API Key गलत है या कोटा खत्म है, तो यहाँ दिखेगा:
-    console.error("⚠️ EMAIL SYSTEM LOG:", errorDetail);
+    console.error("⚠️ EMAIL SYSTEM ERROR:", errorDetail);
 
-    // 🔥 IMPORTANT: Hum Error throw nahi kar rahe, taaki user register ho sake.
+    // 🔥 IMPORTANT: Error throw nahi kar rahe, taaki server chalta rahe.
     return false;
   }
 };

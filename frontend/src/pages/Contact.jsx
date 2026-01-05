@@ -1,21 +1,16 @@
 import React from "react";
-import {
-  Phone,
-  Mail,
-  MessageSquare,
-  MapPin,
-  Send,
-  Clock,
-  Headphones,
-} from "lucide-react";
+import { Mail, MapPin, Send, Clock, Headphones, Phone } from "lucide-react";
 
 const Contact = () => {
-  const whatsappNumber = "1234567890";
-  const supportEmail = "swadkartt@gmail.com";
+  // ✅ FIX: Hardcoded email removed. Now uses Env variable or fallback.
+  const supportEmail =
+    import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
+  const supportPhone = "+91 98765 43210";
 
-  const openWhatsApp = () => {
-    const url = `https://wa.me/${whatsappNumber}?text=Hi SwadKart Support, I need help with my order.`;
-    window.open(url, "_blank");
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    // Yahan future me API integration kar sakte ho agar chaho to
+    alert("Message Feature coming soon! Please email us directly.");
   };
 
   return (
@@ -38,28 +33,9 @@ const Contact = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Quick Contact Cards */}
           <div className="lg:col-span-1 space-y-6">
-            {/* WhatsApp Card */}
-            <button
-              onClick={openWhatsApp}
-              className="w-full bg-gray-900 border border-gray-800 p-8 rounded-[2rem] flex flex-col items-center text-center group hover:border-green-500/50 transition-all duration-500 shadow-2xl relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-              <div className="h-16 w-16 bg-[#25D366] rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-green-900/20 group-hover:scale-110 transition-transform">
-                <MessageSquare size={32} />
-              </div>
-              <h3 className="text-xl font-extrabold uppercase italic tracking-tighter mb-2">
-                WhatsApp Us
-              </h3>
-              <p className="text-gray-500 text-xs font-bold mb-6">
-                Instant support for order tracking & issues.
-              </p>
-              <span className="w-full bg-[#25D366] text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-transform">
-                Start Chat
-              </span>
-            </button>
-
-            {/* Email & Phone Card */}
-            <div className="bg-gray-900 border border-gray-800 p-8 rounded-[2rem] space-y-8 shadow-2xl">
+            {/* Email & Phone Card (WhatsApp Removed) */}
+            <div className="bg-gray-900 border border-gray-800 p-8 rounded-[2rem] space-y-8 shadow-2xl h-full">
+              {/* Email Section */}
               <div className="flex items-center gap-4 group">
                 <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-primary border border-gray-800 group-hover:border-primary/50 transition-colors">
                   <Mail size={20} />
@@ -68,12 +44,34 @@ const Contact = () => {
                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">
                     Email Inquiry
                   </p>
-                  <p className="text-sm font-bold text-gray-300">
+                  <a
+                    href={`mailto:${supportEmail}`}
+                    className="text-sm font-bold text-gray-300 hover:text-white transition-colors"
+                  >
                     {supportEmail}
-                  </p>
+                  </a>
                 </div>
               </div>
 
+              {/* Phone Section */}
+              <div className="flex items-center gap-4 group">
+                <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-green-500 border border-gray-800 group-hover:border-green-500/50 transition-colors">
+                  <Phone size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">
+                    Support Line
+                  </p>
+                  <a
+                    href={`tel:${supportPhone}`}
+                    className="text-sm font-bold text-gray-300 hover:text-white transition-colors"
+                  >
+                    {supportPhone}
+                  </a>
+                </div>
+              </div>
+
+              {/* Hours Section */}
               <div className="flex items-center gap-4 group">
                 <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-blue-500 border border-gray-800 group-hover:border-blue-500/50 transition-colors">
                   <Clock size={20} />
@@ -88,6 +86,7 @@ const Contact = () => {
                 </div>
               </div>
 
+              {/* HQ Section */}
               <div className="flex items-center gap-4 group">
                 <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-orange-500 border border-gray-800 group-hover:border-orange-500/50 transition-colors">
                   <MapPin size={20} />
@@ -113,7 +112,10 @@ const Contact = () => {
               Message
             </h2>
 
-            <form className="space-y-6 relative z-10">
+            <form
+              onSubmit={handleFormSubmit}
+              className="space-y-6 relative z-10"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">

@@ -8,8 +8,7 @@ const BRAND_GRAY = "#9ca3af"; // Light text
 const BG_COLOR = "#f3f4f6"; // Modern Light Grey Background
 
 // 👇 YOUR FRONTEND URL (Dynamic based on Environment)
-const FRONTEND_URL =
-  process.env.FRONTEND_URL || "https://swadkart-pro.vercel.app";
+const FRONTEND_URL = process.env.FRONTEND_URL;
 
 // =================================================================
 // 🏗️ 1. BASE LAYOUT (WRAPPER)
@@ -89,7 +88,9 @@ const wrapEmail = (content, title = "Notification") => {
           <p>© ${new Date().getFullYear()} SwadKart. All rights reserved.</p>
           <p>
             <a href="${FRONTEND_URL}">Visit Website</a> • 
-            <a href="mailto:swadkartt@gmail.com">Contact Support</a>
+            <a href="mailto:${
+              process.env.SMTP_MAIL || "support@swadkart.com"
+            }">Contact Support</a>
           </p>
         </div>
       </div>

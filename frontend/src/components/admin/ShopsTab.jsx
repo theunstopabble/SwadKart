@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../../config";
-// 👇 1. Import Socket.io
 import { io } from "socket.io-client";
 
 const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
@@ -32,23 +31,17 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   });
   const [dummyShopData, setDummyShopData] = useState({ name: "", image: "" });
 
-  // 👇 Reliable Placeholder Image
   const PLACEHOLDER_IMG =
     "https://placehold.co/600x400/1f2937/white?text=No+Image";
 
-  // 👇 2. SOCKET LISTENER (Real-time Update)
+  // Socket Listener
   useEffect(() => {
-    // Connect to Backend Socket
     const socket = io(BASE_URL);
-
-    // Listen for 'shopStatusUpdated' event from Backend
     socket.on("shopStatusUpdated", (updatedShop) => {
       console.log("Socket Signal Received: Updating List...");
-      // Refresh Data without Page Reload
       if (fetchAllData) fetchAllData();
     });
 
-    // Cleanup on unmount
     return () => {
       socket.off("shopStatusUpdated");
       socket.disconnect();
@@ -68,19 +61,14 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const handleApprove = async (id) => {
     try {
       setIsProcessing(true);
-      // ✅ API Call
       const res = await fetch(
         `${BASE_URL}/api/v1/restaurants/${id}/approve`,
         getFetchOptions("PUT")
       );
-
       const data = await res.json();
 
       if (res.ok) {
         toast.success("Merchant Verified: Shop is now LIVE! 🚀");
-        // ❌ Auto-Reload Removed
-        // ✅ Socket will handle the refresh now.
-        // We can call fetchAllData() once here for instant feedback before socket arrives
         if (fetchAllData) fetchAllData();
       } else {
         toast.error(data.message || "Approval failed.");
@@ -172,9 +160,13 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
     }
   };
 
+  // ✅ CRITICAL FIX: Filter out normal users! Only show 'restaurant_owner'
+  // Ab 'restaurants' prop me saare users aa rahe hain, isliye filter lagana zaroori hai.
+  const onlyShops = restaurants.filter((r) => r.role === "restaurant_owner");
+
   // Logic: Pending are unverified AND NOT dummy
-  const pendingShops = restaurants.filter((r) => !r.isVerified && !r.isDummy);
-  const activeShops = restaurants.filter((r) => r.isVerified || r.isDummy);
+  const pendingShops = onlyShops.filter((r) => !r.isVerified && !r.isDummy);
+  const activeShops = onlyShops.filter((r) => r.isVerified || r.isDummy);
 
   // Helper for Image Fallback
   const handleImageError = (e) => {
@@ -190,7 +182,6 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
             <Store className="text-primary" size={40} /> Merchant{" "}
             <span className="text-primary">Registry</span>
           </h2>
-          {/* ✅ FIX: Changed <p> to <div> to solve Hydration Error */}
           <div className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] mt-3 flex items-center gap-2 pl-1">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>{" "}
             Marketplace Infrastructure Control
@@ -230,7 +221,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
                     {shop.image ? (
                       <img
                         src={shop.image}
-                        onError={handleImageError} // 👈 Handle broken images
+                        onError={handleImageError}
                         className="w-full h-full object-cover grayscale group-hover:grayscale-0"
                         alt={shop.name}
                       />
@@ -279,7 +270,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
               <div className="h-56 relative overflow-hidden">
                 <img
                   src={shop.image || PLACEHOLDER_IMG}
-                  onError={handleImageError} // 👈 Handle broken images
+                  onError={handleImageError}
                   alt={shop.name}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-40 group-hover:opacity-60 grayscale group-hover:grayscale-0"
                 />

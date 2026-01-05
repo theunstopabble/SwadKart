@@ -5,7 +5,7 @@ import sendEmail from "../utils/sendEmail.js";
 import mongoose from "mongoose";
 
 // =================================================================
-// 👤 1. USER PROFILE OPERATIONS
+// 👤 1. USER PROFILE OPERATIONS (Self)
 // =================================================================
 
 export const getUserProfile = async (req, res, next) => {
@@ -49,26 +49,17 @@ export const updateUserProfile = async (req, res, next) => {
 };
 
 // =================================================================
-// 🏙️ 2. ADMIN & RESTAURANT OPERATIONS
+// 👑 2. ADMIN OPERATIONS (Manage All Users)
 // =================================================================
 
-export const getAllRestaurantsPublic = async (req, res, next) => {
+// ✅ CRITICAL FIX: Fetch ALL users (Users, Delivery, Owners) for Admin Panel
+export const getUsers = async (req, res, next) => {
   try {
-    const restaurants = await User.find({ role: "restaurant_owner" })
+    // Empty object {} means fetch everything
+    const users = await User.find({})
       .select("-password")
-      .sort({ orderIndex: 1 });
-    return res.json(restaurants);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getAllRestaurants = async (req, res, next) => {
-  try {
-    const restaurants = await User.find({ role: "restaurant_owner" })
-      .select("-password")
-      .sort({ orderIndex: 1 });
-    return res.json(restaurants);
+      .sort({ createdAt: -1 }); // Newest first
+    res.json(users);
   } catch (error) {
     next(error);
   }
@@ -80,6 +71,11 @@ export const updateUserByAdmin = async (req, res, next) => {
     if (user) {
       user.name = req.body.name || user.name;
       user.image = req.body.image || user.image;
+
+      // ✅ FIX: Allow admin to update User Role
+      if (req.body.role) {
+        user.role = req.body.role;
+      }
 
       if (req.body.orderIndex !== undefined) {
         user.orderIndex = req.body.orderIndex;
@@ -110,15 +106,41 @@ export const deleteUserByAdmin = async (req, res, next) => {
         throw new Error("Cannot delete Admin");
       }
 
-      // Also delete the associated restaurant profile
+      // Also delete the associated restaurant profile if it exists
       await Restaurant.findOneAndDelete({ owner: user._id });
       await user.deleteOne();
 
-      return res.json({ message: "Merchant and Shop Profile removed" });
+      return res.json({ message: "User identity and associated data removed" });
     } else {
       res.status(404);
       throw new Error("User not found");
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =================================================================
+// 🏙️ 3. RESTAURANT & DELIVERY OPERATIONS
+// =================================================================
+
+export const getAllRestaurantsPublic = async (req, res, next) => {
+  try {
+    const restaurants = await User.find({ role: "restaurant_owner" })
+      .select("-password")
+      .sort({ orderIndex: 1 });
+    return res.json(restaurants);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAllRestaurants = async (req, res, next) => {
+  try {
+    const restaurants = await User.find({ role: "restaurant_owner" })
+      .select("-password")
+      .sort({ orderIndex: 1 });
+    return res.json(restaurants);
   } catch (error) {
     next(error);
   }
@@ -232,7 +254,7 @@ export const seedDatabase = async (req, res, next) => {
 };
 
 // =================================================================
-// 📧 3. NEWSLETTER & GOOGLE AUTH
+// 📧 4. NEWSLETTER & GOOGLE AUTH
 // =================================================================
 
 export const subscribeToNewsletter = async (req, res) => {
@@ -243,9 +265,20 @@ export const subscribeToNewsletter = async (req, res) => {
   }
 
   try {
+    // 🛠️ FIX: Hardcoded email hata diya. Ab ye sirf Environment Variable use karega.
+    const adminEmail = process.env.SMTP_MAIL;
+
+    if (!adminEmail) {
+      console.warn("⚠️ Admin email (SMTP_MAIL) not set in .env");
+      // Agar backend me email set nahi hai, to client ko success dikhao par log kar lo
+      return res
+        .status(200)
+        .json({ message: "Success! You are now subscribed. 🚀" });
+    }
+
     // Notify Admin safely
     await sendEmail({
-      email: process.env.SMTP_MAIL || "swadkartt@gmail.com",
+      email: adminEmail, // ✅ Only uses .env variable now
       subject: "🔔 New Newsletter Subscriber!",
       html: `
         <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px; max-width: 600px; background-color: #f9f9f9;">
@@ -263,7 +296,6 @@ export const subscribeToNewsletter = async (req, res) => {
       .status(200)
       .json({ message: "Success! You are now subscribed. 🚀" });
   } catch (error) {
-    // Silent fail for frontend, but log in backend
     console.error("Newsletter Error:", error.message);
     return res
       .status(200)

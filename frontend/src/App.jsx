@@ -1,6 +1,6 @@
+import React, { useEffect } from "react";
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import { io } from "socket.io-client";
 
@@ -21,11 +21,14 @@ import ResetPassword from "./pages/ResetPassword";
 import RestaurantMenu from "./pages/RestaurantMenu";
 import RestaurantOwnerDashboard from "./pages/RestaurantOwnerDashboard";
 import DeliveryPartnerDashboard from "./pages/DeliveryPartnerDashboard";
+import InfoPage from "./pages/InfoPage";
+import Contact from "./pages/Contact"; // ✅ Contact Page Import
 
 // Components
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ChatBot from "./components/ChatBot";
+import InstallPWA from "./components/InstallPWA";
 
 // Helpers
 import { BASE_URL } from "./config";
@@ -33,7 +36,6 @@ import {
   requestNotificationPermission,
   sendNotification,
 } from "./components/notificationHelper";
-import InfoPage from "./pages/InfoPage"; // ✅ Fixed Import Path
 
 // ✨ ScrollToTop Helper
 const ScrollToTop = () => {
@@ -46,25 +48,24 @@ const ScrollToTop = () => {
 
 function App() {
   const { userInfo } = useSelector((state) => state.user);
+  const location = useLocation();
 
   // 🔔 Push Notification & Global Socket Logic
   useEffect(() => {
-    // 1. Request Permission on App Load
     requestNotificationPermission();
 
     const socket = io(BASE_URL);
 
     if (userInfo) {
-      // 2. Join a private room for this user to receive personal updates
+      // Join private room
       socket.emit("joinOrder", userInfo._id);
 
-      // 3. Global Listener for Order Status Updates
+      // Listen for updates
       socket.on("orderUpdated", (order) => {
-        // Browser Push Notification
         sendNotification(`SwadKart: Order Update! 🛵`, {
-          body: `आपका ऑर्डर #${order._id.slice(-6).toUpperCase()} अब "${
+          body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${
             order.orderStatus
-          }" है।`,
+          }".`,
         });
 
         // Audible Alert
@@ -75,16 +76,23 @@ function App() {
       });
     }
 
-    // 4. Cleanup on Unmount
     return () => {
       socket.off("orderUpdated");
       socket.disconnect();
     };
   }, [userInfo]);
 
+  // Hide Navbar/Footer on Dashboards
+  const hideLayout =
+    location.pathname.startsWith("/admin") ||
+    location.pathname.startsWith("/restaurant/dashboard") ||
+    location.pathname.startsWith("/delivery/dashboard");
+
   return (
-    <>
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white flex flex-col justify-between">
       <ScrollToTop />
+      <InstallPWA />
+
       <Toaster
         position="top-center"
         toastOptions={{
@@ -98,20 +106,27 @@ function App() {
         }}
       />
 
-      <Navbar />
+      {/* ✅ Navbar shows everywhere except dashboards */}
+      {!hideLayout && <Navbar />}
 
-      <main className="min-h-screen">
+      <main className="flex-grow">
         <Routes>
           {/* ============================== */}
           {/* 🌍 PUBLIC ROUTES */}
           {/* ============================== */}
           <Route path="/" element={<Home />} />
+          <Route path="/search" element={<Home />} />
           <Route path="/restaurant/:id" element={<RestaurantMenu />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/cart" element={<Cart />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/password/forgot" element={<ForgotPassword />} />
           <Route path="/password/reset/:token" element={<ResetPassword />} />
+
+          {/* ✅ Contact Route Added */}
+          <Route path="/contact" element={<Contact />} />
+
+          {/* Dynamic Info Pages */}
           <Route path="/page/:type" element={<InfoPage />} />
 
           {/* ============================== */}
@@ -166,9 +181,12 @@ function App() {
         </Routes>
       </main>
 
-      <Footer />
-      <ChatBot />
-    </>
+      {/* ✅ Footer shows everywhere except dashboards */}
+      {!hideLayout && <Footer />}
+
+      {/* AI Chatbot */}
+      {!hideLayout && <ChatBot />}
+    </div>
   );
 }
 
