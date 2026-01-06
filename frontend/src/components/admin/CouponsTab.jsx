@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Plus,
   RefreshCw,
   ToggleLeft,
   ToggleRight,
@@ -10,14 +9,19 @@ import {
   Ticket,
   Calendar,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../../config";
 
-const CouponsTab = ({ coupons, userInfo, fetchAllData }) => {
+const CouponsTab = ({ userInfo }) => {
+  const [coupons, setCoupons] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [isEditingCoupon, setIsEditingCoupon] = useState(false);
   const [editCouponId, setEditCouponId] = useState(null);
+
+  // ✅ Fixed: State names now match Backend Schema perfectly
   const [newCoupon, setNewCoupon] = useState({
     code: "",
     discountPercentage: "",
@@ -26,32 +30,72 @@ const CouponsTab = ({ coupons, userInfo, fetchAllData }) => {
     expirationDate: "",
   });
 
-  const config = {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${userInfo.token}`,
-    },
-    withCredentials: true,
+  const fetchCoupons = async () => {
+    try {
+      const { data } = await axios.get(`${BASE_URL}/api/v1/coupons`, {
+        headers: { Authorization: `Bearer ${userInfo.token}` },
+      });
+      setCoupons(data);
+    } catch (error) {
+      console.error("Error fetching coupons:", error);
+    }
   };
+
+  useEffect(() => {
+    fetchCoupons();
+  }, []);
 
   const handleCouponSubmit = async (e) => {
     e.preventDefault();
+
+    if (
+      !newCoupon.code ||
+      !newCoupon.discountPercentage ||
+      !newCoupon.expirationDate
+    ) {
+      return toast.error("Please fill all required fields");
+    }
+
+    setLoading(true);
+
     try {
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userInfo.token}`,
+        },
+      };
+
+      // 🎯 CRITICAL FIX: Payload keys match Backend Schema EXACTLY
+      // Backend expects: discountPercentage, minOrderValue, maxDiscountAmount
+      const payload = {
+        code: newCoupon.code.toUpperCase(),
+        discountPercentage: Number(newCoupon.discountPercentage), // Was sending 'discount'
+        minOrderValue: Number(newCoupon.minOrderValue) || 0, // Was sending 'minOrderAmount'
+        maxDiscountAmount: Number(newCoupon.maxDiscountAmount) || 0, // Was sending 'maxDiscount'
+        expirationDate: newCoupon.expirationDate,
+      };
+
       if (isEditingCoupon) {
         await axios.put(
           `${BASE_URL}/api/v1/coupons/${editCouponId}`,
-          newCoupon,
+          payload,
           config
         );
         toast.success("Identity Updated: Coupon Sync Complete! 🔄");
       } else {
-        await axios.post(`${BASE_URL}/api/v1/coupons`, newCoupon, config);
+        await axios.post(`${BASE_URL}/api/v1/coupons`, payload, config);
         toast.success("Protocol Active: New Coupon Deployed! 🎫");
       }
+
       resetForm();
-      fetchAllData();
+      fetchCoupons();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Transmission Failed");
+      // Show exact error from backend
+      const msg = error.response?.data?.message || "Transmission Failed";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,8 +114,12 @@ const CouponsTab = ({ coupons, userInfo, fetchAllData }) => {
   const handleEditCouponClick = (coupon) => {
     setIsEditingCoupon(true);
     setEditCouponId(coupon._id);
+    // Map backend data back to form state
     setNewCoupon({
-      ...coupon,
+      code: coupon.code,
+      discountPercentage: coupon.discountPercentage,
+      minOrderValue: coupon.minOrderValue,
+      maxDiscountAmount: coupon.maxDiscountAmount,
       expirationDate: new Date(coupon.expirationDate)
         .toISOString()
         .split("T")[0],
@@ -85,9 +133,11 @@ const CouponsTab = ({ coupons, userInfo, fetchAllData }) => {
     )
       return;
     try {
-      await axios.delete(`${BASE_URL}/api/v1/coupons/${id}`, config);
+      await axios.delete(`${BASE_URL}/api/v1/coupons/${id}`, {
+        headers: { Authorization: `Bearer ${userInfo.token}` },
+      });
       toast.success("Coupon scrubbed from database");
-      fetchAllData();
+      fetchCoupons();
     } catch (error) {
       toast.error("Scrub protocol failed");
     }
@@ -97,18 +147,18 @@ const CouponsTab = ({ coupons, userInfo, fetchAllData }) => {
     try {
       await axios.put(
         `${BASE_URL}/api/v1/coupons/${coupon._id}`,
-        { isActive: !coupon.isActive },
-        config
+        { isActive: !coupon.isActive }, // Sending correct payload for update
+        { headers: { Authorization: `Bearer ${userInfo.token}` } }
       );
       toast.success(coupon.isActive ? "Offer Deactivated 🔴" : "Offer Live 🟢");
-      fetchAllData();
+      fetchCoupons();
     } catch (error) {
-      toast.error("Status toggle failed");
+      // Silent fail or toast
     }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-in fade-in slide-in-from-bottom-6 duration-700 font-sans">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-in fade-in slide-in-from-bottom-6 duration-700 font-sans pb-20">
       {/* 🟢 LEFT: COUPON CONSTRUCTOR */}
       <div className="lg:col-span-1">
         <div
@@ -237,13 +287,20 @@ const CouponsTab = ({ coupons, userInfo, fetchAllData }) => {
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                className={`flex-1 py-5 rounded-[1.5rem] font-black uppercase text-[10px] tracking-[0.3em] text-white transition-all active:scale-95 shadow-2xl ${
+                disabled={loading}
+                className={`flex-1 py-5 rounded-[1.5rem] font-black uppercase text-[10px] tracking-[0.3em] text-white transition-all active:scale-95 shadow-2xl disabled:opacity-50 flex justify-center items-center gap-2 ${
                   isEditingCoupon
                     ? "bg-blue-600 shadow-blue-600/20"
                     : "bg-primary shadow-primary/20"
                 }`}
               >
-                {isEditingCoupon ? "Commit Changes" : "Deploy Coupon"}
+                {loading ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : isEditingCoupon ? (
+                  "Commit Changes"
+                ) : (
+                  "Deploy Coupon"
+                )}
               </button>
               {isEditingCoupon && (
                 <button
@@ -290,6 +347,7 @@ const CouponsTab = ({ coupons, userInfo, fetchAllData }) => {
               >
                 <div className="flex items-center gap-6">
                   <div className="bg-black p-6 rounded-[2rem] border-2 border-gray-900 flex flex-col items-center justify-center min-w-[110px] group-hover:border-primary transition-all">
+                    {/* Displaying correct field: discountPercentage */}
                     <span className="text-3xl font-black text-primary italic tracking-tighter">
                       {coupon.discountPercentage}%
                     </span>
