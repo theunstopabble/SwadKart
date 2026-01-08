@@ -8,7 +8,7 @@ import {
   getWelcomeTemplate,
 } from "../utils/emailTemplates.js";
 
-// @desc    Register user (Sends OTP)
+// @desc    Register user (Sends OTP via Email Only)
 export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, phone, role } = req.body;
@@ -20,7 +20,7 @@ export const registerUser = async (req, res, next) => {
 
     const userExists = await User.findOne({ email });
 
-    // Handle Unverified User Resend
+    // --- Scenario A: User Exists but Not Verified (Resend OTP) ---
     if (userExists) {
       if (userExists.isVerified) {
         res.status(400);
@@ -30,23 +30,23 @@ export const registerUser = async (req, res, next) => {
         userExists.otp = otp;
         userExists.otpExpires = Date.now() + 10 * 60 * 1000;
         userExists.name = name;
-        userExists.phone = phone;
+        userExists.phone = phone; // Using raw phone input
         userExists.password = password;
 
         await userExists.save();
 
         try {
+          // 📧 Send User Email
           await sendEmail({
             email: userExists.email,
             subject: `🔐 ${otp} is your Verification Code`,
             html: getOtpTemplate(otp),
           });
-          return res
-            .status(200)
-            .json({
-              message: `OTP Resent to ${userExists.email}`,
-              email: userExists.email,
-            });
+
+          return res.status(200).json({
+            message: `OTP Resent to Email!`,
+            email: userExists.email,
+          });
         } catch (e) {
           res.status(500);
           throw new Error("Email sending failed. Please try again.");
@@ -54,6 +54,7 @@ export const registerUser = async (req, res, next) => {
       }
     }
 
+    // --- Scenario B: Check Phone Duplicity ---
     const phoneExists = await User.findOne({ phone });
     if (phoneExists) {
       res.status(400);
@@ -62,12 +63,12 @@ export const registerUser = async (req, res, next) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Create New User
+    // --- Scenario C: Create New User ---
     const user = await User.create({
       name,
       email,
       password,
-      phone,
+      phone, // Using raw phone input
       role: role || "user",
       isVerified: false,
       otp,
@@ -76,15 +77,17 @@ export const registerUser = async (req, res, next) => {
 
     if (user) {
       try {
+        // 📧 Send User Email
         await sendEmail({
           email: user.email,
           subject: `🔐 ${otp} is your Verification Code`,
           html: getOtpTemplate(otp),
         });
 
-        return res
-          .status(201)
-          .json({ message: `OTP sent to ${user.email}`, email: user.email });
+        return res.status(201).json({
+          message: `OTP sent to Email!`,
+          email: user.email,
+        });
       } catch (e) {
         // Cleanup if email fails
         await User.findByIdAndDelete(user._id);
@@ -116,15 +119,37 @@ export const verifyEmailAPI = async (req, res, next) => {
       user.otpExpires = undefined;
       await user.save();
 
-      // Non-blocking Welcome Email
+      // ===============================================
+      // 🎉 SUCCESS NOTIFICATIONS (User + Admin)
+      // ===============================================
       try {
+        // 1. User ko Welcome Email
         await sendEmail({
           email: user.email,
           subject: "Welcome to the SwadKart Family! 🍕",
           html: getWelcomeTemplate(user.name),
         });
+
+        // 2. Admin ko Notification Email
+        if (process.env.SMTP_MAIL) {
+          await sendEmail({
+            email: process.env.SMTP_MAIL,
+            subject: `🚀 New User Verified: ${user.name}`,
+            html: `
+               <h2>New Registration Alert</h2>
+               <p><strong>Name:</strong> ${user.name}</p>
+               <p><strong>Email:</strong> ${user.email}</p>
+               <p><strong>Phone:</strong> ${user.phone}</p>
+               <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+             `,
+          });
+          console.log("Admin Notification Sent!");
+        }
       } catch (emailError) {
-        console.error("⚠️ Welcome Email Failed (Silent):", emailError.message);
+        console.error(
+          "⚠️ Notification Logic Failed (Silent):",
+          emailError.message
+        );
       }
 
       const token = generateToken(res, user._id);

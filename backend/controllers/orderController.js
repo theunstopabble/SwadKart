@@ -49,6 +49,10 @@ export const addOrderItems = async (req, res) => {
         state: shippingAddress.state || "Rajasthan",
         country: shippingAddress.country || "India",
         phone: shippingAddress.phone,
+        lat:
+          typeof shippingAddress.lat === "number" ? shippingAddress.lat : null,
+        lng:
+          typeof shippingAddress.lng === "number" ? shippingAddress.lng : null,
       },
       paymentMethod,
       itemsPrice: Number(itemsPrice),
@@ -81,9 +85,9 @@ export const addOrderItems = async (req, res) => {
         // 2. Find the Restaurant Document to get the OWNER'S User ID
         const restaurantDoc = await Restaurant.findById(restaurantId);
 
-        if (restaurantDoc && restaurantDoc.user) {
+        if (restaurantDoc && restaurantDoc.owner) {
           // 3. Emit to the Owner's User ID (because Dashboard joins room 'userInfo._id')
-          const ownerId = restaurantDoc.user.toString();
+          const ownerId = restaurantDoc.owner.toString();
           req.io.to(ownerId).emit("newOrderReceived", createdOrder);
           console.log(`🔔 Socket: Notification sent to Owner ID: ${ownerId}`);
         }

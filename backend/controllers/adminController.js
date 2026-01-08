@@ -163,12 +163,12 @@ export const toggleRestaurantApproval = async (req, res) => {
     if (!restaurant)
       return res.status(404).json({ message: "Restaurant not found" });
 
-    restaurant.isApproved = !restaurant.isApproved;
+    restaurant.isverified = !restaurant.isverified;
     await restaurant.save();
 
     res.json({
       message: `Restaurant ${
-        restaurant.isApproved ? "Approved" : "Disapproved"
+        restaurant.isverified ? "Approved" : "Disapproved"
       }`,
       restaurant,
     });

@@ -54,6 +54,9 @@ const orderSchema = mongoose.Schema(
       country: { type: String, required: true, default: "India" },
       state: { type: String, required: true },
       phone: { type: String, required: true },
+      // ✅ NEW: For Heatmap + LiveTracking
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
     },
 
     // =================================================

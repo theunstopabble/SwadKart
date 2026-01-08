@@ -28,22 +28,22 @@ const Footer = () => {
   const socialLinks = [
     {
       Icon: Facebook,
-      url: "https://www.facebook.com/", // Update with Brand Page later
+      url: "https://www.facebook.com/gautam.theunstopabble", // Update with Brand Page later
       color: "hover:bg-[#1877F2]",
     },
     {
       Icon: Twitter,
-      url: "https://x.com/",
+      url: "https://x.com/_unstopabble",
       color: "hover:bg-[#1DA1F2]",
     },
     {
       Icon: Instagram,
-      url: "https://www.instagram.com/",
+      url: "https://www.instagram.com/theunstopabble/",
       color: "hover:bg-[#E4405F]",
     },
     {
       Icon: Linkedin,
-      url: "https://www.linkedin.com/",
+      url: "https://www.linkedin.com/in/gautamkr62/",
       color: "hover:bg-[#0A66C2]",
     },
   ];

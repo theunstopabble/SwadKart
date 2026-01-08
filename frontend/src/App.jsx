@@ -184,9 +184,8 @@ const DeliveryRoute = () => {
   const { userInfo } = useSelector((state) => state.user);
   const isAllowed =
     userInfo &&
-    (userInfo.role === "delivery" ||
-      userInfo.role === "delivery_partner" ||
-      userInfo.role === "admin");
+    (userInfo.role === "delivery_partner" || userInfo.role === "admin");
+
   return isAllowed ? <Outlet /> : <Navigate to="/login" replace />;
 };
 

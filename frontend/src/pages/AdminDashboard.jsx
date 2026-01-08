@@ -23,6 +23,7 @@ import CouponsTab from "../components/admin/CouponsTab";
 import UsersTab from "../components/admin/UsersTab";
 import HeatmapTab from "../components/admin/HeatmapTab";
 
+
 const AdminDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
   const navigate = useNavigate();
