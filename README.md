@@ -1,4 +1,4 @@
-# SwadKart-pro 🍽️
+# SwadKart
 
 A full-stack food delivery web application that revolutionizes online food ordering in Jaipur. SwadKart-pro provides users with seamless access to top-rated restaurants, dynamic menus, and a modern, responsive ordering experience powered by the MERN stack.
 
