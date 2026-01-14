@@ -146,7 +146,7 @@ Start the React application:
 ```bash
 npm run dev
 ```
-###📂 Project Structure
+### 📂 Project Structure
 ```bash
 SwadKart-pro/
 ├── backend/
@@ -164,13 +164,13 @@ SwadKart-pro/
     │   ├── redux/      # Global State (Cart, User Slice)
     │   └── utils/      # Helpers
 ```
-###🛡️ Security & Performance
+### 🛡️ Security & Performance###
 Rate Limiting: Protects API endpoints from abuse.
 Data Sanitization: Prevents NoSQL injection.
 Secure OTP: Delivery verification uses crypto-generated 4-digit codes.
 Lazy Loading: React components load only when needed for faster performance.
 
-###📞 Contact & Author
+### 📞 Contact & Author
 👨‍💻 Gautam Kumar 📍 Jagannath University, Jaipur, India
 <p align="left"> <a href="https://www.google.com/search?q=https://linkedin.com/in/gautamkr62" target="blank"><img align="center" src="https://www.google.com/search?q=https://img.shields.io/badge/LinkedIn-0077B5%3Fstyle%3Dfor-the-badge%26logo%3Dlinkedin%26logoColor%3Dwhite" alt="gautamkr62" /></a> <a href="https://github.com/theunstopabble" target="blank"><img align="center" src="https://www.google.com/search?q=https://img.shields.io/badge/GitHub-100000%3Fstyle%3Dfor-the-badge%26logo%3Dgithub%26logoColor%3Dwhite" alt="theunstopabble" /></a> <a href="mailto:swadkartt@gmail.com" target="blank"><img align="center" src="https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white" alt="swadkartt" /></a> </p>
 
