@@ -101,12 +101,15 @@ Follow these steps to set up SwadKart locally.
 ### 1. Clone the Repository
 ```bash
 git clone [https://github.com/theunstopabble/SwadKart-pro.git](https://github.com/theunstopabble/SwadKart-pro.git)
-cd SwadKart-pro
+```
 2. Backend Setup
 Navigate to the backend folder and install dependencies:
+```bash
 cd backend
 npm install
+```
 Create a .env file in /backend and add the following:
+```env
 PORT=5000
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_super_secret_key
@@ -121,3 +124,54 @@ SMTP_PASSWORD=your_app_password
 
 # Frontend URL (For CORS)
 FRONTEND_URL=http://localhost:5173
+```
+Start the backend server:
+```bash
+node server.js
+```
+3. Frontend Setup
+Open a new terminal, navigate to frontend, and install dependencies:
+```bash
+cd frontend
+npm install
+```
+Create a .env file in /frontend:
+```env
+VITE_API_URL=http://localhost:5000
+VITE_FIREBASE_API_KEY=your_firebase_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+```
+Start the React application:
+```bash
+npm run dev
+```
+###📂 Project Structure
+```bash
+SwadKart-pro/
+├── backend/
+│   ├── config/         # DB & Cloudinary Config
+│   ├── controllers/    # Logic for User, Order, Admin, Delivery
+│   ├── middleware/     # Auth & Error Handling
+│   ├── models/         # Mongoose Schemas (User, Order, Product)
+│   ├── routes/         # API Endpoints
+│   └── utils/          # Email Templates, Token Generators
+│
+└── frontend/
+    ├── src/
+    │   ├── components/ # Reusable UI (Admin Tabs, Maps, Charts)
+    │   ├── pages/      # Main Views (Dashboard, Cart, Login)
+    │   ├── redux/      # Global State (Cart, User Slice)
+    │   └── utils/      # Helpers
+```
+###🛡️ Security & Performance
+Rate Limiting: Protects API endpoints from abuse.
+Data Sanitization: Prevents NoSQL injection.
+Secure OTP: Delivery verification uses crypto-generated 4-digit codes.
+Lazy Loading: React components load only when needed for faster performance.
+
+###📞 Contact & Author
+👨‍💻 Gautam Kumar 📍 Jagannath University, Jaipur, India
+<p align="left"> <a href="https://www.google.com/search?q=https://linkedin.com/in/gautamkr62" target="blank"><img align="center" src="https://www.google.com/search?q=https://img.shields.io/badge/LinkedIn-0077B5%3Fstyle%3Dfor-the-badge%26logo%3Dlinkedin%26logoColor%3Dwhite" alt="gautamkr62" /></a> <a href="https://github.com/theunstopabble" target="blank"><img align="center" src="https://www.google.com/search?q=https://img.shields.io/badge/GitHub-100000%3Fstyle%3Dfor-the-badge%26logo%3Dgithub%26logoColor%3Dwhite" alt="theunstopabble" /></a> <a href="mailto:swadkartt@gmail.com" target="blank"><img align="center" src="https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white" alt="swadkartt" /></a> </p>
+
+<div align="center"> <i>Built with ❤️ & Code. If you find this useful, please give it a ⭐!</i> </div>
