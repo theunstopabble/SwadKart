@@ -170,11 +170,30 @@ Data Sanitization: Prevents NoSQL injection.
 Secure OTP: Delivery verification uses crypto-generated 4-digit codes.
 Lazy Loading: React components load only when needed for faster performance.
 
-### 📞 Contact & Author
-👨‍💻 Gautam Kumar 📍 Jagannath University, Jaipur, India
-<p align="left"> <a href="https://www.google.com/search?q=https://linkedin.com/in/gautamkr62" target="blank">
-</a> 
-  <a href="https://github.com/theunstopabble" target="blank"></a>
-  <a href="mailto:swadkartt@gmail.com" target="blank"></a> </p>
+---
+
+## 📞 Contact & Support
+
+<div align="left">
+  <p><strong>Author:</strong> Gautam Kumar</p>
+  <p><strong>Institution:</strong> Jagannath University, Jaipur, Rajasthan, India</p>
+
+  <a href="https://linkedin.com/in/gautamkr62" target="_blank">
+    <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" />
+  </a>
+  <a href="https://github.com/theunstopabble" target="_blank">
+    <img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
+  </a>
+  <a href="https://x.com/_unstopabble" target="_blank">
+    <img src="https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" alt="Twitter" />
+  </a>
+  <a href="mailto:swadkartt@gmail.com">
+    <img src="https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white" alt="Email" />
+  </a>
+</div>
+
+<br />
+
+> **Note:** If you are interested in collaborating on this project or have any queries, feel free to reach out via any of the platforms above. 🚀
 
 <div align="center"> <i>Built with ❤️ & Code. If you find this useful, please give it a ⭐!</i> </div>
