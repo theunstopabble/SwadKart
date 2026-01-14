@@ -1,8 +1,8 @@
 <div align="center">
 
-  <img src="public/logo.png" alt="SwadKart Logo" width="120" />
+  <img src="frontend/public/logo.png" alt="SwadKart Logo" width="120" />
 
-  # 🍕 SwadKart
+  # SwadKart
   
   **Next-Gen Multi-Vendor Food Delivery Platform | Built at Jagannath University, Jaipur**
 
