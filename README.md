@@ -100,7 +100,7 @@ Follow these steps to set up SwadKart locally.
 
 ### 1. Clone the Repository
 ```bash
-git clone [https://github.com/theunstopabble/SwadKart-pro.git](https://github.com/theunstopabble/SwadKart-pro.git)
+git clone https://github.com/theunstopabble/SwadKart-pro.git
 ```
 2. Backend Setup
 Navigate to the backend folder and install dependencies:
