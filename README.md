@@ -1,6 +1,6 @@
 # SwadKart
 
-A full-stack food delivery web application that revolutionizes online food ordering in Jaipur. SwadKart-pro provides users with seamless access to top-rated restaurants, dynamic menus, and a modern, responsive ordering experience powered by the MERN stack.
+A full-stack food delivery web application that revolutionizes online food ordering in Jaipur. SwadKart provides users with seamless access to top-rated restaurants, dynamic menus, and a modern, responsive ordering experience powered by the MERN stack.
 
 🔗 **Live URL:** [https://swadkart-pro.vercel.app/](https://swadkart-pro.vercel.app/)  
 👨‍💻 **Developer:** Gautam Kumar ([@theunstopabble](https://github.com/theunstopabble))  
