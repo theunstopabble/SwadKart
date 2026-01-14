@@ -117,7 +117,7 @@ JWT_EXPIRE=30d
 NODE_ENV=development
 
 # Email Service (For OTPs)
-SMTP_HOST=smtp.gmail.com
+SMTP_HOST=smtp@gmail.com
 SMTP_PORT=465
 SMTP_MAIL=your_email@gmail.com
 SMTP_PASSWORD=your_app_password
