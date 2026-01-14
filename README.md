@@ -2,7 +2,7 @@
 
   <img src="public/logo.png" alt="SwadKart Logo" width="120" />
 
-  # 🍕 SwadKart Pro
+  # 🍕 SwadKart
   
   **Next-Gen Multi-Vendor Food Delivery Platform | Built at Jagannath University, Jaipur**
 
