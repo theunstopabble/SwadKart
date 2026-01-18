@@ -125,11 +125,9 @@ app.use("/api/v1/restaurants", restaurantRoutes);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
-
-  app.get("/", (req, res) =>
-    res.send("🚀 SwadKart Beast Engine is running...")
-  });
-
+app.get("/", (req, res) => {
+  res.send("🚀 SwadKart Beast Engine is running...");
+});
 // ---------------------------------------------------------
 // 🚨 Error Handling
 // ---------------------------------------------------------
