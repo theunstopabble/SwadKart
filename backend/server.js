@@ -125,16 +125,7 @@ app.use("/api/v1/restaurants", restaurantRoutes);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  // Fix for SPA Routing (React Router)
-  app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(
-      path.resolve(__dirname, "..", "frontend", "dist", "index.html")
-    );
-  });
-} else {
   app.get("/", (req, res) =>
     res.send("🚀 SwadKart Beast Engine is running...")
   );
