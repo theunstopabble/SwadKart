@@ -13,7 +13,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.8.0",
@@ -25,6 +24,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-async-handler": "^1.2.0",
+    "groq-sdk": "^0.37.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.0.2",
@@ -34,5 +34,10 @@
     "nodemailer": "^7.0.11",
     "razorpay": "^2.9.6",
     "socket.io": "^4.8.3"
+  },
+  "overrides": {
+    "deep-email-validator": {
+      "axios": "$axios"
+    }
   }
 }
