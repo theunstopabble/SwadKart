@@ -101,6 +101,7 @@ Follow these steps to set up SwadKart locally.
 ### 1. Clone the Repository
 ```bash
 git clone https://github.com/theunstopabble/SwadKart-pro.git
+
 ```
 2. Backend Setup
 Navigate to the backend folder and install dependencies:
@@ -110,14 +111,15 @@ npm install
 ```
 Create a .env file in /backend and add the following:
 ```env
-PORT=5000
-MONGODB_URI=your_mongodb_connection_string
+PORT=8000
+MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_super_secret_key
 JWT_EXPIRE=30d
 NODE_ENV=development
 
+
 # Email Service (For OTPs)
-SMTP_HOST=smtp@gmail.com
+SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_MAIL=your_email@gmail.com
 SMTP_PASSWORD=your_app_password
