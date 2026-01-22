@@ -32,8 +32,7 @@ const httpServer = createServer(app);
 // --- 🌐 Configuration ---
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://www.swadkart.app",
-  "https://swadkart.app",
+  "https://swadkart.vercel.app",
   process.env.FRONTEND_URL, // Ab ye Northflank se uthayega
   "https://swadkart-5wtf.onrender.com",
 ];
@@ -97,14 +96,15 @@ app.use(
   cors({
     origin: (origin, callback) => {
       // Debug: Northflank logs mein origin dekhne ke liye
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        origin.includes("swadkart") // 👈 Ye sabse best hai security aur flexibility ke liye
-      ) {
+      if (origin) console.log("Incoming Request Origin:", origin);
+
+      const isVercel = origin && origin.endsWith(".vercel.app");
+      const isAllowed = !origin || allowedOrigins.includes(origin);
+
+      if (isAllowed || isVercel) {
         callback(null, true);
       } else {
-        callback(new Error("CORS Protocol Violation: Socket Access Denied"));
+        callback(new Error("CORS Protocol Violation: Access Denied"));
       }
     },
     credentials: true,
