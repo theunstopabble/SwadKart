@@ -50,6 +50,12 @@ function App() {
   const { userInfo } = useSelector((state) => state.user);
 
   useEffect(() => {
+    // 👇👇 YAHAN HAI JASOOS (DEBUG LOGS) 👇👇
+    console.log("====================================");
+    console.log("🕵️‍♂️ ASLI BASE_URL KYA HAI?? ->", BASE_URL);
+    console.log("🌍 VITE ENV VALUE ->", import.meta.env.VITE_API_URL);
+    console.log("====================================");
+
     requestNotificationPermission();
     const socket = io(BASE_URL);
 
