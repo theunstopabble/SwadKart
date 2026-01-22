@@ -11,19 +11,44 @@ export default defineConfig({
       devOptions: {
         enabled: true, // Development me bhi PWA test karne ke liye
       },
-      // 🛠️ WORKBOX: Offline Support + Live API Block
+      // 🛠️ WORKBOX: Offline Support + Live API Block + KILL SWITCH
       workbox: {
+        // 👇🔥 KILL SWITCH: These 3 lines force delete old cache & activate new SW immediately
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+
+        // Cache static files
         globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
-        // API aur Socket calls ko cache se bahar rakha hai
+
+        // 👇 Prevent SW from handling API or Socket requests (Fixes the loop issue)
         navigateFallbackDenylist: [/^\/api/, /^\/socket.io/],
+
         runtimeCaching: [
           {
+            // API Calls: ALWAYS go to the network (No Cache)
             urlPattern: ({ url }) => url.pathname.startsWith("/api"),
-            handler: "NetworkOnly", // Hamesha fresh data from server
+            handler: "NetworkOnly",
           },
           {
+            // Socket.io: WebSocket must use network
             urlPattern: ({ url }) => url.pathname.startsWith("/socket.io"),
-            handler: "NetworkOnly", // WebSocket support
+            handler: "NetworkOnly",
+          },
+          {
+            // External Images (Cloudinary/Maps/Icons): Cache these for speed
+            urlPattern: ({ url }) =>
+              url.href.includes("cloudinary") ||
+              url.href.includes("cartocdn") ||
+              url.href.includes("flaticon"),
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "external-assets",
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 Days
+              },
+            },
           },
         ],
       },
@@ -69,7 +94,7 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 2000,
   },
-  // 🌐 DEV SERVER: API Proxy to Backend
+  // 🌐 DEV SERVER: API Proxy to Backend (Only for Localhost)
   server: {
     port: 5173,
     proxy: {
