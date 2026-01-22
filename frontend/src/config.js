@@ -2,4 +2,5 @@
 export const BASE_URL =
   import.meta.env.MODE === "development"
     ? "http://localhost:8000"
-    : "https://swadkart-backend.onrender.com";
+    : import.meta.env.VITE_API_URL ||
+      "https://site--swadkart-backend--fxjtq94tdq2r.code.run";
