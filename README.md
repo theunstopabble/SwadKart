@@ -7,7 +7,7 @@
   **Next-Gen Multi-Vendor Food Delivery Platform | Built at Jagannath University, Jaipur**
 
   <div>
-    <a href="https://swadkart-pro.vercel.app/">
+    <a href="https://swadkart.vercel.app/">
       <img src="https://img.shields.io/badge/Live_Demo-Visit_Now-success?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" />
     </a>
     <a href="https://github.com/theunstopabble/SwadKart-pro">

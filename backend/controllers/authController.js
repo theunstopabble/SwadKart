@@ -209,7 +209,7 @@ export const forgotPassword = async (req, res, next) => {
     const resetToken = user.getResetPasswordToken();
     await user.save({ validateBeforeSave: false });
     const resetUrl = `${
-      process.env.FRONTEND_URL || "https://swadkart-pro.vercel.app"
+      process.env.FRONTEND_URL || "https://swadkart.vercel.app"
     }/password/reset/${resetToken}`;
     await sendEmail({
       email: user.email,
