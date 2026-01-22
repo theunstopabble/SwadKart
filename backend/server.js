@@ -88,6 +88,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://swadkart-pro.vercel.app",
   "https://swadkart-pro.onrender.com",
+  "https://site--swadkart-backend--fxjtq94tdq2r.code.run",
 ];
 
 app.use(
