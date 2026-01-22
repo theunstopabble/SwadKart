@@ -33,7 +33,7 @@ const httpServer = createServer(app);
 const allowedOrigins = [
   "http://localhost:5173",
   process.env.FRONTEND_URL, // Ab ye Northflank se uthayega
-  "https://site--swadkart-backend--fxjtq94tdq2r.code.run",
+  "https://swadkart-5wtf.onrender.com",
 ];
 
 // --- 🔌 Socket.io Setup (Fixed for Vercel & Northflank) ---

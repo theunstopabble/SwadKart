@@ -58,11 +58,6 @@ SwadKart-pro
 │   │   ├── screenshot-menu.png
 │   │   ├── screenshot-mobile.png
 │   │   └── splash.png
-│   ├── dev-dist
-│   │   ├── registerSW.js
-│   │   ├── sw.js
-│   │   ├── workbox-38bb0eb2.js
-│   │   └── workbox-5a5d9309.js
 │   ├── public
 │   │   ├── logo.png
 │   │   ├── notification.mp3
