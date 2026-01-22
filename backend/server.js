@@ -32,8 +32,8 @@ const httpServer = createServer(app);
 // --- 🌐 Configuration ---
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://swadkart-pro.vercel.app",
-  "https://site--swadkart-backend--fxjtq94tdq2r.code.run", // Northflank Backend URL
+  process.env.FRONTEND_URL, // Ab ye Northflank se uthayega
+  "https://site--swadkart-backend--fxjtq94tdq2r.code.run",
 ];
 
 // --- 🔌 Socket.io Setup (Fixed for Vercel & Northflank) ---
