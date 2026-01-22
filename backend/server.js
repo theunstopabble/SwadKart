@@ -38,6 +38,7 @@ const io = new Server(httpServer, {
       "http://localhost:5173",
       "https://swadkart-pro.vercel.app",
       "https://swadkart-pro.onrender.com",
+      "https://site--swadkart-backend--fxjtq94tdq2r.code.run",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
