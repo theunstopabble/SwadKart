@@ -23,6 +23,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const [editingShop, setEditingShop] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Form States
   const [newShop, setNewShop] = useState({
     name: "",
     email: "",
@@ -34,7 +35,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const PLACEHOLDER_IMG =
     "https://placehold.co/600x400/1f2937/white?text=No+Image";
 
-  // Socket Listener
+  // --- 🔌 Socket Listener ---
   useEffect(() => {
     const socket = io(BASE_URL);
     socket.on("shopStatusUpdated", (updatedShop) => {
@@ -48,6 +49,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
     };
   }, [fetchAllData]);
 
+  // --- 🛠️ Helper for API Calls ---
   const getFetchOptions = (method = "GET", body = null) => ({
     method,
     headers: {
@@ -57,7 +59,9 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
     body: body ? JSON.stringify(body) : null,
   });
 
-  // --- Actions ---
+  // --- 🚀 Actions ---
+
+  // 1. Approve Restaurant
   const handleApprove = async (id) => {
     try {
       setIsProcessing(true);
@@ -81,6 +85,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
     }
   };
 
+  // 2. Delete Restaurant (FIXED URL ✅)
   const handleDeleteRestaurant = async (id) => {
     if (
       !window.confirm(
@@ -89,19 +94,24 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
     )
       return;
     try {
+      // ✅ Corrected: Hits the Restaurant route, not User route
       const res = await fetch(
-        `${BASE_URL}/api/v1/users/admin/user/${id}`,
+        `${BASE_URL}/api/v1/restaurants/${id}`,
         getFetchOptions("DELETE")
       );
       if (res.ok) {
         toast.success("Merchant decommissioned successfully");
         if (fetchAllData) fetchAllData();
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Delete failed");
       }
     } catch (error) {
       toast.error("Destruction sequence failed");
     }
   };
 
+  // 3. Add New Real Shop
   const handleAddShop = async (e) => {
     e.preventDefault();
     try {
@@ -115,20 +125,21 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
         if (fetchAllData) fetchAllData();
         toast.success("Identity Created: Merchant onboarded!");
       } else {
-        toast.error("Failed to create shop");
+        const err = await res.json();
+        toast.error(err.message || "Failed to create shop");
       }
     } catch (error) {
       toast.error("Network error");
     }
   };
 
-  // ✅ CRITICAL FIX: Endpoint updated to avoid 404
+  // 4. Update Shop Details (FIXED URL ✅)
   const handleUpdateShop = async (e) => {
     e.preventDefault();
     try {
-      // 🎯 FIXED URL: admin specific update endpoint
+      // ✅ Corrected: Hits the Restaurant route, not User route
       const res = await fetch(
-        `${BASE_URL}/api/v1/users/admin/user/${editingShop._id}`,
+        `${BASE_URL}/api/v1/restaurants/${editingShop._id}`,
         getFetchOptions("PUT", {
           name: editingShop.name,
           image: editingShop.image,
@@ -148,6 +159,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
     }
   };
 
+  // 5. Add Dummy Shop
   const handleCreateDummyShop = async (e) => {
     e.preventDefault();
     try {
@@ -160,15 +172,24 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
         setDummyShopData({ name: "", image: "" });
         if (fetchAllData) fetchAllData();
         toast.success("Synthetic merchant deployed to production");
+      } else {
+        toast.error("Failed to create dummy");
       }
     } catch (error) {
       toast.error("Failed to create dummy");
     }
   };
 
-  const onlyShops = restaurants.filter((r) => r.role === "restaurant_owner");
-  const pendingShops = onlyShops.filter((r) => !r.isVerified && !r.isDummy);
-  const activeShops = onlyShops.filter((r) => r.isVerified || r.isDummy);
+  // --- 🔍 Filtering Logic (FIXED) ---
+  // Note: Restaurants collection usually doesn't have 'role', so we use the array directly
+  const pendingShops = restaurants.filter(
+    (r) => !r.isVerified && !r.isDummy && r.isActive
+  );
+  
+  // Active shops includes verified OR dummy shops
+  const activeShops = restaurants.filter(
+    (r) => r.isVerified || r.isDummy
+  );
 
   const handleImageError = (e) => {
     e.target.src = PLACEHOLDER_IMG;
