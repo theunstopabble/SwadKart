@@ -1,5 +1,5 @@
 import Product from "../models/productModel.js";
-import Restaurant from "../models/restaurantModel.js"; // ✅ CRITICAL IMPORT
+import Restaurant from "../models/restaurantModel.js"; 
 
 // ============================================================
 // 👇 PUBLIC ROUTES
@@ -24,7 +24,7 @@ export const getProductById = async (req, res) => {
     const product = await Product.findById(req.params.id).populate(
       "reviews.user",
       "name image"
-    ); // Populate reviewer details
+    );
     if (product) res.json(product);
     else res.status(404).json({ message: "Product not found" });
   } catch (error) {
@@ -48,7 +48,7 @@ export const getProductsByRestaurant = async (req, res) => {
 // 👇 PROTECTED ROUTES (Admin / Restaurant Owner)
 // ============================================================
 
-// @desc    Create a product (✅ FIXED LOGIC)
+// @desc    Create a product (✅ FIXED: Supports Admin adding to Dummy Shops)
 export const createProduct = async (req, res) => {
   try {
     const {
@@ -62,20 +62,34 @@ export const createProduct = async (req, res) => {
       orderIndex,
       variants,
       addons,
+      restaurantId, // 👈 Frontend se aayi hui Owner/Restaurant ID
     } = req.body;
 
-    // 🔍 STEP 1: Find Restaurant by Owner ID
-    // Hamein 'user' field nahi, 'owner' field check karna hai Restaurant model me
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+    let restaurant;
 
+    // 🔍 LOGIC: Sahi Restaurant Dhoondo
+    if (restaurantId) {
+      // CASE 1: Admin ne Dropdown se select kiya (restaurantId = Owner ID)
+      // Pehle check karo ki kya ye ID kisi Owner ki hai?
+      restaurant = await Restaurant.findOne({ owner: restaurantId });
+
+      // Agar Owner se nahi mila, toh check karo kya ye seedha Restaurant ki ID thi?
+      if (!restaurant) {
+        restaurant = await Restaurant.findById(restaurantId);
+      }
+    } else {
+      // CASE 2: Owner khud add kar raha hai (Logged in user hi owner hai)
+      restaurant = await Restaurant.findOne({ owner: req.user._id });
+    }
+
+    // Agar ab bhi Restaurant nahi mila, toh Error do
     if (!restaurant) {
       return res.status(404).json({
-        message:
-          "No Restaurant found for this owner. Please create a restaurant profile first.",
+        message: "No Restaurant found for this owner. Ensure the Dummy Shop is linked correctly.",
       });
     }
 
-    // 🛠️ STEP 2: Create Product linked to that Restaurant
+    // 🛠️ Product Create karo
     const product = new Product({
       name,
       price,
@@ -85,8 +99,8 @@ export const createProduct = async (req, res) => {
       isVeg: isVeg === undefined ? true : isVeg,
       orderIndex: orderIndex || 0,
 
-      restaurant: restaurant._id, // ✅ Correct: Links to Restaurant ID
-      user: req.user._id, // ✅ Correct: Links to Owner User ID (Backup)
+      restaurant: restaurant._id, // ✅ Asli Dukan ki ID (Database se mili hui)
+      user: req.user._id,         // ✅ Created By (Admin/User)
 
       countInStock: countInStock || 100,
       variants: variants || [],
@@ -118,7 +132,7 @@ export const updateProduct = async (req, res) => {
           .json({ message: "Not authorized to update this product" });
       }
 
-      // Update basic fields
+      // Update fields
       product.name = req.body.name || product.name;
       product.price = req.body.price || product.price;
       product.description = req.body.description || product.description;
@@ -131,7 +145,6 @@ export const updateProduct = async (req, res) => {
       product.isVeg =
         req.body.isVeg !== undefined ? req.body.isVeg : product.isVeg;
 
-      // Update advanced fields (Variants/Addons)
       if (req.body.variants) product.variants = req.body.variants;
       if (req.body.addons) product.addons = req.body.addons;
 
@@ -152,7 +165,6 @@ export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (product) {
-      // 🛡️ SECURITY Check
       const isOwner =
         product.user && product.user.toString() === req.user._id.toString();
       const isAdmin = req.user.role === "admin";
@@ -205,7 +217,7 @@ export const toggleProductStock = async (req, res) => {
 };
 
 // ============================================================
-// 👇 REVIEW SYSTEM (NEW ADDITION)
+// 👇 REVIEW SYSTEM
 // ============================================================
 export const createProductReview = async (req, res) => {
   try {
@@ -213,7 +225,6 @@ export const createProductReview = async (req, res) => {
     const product = await Product.findById(req.params.id);
 
     if (product) {
-      // Check if user already reviewed
       const alreadyReviewed = product.reviews.find(
         (r) => r.user.toString() === req.user._id.toString()
       );
@@ -232,7 +243,6 @@ export const createProductReview = async (req, res) => {
       product.reviews.push(review);
       product.numReviews = product.reviews.length;
 
-      // Calculate Average Rating
       product.rating =
         product.reviews.reduce((acc, item) => item.rating + acc, 0) /
         product.reviews.length;
