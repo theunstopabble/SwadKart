@@ -23,9 +23,9 @@ const MenuTab = ({ restaurants, userInfo }) => {
     addons: [],
   });
 
-  // ✅ Filtering Restaurants: सुनिश्चित करना कि ड्रॉपडाउन में सिर्फ दुकानदार हों
-  const shopOwners =
-    restaurants?.filter((r) => r.role === "restaurant_owner") || [];
+  // ✅ FIX: "role" check hata diya. Ab ye seedha Restaurants list lega.
+  // (Restaurants ke object mein 'role' field nahi hoti, isliye purana code fail ho raha tha)
+  const activeShops = restaurants || [];
 
   const getFetchOptions = (method = "GET", body = null) => ({
     method,
@@ -36,9 +36,11 @@ const MenuTab = ({ restaurants, userInfo }) => {
     body: body ? JSON.stringify(body) : null,
   });
 
+  // --- Fetch Menu when Restaurant Selected ---
   const fetchMenu = async () => {
     if (!selectedRestaurant) return;
     try {
+      // ✅ API Call: Gets menu for the specific Restaurant ID
       const res = await fetch(
         `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`,
         getFetchOptions()
@@ -54,6 +56,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
     fetchMenu();
   }, [selectedRestaurant]);
 
+  // --- Actions ---
   const handleAdminToggleStock = async (id) => {
     const res = await fetch(
       `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
@@ -83,28 +86,35 @@ const MenuTab = ({ restaurants, userInfo }) => {
       ? `${BASE_URL}/api/v1/products/${editItemId}`
       : `${BASE_URL}/api/v1/products`;
 
+    // ✅ Payload Validation
     const payload = {
       ...newItem,
       price: Number(newItem.price),
       isVeg: newItem.isVeg === "true",
+      // 👇 CRITICAL: Ye ab Restaurant ID hogi (kyunki activeShops ab sahi list hai)
       restaurantId: selectedRestaurant,
       variants: newItem.variants.map((v) => ({ ...v, price: Number(v.price) })),
       addons: newItem.addons.map((a) => ({ ...a, price: Number(a.price) })),
     };
 
+    console.log("🚀 Sending Payload:", payload); // Debugging ke liye
+
     const res = await fetch(
       url,
       getFetchOptions(isEditingItem ? "PUT" : "POST", payload)
     );
+    
     if (res.ok) {
       setShowItemModal(false);
       fetchMenu();
-      toast.success("Menu Synchronized!");
+      toast.success("Menu Synchronized! 🍔");
     } else {
-      toast.error("Operation Failed");
+      const err = await res.json();
+      toast.error(err.message || "Operation Failed");
     }
   };
 
+  // --- Form Helpers ---
   const addVariant = () =>
     setNewItem({
       ...newItem,
@@ -119,9 +129,9 @@ const MenuTab = ({ restaurants, userInfo }) => {
 
   return (
     <div className="animate-in fade-in duration-700 pb-20 px-4 md:px-0">
-      {/* ✅ Header with filtered merchants */}
+      {/* ✅ Header ab 'activeShops' use karega (Jo asli Restaurants hain) */}
       <MenuHeader
-        restaurants={shopOwners} // यहाँ सिर्फ दुकानदार भेजे जा रहे हैं
+        restaurants={activeShops}
         selectedRestaurant={selectedRestaurant}
         setSelectedRestaurant={setSelectedRestaurant}
         openAddItemModal={() => {
