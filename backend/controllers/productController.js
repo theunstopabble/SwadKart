@@ -1,5 +1,5 @@
 import Product from "../models/productModel.js";
-import Restaurant from "../models/restaurantModel.js"; 
+import Restaurant from "../models/restaurantModel.js"; // ✅ Import Zaroori Hai
 
 // ============================================================
 // 👇 PUBLIC ROUTES
@@ -33,11 +33,28 @@ export const getProductById = async (req, res) => {
 };
 
 // @desc    Fetch products by Restaurant ID
+// 🔴 FIX: Handles fetching when Frontend sends Owner ID instead of Restaurant ID
 export const getProductsByRestaurant = async (req, res) => {
   try {
+    const id = req.params.id; // Ye Owner ID ho sakti hai (Admin Panel se)
+    let queryId = id;
+
+    // 🔍 Step 1: Check karo kya ye ID kisi Owner ki hai?
+    const restaurantByOwner = await Restaurant.findOne({ owner: id });
+    
+    // Agar Owner mil gaya, toh uski 'Restaurant ID' use karo products dhoondne ke liye
+    if (restaurantByOwner) {
+      queryId = restaurantByOwner._id;
+    }
+
+    // 🔍 Step 2: Ab Products dhoondo (Resolved ID se)
     const products = await Product.find({
-      $or: [{ restaurant: req.params.id }, { user: req.params.id }],
+      $or: [
+        { restaurant: queryId }, // Match resolved Restaurant ID
+        { user: id }             // Fallback: Match User ID directly (Old logic)
+      ],
     }).sort({ orderIndex: 1 });
+
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -69,11 +86,11 @@ export const createProduct = async (req, res) => {
 
     // 🔍 LOGIC: Sahi Restaurant Dhoondo
     if (restaurantId) {
-      // CASE 1: Admin ne Dropdown se select kiya (restaurantId = Owner ID)
-      // Pehle check karo ki kya ye ID kisi Owner ki hai?
+      // CASE 1: Admin ne Dropdown se select kiya
+      // Pehle Owner ID samajh kar dhoondo
       restaurant = await Restaurant.findOne({ owner: restaurantId });
 
-      // Agar Owner se nahi mila, toh check karo kya ye seedha Restaurant ki ID thi?
+      // Agar Owner se nahi mila, toh check karo kya ye seedha Restaurant ID thi?
       if (!restaurant) {
         restaurant = await Restaurant.findById(restaurantId);
       }
@@ -82,10 +99,10 @@ export const createProduct = async (req, res) => {
       restaurant = await Restaurant.findOne({ owner: req.user._id });
     }
 
-    // Agar ab bhi Restaurant nahi mila, toh Error do
+    // Agar ab bhi nahi mila
     if (!restaurant) {
       return res.status(404).json({
-        message: "No Restaurant found for this owner. Ensure the Dummy Shop is linked correctly.",
+        message: "No Restaurant found for this owner. Ensure Dummy Shop is linked correctly.",
       });
     }
 
