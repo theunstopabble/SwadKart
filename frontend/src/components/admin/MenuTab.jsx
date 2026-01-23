@@ -23,9 +23,9 @@ const MenuTab = ({ restaurants, userInfo }) => {
     addons: [],
   });
 
-  // ✅ FIX: "role" check hata diya. Ab ye seedha Restaurants list lega.
-  // (Restaurants ke object mein 'role' field nahi hoti, isliye purana code fail ho raha tha)
-  const activeShops = restaurants || [];
+  // ✅ FIX 1: Filter wapas laga diya. Ab sirf 'Owners' dikhenge.
+  // Normal users dropdown se hat jayenge.
+  const shopOwners = restaurants?.filter((r) => r.role === "restaurant_owner") || [];
 
   const getFetchOptions = (method = "GET", body = null) => ({
     method,
@@ -36,11 +36,11 @@ const MenuTab = ({ restaurants, userInfo }) => {
     body: body ? JSON.stringify(body) : null,
   });
 
-  // --- Fetch Menu when Restaurant Selected ---
+  // --- Fetch Menu ---
   const fetchMenu = async () => {
     if (!selectedRestaurant) return;
     try {
-      // ✅ API Call: Gets menu for the specific Restaurant ID
+      // Backend Owner ID se menu fetch kar lega
       const res = await fetch(
         `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`,
         getFetchOptions()
@@ -86,18 +86,18 @@ const MenuTab = ({ restaurants, userInfo }) => {
       ? `${BASE_URL}/api/v1/products/${editItemId}`
       : `${BASE_URL}/api/v1/products`;
 
-    // ✅ Payload Validation
+    // ✅ FIX 2: Backend ko "Owner ID" chahiye.
+    // 'selectedRestaurant' mein Owner ki ID hai, wahi bhej rahe hain.
     const payload = {
       ...newItem,
       price: Number(newItem.price),
       isVeg: newItem.isVeg === "true",
-      // 👇 CRITICAL: Ye ab Restaurant ID hogi (kyunki activeShops ab sahi list hai)
-      restaurantId: selectedRestaurant,
+      restaurantId: selectedRestaurant, // Backend check karega: findOne({ owner: restaurantId })
       variants: newItem.variants.map((v) => ({ ...v, price: Number(v.price) })),
       addons: newItem.addons.map((a) => ({ ...a, price: Number(a.price) })),
     };
 
-    console.log("🚀 Sending Payload:", payload); // Debugging ke liye
+    console.log("🚀 Payload Sending:", payload);
 
     const res = await fetch(
       url,
@@ -110,6 +110,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
       toast.success("Menu Synchronized! 🍔");
     } else {
       const err = await res.json();
+      // Error message example: "No Restaurant found for this owner"
       toast.error(err.message || "Operation Failed");
     }
   };
@@ -129,9 +130,9 @@ const MenuTab = ({ restaurants, userInfo }) => {
 
   return (
     <div className="animate-in fade-in duration-700 pb-20 px-4 md:px-0">
-      {/* ✅ Header ab 'activeShops' use karega (Jo asli Restaurants hain) */}
+      {/* ✅ Header mein ab filtered 'shopOwners' jayenge */}
       <MenuHeader
-        restaurants={activeShops}
+        restaurants={shopOwners}
         selectedRestaurant={selectedRestaurant}
         setSelectedRestaurant={setSelectedRestaurant}
         openAddItemModal={() => {
