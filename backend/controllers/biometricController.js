@@ -117,7 +117,7 @@ export const loginBiometricStart = async (req, res) => {
         type: "public-key",
         transports: cred.transports,
       })),
-      userVerification: "preferred",
+      userVerification: "discouraged", // 👈 Matched with registration settings
     });
 
     user.currentChallenge = options.challenge;
