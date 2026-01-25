@@ -172,8 +172,8 @@ export const loginBiometricVerify = async (req, res) => {
         expectedChallenge: user.currentChallenge,
         expectedOrigin: webAuthnConfig.origin,
         expectedRPID: webAuthnConfig.rpID,
-        authenticators: [manualAuthenticator], // 👈 Fallback to array to let library match ID itself
-        requireUserVerification: false, // 👈 Explicitly relax this to avoid 'User verification failed' if flag is missing
+        authenticator: manualAuthenticator, // 👈 Force use of this sanitized object (Bypass lookup)
+        requireUserVerification: false,
       });
     } catch (error) {
       console.error("❌ Auth Verification Logic Failed:", error);
