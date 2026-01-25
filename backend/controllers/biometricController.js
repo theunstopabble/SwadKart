@@ -149,21 +149,21 @@ export const loginBiometricVerify = async (req, res) => {
       return res.status(400).json({ message: "Authenticator not registered" });
     }
 
-    // 🛠️ MANUAL MAPPING: Extracting raw values directly to avoid Mongoose issues
-    // AuthenticatorDevice type requires Uint8Array for both ID and PublicKey
+    // 🛠️ DEBUG LOGGING
+    console.log("🔍 Match Check:", {
+      dbID: authDoc.credentialID,
+      reqID: body.id,
+      match: authDoc.credentialID === body.id
+    });
+
     const manualAuthenticator = {
-      credentialID: new Uint8Array(Buffer.from(authDoc.credentialID, 'base64url')),
+      // 🛠️ Use body.id directly to ensure byte-perfect match with what library expects
+      credentialID: new Uint8Array(Buffer.from(body.id, 'base64url')),
       credentialPublicKey: new Uint8Array(authDoc.credentialPublicKey),
       counter: Number(authDoc.counter),
-      // transports: authDoc.transports, // Removed as it's optional for verification and might cause type issues
     };
 
-    console.log("🛠️ Auth Object Prepared:", {
-       idType: manualAuthenticator.credentialID.constructor.name,
-       keyType: manualAuthenticator.credentialPublicKey.constructor.name,
-       counterType: typeof manualAuthenticator.counter,
-       counterValue: manualAuthenticator.counter
-    });
+    console.log("🛠️ Auth Object Prepared");
 
     let verification;
     try {
