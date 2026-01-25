@@ -152,16 +152,17 @@ export const loginBiometricVerify = async (req, res) => {
     // 🛠️ MANUAL MAPPING: Extracting raw values directly to avoid Mongoose issues
     // AuthenticatorDevice type requires Uint8Array for both ID and PublicKey
     const manualAuthenticator = {
-      credentialID: new Uint8Array(Buffer.from(authDoc.credentialID, 'base64url')), // 👈 Convert String to Buffer
+      credentialID: new Uint8Array(Buffer.from(authDoc.credentialID, 'base64url')),
       credentialPublicKey: new Uint8Array(authDoc.credentialPublicKey),
       counter: Number(authDoc.counter),
-      transports: authDoc.transports || [],
+      // transports: authDoc.transports, // Removed as it's optional for verification and might cause type issues
     };
 
     console.log("🛠️ Auth Object Prepared:", {
        idType: manualAuthenticator.credentialID.constructor.name,
        keyType: manualAuthenticator.credentialPublicKey.constructor.name,
-       counter: manualAuthenticator.counter
+       counterType: typeof manualAuthenticator.counter,
+       counterValue: manualAuthenticator.counter
     });
 
     let verification;
