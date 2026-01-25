@@ -149,21 +149,21 @@ export const loginBiometricVerify = async (req, res) => {
       return res.status(400).json({ message: "Authenticator not registered" });
     }
 
-    // 🛠️ DEBUG LOGGING
-    console.log("🔍 Match Check:", {
-      dbID: authDoc.credentialID,
-      reqID: body.id,
-      match: authDoc.credentialID === body.id
-    });
+    // 🛠️ INDUSTRY STANDARD FIX: Deep copy Mongoose Buffers to pure JS Uint8Arrays
+    // This avoids "Buffer vs Uint8Array" inheritance issues in comparison logic
+    const credentialIDBuffer = Buffer.from(body.id, 'base64url'); // Decode from request
+    const publicKeyBuffer = authDoc.credentialPublicKey; // From DB
 
     const manualAuthenticator = {
-      // 🛠️ Use body.id directly to ensure byte-perfect match with what library expects
-      credentialID: new Uint8Array(Buffer.from(body.id, 'base64url')),
-      credentialPublicKey: new Uint8Array(authDoc.credentialPublicKey),
+      credentialID: new Uint8Array([...credentialIDBuffer]), // 👈 Clean copy
+      credentialPublicKey: new Uint8Array([...publicKeyBuffer]), // 👈 Clean copy
       counter: Number(authDoc.counter),
     };
 
-    console.log("🛠️ Auth Object Prepared");
+    console.log("🛠️ Auth Object Sanitized:", {
+       idLength: manualAuthenticator.credentialID.length,
+       keyLength: manualAuthenticator.credentialPublicKey.length,
+    });
 
     let verification;
     try {
