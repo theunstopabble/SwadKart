@@ -49,6 +49,71 @@ export const updateUserProfile = async (req, res, next) => {
 };
 
 // =================================================================
+// 🔐 BIOMETRIC STATUS (Industry Standard Sync)
+// =================================================================
+
+// @desc    Update biometric enabled status
+// @route   PUT /api/v1/users/profile/biometric-status
+// @access  Private
+export const updateBiometricStatus = async (req, res, next) => {
+  try {
+    const { isEnabled } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
+
+    user.isBiometricEnabled = isEnabled;
+
+    // 🧹 CLEANUP: When disabling, also clear old credentials
+    // This ensures fresh registration next time and prevents stale credential issues
+    if (!isEnabled) {
+      user.biometricCredentials = [];
+      user.currentChallenge = "";
+      console.log(`🧹 Cleared biometric credentials for: ${user.email}`);
+    }
+
+    await user.save();
+
+    console.log(`🔐 Biometric Status Updated: ${user.email} -> ${isEnabled}`);
+
+    return res.json({
+      success: true,
+      isBiometricEnabled: user.isBiometricEnabled,
+      message: isEnabled ? "Biometric Enabled ✅" : "Biometric Disabled & Credentials Cleared 🔒",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get biometric status (for auto-restore after login)
+// @route   GET /api/v1/users/profile/biometric-status
+// @access  Private
+export const getBiometricStatus = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
+
+    // Check if user has registered any biometric credentials
+    const hasCredentials = user.biometricCredentials && user.biometricCredentials.length > 0;
+
+    return res.json({
+      isBiometricEnabled: user.isBiometricEnabled,
+      hasCredentials: hasCredentials,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// =================================================================
 // 👑 2. ADMIN OPERATIONS (Manage All Users)
 // =================================================================
 

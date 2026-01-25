@@ -56,6 +56,9 @@ const userSlice = createSlice({
     logout: (state) => {
       state.userInfo = null;
       localStorage.removeItem("userInfo");
+      // 🔐 Clear biometric flag on logout (Industry Standard)
+      // Credentials remain in database, flag restored on next login
+      localStorage.removeItem("isBiometricEnabled");
       state.success = false;
       state.error = null;
     },

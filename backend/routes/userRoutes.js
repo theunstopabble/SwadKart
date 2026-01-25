@@ -13,6 +13,8 @@ import {
 import {
   getUserProfile,
   updateUserProfile,
+  updateBiometricStatus,
+  getBiometricStatus,
   getAllRestaurantsPublic,
   getRestaurantById,
   getDeliveryPartners,
@@ -74,6 +76,12 @@ router
   .route("/profile")
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);
+
+// 🔐 Biometric Status (Industry Standard Sync)
+router
+  .route("/profile/biometric-status")
+  .get(protect, getBiometricStatus)
+  .put(protect, updateBiometricStatus);
 
 // =================================================================
 // 👑 ADMIN & OWNER ROUTES

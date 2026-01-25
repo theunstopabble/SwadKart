@@ -1,8 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { Toaster } from "react-hot-toast";
+import { useSelector, useDispatch } from "react-redux";
+import { Toaster, toast } from "react-hot-toast";
 import { io } from "socket.io-client";
+import { Fingerprint, LogOut, Lock } from "lucide-react"; // 👈 Icons
 
 // Pages
 import Home from "./pages/Home";
@@ -30,12 +31,14 @@ import Footer from "./components/Footer";
 import ChatBot from "./components/ChatBot";
 import InstallPWA from "./components/InstallPWA";
 
-// Helpers
+// Helpers & Services
 import { BASE_URL } from "./config";
 import {
   requestNotificationPermission,
   sendNotification,
 } from "./components/notificationHelper";
+import { authenticateBiometric } from "./utils/biometricService"; // 👈 Biometric Service
+import { logout } from "./redux/userSlice"; // 👈 Logout Action for Emergency
 
 // ✨ ScrollToTop Helper
 const ScrollToTop = () => {
@@ -48,6 +51,37 @@ const ScrollToTop = () => {
 
 function App() {
   const { userInfo } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
+
+  // 🔒 BIOMETRIC LOCK STATE (Industry Standard)
+  const [isLocked, setIsLocked] = useState(false);
+  const [isBiometricCapable, setIsBiometricCapable] = useState(false);
+  const [unlockAttempts, setUnlockAttempts] = useState(0);
+  const MAX_ATTEMPTS = 3;
+
+  // 🔍 Check device capability and lock status on mount
+  useEffect(() => {
+    const checkLockStatus = async () => {
+      // 1. Check device capability first
+      let deviceSupported = false;
+      if (window.PublicKeyCredential) {
+        try {
+          deviceSupported = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        } catch (e) {
+          deviceSupported = false;
+        }
+      }
+      setIsBiometricCapable(deviceSupported);
+
+      // 2. Only lock if device supports AND localStorage flag is true AND user is logged in
+      const bioEnabled = localStorage.getItem("isBiometricEnabled") === "true";
+      if (deviceSupported && bioEnabled && userInfo) {
+        setIsLocked(true);
+      }
+    };
+
+    checkLockStatus();
+  }, [userInfo]);
 
   useEffect(() => {
     // 👇👇 YAHAN HAI JASOOS (DEBUG LOGS) 👇👇
@@ -78,6 +112,85 @@ function App() {
     };
   }, [userInfo]);
 
+  // 🔓 HANDLER: Unlock App (with retry counter)
+  const handleUnlock = async () => {
+    try {
+      const success = await authenticateBiometric();
+      if (success) {
+        setIsLocked(false);
+        setUnlockAttempts(0);
+        toast.success("Welcome back! 🔓");
+      }
+    } catch (error) {
+      const newAttempts = unlockAttempts + 1;
+      setUnlockAttempts(newAttempts);
+      
+      if (newAttempts >= MAX_ATTEMPTS) {
+        toast.error("Too many failed attempts. Please login with password.");
+        handleEmergencyLogout();
+      } else {
+        toast.error(`Biometric Failed. ${MAX_ATTEMPTS - newAttempts} attempts left.`);
+      }
+    }
+  };
+
+  // 🚪 HANDLER: Emergency Logout (If user gets stuck or max attempts reached)
+  const handleEmergencyLogout = () => {
+    localStorage.removeItem("isBiometricEnabled");
+    dispatch(logout());
+    setIsLocked(false);
+    setUnlockAttempts(0);
+    toast("Logged out via Secure Lock", { icon: "🛡️" });
+  };
+
+  // 🛑 LOCK SCREEN OVERLAY (Returns early if locked)
+  if (isLocked) {
+    return (
+      <div className="h-screen w-full bg-black flex flex-col items-center justify-center text-white relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-primary/10 to-transparent"></div>
+
+        <div className="z-10 flex flex-col items-center gap-6 animate-fade-in-up">
+          <div className="p-4 bg-gray-900 rounded-full border border-gray-800 shadow-2xl mb-2">
+            <Lock size={40} className="text-gray-400" />
+          </div>
+
+          <h1 className="text-3xl font-black italic tracking-tighter">
+            Swad<span className="text-primary">Kart</span> Locked
+          </h1>
+
+          <p className="text-gray-500 text-sm mb-4">
+            Biometric Security Active
+          </p>
+
+          {/* Unlock Button */}
+          <button
+            onClick={handleUnlock}
+            className="flex flex-col items-center justify-center gap-2 group"
+          >
+            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary cursor-pointer group-hover:bg-primary group-hover:text-black transition-all shadow-[0_0_20px_rgba(239,68,68,0.5)]">
+              <Fingerprint size={40} className="animate-pulse" />
+            </div>
+            <span className="text-xs font-bold uppercase tracking-widest text-primary group-hover:text-white mt-2">
+              Tap to Unlock
+            </span>
+          </button>
+        </div>
+
+        {/* Emergency Logout */}
+        <button
+          onClick={handleEmergencyLogout}
+          className="absolute bottom-10 text-gray-600 hover:text-white text-xs uppercase font-bold tracking-widest flex items-center gap-2 transition-colors"
+        >
+          <LogOut size={14} /> Use Password Instead
+        </button>
+
+        <Toaster position="top-center" />
+      </div>
+    );
+  }
+
+  // 🚀 MAIN APP RENDER (Normal Flow)
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white flex flex-col justify-between">
       <ScrollToTop />

@@ -1,16 +1,21 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import basicSsl from "@vitejs/plugin-basic-ssl"; // 👈 HTTPS Support
 import { VitePWA } from "vite-plugin-pwa";
 
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
-      devOptions: {
-        enabled: true, // Development me bhi PWA test karne ke liye
-      },
+export default defineConfig(({ mode }) => {
+  const isDev = mode === "development";
+
+  return {
+    plugins: [
+      react(),
+      isDev ? basicSsl() : null, // 👈 Only enable HTTPS in Dev
+      VitePWA({
+        registerType: "autoUpdate",
+        includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
+        devOptions: {
+          enabled: true,
+        },
       // 🛠️ WORKBOX: Offline Support + Live API Block + KILL SWITCH
       workbox: {
         // 👇🔥 KILL SWITCH: These 3 lines force delete old cache & activate new SW immediately
@@ -94,9 +99,11 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 2000,
   },
-  // 🌐 DEV SERVER: API Proxy to Backend (Only for Localhost)
+  // 🌐 DEV SERVER: HTTPS ENABLED 🔒 (Only in Dev)
   server: {
     port: 5173,
+    host: isDev, // Listen on all IPs only in dev
+    https: isDev, // Enable HTTPS only in dev
     proxy: {
       "/api": {
         target: "http://localhost:8000",
@@ -109,4 +116,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
 import { setCredentials } from "../redux/userSlice";
 import { Mail, Lock, LogIn, Loader } from "lucide-react";
 import { toast } from "react-hot-toast";
-import GoogleAuth from "../components/GoogleAuth"; // ✅ Toast add kiya (Better UI)
+import GoogleAuth from "../components/GoogleAuth";
 import { BASE_URL } from "../config";
 
 const Login = () => {
@@ -28,7 +29,6 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // ✅ BASE_URL ka sahi istemal
       const res = await fetch(`${BASE_URL}/api/v1/users/login`, {
         method: "POST",
         headers: {
@@ -41,10 +41,28 @@ const Login = () => {
 
       if (res.ok) {
         dispatch(setCredentials(data));
-        toast.success("Login Successful! Welcome back. 👋"); // ✅ Success Pop-up
+        
+        // 🔐 AUTO-RESTORE BIOMETRIC (Industry Standard)
+        // After login, check if user had biometric enabled
+        try {
+          const bioRes = await axios.get(
+            `${BASE_URL}/api/v1/users/profile/biometric-status`,
+            { headers: { Authorization: `Bearer ${data.token}` } }
+          );
+          
+          // If user has biometric enabled AND has registered credentials
+          if (bioRes.data.isBiometricEnabled && bioRes.data.hasCredentials) {
+            localStorage.setItem("isBiometricEnabled", "true");
+            console.log("🔐 Biometric auto-restored for returning user");
+          }
+        } catch (bioErr) {
+          console.log("Biometric status check skipped:", bioErr.message);
+        }
+        
+        toast.success("Login Successful! Welcome back. 👋");
         navigate("/");
       } else {
-        toast.error(data.message || "Invalid Email or Password"); // 🔴 Error Pop-up
+        toast.error(data.message || "Invalid Email or Password");
       }
     } catch (err) {
       console.error(err);

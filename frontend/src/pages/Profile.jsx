@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
 import {
   User,
   Mail,
@@ -9,8 +10,12 @@ import {
   Wallet,
   TrendingUp,
   TrendingDown,
+  Fingerprint,
+  AlertTriangle, // For unsupported device warning
 } from "lucide-react";
-import { updateUserProfile } from "../redux/userSlice"; // 👈 Action Import Kiya
+import { updateUserProfile } from "../redux/userSlice";
+import { registerBiometric } from "../utils/biometricService";
+import { BASE_URL } from "../config";
 
 const Profile = () => {
   const [name, setName] = useState("");
@@ -18,39 +23,124 @@ const Profile = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [description, setDescription] = useState("");
-  const [localMsg, setLocalMsg] = useState(null); // Local Error/Success Message
+  const [localMsg, setLocalMsg] = useState(null);
+
+  // 🔐 Biometric State (Industry Standard)
+  const [bioEnabled, setBioEnabled] = useState(false);
+  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+  const [bioLoading, setBioLoading] = useState(false);
 
   const dispatch = useDispatch();
 
-  // 👇 Redux se UserInfo aur States nikalo
   const { userInfo, loading, error, success } = useSelector(
-    (state) => state.user
+    (state) => state.user,
   );
 
-  // 1️⃣ Jab bhi Redux ka UserInfo update ho, Input fields me naya data bharo
+  // 🔍 Check Device Capability + Fetch Server Status
   useEffect(() => {
+    const checkBiometricCapability = async () => {
+      try {
+        // 1. Check if device supports biometric (WebAuthn)
+        if (window.PublicKeyCredential) {
+          const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+          setIsBiometricSupported(available);
+          console.log("🔐 Biometric Supported:", available);
+        } else {
+          setIsBiometricSupported(false);
+        }
+
+        // 2. Fetch biometric status from server (if logged in)
+        if (userInfo?.token) {
+          const config = {
+            headers: { Authorization: `Bearer ${userInfo.token}` },
+          };
+          const { data } = await axios.get(
+            `${BASE_URL}/api/v1/users/profile/biometric-status`,
+            config
+          );
+          setBioEnabled(data.isBiometricEnabled);
+          
+          // Also sync to localStorage for app lock
+          if (data.isBiometricEnabled && data.hasCredentials) {
+            localStorage.setItem("isBiometricEnabled", "true");
+          }
+        }
+      } catch (err) {
+        console.error("Biometric Check Error:", err);
+      }
+    };
+
     if (userInfo) {
       setName(userInfo.name);
       setEmail(userInfo.email);
       setDescription(userInfo.description || "");
+      checkBiometricCapability();
     }
   }, [userInfo]);
 
-  // 2️⃣ Success/Error Messages handle karne ke liye
   useEffect(() => {
     if (success) {
       setLocalMsg("Profile Updated Successfully! 🎉");
-      // Password fields clear kar do
       setPassword("");
       setConfirmPassword("");
-
-      // 3 second baad message hata do
       setTimeout(() => setLocalMsg(null), 3000);
     }
     if (error) {
       setLocalMsg(error);
     }
   }, [success, error]);
+
+  // 👆 HANDLER: Toggle Biometric (Industry Standard)
+  const handleBiometricToggle = async () => {
+    if (bioLoading) return;
+    setBioLoading(true);
+    setLocalMsg(null);
+
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${userInfo.token}`,
+          "Content-Type": "application/json",
+        },
+      };
+
+      if (bioEnabled) {
+        // DISABLE: Update server + clear localStorage
+        await axios.put(
+          `${BASE_URL}/api/v1/users/profile/biometric-status`,
+          { isEnabled: false },
+          config
+        );
+        localStorage.removeItem("isBiometricEnabled");
+        setBioEnabled(false);
+        setLocalMsg("Fingerprint Login Disabled 🔒");
+      } else {
+        // ENABLE: Register biometric first, then update server
+        setLocalMsg("Scanning... Please verify identity 👆");
+
+        // 1. Register with device (WebAuthn)
+        await registerBiometric();
+
+        // 2. Update server status
+        await axios.put(
+          `${BASE_URL}/api/v1/users/profile/biometric-status`,
+          { isEnabled: true },
+          config
+        );
+
+        // 3. Set localStorage for app lock
+        localStorage.setItem("isBiometricEnabled", "true");
+        setBioEnabled(true);
+        setLocalMsg("Fingerprint Registered Successfully! 🚀");
+      }
+    } catch (err) {
+      console.error(err);
+      setLocalMsg("Biometric Error: " + (err.response?.data?.message || err.message || "Failed"));
+    } finally {
+      setBioLoading(false);
+      setTimeout(() => setLocalMsg(null), 4000);
+    }
+  };
 
   const submitHandler = (e) => {
     e.preventDefault();
@@ -61,7 +151,6 @@ const Profile = () => {
       return;
     }
 
-    // 👇 MAGIC: Fetch hata diya, ab seedha Dispatch karenge
     dispatch(updateUserProfile({ name, email, password, description }));
   };
 
@@ -77,7 +166,7 @@ const Profile = () => {
         {localMsg && (
           <div
             className={`p-4 rounded-lg mb-6 border ${
-              localMsg.includes("Success")
+              localMsg.includes("Success") || localMsg.includes("Registered")
                 ? "bg-green-500/20 text-green-400 border-green-500/50"
                 : "bg-red-500/20 text-red-400 border-red-500/50"
             }`}
@@ -201,7 +290,7 @@ const Profile = () => {
             </form>
           </div>
 
-          {/* RIGHT: Profile Card & Wallet */}
+          {/* RIGHT: Profile Card, Wallet & SECURITY */}
           <div className="space-y-8">
             {/* Profile Card */}
             <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-8 flex flex-col items-center text-center relative overflow-hidden shadow-2xl">
@@ -230,14 +319,64 @@ const Profile = () => {
               </span>
             </div>
 
-            {/* 💳 SWAD WALLET (New) */}
+            {/* 🔐 SECURITY CARD (Industry Standard) */}
+            <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl ${isBiometricSupported ? "bg-gray-800 text-primary" : "bg-gray-800/50 text-gray-600"}`}>
+                    <Fingerprint size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white">App Lock</h3>
+                    <p className="text-xs text-gray-500">
+                      {isBiometricSupported ? "Biometric Login" : "Not Available"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* TOGGLE SWITCH - Only show if supported */}
+                {isBiometricSupported ? (
+                  <button
+                    onClick={handleBiometricToggle}
+                    disabled={bioLoading}
+                    className={`w-14 h-8 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                      bioLoading ? "opacity-50 cursor-wait" : ""
+                    } ${bioEnabled ? "bg-primary" : "bg-gray-700"}`}
+                  >
+                    <div
+                      className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform ${
+                        bioEnabled ? "translate-x-6" : "translate-x-0"
+                      }`}
+                    ></div>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1 text-gray-600">
+                    <AlertTriangle size={14} />
+                    <span className="text-[10px] font-bold uppercase">Unsupported</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-600 mt-4 px-1">
+                {!isBiometricSupported
+                  ? "This device doesn't support biometric authentication."
+                  : bioEnabled
+                    ? "App will ask for Fingerprint/FaceID when opened."
+                    : "Enable this to secure the app with device biometrics."}
+              </p>
+            </div>
+
+            {/* 💳 SWAD WALLET */}
             <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
               <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/30 transition-all"></div>
-              
+
               <div className="flex justify-between items-start mb-6 relative z-10">
                 <div>
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-1">Swad Balance</p>
-                  <h3 className="text-4xl font-black text-white italic tracking-tighter">₹{userInfo?.walletBalance || 0}</h3>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-1">
+                    Swad Balance
+                  </p>
+                  <h3 className="text-4xl font-black text-white italic tracking-tighter">
+                    ₹{userInfo?.walletBalance || 0}
+                  </h3>
                 </div>
                 <div className="p-3 bg-gray-800 rounded-2xl text-primary border border-gray-700">
                   <Wallet size={24} />
@@ -246,34 +385,53 @@ const Profile = () => {
 
               {/* Transactions Mini List */}
               <div className="space-y-3 relative z-10">
-                <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest mb-2">Recent Activity</p>
-                {userInfo?.walletTransactions && userInfo.walletTransactions.length > 0 ? (
+                <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest mb-2">
+                  Recent Activity
+                </p>
+                {userInfo?.walletTransactions &&
+                userInfo.walletTransactions.length > 0 ? (
                   userInfo.walletTransactions.slice(0, 3).map((txn, index) => (
-                    <div key={index} className="flex justify-between items-center bg-gray-800/50 p-3 rounded-xl border border-gray-700/50">
+                    <div
+                      key={index}
+                      className="flex justify-between items-center bg-gray-800/50 p-3 rounded-xl border border-gray-700/50"
+                    >
                       <div className="flex items-center gap-3">
-                        <div className={`p-1.5 rounded-lg ${txn.type === 'Credit' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                          {txn.type === 'Credit' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        <div
+                          className={`p-1.5 rounded-lg ${txn.type === "Credit" ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"}`}
+                        >
+                          {txn.type === "Credit" ? (
+                            <TrendingUp size={14} />
+                          ) : (
+                            <TrendingDown size={14} />
+                          )}
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-white uppercase">{txn.description || "Transaction"}</p>
-                          <p className="text-[9px] text-gray-500">{new Date(txn.date).toLocaleDateString()}</p>
+                          <p className="text-[10px] font-bold text-white uppercase">
+                            {txn.description || "Transaction"}
+                          </p>
+                          <p className="text-[9px] text-gray-500">
+                            {new Date(txn.date).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
-                      <span className={`text-xs font-black ${txn.type === 'Credit' ? 'text-green-400' : 'text-white'}`}>
-                        {txn.type === 'Credit' ? '+' : '-'} ₹{txn.amount}
+                      <span
+                        className={`text-xs font-black ${txn.type === "Credit" ? "text-green-400" : "text-white"}`}
+                      >
+                        {txn.type === "Credit" ? "+" : "-"} ₹{txn.amount}
                       </span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-600 italic text-center py-4">No transactions yet.</p>
+                  <p className="text-xs text-gray-600 italic text-center py-4">
+                    No transactions yet.
+                  </p>
                 )}
               </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-     </div>
-    
   );
 };
 

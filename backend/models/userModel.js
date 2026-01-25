@@ -48,8 +48,26 @@ const userSchema = mongoose.Schema(
         date: { type: Date, default: Date.now },
       },
     ],
+
+    // 🔐 BIOMETRIC AUTHENTICATION (WebAuthn)
+    // Stores registered authenticators (Fingerprint/FaceID)
+    biometricCredentials: [
+      {
+        credentialID: { type: String, required: true }, // Base64URL ID
+        credentialPublicKey: { type: Buffer, required: true }, // Public Key (Binary)
+        counter: { type: Number, required: true }, // Replay attack protection
+        transports: [String], // e.g., ['internal', 'hybrid']
+        deviceType: { type: String }, // e.g., 'singleDevice' or 'multiDevice'
+        backedUp: { type: Boolean, default: false },
+      },
+    ],
+    // Stores the temporary challenge during registration/login flow
+    currentChallenge: { type: String },
+
+    // 🔒 Biometric Status (Industry Standard - Synced to DB)
+    isBiometricEnabled: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // 🛡️ PASSWORD MATCHING METHOD

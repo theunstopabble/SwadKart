@@ -22,6 +22,7 @@ import couponRoutes from "./routes/couponRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import restaurantRoutes from "./routes/restaurantRoutes.js";
+import biometricRoutes from "./routes/biometricRoutes.js"; // 🔐 NEW IMPORT
 
 dotenv.config();
 connectDB(); // 🗄️ Database Connection
@@ -125,6 +126,7 @@ app.use("/api/v1/coupons", couponRoutes);
 app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/restaurants", restaurantRoutes);
+app.use("/api/v1/biometric", biometricRoutes); // 🔐 MOUNTED HERE
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
