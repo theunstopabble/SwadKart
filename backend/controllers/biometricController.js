@@ -158,18 +158,45 @@ export const loginBiometricVerify = async (req, res) => {
     // Some library versions verify against 'id', others 'credentialID'
     const minimalBuffer = new Uint8Array([...credentialIDBuffer]);
     
-    const manualAuthenticator = {
-      credentialID: minimalBuffer,
-      id: minimalBuffer, // 👈 Alias for older/newer library compatibility
-      credentialPublicKey: new Uint8Array([...publicKeyBuffer]), 
-      counter: Number(authDoc.counter),
-      transports: authDoc.transports, // Pass transports if available
-    };
+    // 🛠️ SHOTGUN APPROACH: Create authenticators in ALL possible formats
+    // covers Buffer vs String ID mismatch and id vs credentialID alias issues
+    const bufferID = new Uint8Array([...credentialIDBuffer]);
+    const stringID = authDoc.credentialID;
 
-    console.log("🛠️ Auth Object Full:", {
-       hasCredentialID: !!manualAuthenticator.credentialID,
-       hasID: !!manualAuthenticator.id,
-    });
+    const possibleAuthenticators = [
+      // Format 1: Standard (Buffer ID)
+      {
+        credentialID: bufferID,
+        credentialPublicKey: new Uint8Array([...publicKeyBuffer]),
+        counter: Number(authDoc.counter),
+        transports: authDoc.transports,
+      },
+      // Format 2: String ID (Newer/Older versions?)
+      {
+        credentialID: stringID,
+        credentialPublicKey: new Uint8Array([...publicKeyBuffer]),
+        counter: Number(authDoc.counter),
+        transports: authDoc.transports,
+      },
+      // Format 3: Alias 'id' (Buffer)
+      {
+        id: bufferID,
+        credentialID: bufferID,
+        credentialPublicKey: new Uint8Array([...publicKeyBuffer]),
+        counter: Number(authDoc.counter),
+        transports: authDoc.transports,
+      },
+       // Format 4: Alias 'id' (String)
+      {
+        id: stringID,
+        credentialID: stringID,
+        credentialPublicKey: new Uint8Array([...publicKeyBuffer]),
+        counter: Number(authDoc.counter),
+        transports: authDoc.transports,
+      }
+    ];
+
+    console.log("🛠️ Auth Strategies Prepared:", possibleAuthenticators.length);
 
     let verification;
     try {
@@ -178,7 +205,7 @@ export const loginBiometricVerify = async (req, res) => {
         expectedChallenge: user.currentChallenge,
         expectedOrigin: webAuthnConfig.origin,
         expectedRPID: webAuthnConfig.rpID,
-        authenticators: [manualAuthenticator], // 👈 Back to Array
+        authenticators: possibleAuthenticators, // 👈 Try all formats
         requireUserVerification: false,
       });
     } catch (error) {
