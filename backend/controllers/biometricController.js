@@ -154,15 +154,21 @@ export const loginBiometricVerify = async (req, res) => {
     const credentialIDBuffer = Buffer.from(body.id, 'base64url'); // Decode from request
     const publicKeyBuffer = authDoc.credentialPublicKey; // From DB
 
+    // 🛠️ FINAL SAFETY NET: Add BOTH 'id' and 'credentialID' properties
+    // Some library versions verify against 'id', others 'credentialID'
+    const minimalBuffer = new Uint8Array([...credentialIDBuffer]);
+    
     const manualAuthenticator = {
-      credentialID: new Uint8Array([...credentialIDBuffer]), // 👈 Clean copy
-      credentialPublicKey: new Uint8Array([...publicKeyBuffer]), // 👈 Clean copy
+      credentialID: minimalBuffer,
+      id: minimalBuffer, // 👈 Alias for older/newer library compatibility
+      credentialPublicKey: new Uint8Array([...publicKeyBuffer]), 
       counter: Number(authDoc.counter),
+      transports: authDoc.transports, // Pass transports if available
     };
 
-    console.log("🛠️ Auth Object Sanitized:", {
-       idLength: manualAuthenticator.credentialID.length,
-       keyLength: manualAuthenticator.credentialPublicKey.length,
+    console.log("🛠️ Auth Object Full:", {
+       hasCredentialID: !!manualAuthenticator.credentialID,
+       hasID: !!manualAuthenticator.id,
     });
 
     let verification;
@@ -172,7 +178,7 @@ export const loginBiometricVerify = async (req, res) => {
         expectedChallenge: user.currentChallenge,
         expectedOrigin: webAuthnConfig.origin,
         expectedRPID: webAuthnConfig.rpID,
-        authenticator: manualAuthenticator, // 👈 Force use of this sanitized object (Bypass lookup)
+        authenticators: [manualAuthenticator], // 👈 Back to Array
         requireUserVerification: false,
       });
     } catch (error) {
