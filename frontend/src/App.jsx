@@ -143,59 +143,13 @@ function App() {
     toast("Logged out via Secure Lock", { icon: "🛡️" });
   };
 
-  // 🛑 LOCK SCREEN OVERLAY (Returns early if locked)
-  if (isLocked) {
-    return (
-      <div className="h-screen w-full bg-black flex flex-col items-center justify-center text-white relative overflow-hidden">
-        {/* Background Effects */}
-        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-primary/10 to-transparent"></div>
-
-        <div className="z-10 flex flex-col items-center gap-6 animate-fade-in-up">
-          <div className="p-4 bg-gray-900 rounded-full border border-gray-800 shadow-2xl mb-2">
-            <Lock size={40} className="text-gray-400" />
-          </div>
-
-          <h1 className="text-3xl font-black italic tracking-tighter">
-            Swad<span className="text-primary">Kart</span> Locked
-          </h1>
-
-          <p className="text-gray-500 text-sm mb-4">
-            Biometric Security Active
-          </p>
-
-          {/* Unlock Button */}
-          <button
-            onClick={handleUnlock}
-            className="flex flex-col items-center justify-center gap-2 group"
-          >
-            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary cursor-pointer group-hover:bg-primary group-hover:text-black transition-all shadow-[0_0_20px_rgba(239,68,68,0.5)]">
-              <Fingerprint size={40} className="animate-pulse" />
-            </div>
-            <span className="text-xs font-bold uppercase tracking-widest text-primary group-hover:text-white mt-2">
-              Tap to Unlock
-            </span>
-          </button>
-        </div>
-
-        {/* Emergency Logout */}
-        <button
-          onClick={handleEmergencyLogout}
-          className="absolute bottom-10 text-gray-600 hover:text-white text-xs uppercase font-bold tracking-widest flex items-center gap-2 transition-colors"
-        >
-          <LogOut size={14} /> Use Password Instead
-        </button>
-
-        <Toaster position="top-center" />
-      </div>
-    );
-  }
-
-  // 🚀 MAIN APP RENDER (Normal Flow)
+  // 🚀 MAIN APP RENDER & LOCK SCREEN HANDLER
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white flex flex-col justify-between">
       <ScrollToTop />
       <InstallPWA />
 
+      {/* 🔔 GLOBAL TOASTER (Handles both Locked & Unlocked states) */}
       <Toaster
         position="top-center"
         toastOptions={{
@@ -209,69 +163,129 @@ function App() {
         }}
       />
 
-      {/* ✅ FIXED: Navbar ab har page par dikhega */}
-      <Navbar />
+      {/* 🛑 LOCK SCREEN OVERLAY */}
+      {isLocked ? (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center text-white overflow-hidden">
+          {/* 🎨 Background Image with Blur */}
+          <div 
+            className="absolute inset-0 z-0 opacity-40 bg-cover bg-center blur-sm scale-110"
+            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop')" }}
+          ></div>
+          <div className="absolute inset-0 z-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
 
-      <main className="flex-grow">
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/search" element={<Home />} />
-          <Route path="/restaurant/:id" element={<RestaurantMenu />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/password/forgot" element={<ForgotPassword />} />
-          <Route path="/password/reset/:token" element={<ResetPassword />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/page/:type" element={<InfoPage />} />
+          {/* 💎 Glass Card */}
+          <div className="z-10 relative bg-white/5 backdrop-blur-md border border-white/10 p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up max-w-sm w-full mx-4">
+            
+            {/* Logo/Icon */}
+            <div className="p-4 bg-primary/20 rounded-full ring-1 ring-primary/50 shadow-[0_0_30px_rgba(239,68,68,0.3)] mb-2">
+               <Lock size={32} className="text-primary" />
+            </div>
 
-          {/* User Protected Routes */}
-          <Route element={<PrivateRoute />}>
-            <Route path="/shipping" element={<Shipping />} />
-            <Route path="/payment" element={<Payment />} />
-            <Route path="/placeorder" element={<PlaceOrder />} />
-            <Route path="/order/:id" element={<OrderDetails />} />
-            <Route path="/myorders" element={<MyOrders />} />
-            <Route path="/profile" element={<Profile />} />
-          </Route>
+            <div className="text-center space-y-1">
+              <h1 className="text-3xl font-black italic tracking-tighter">
+                Swad<span className="text-primary">Kart</span>
+              </h1>
+              <p className="text-gray-400 text-xs uppercase tracking-[0.2em] font-medium">
+                Security Active
+              </p>
+            </div>
 
-          {/* Admin Routes */}
-          <Route path="/admin/dashboard" element={<AdminRoute />}>
-            <Route index element={<AdminDashboard />} />
-          </Route>
+            {/* Visual Separator */}
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent my-2"></div>
 
-          {/* Restaurant Owner Routes */}
-          <Route element={<RestaurantRoute />}>
-            <Route
-              path="/restaurant/dashboard"
-              element={<RestaurantOwnerDashboard />}
-            />
-            <Route
-              path="/restaurant-dashboard"
-              element={<RestaurantOwnerDashboard />}
-            />
-          </Route>
+            {/* Unlock Button */}
+            <button
+              onClick={handleUnlock}
+              className="flex flex-col items-center justify-center gap-4 group w-full"
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/40 transition-all"></div>
+                <div className="w-24 h-24 rounded-full bg-black/50 border border-primary/30 flex items-center justify-center relative z-10 group-active:scale-95 transition-transform duration-200">
+                   <Fingerprint size={48} className="text-primary drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+                </div>
+              </div>
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-300 group-hover:text-white transition-colors">
+                Tap to Authentication
+              </span>
+            </button>
+          </div>
 
-          {/* Delivery Partner Routes */}
-          <Route element={<DeliveryRoute />}>
-            <Route
-              path="/delivery/dashboard"
-              element={<DeliveryPartnerDashboard />}
-            />
-            <Route
-              path="/delivery-dashboard"
-              element={<DeliveryPartnerDashboard />}
-            />
-          </Route>
+          {/* Emergency Logout */}
+          <button
+            onClick={handleEmergencyLogout}
+            className="absolute bottom-10 z-20 text-gray-500 hover:text-white text-xs uppercase font-bold tracking-widest flex items-center gap-2 transition-all hover:bg-white/5 px-4 py-2 rounded-full"
+          >
+            <LogOut size={14} /> Use Password Instead
+          </button>
+        </div>
+      ) : (
+        /* 🚀 NORMAL APP CONTENT */
+        <>
+          {/* ✅ FIXED: Navbar ab har page par dikhega */}
+          <Navbar />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
+          <main className="flex-grow">
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/search" element={<Home />} />
+              <Route path="/restaurant/:id" element={<RestaurantMenu />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/password/forgot" element={<ForgotPassword />} />
+              <Route path="/password/reset/:token" element={<ResetPassword />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/page/:type" element={<InfoPage />} />
 
-      {/* ✅ FIXED: Footer aur Chatbot ab Admin Panel me bhi dikhenge */}
-      <Footer />
-      <ChatBot />
+              {/* User Protected Routes */}
+              <Route element={<PrivateRoute />}>
+                <Route path="/shipping" element={<Shipping />} />
+                <Route path="/payment" element={<Payment />} />
+                <Route path="/placeorder" element={<PlaceOrder />} />
+                <Route path="/order/:id" element={<OrderDetails />} />
+                <Route path="/myorders" element={<MyOrders />} />
+                <Route path="/profile" element={<Profile />} />
+              </Route>
+
+              {/* Admin Routes */}
+              <Route path="/admin/dashboard" element={<AdminRoute />}>
+                <Route index element={<AdminDashboard />} />
+              </Route>
+
+              {/* Restaurant Owner Routes */}
+              <Route element={<RestaurantRoute />}>
+                <Route
+                  path="/restaurant/dashboard"
+                  element={<RestaurantOwnerDashboard />}
+                />
+                <Route
+                  path="/restaurant-dashboard"
+                  element={<RestaurantOwnerDashboard />}
+                />
+              </Route>
+
+              {/* Delivery Partner Routes */}
+              <Route element={<DeliveryRoute />}>
+                <Route
+                  path="/delivery/dashboard"
+                  element={<DeliveryPartnerDashboard />}
+                />
+                <Route
+                  path="/delivery-dashboard"
+                  element={<DeliveryPartnerDashboard />}
+                />
+              </Route>
+
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+
+          {/* ✅ FIXED: Footer aur Chatbot ab Admin Panel me bhi dikhenge */}
+          <Footer />
+          <ChatBot />
+        </>
+      )}
     </div>
   );
 }
