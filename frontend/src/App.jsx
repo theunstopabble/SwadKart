@@ -203,7 +203,7 @@ function App() {
                 </div>
               </div>
               <span className="text-xs font-bold uppercase tracking-widest text-gray-300 group-hover:text-white transition-colors">
-                Tap to Authentication
+                Tap to Authenticate
               </span>
             </button>
           </div>
