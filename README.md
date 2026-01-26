@@ -40,11 +40,11 @@ Unlike simple clones, SwadKart includes production-grade features like **Real-ti
 
 | **Home Page & Discovery** | **Admin Dashboard & Analytics** |
 |:-------------------------:|:---------------------:|
-| ![Home Page](frontend/assets/biometric-profile.png) | ![Admin Panel](frontend/assets/screenshot-admin.png) |
+| ![Home Page](frontend/assets/screenshot-home.png) | ![Admin Panel](frontend/assets/screenshot-admin.png) |
 
 | **Dynamic Menu Lab** | **Mobile Responsive** |
 |:-------------------:|:---------------------:|
-| ![Menu Page](frontend/assets/screenshot-menu.png) | ![Mobile View](frontend/assets/biometric-lock.png) |
+| ![Menu Page](frontend/assets/screenshot-menu.png) | ![Mobile View](frontend/assets/screenshot-mobile.png) |
 
 ---
 
@@ -71,6 +71,10 @@ Unlike simple clones, SwadKart includes production-grade features like **Real-ti
 * **Premium App Lock:** Protect your wallet and order history with a banking-grade "Glassmorphism" lock screen.
 * **Smart Hardware Detection:** The UI automatically adapts if the device lacks biometric hardware.
 * **Dynamic Environment:** Securely handles authentication across Localhost and Production.
+
+| **Premium Lock Screen** | **Profile Control Center** |
+|:-------------------:|:---------------------:|
+| <img src="frontend/assets/biometric-lock.png" alt="Lock Screen" width="240"/> | <img src="frontend/assets/biometric-profile.png" alt="Profile" width="240"/> |
 
 ---
 
