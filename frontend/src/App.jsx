@@ -123,19 +123,69 @@ function App() {
       }
     } catch (error) {
       const newAttempts = unlockAttempts + 1;
-// ... (skip lines 126-146)
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: "#1f2937",
-              color: "#fff",
-              borderRadius: "15px",
-              border: "1px solid #374151",
-            },
-          }}
-        />
+      setUnlockAttempts(newAttempts);
+      
+      if (newAttempts >= MAX_ATTEMPTS) {
+        toast.error("Too many failed attempts. Please login with password.");
+        handleEmergencyLogout();
+      } else {
+        toast.error(`Biometric Failed. ${MAX_ATTEMPTS - newAttempts} attempts left.`);
+      }
+    }
+  };
+
+  // 🚪 HANDLER: Emergency Logout (If user gets stuck or max attempts reached)
+  const handleEmergencyLogout = () => {
+    localStorage.removeItem("isBiometricEnabled");
+    dispatch(logout());
+    setIsLocked(false);
+    setUnlockAttempts(0);
+    toast("Logged out via Secure Lock", { icon: "🛡️" });
+  };
+
+  // 🛑 LOCK SCREEN OVERLAY (Returns early if locked)
+  if (isLocked) {
+    return (
+      <div className="h-screen w-full bg-black flex flex-col items-center justify-center text-white relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-primary/10 to-transparent"></div>
+
+        <div className="z-10 flex flex-col items-center gap-6 animate-fade-in-up">
+          <div className="p-4 bg-gray-900 rounded-full border border-gray-800 shadow-2xl mb-2">
+            <Lock size={40} className="text-gray-400" />
+          </div>
+
+          <h1 className="text-3xl font-black italic tracking-tighter">
+            Swad<span className="text-primary">Kart</span> Locked
+          </h1>
+
+          <p className="text-gray-500 text-sm mb-4">
+            Biometric Security Active
+          </p>
+
+          {/* Unlock Button */}
+          <button
+            onClick={handleUnlock}
+            className="flex flex-col items-center justify-center gap-2 group"
+          >
+            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary cursor-pointer group-hover:bg-primary group-hover:text-black transition-all shadow-[0_0_20px_rgba(239,68,68,0.5)]">
+              <Fingerprint size={40} className="animate-pulse" />
+            </div>
+            <span className="text-xs font-bold uppercase tracking-widest text-primary group-hover:text-white mt-2">
+              Tap to Unlock
+            </span>
+          </button>
+        </div>
+
+        {/* Emergency Logout */}
+        <button
+          onClick={handleEmergencyLogout}
+          className="absolute bottom-10 text-gray-600 hover:text-white text-xs uppercase font-bold tracking-widest flex items-center gap-2 transition-colors"
+        >
+          <LogOut size={14} /> Use Password Instead
+        </button>
+
+        <Toaster position="top-center" />
       </div>
     );
   }
