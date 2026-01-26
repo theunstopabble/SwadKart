@@ -176,7 +176,7 @@ const Profile = () => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-8">
+          <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-8 order-2 lg:order-1">
             <h2 className="text-xl font-bold mb-6 border-b border-gray-800 pb-4">
               Edit Details
             </h2>
@@ -291,7 +291,7 @@ const Profile = () => {
           </div>
 
           {/* RIGHT: Profile Card, Wallet & SECURITY */}
-          <div className="space-y-8">
+          <div className="space-y-8 order-1 lg:order-2">
             {/* Profile Card */}
             <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-8 flex flex-col items-center text-center relative overflow-hidden shadow-2xl">
               <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/20 to-transparent"></div>
