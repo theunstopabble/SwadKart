@@ -158,21 +158,22 @@ export const loginBiometricVerify = async (req, res) => {
     // Some library versions verify against 'id', others 'credentialID'
     const minimalBuffer = new Uint8Array([...credentialIDBuffer]);
     
-    // 🛠️ v13 FIX: Use 'authenticator' (singular) with multiple ID formats to be safe
-    // v13 likely treats credentialID as Uint8Array, but we provide aliases just in case
+    // 🛠️ SOURCE CODE VERIFIED FIX (v13.2.2)
+    // The library expects 'credential' option (not 'authenticator')
+    // AND the object must have 'id' and 'publicKey' properties explicitly.
     const bufferID = new Uint8Array([...credentialIDBuffer]);
     
-    const manualAuthenticator = {
-      credentialID: bufferID,
-      id: bufferID, // Alias for libraries expecting 'id'
-      credentialPublicKey: new Uint8Array([...publicKeyBuffer]),
-      counter: Number(authDoc.counter),
+    const validCredential = {
+      id: bufferID, // Library accesses .id (Line 161)
+      publicKey: new Uint8Array([...publicKeyBuffer]), // Library accesses .publicKey (Line 157)
+      counter: Number(authDoc.counter), // Library accesses .counter (Line 144)
       transports: authDoc.transports,
     };
 
-    console.log("🛠️ Auth Object Prepared (Singular):", {
-       hasCredentialID: !!manualAuthenticator.credentialID,
-       counter: manualAuthenticator.counter
+    console.log("🛠️ Credential Object Prepared:", {
+       hasID: !!validCredential.id,
+       hasPublicKey: !!validCredential.publicKey,
+       counter: validCredential.counter
     });
 
     let verification;
@@ -182,7 +183,7 @@ export const loginBiometricVerify = async (req, res) => {
         expectedChallenge: user.currentChallenge,
         expectedOrigin: webAuthnConfig.origin,
         expectedRPID: webAuthnConfig.rpID,
-        authenticator: manualAuthenticator, // 👈 Strict Single Object (v10+ standard)
+        credential: validCredential, // 👈 KEY FIX: Named 'credential', NOT 'authenticator'
         requireUserVerification: false,
       });
     } catch (error) {
