@@ -5,6 +5,8 @@ import { BASE_URL } from "../config";
 import io from "socket.io-client";
 import VoiceSearch from "../components/VoiceSearch";
 
+import { Toaster, toast } from "react-hot-toast";
+
 const Home = () => {
   const [restaurants, setRestaurants] = useState([]);
   const [filteredRestaurants, setFilteredRestaurants] = useState([]);
@@ -28,6 +30,7 @@ const Home = () => {
       setFilteredRestaurants(sortedShops);
     } catch (error) {
       console.error("Error fetching restaurants:", error);
+      toast.error("Failed to connect to backend. Check if server is running!");
     } finally {
       setLoading(false);
     }

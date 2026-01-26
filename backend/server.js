@@ -33,6 +33,7 @@ const httpServer = createServer(app);
 // --- 🌐 Configuration ---
 const allowedOrigins = [
   "http://localhost:5173",
+  "https://localhost:5173", // 🔒 Added for Secure-Context local testing (Biometrics)
   "https://swadkart.vercel.app",
   process.env.FRONTEND_URL, // Ab ye Northflank se uthayega
   "https://swadkart-5wtf.onrender.com",
