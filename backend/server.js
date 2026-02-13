@@ -97,9 +97,6 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Debug: Northflank logs mein origin dekhne ke liye
-      if (origin) console.log("Incoming Request Origin:", origin);
-
       const isVercel = origin && origin.endsWith(".vercel.app");
       const isAllowed = !origin || allowedOrigins.includes(origin);
 

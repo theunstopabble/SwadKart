@@ -1,35 +1,46 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense, lazy } from "react";
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { Toaster, toast } from "react-hot-toast";
 import { io } from "socket.io-client";
-import { Fingerprint, LogOut, Lock } from "lucide-react"; // 👈 Icons
+import { Fingerprint, LogOut, Lock, Loader } from "lucide-react"; // 👈 Icons
 
-// Pages
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Cart from "./pages/Cart";
-import Shipping from "./pages/Shipping";
-import Payment from "./pages/Payment";
-import PlaceOrder from "./pages/PlaceOrder";
-import OrderDetails from "./pages/OrderDetails";
-import MyOrders from "./pages/MyOrders";
-import Profile from "./pages/Profile";
-import AdminDashboard from "./pages/AdminDashboard";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import RestaurantMenu from "./pages/RestaurantMenu";
-import RestaurantOwnerDashboard from "./pages/RestaurantOwnerDashboard";
-import DeliveryPartnerDashboard from "./pages/DeliveryPartnerDashboard";
-import InfoPage from "./pages/InfoPage";
-import Contact from "./pages/Contact";
+// ⚡ Lazy Load Pages for Performance
+const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Cart = lazy(() => import("./pages/Cart"));
+const Shipping = lazy(() => import("./pages/Shipping"));
+const Payment = lazy(() => import("./pages/Payment"));
+const PlaceOrder = lazy(() => import("./pages/PlaceOrder"));
+const OrderDetails = lazy(() => import("./pages/OrderDetails"));
+const MyOrders = lazy(() => import("./pages/MyOrders"));
+const Profile = lazy(() => import("./pages/Profile"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const RestaurantMenu = lazy(() => import("./pages/RestaurantMenu"));
+const RestaurantOwnerDashboard = lazy(
+  () => import("./pages/RestaurantOwnerDashboard"),
+);
+const DeliveryPartnerDashboard = lazy(
+  () => import("./pages/DeliveryPartnerDashboard"),
+);
+const InfoPage = lazy(() => import("./pages/InfoPage"));
+const Contact = lazy(() => import("./pages/Contact"));
 
 // Components
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ChatBot from "./components/ChatBot";
 import InstallPWA from "./components/InstallPWA";
+
+// 🌀 Loading Spinner Component
+const PageLoader = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-black text-primary">
+    <Loader className="animate-spin" size={48} />
+  </div>
+);
 
 // Helpers & Services
 import { BASE_URL } from "./config";
@@ -55,7 +66,6 @@ function App() {
 
   // 🔒 BIOMETRIC LOCK STATE (Industry Standard)
   const [isLocked, setIsLocked] = useState(false);
-  const [isBiometricCapable, setIsBiometricCapable] = useState(false);
   const [unlockAttempts, setUnlockAttempts] = useState(0);
   const MAX_ATTEMPTS = 3;
 
@@ -66,12 +76,12 @@ function App() {
       let deviceSupported = false;
       if (window.PublicKeyCredential) {
         try {
-          deviceSupported = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        } catch (e) {
+          deviceSupported =
+            await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        } catch {
           deviceSupported = false;
         }
       }
-      setIsBiometricCapable(deviceSupported);
 
       // 2. Only lock if device supports AND localStorage flag is true AND user is logged in
       const bioEnabled = localStorage.getItem("isBiometricEnabled") === "true";
@@ -84,10 +94,6 @@ function App() {
   }, [userInfo]);
 
   useEffect(() => {
-    // 👇👇 YAHAN HAI JASOOS (DEBUG LOGS) REMOVED 👇👇
-    // console.log("🕵️‍♂️ ASLI BASE_URL KYA HAI?? ->", BASE_URL);
-    // console.log("🌍 VITE ENV VALUE ->", import.meta.env.VITE_API_URL);
-
     requestNotificationPermission();
     const socket = io(BASE_URL);
 
@@ -100,7 +106,7 @@ function App() {
           }".`,
         });
         const audio = new Audio("/notification.mp3");
-        audio.play().catch((e) => console.log("Audio alert blocked"));
+        audio.play().catch(() => console.log("Audio alert blocked"));
       });
     }
 
@@ -119,15 +125,17 @@ function App() {
         setUnlockAttempts(0);
         toast.success("Welcome back! 🔓", { duration: 2000 }); // ⚡ Faster dismiss
       }
-    } catch (error) {
+    } catch {
       const newAttempts = unlockAttempts + 1;
       setUnlockAttempts(newAttempts);
-      
+
       if (newAttempts >= MAX_ATTEMPTS) {
         toast.error("Too many failed attempts. Please login with password.");
         handleEmergencyLogout();
       } else {
-        toast.error(`Biometric Failed. ${MAX_ATTEMPTS - newAttempts} attempts left.`);
+        toast.error(
+          `Biometric Failed. ${MAX_ATTEMPTS - newAttempts} attempts left.`,
+        );
       }
     }
   };
@@ -165,18 +173,20 @@ function App() {
       {isLocked ? (
         <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center text-white overflow-hidden">
           {/* 🎨 Background Image with Blur */}
-          <div 
+          <div
             className="absolute inset-0 z-0 opacity-40 bg-cover bg-center blur-sm scale-110"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop')" }}
+            style={{
+              backgroundImage:
+                "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop')",
+            }}
           ></div>
           <div className="absolute inset-0 z-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
 
           {/* 💎 Glass Card */}
           <div className="z-10 relative bg-white/5 backdrop-blur-md border border-white/10 p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up max-w-sm w-full mx-4">
-            
             {/* Logo/Icon */}
             <div className="p-4 bg-primary/20 rounded-full ring-1 ring-primary/50 shadow-[0_0_30px_rgba(239,68,68,0.3)] mb-2">
-               <Lock size={32} className="text-primary" />
+              <Lock size={32} className="text-primary" />
             </div>
 
             <div className="text-center space-y-1">
@@ -199,7 +209,10 @@ function App() {
               <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/40 transition-all"></div>
                 <div className="w-24 h-24 rounded-full bg-black/50 border border-primary/30 flex items-center justify-center relative z-10 group-active:scale-95 transition-transform duration-200">
-                   <Fingerprint size={48} className="text-primary drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+                  <Fingerprint
+                    size={48}
+                    className="text-primary drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
+                  />
                 </div>
               </div>
               <span className="text-xs font-bold uppercase tracking-widest text-gray-300 group-hover:text-white transition-colors">
@@ -223,60 +236,65 @@ function App() {
           <Navbar />
 
           <main className="flex-grow">
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/search" element={<Home />} />
-              <Route path="/restaurant/:id" element={<RestaurantMenu />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/password/forgot" element={<ForgotPassword />} />
-              <Route path="/password/reset/:token" element={<ResetPassword />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/page/:type" element={<InfoPage />} />
-
-              {/* User Protected Routes */}
-              <Route element={<PrivateRoute />}>
-                <Route path="/shipping" element={<Shipping />} />
-                <Route path="/payment" element={<Payment />} />
-                <Route path="/placeorder" element={<PlaceOrder />} />
-                <Route path="/order/:id" element={<OrderDetails />} />
-                <Route path="/myorders" element={<MyOrders />} />
-                <Route path="/profile" element={<Profile />} />
-              </Route>
-
-              {/* Admin Routes */}
-              <Route path="/admin/dashboard" element={<AdminRoute />}>
-                <Route index element={<AdminDashboard />} />
-              </Route>
-
-              {/* Restaurant Owner Routes */}
-              <Route element={<RestaurantRoute />}>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Home />} />
+                <Route path="/search" element={<Home />} />
+                <Route path="/restaurant/:id" element={<RestaurantMenu />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/password/forgot" element={<ForgotPassword />} />
                 <Route
-                  path="/restaurant/dashboard"
-                  element={<RestaurantOwnerDashboard />}
+                  path="/password/reset/:token"
+                  element={<ResetPassword />}
                 />
-                <Route
-                  path="/restaurant-dashboard"
-                  element={<RestaurantOwnerDashboard />}
-                />
-              </Route>
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/page/:type" element={<InfoPage />} />
 
-              {/* Delivery Partner Routes */}
-              <Route element={<DeliveryRoute />}>
-                <Route
-                  path="/delivery/dashboard"
-                  element={<DeliveryPartnerDashboard />}
-                />
-                <Route
-                  path="/delivery-dashboard"
-                  element={<DeliveryPartnerDashboard />}
-                />
-              </Route>
+                {/* User Protected Routes */}
+                <Route element={<PrivateRoute />}>
+                  <Route path="/shipping" element={<Shipping />} />
+                  <Route path="/payment" element={<Payment />} />
+                  <Route path="/placeorder" element={<PlaceOrder />} />
+                  <Route path="/order/:id" element={<OrderDetails />} />
+                  <Route path="/myorders" element={<MyOrders />} />
+                  <Route path="/profile" element={<Profile />} />
+                </Route>
 
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                {/* Admin Routes */}
+                <Route path="/admin/dashboard" element={<AdminRoute />}>
+                  <Route index element={<AdminDashboard />} />
+                </Route>
+
+                {/* Restaurant Owner Routes */}
+                <Route element={<RestaurantRoute />}>
+                  <Route
+                    path="/restaurant/dashboard"
+                    element={<RestaurantOwnerDashboard />}
+                  />
+                  <Route
+                    path="/restaurant-dashboard"
+                    element={<RestaurantOwnerDashboard />}
+                  />
+                </Route>
+
+                {/* Delivery Partner Routes */}
+                <Route element={<DeliveryRoute />}>
+                  <Route
+                    path="/delivery/dashboard"
+                    element={<DeliveryPartnerDashboard />}
+                  />
+                  <Route
+                    path="/delivery-dashboard"
+                    element={<DeliveryPartnerDashboard />}
+                  />
+                </Route>
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </main>
 
           {/* ✅ FIXED: Footer aur Chatbot ab Admin Panel me bhi dikhenge */}
