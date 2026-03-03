@@ -4,6 +4,7 @@ import { X, Plus, Trash2, Layers, Tag } from "lucide-react";
 import { BASE_URL } from "../../config";
 import MenuHeader from "./MenuHeader";
 import MenuItemCard from "./MenuItemCard";
+import { optimizeImageUrl } from "../../utils/imageOptimizer";
 
 const MenuTab = ({ restaurants, userInfo }) => {
   const [selectedRestaurant, setSelectedRestaurant] = useState("");
@@ -25,7 +26,8 @@ const MenuTab = ({ restaurants, userInfo }) => {
 
   // ✅ FIX 1: Filter wapas laga diya. Ab sirf 'Owners' dikhenge.
   // Normal users dropdown se hat jayenge.
-  const shopOwners = restaurants?.filter((r) => r.role === "restaurant_owner") || [];
+  const shopOwners =
+    restaurants?.filter((r) => r.role === "restaurant_owner") || [];
 
   const getFetchOptions = (method = "GET", body = null) => ({
     method,
@@ -43,7 +45,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
       // Backend Owner ID se menu fetch kar lega
       const res = await fetch(
         `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`,
-        getFetchOptions()
+        getFetchOptions(),
       );
       const data = await res.json();
       setMenuItems(Array.isArray(data) ? data : []);
@@ -60,7 +62,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
   const handleAdminToggleStock = async (id) => {
     const res = await fetch(
       `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
-      getFetchOptions("PATCH")
+      getFetchOptions("PATCH"),
     );
     if (res.ok) {
       fetchMenu();
@@ -72,7 +74,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
     if (!window.confirm("Destroy this menu item?")) return;
     const res = await fetch(
       `${BASE_URL}/api/v1/products/${id}`,
-      getFetchOptions("DELETE")
+      getFetchOptions("DELETE"),
     );
     if (res.ok) {
       fetchMenu();
@@ -90,6 +92,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
     // 'selectedRestaurant' mein Owner ki ID hai, wahi bhej rahe hain.
     const payload = {
       ...newItem,
+      image: optimizeImageUrl(newItem.image), // Compress image URL before DB save
       price: Number(newItem.price),
       isVeg: newItem.isVeg === "true",
       restaurantId: selectedRestaurant, // Backend check karega: findOne({ owner: restaurantId })
@@ -101,9 +104,9 @@ const MenuTab = ({ restaurants, userInfo }) => {
 
     const res = await fetch(
       url,
-      getFetchOptions(isEditingItem ? "PUT" : "POST", payload)
+      getFetchOptions(isEditingItem ? "PUT" : "POST", payload),
     );
-    
+
     if (res.ok) {
       setShowItemModal(false);
       fetchMenu();
@@ -311,7 +314,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
                         setNewItem({
                           ...newItem,
                           variants: newItem.variants.filter(
-                            (_, idx) => idx !== i
+                            (_, idx) => idx !== i,
                           ),
                         })
                       }

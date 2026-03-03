@@ -15,6 +15,7 @@ import {
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../../config";
 import { io } from "socket.io-client";
+import { optimizeImageUrl } from "../../utils/imageOptimizer";
 
 const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const [showAddShopModal, setShowAddShopModal] = useState(false);
@@ -67,7 +68,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
       setIsProcessing(true);
       const res = await fetch(
         `${BASE_URL}/api/v1/restaurants/${id}/approve`,
-        getFetchOptions("PUT")
+        getFetchOptions("PUT"),
       );
       const data = await res.json();
 
@@ -89,7 +90,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const handleDeleteRestaurant = async (id) => {
     if (
       !window.confirm(
-        "CRITICAL: Delete merchant and all associated menu items?"
+        "CRITICAL: Delete merchant and all associated menu items?",
       )
     )
       return;
@@ -97,7 +98,7 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
       // ✅ Corrected: Hits the Restaurant route, not User route
       const res = await fetch(
         `${BASE_URL}/api/v1/restaurants/${id}`,
-        getFetchOptions("DELETE")
+        getFetchOptions("DELETE"),
       );
       if (res.ok) {
         toast.success("Merchant decommissioned successfully");
@@ -115,9 +116,10 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const handleAddShop = async (e) => {
     e.preventDefault();
     try {
+      const payload = { ...newShop, image: optimizeImageUrl(newShop.image) };
       const res = await fetch(
         `${BASE_URL}/api/v1/users/admin/create-shop`,
-        getFetchOptions("POST", newShop)
+        getFetchOptions("POST", payload),
       );
       if (res.ok) {
         setShowAddShopModal(false);
@@ -142,8 +144,8 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
         `${BASE_URL}/api/v1/restaurants/${editingShop._id}`,
         getFetchOptions("PUT", {
           name: editingShop.name,
-          image: editingShop.image,
-        })
+          image: optimizeImageUrl(editingShop.image),
+        }),
       );
 
       if (res.ok) {
@@ -163,9 +165,13 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   const handleCreateDummyShop = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...dummyShopData,
+        image: optimizeImageUrl(dummyShopData.image),
+      };
       const res = await fetch(
         `${BASE_URL}/api/v1/users/admin/create-dummy`,
-        getFetchOptions("POST", dummyShopData)
+        getFetchOptions("POST", payload),
       );
       if (res.ok) {
         setShowDummyModal(false);
@@ -183,13 +189,11 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
   // --- 🔍 Filtering Logic (FIXED) ---
   // Note: Restaurants collection usually doesn't have 'role', so we use the array directly
   const pendingShops = restaurants.filter(
-    (r) => !r.isVerified && !r.isDummy && r.isActive
+    (r) => !r.isVerified && !r.isDummy && r.isActive,
   );
-  
+
   // Active shops includes verified OR dummy shops
-  const activeShops = restaurants.filter(
-    (r) => r.isVerified || r.isDummy
-  );
+  const activeShops = restaurants.filter((r) => r.isVerified || r.isDummy);
 
   const handleImageError = (e) => {
     e.target.src = PLACEHOLDER_IMG;
