@@ -19,7 +19,7 @@
     "canvas-confetti": "^1.9.4",
     "com.razorpay.cordova": "^1.4.15",
     "firebase": "^12.7.0",
-    "jspdf": "^4.1.0",
+    "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
