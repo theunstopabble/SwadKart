@@ -23,7 +23,7 @@ const Home = () => {
 
       // Sort by orderIndex
       const sortedShops = allShops.sort(
-        (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
+        (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0),
       );
 
       setRestaurants(sortedShops);
@@ -44,7 +44,7 @@ const Home = () => {
     socket.on("restaurantUpdated", (updatedShop) => {
       setRestaurants((prevShops) => {
         let updatedList = prevShops.map((shop) =>
-          shop._id === updatedShop._id ? updatedShop : shop
+          shop._id === updatedShop._id ? updatedShop : shop,
         );
 
         // If new restaurant added via admin panel
@@ -52,7 +52,7 @@ const Home = () => {
         if (!exists) updatedList.push(updatedShop);
 
         return [...updatedList].sort(
-          (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
+          (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0),
         );
       });
     });
@@ -74,7 +74,7 @@ const Home = () => {
   return (
     <div className="bg-black min-h-screen text-white pt-20">
       {/* ================= HERO SECTION ================= */}
-      <div className="relative h-[500px] w-full bg-[url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80')] bg-cover bg-center">
+      <div className="relative h-[500px] w-full bg-[url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&q=75&fm=webp&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent flex flex-col justify-center items-center text-center px-4">
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight">
             Craving <span className="text-primary">Delicious</span> Food?
@@ -105,7 +105,10 @@ const Home = () => {
               <div className="h-6 w-[1px] bg-gray-300 mx-1"></div>
 
               {/* Search Button */}
-              <button className="bg-primary hover:bg-red-600 text-white p-3 md:px-6 md:py-3 rounded-full font-bold transition-all flex items-center justify-center gap-2 shrink-0 shadow-md">
+              <button
+                aria-label="Search restaurants"
+                className="bg-primary hover:bg-red-600 text-white p-3 md:px-6 md:py-3 rounded-full font-bold transition-all flex items-center justify-center gap-2 shrink-0 shadow-md"
+              >
                 <Search size={20} />
                 <span className="hidden md:block">Search</span>
               </button>
@@ -150,9 +153,12 @@ const Home = () => {
                   <img
                     src={
                       shop.image ||
-                      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80"
+                      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=75&fm=webp&auto=format&fit=crop"
                     }
-                    alt={shop.name}
+                    alt={shop.name || "Restaurant image"}
+                    loading="lazy"
+                    width={600}
+                    height={400}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                   <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1 text-yellow-400 font-bold text-sm">

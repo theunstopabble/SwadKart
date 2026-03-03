@@ -109,6 +109,7 @@ const Navbar = () => {
                   onClick={logoutHandler}
                   className="text-gray-400 hover:text-red-500 transition-colors"
                   title="Logout"
+                  aria-label="Logout"
                 >
                   <LogOut size={20} />
                 </button>
@@ -130,7 +131,11 @@ const Navbar = () => {
               </div>
             )}
 
-            <Link to="/cart" className="relative group">
+            <Link
+              to="/cart"
+              className="relative group"
+              aria-label="Shopping cart"
+            >
               <ShoppingCart
                 size={24}
                 className="text-gray-300 group-hover:text-primary transition-colors"
@@ -149,7 +154,12 @@ const Navbar = () => {
             {/* 👇 INSTALL APP BUTTON (Mobile Position: Before Cart) */}
             <InstallPWA />
 
-            <Link to="/cart" className="relative" onClick={closeMenu}>
+            <Link
+              to="/cart"
+              className="relative"
+              onClick={closeMenu}
+              aria-label="Shopping cart"
+            >
               <ShoppingCart size={22} className="text-gray-300" />
               {cartItems.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold w-4 h-4 flex items-center justify-center rounded-full">
@@ -161,6 +171,8 @@ const Navbar = () => {
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-gray-300 hover:text-white focus:outline-none ml-1"
+              aria-label={isOpen ? "Close menu" : "Open menu"}
+              aria-expanded={isOpen}
             >
               {isOpen ? <X size={28} /> : <Menu size={28} />}
             </button>

@@ -6,8 +6,9 @@
 
   <link rel="icon" type="image/png" href="/pwa-192x192.png" />
   <title>SwadKart - Taste Delivered</title>
+  <meta name="description" content="Order delicious food online from top restaurants in Jaipur. SwadKart offers fast delivery, real-time order tracking, and secure payments. Download our app today!" />
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <meta name="theme-color" content="#030712" />
   <meta name="background-color" content="#030712" />
@@ -21,7 +22,11 @@
 
   <link rel="manifest" href="/manifest.webmanifest">
 
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <!-- Preconnect to external CDNs for faster loading -->
+  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link rel="preconnect" href="https://checkout.razorpay.com" />
+
+  <script defer src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
   <style>
     /* Mobile highlight remove and smooth scrolling */

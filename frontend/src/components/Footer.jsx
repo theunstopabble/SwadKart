@@ -28,23 +28,27 @@ const Footer = () => {
   const socialLinks = [
     {
       Icon: Facebook,
-      url: "https://www.facebook.com/gautam.theunstopabble", // Update with Brand Page later
+      url: "https://www.facebook.com/gautam.theunstopabble",
       color: "hover:bg-[#1877F2]",
+      label: "Facebook",
     },
     {
       Icon: Twitter,
       url: "https://x.com/_unstopabble",
       color: "hover:bg-[#1DA1F2]",
+      label: "Twitter",
     },
     {
       Icon: Instagram,
       url: "https://www.instagram.com/theunstopabble/",
       color: "hover:bg-[#E4405F]",
+      label: "Instagram",
     },
     {
       Icon: Linkedin,
       url: "https://www.linkedin.com/in/gautamkr62/",
       color: "hover:bg-[#0A66C2]",
+      label: "LinkedIn",
     },
   ];
 
@@ -70,7 +74,7 @@ const Footer = () => {
       } else {
         toast.error(data.message || "Something went wrong");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network Error 😔");
     } finally {
       setLoading(false);
@@ -144,6 +148,7 @@ const Footer = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`bg-gray-900 border border-gray-800 p-3 rounded-xl text-gray-400 hover:text-white transition-all duration-300 hover:-translate-y-1 shadow-lg ${item.color}`}
+                  aria-label={item.label}
                 >
                   <item.Icon size={20} />
                 </a>

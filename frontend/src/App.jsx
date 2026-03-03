@@ -94,7 +94,11 @@ function App() {
   }, [userInfo]);
 
   useEffect(() => {
-    requestNotificationPermission();
+    // Notification permission is now requested only when user is logged in
+    // This avoids the PSI penalty for requesting permission on page load
+    if (userInfo) {
+      requestNotificationPermission();
+    }
     const socket = io(BASE_URL);
 
     if (userInfo) {
@@ -177,7 +181,7 @@ function App() {
             className="absolute inset-0 z-0 opacity-40 bg-cover bg-center blur-sm scale-110"
             style={{
               backgroundImage:
-                "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop')",
+                "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=60&fm=webp&auto=format&fit=crop')",
             }}
           ></div>
           <div className="absolute inset-0 z-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
