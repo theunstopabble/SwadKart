@@ -1,17 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, Clock, Star, ArrowRight, Loader2 } from "lucide-react";
 import { BASE_URL } from "../config";
-import io from "socket.io-client";
 import VoiceSearch from "../components/VoiceSearch";
 
-import { Toaster, toast } from "react-hot-toast";
+import { toast } from "react-hot-toast";
+
+// Hero image URL (optimized for mobile: 800px width, WebP format)
+const HERO_IMG_URL =
+  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=70&fm=webp&auto=format&fit=crop";
 
 const Home = () => {
   const [restaurants, setRestaurants] = useState([]);
   const [filteredRestaurants, setFilteredRestaurants] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const socketRef = useRef(null);
 
   // 1. Fetch Restaurants
   const fetchRestaurants = async () => {
@@ -36,31 +40,38 @@ const Home = () => {
     }
   };
 
-  // 2. Real-time Updates via Socket.io
+  // 2. Real-time Updates via Socket.io (Lazy-loaded to reduce initial bundle)
   useEffect(() => {
     fetchRestaurants();
-    const socket = io(BASE_URL);
 
-    socket.on("restaurantUpdated", (updatedShop) => {
-      setRestaurants((prevShops) => {
-        let updatedList = prevShops.map((shop) =>
-          shop._id === updatedShop._id ? updatedShop : shop,
-        );
+    // Dynamic import: Socket.IO is loaded only when needed (~100KB saved from initial bundle)
+    import("socket.io-client").then(({ default: io }) => {
+      const socket = io(BASE_URL);
+      socketRef.current = socket;
 
-        // If new restaurant added via admin panel
-        const exists = prevShops.find((s) => s._id === updatedShop._id);
-        if (!exists) updatedList.push(updatedShop);
+      socket.on("restaurantUpdated", (updatedShop) => {
+        setRestaurants((prevShops) => {
+          let updatedList = prevShops.map((shop) =>
+            shop._id === updatedShop._id ? updatedShop : shop,
+          );
 
-        return [...updatedList].sort(
-          (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0),
-        );
+          // If new restaurant added via admin panel
+          const exists = prevShops.find((s) => s._id === updatedShop._id);
+          if (!exists) updatedList.push(updatedShop);
+
+          return [...updatedList].sort(
+            (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0),
+          );
+        });
       });
     });
 
-    return () => socket.disconnect();
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
   }, []);
 
-  // 3. Search Filtering Logic (Category removed)
+  // 3. Search Filtering Logic
   useEffect(() => {
     const results = restaurants.filter((shop) => {
       return (
@@ -74,7 +85,17 @@ const Home = () => {
   return (
     <div className="bg-black min-h-screen text-white pt-20">
       {/* ================= HERO SECTION ================= */}
-      <div className="relative h-[500px] w-full bg-[url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&q=75&fm=webp&auto=format&fit=crop')] bg-cover bg-center">
+      {/* Using <img> instead of CSS background-image for better LCP discovery by browser preload scanner */}
+      <div className="relative h-[500px] w-full overflow-hidden">
+        <img
+          src={HERO_IMG_URL}
+          alt="Delicious food spread"
+          fetchPriority="high"
+          decoding="async"
+          width={800}
+          height={500}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent flex flex-col justify-center items-center text-center px-4">
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight">
             Craving <span className="text-primary">Delicious</span> Food?
