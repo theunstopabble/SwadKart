@@ -6,9 +6,9 @@ import VoiceSearch from "../components/VoiceSearch";
 
 import { toast } from "react-hot-toast";
 
-// Hero image URL (optimized for mobile: 800px width, WebP format)
+// Hero image URL (aggressively optimized for mobile: 600px width, q=60, WebP)
 const HERO_IMG_URL =
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=70&fm=webp&auto=format&fit=crop";
+  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=60&fm=webp&auto=format&fit=crop";
 
 const Home = () => {
   const [restaurants, setRestaurants] = useState([]);
