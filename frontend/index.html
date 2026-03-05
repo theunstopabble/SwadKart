@@ -25,10 +25,16 @@
 
   <!-- Preconnect to external CDNs for faster loading -->
   <link rel="preconnect" href="https://images.unsplash.com" />
-  <link rel="preconnect" href="https://checkout.razorpay.com" />
+  <link rel="preconnect" href="https://res.cloudinary.com" />
+  <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+  <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
 
+  <!-- Preload LCP hero image for fastest possible render -->
+  <link rel="preload" as="image" type="image/webp"
+    href="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=60&fm=webp&auto=format&fit=crop"
+    fetchpriority="high" />
 
-  <script defer src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <!-- Razorpay: dynamically loaded only on Payment page for performance -->
 
   <style>
     /* Mobile highlight remove and smooth scrolling */

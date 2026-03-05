@@ -2,7 +2,6 @@ import React, { useEffect, useState, Suspense, lazy } from "react";
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { Toaster, toast } from "react-hot-toast";
-import { io } from "socket.io-client";
 import { Fingerprint, LogOut, Lock, Loader } from "lucide-react"; // 👈 Icons
 
 // ⚡ Lazy Load Pages for Performance
@@ -31,9 +30,11 @@ const Contact = lazy(() => import("./pages/Contact"));
 
 // Components
 import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import ChatBot from "./components/ChatBot";
 import InstallPWA from "./components/InstallPWA";
+
+// ⚡ Lazy load below-the-fold components for faster initial render
+const Footer = lazy(() => import("./components/Footer"));
+const ChatBot = lazy(() => import("./components/ChatBot"));
 
 // 🌀 Loading Spinner Component
 const PageLoader = () => (
@@ -99,24 +100,29 @@ function App() {
     if (userInfo) {
       requestNotificationPermission();
     }
-    const socket = io(BASE_URL);
 
+    // ⚡ Dynamic import: Socket.IO is loaded only when user is logged in (~100KB saved from initial bundle)
+    let socket = null;
     if (userInfo) {
-      socket.emit("joinOrder", userInfo._id);
-      socket.on("orderUpdated", (order) => {
-        sendNotification(`SwadKart: Order Update! 🛵`, {
-          body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${
-            order.orderStatus
-          }".`,
+      import("socket.io-client").then(({ default: io }) => {
+        socket = io(BASE_URL);
+        socket.emit("joinOrder", userInfo._id);
+        socket.on("orderUpdated", (order) => {
+          sendNotification(`SwadKart: Order Update! 🛵`, {
+            body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${order.orderStatus
+              }".`,
+          });
+          const audio = new Audio("/notification.mp3");
+          audio.play().catch(() => console.log("Audio alert blocked"));
         });
-        const audio = new Audio("/notification.mp3");
-        audio.play().catch(() => console.log("Audio alert blocked"));
       });
     }
 
     return () => {
-      socket.off("orderUpdated");
-      socket.disconnect();
+      if (socket) {
+        socket.off("orderUpdated");
+        socket.disconnect();
+      }
     };
   }, [userInfo]);
 
@@ -302,8 +308,10 @@ function App() {
           </main>
 
           {/* ✅ FIXED: Footer aur Chatbot ab Admin Panel me bhi dikhenge */}
-          <Footer />
-          <ChatBot />
+          <Suspense fallback={null}>
+            <Footer />
+            <ChatBot />
+          </Suspense>
         </>
       )}
     </div>

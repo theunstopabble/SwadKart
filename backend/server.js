@@ -128,7 +128,10 @@ app.use("/api/v1/biometric", biometricRoutes); // 🔐 MOUNTED HERE
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "/uploads"), {
+  maxAge: "7d",
+  immutable: true,
+}));
 
 app.get("/", (req, res) => {
   res.send("🚀 SwadKart Beast Engine is running...");

@@ -1,4 +1,6 @@
 {
   "java.configuration.updateBuildConfiguration": "interactive",
-  "editor.formatOnType": true
+  "editor.formatOnType": true,
+  "editor.unusualLineTerminators": "prompt",
+  "terminal.integrated.accessibleViewPreserveCursorPosition": true
 }

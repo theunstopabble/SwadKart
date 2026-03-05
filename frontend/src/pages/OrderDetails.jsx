@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { io } from "socket.io-client";
 import {
   ShoppingBag,
   MapPin,
@@ -27,7 +26,7 @@ import ReviewModal from "../components/ReviewModal";
 import LiveTrackingMap from "../components/order/LiveTrackingMap";
 import { toast } from "react-hot-toast";
 
-const socket = io(BASE_URL);
+
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -63,21 +62,29 @@ const OrderDetails = () => {
       }
     };
 
+    let socket = null;
     if (userInfo) {
       fetchOrder();
-      socket.emit("joinOrder", id);
-      socket.on("orderUpdated", (updatedOrder) => {
-        if (updatedOrder._id === id) {
-          setOrder(updatedOrder);
-          toast.success(`Protocol Update: ${updatedOrder.orderStatus}`, {
-            icon: "🛵",
-          });
-        }
+      // Dynamic import: Socket.IO loaded only when OrderDetails mounts
+      import("socket.io-client").then(({ default: io }) => {
+        socket = io(BASE_URL);
+        socket.emit("joinOrder", id);
+        socket.on("orderUpdated", (updatedOrder) => {
+          if (updatedOrder._id === id) {
+            setOrder(updatedOrder);
+            toast.success(`Protocol Update: ${updatedOrder.orderStatus}`, {
+              icon: "🛵",
+            });
+          }
+        });
       });
     }
 
     return () => {
-      socket.off("orderUpdated");
+      if (socket) {
+        socket.off("orderUpdated");
+        socket.disconnect();
+      }
     };
   }, [id, userInfo]);
 

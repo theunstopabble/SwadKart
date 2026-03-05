@@ -30,18 +30,7 @@ input, textarea {
   user-select: text;
 }
 
-/* =========================================
-   👻 HIDE SCROLLBAR (App-Like Feel)
-   ========================================= */
-/* Chrome, Safari, Opera */
-::-webkit-scrollbar {
-  display: none;
-}
-/* Firefox, IE, Edge */
-body {
-  -ms-overflow-style: none;  
-  scrollbar-width: none;  
-}
+/* Note: Custom scrollbar styles are defined in App.css */
 
 /* =========================================
    📱 MOBILE RESPONSIVE FIXES (The Real Magic)
