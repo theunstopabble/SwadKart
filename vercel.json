@@ -1,0 +1,5 @@
+{
+    "buildCommand": "cd frontend && npm install && npm run build",
+    "outputDirectory": "frontend/dist",
+    "ignoreCommand": "git diff --quiet HEAD^ HEAD ./"
+}
