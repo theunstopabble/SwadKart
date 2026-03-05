@@ -8,6 +8,7 @@ import store from "./redux/store";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast"; // Notifications ke liye
+import { Analytics } from "@vercel/analytics/react";
 
 // Google Client ID Load
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         <BrowserRouter>
           <App />
+          <Analytics />
           <Toaster position="top-center" reverseOrder={false} />
         </BrowserRouter>
       </GoogleOAuthProvider>
