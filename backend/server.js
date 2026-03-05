@@ -4,7 +4,6 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
-import mongoSanitize from "express-mongo-sanitize";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -97,8 +96,7 @@ app.use(express.json({ limit: "10kb" })); // Limit body payload
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Data Sanitization against NoSQL query injection
-app.use(mongoSanitize());
+// Note: express-mongo-sanitize removed because it crashes Express v5 (req.query is a getter)
 
 // Rate Limiting (100 requests per 15 mins per IP)
 const apiLimiter = rateLimit({
