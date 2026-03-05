@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import compression from "compression";
+import helmet from "helmet";
+import mongoSanitize from "express-mongo-sanitize";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
@@ -88,10 +91,22 @@ io.on("connection", (socket) => {
 });
 
 // --- 🛡️ Standard Middleware ---
+app.use(helmet()); // Set security HTTP headers
 app.use(compression());
-app.use(express.json());
+app.use(express.json({ limit: "10kb" })); // Limit body payload
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Data Sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Rate Limiting (100 requests per 15 mins per IP)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: "Too many requests from this IP, please try again later",
+});
+app.use("/api", apiLimiter);
 
 // --- 🛡️ Dynamic CORS Fix (The "Smart Check") ---
 app.use(
