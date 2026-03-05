@@ -1,8 +1,0 @@
-{
-    "name": "swadkart-pro-root",
-    "version": "1.0.0",
-    "private": true,
-    "scripts": {
-        "build": "cd frontend && npm install && npm run build"
-    }
-}
