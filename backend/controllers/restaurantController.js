@@ -121,8 +121,7 @@ const createRestaurant = async (req, res) => {
     }
 
     const restaurant = new Restaurant({
-      user: req.user._id, // legacy field reference
-      owner: req.user._id, // new field reference
+      owner: req.user._id,
       name,
       address,
       image,

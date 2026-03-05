@@ -183,6 +183,7 @@ export const deleteUser = async (req, res) => {
     if (user.role === "admin")
       return res.status(400).json({ message: "Cannot delete Admin" });
 
+    await Restaurant.findOneAndDelete({ owner: user._id });
     await user.deleteOne();
     res.json({ message: "User deleted" });
   } catch (error) {

@@ -200,16 +200,7 @@ export const getAllRestaurantsPublic = async (req, res, next) => {
   }
 };
 
-export const getAllRestaurants = async (req, res, next) => {
-  try {
-    const restaurants = await User.find({ role: "restaurant_owner" })
-      .select("-password")
-      .sort({ orderIndex: 1 });
-    return res.json(restaurants);
-  } catch (error) {
-    next(error);
-  }
-};
+export const getAllRestaurants = getAllRestaurantsPublic;
 
 export const createRestaurantByAdmin = async (req, res, next) => {
   try {
@@ -256,7 +247,7 @@ export const createDummyRestaurant = async (req, res, next) => {
       email: `${(name || "dummy")
         .toLowerCase()
         .replace(/\s+/g, "")}_${uniqueTime}@dummy.swadkart`,
-      password: "123",
+      password: `Dummy@${uniqueTime}`,
       role: "restaurant_owner",
       image:
         image || "https://images.unsplash.com/photo-1552566626-52f8b828add9",

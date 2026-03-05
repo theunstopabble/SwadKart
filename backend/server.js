@@ -96,7 +96,22 @@ app.use(express.json({ limit: "10kb" })); // Limit body payload
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Note: express-mongo-sanitize removed because it crashes Express v5 (req.query is a getter)
+// NoSQL Injection Protection (Express v5 compatible — sanitizes req.body only)
+app.use((req, res, next) => {
+  if (req.body) {
+    const sanitize = (obj) => {
+      for (const key in obj) {
+        if (key.startsWith("$") || key.includes(".")) {
+          delete obj[key];
+        } else if (typeof obj[key] === "object" && obj[key] !== null) {
+          sanitize(obj[key]);
+        }
+      }
+    };
+    sanitize(req.body);
+  }
+  next();
+});
 
 // Rate Limiting (100 requests per 15 mins per IP)
 const apiLimiter = rateLimit({

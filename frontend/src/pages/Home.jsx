@@ -183,10 +183,10 @@ const Home = () => {
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                   <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1 text-yellow-400 font-bold text-sm">
-                    <Star size={14} fill="currentColor" /> 4.5
+                    <Star size={14} fill="currentColor" /> {shop.rating > 0 ? shop.rating.toFixed(1) : "New"}
                   </div>
                   <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg">
-                    New
+                    {shop.isOpenNow ? "Open" : "Closed"}
                   </div>
                 </div>
 
@@ -202,7 +202,7 @@ const Home = () => {
 
                   <div className="border-t border-gray-800 pt-4 flex justify-between items-center text-sm text-gray-500">
                     <div className="flex items-center gap-2">
-                      <Clock size={16} /> 30-40 mins
+                      <Clock size={16} /> {shop.isOpenNow ? "30-40 mins" : "Currently Closed"}
                     </div>
                     <span className="flex items-center gap-1 text-white font-bold group-hover:translate-x-2 transition-transform">
                       View Menu <ArrowRight size={16} />
