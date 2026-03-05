@@ -1,12 +1,10 @@
 // frontend/src/config.js
-// export const BASE_URL =
-//   import.meta.env.MODE === "development"
-//     ? "http://localhost:8000"
-//     : import.meta.env.VITE_API_URL || "https://swadkart-5wtf.onrender.com";
 
-
-
-// Agar .env me URL hai (DevTunnel wala) to wo use karo, nahi to localhost (fallback)
-export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
-// Note: Ensure karna ki tumhare frontend/.env me VITE_API_URL sahi DevTunnel link ho.
+// Using Vite's built-in env variables to detect if we are in production (Vercel) or local.
+// If VITE_API_URL is explicitly set (like a dev tunnel), it uses that.
+// If it's production, it uses the live Render backend.
+// Otherwise, it falls back to localhost for local development.
+export const BASE_URL = import.meta.env.VITE_API_URL ||
+    (import.meta.env.MODE === "production"
+        ? "https://swadkart-5wtf.onrender.com"
+        : "http://localhost:8000");
