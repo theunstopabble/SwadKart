@@ -18,8 +18,8 @@ export default {
         },
       },
       fontFamily: {
-        // Agar aapne fonts load kiye hain to yahan set karein
-        sans: ["Inter", "sans-serif"],
+        // System font stack: zero network requests, instant loading
+        sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
       },
       boxShadow: {
         "neon-primary": "0 0 15px rgba(255, 107, 107, 0.4)",
