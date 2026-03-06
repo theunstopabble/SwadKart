@@ -20,7 +20,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <BrowserRouter>
           <App />
           <Analytics />
-          <Toaster position="top-center" reverseOrder={false} />
+          <Toaster
+            position="top-center"
+            reverseOrder={false}
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: "#1f2937",
+                color: "#fff",
+                borderRadius: "15px",
+                border: "1px solid #374151",
+              },
+            }}
+          />
         </BrowserRouter>
       </GoogleOAuthProvider>
     </Provider>

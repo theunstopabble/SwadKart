@@ -1,14 +1,17 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, Clock, Star, ArrowRight, Loader2 } from "lucide-react";
 import { BASE_URL } from "../config";
-import VoiceSearch from "../components/VoiceSearch";
+
+// Lazy-load VoiceSearch: non-critical, only needed on user interaction
+const VoiceSearch = lazy(() => import("../components/VoiceSearch"));
 
 import { toast } from "react-hot-toast";
 
 // Hero image URL (aggressively optimized for mobile: 600px width, q=60, WebP)
+// Hero image: w=480 is optimal for mobile-first (saves ~50KB vs w=600)
 const HERO_IMG_URL =
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=60&fm=webp&auto=format&fit=crop";
+  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=480&q=60&fm=webp&auto=format&fit=crop";
 
 const Home = () => {
   const [restaurants, setRestaurants] = useState([]);
@@ -92,8 +95,9 @@ const Home = () => {
           alt="Delicious food spread"
           fetchPriority="high"
           decoding="async"
-          width={800}
-          height={500}
+          width={480}
+          height={300}
+          sizes="100vw"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent flex flex-col justify-center items-center text-center px-4">
@@ -117,9 +121,11 @@ const Home = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
 
-              {/* Voice Search */}
+              {/* Voice Search (lazy-loaded) */}
               <div className="shrink-0 pr-2 cursor-pointer hover:scale-110 transition-transform">
-                <VoiceSearch setSearchTerm={setSearchTerm} />
+                <Suspense fallback={null}>
+                  <VoiceSearch setSearchTerm={setSearchTerm} />
+                </Suspense>
               </div>
 
               {/* Divider */}
@@ -174,12 +180,13 @@ const Home = () => {
                   <img
                     src={
                       shop.image ||
-                      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=75&fm=webp&auto=format&fit=crop"
+                      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=70&fm=webp&auto=format&fit=crop"
                     }
                     alt={shop.name || "Restaurant image"}
                     loading="lazy"
-                    width={600}
-                    height={400}
+                    width={400}
+                    height={267}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                   <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1 text-yellow-400 font-bold text-sm">

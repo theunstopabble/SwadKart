@@ -1,8 +1,8 @@
 import React, { useEffect, useState, Suspense, lazy } from "react";
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { Toaster, toast } from "react-hot-toast";
-import { Fingerprint, LogOut, Lock, Loader } from "lucide-react"; // 👈 Icons
+import { toast } from "react-hot-toast";
+import { Fingerprint, LogOut, Lock, Loader } from "lucide-react"; // Icons
 
 // ⚡ Lazy Load Pages for Performance
 const Home = lazy(() => import("./pages/Home"));
@@ -30,7 +30,6 @@ const Contact = lazy(() => import("./pages/Contact"));
 
 // Components
 import Navbar from "./components/Navbar";
-import InstallPWA from "./components/InstallPWA";
 
 // ⚡ Lazy load below-the-fold components for faster initial render
 const Footer = lazy(() => import("./components/Footer"));
@@ -43,14 +42,9 @@ const PageLoader = () => (
   </div>
 );
 
-// Helpers & Services
+// Helpers & Services (lazy-loaded for initial bundle reduction)
 import { BASE_URL } from "./config";
-import {
-  requestNotificationPermission,
-  sendNotification,
-} from "./components/notificationHelper";
-import { authenticateBiometric } from "./utils/biometricService"; // 👈 Biometric Service
-import { logout } from "./redux/userSlice"; // 👈 Logout Action for Emergency
+import { logout } from "./redux/userSlice";
 
 // ✨ ScrollToTop Helper
 const ScrollToTop = () => {
@@ -96,9 +90,11 @@ function App() {
 
   useEffect(() => {
     // Notification permission is now requested only when user is logged in
-    // This avoids the PSI penalty for requesting permission on page load
+    // Dynamic import to reduce initial bundle (~5KB saved)
     if (userInfo) {
-      requestNotificationPermission();
+      import("./components/notificationHelper").then(({ requestNotificationPermission }) => {
+        requestNotificationPermission();
+      });
     }
 
     // ⚡ Dynamic import: Socket.IO is loaded only when user is logged in (~100KB saved from initial bundle)
@@ -108,9 +104,10 @@ function App() {
         socket = io(BASE_URL);
         socket.emit("joinOrder", userInfo._id);
         socket.on("orderUpdated", (order) => {
-          sendNotification(`SwadKart: Order Update! 🛵`, {
-            body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${order.orderStatus
-              }".`,
+          import("./components/notificationHelper").then(({ sendNotification }) => {
+            sendNotification(`SwadKart: Order Update! 🛵`, {
+              body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${order.orderStatus}".`,
+            });
           });
           const audio = new Audio("/notification.mp3");
           audio.play().catch(() => console.log("Audio alert blocked"));
@@ -129,6 +126,8 @@ function App() {
   // 🔓 HANDLER: Unlock App (with retry counter)
   const handleUnlock = async () => {
     try {
+      // Dynamic import: biometricService only loaded when lock screen is shown (~5KB saved)
+      const { authenticateBiometric } = await import("./utils/biometricService");
       const success = await authenticateBiometric();
       if (success) {
         setIsLocked(false);
@@ -163,21 +162,6 @@ function App() {
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white flex flex-col justify-between">
       <ScrollToTop />
-      <InstallPWA />
-
-      {/* 🔔 GLOBAL TOASTER (Handles both Locked & Unlocked states) */}
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: "#1f2937",
-            color: "#fff",
-            borderRadius: "15px",
-            border: "1px solid #374151",
-          },
-        }}
-      />
 
       {/* 🛑 LOCK SCREEN OVERLAY */}
       {isLocked ? (

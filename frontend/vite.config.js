@@ -95,6 +95,8 @@ export default defineConfig(({ mode }) => {
               if (/firebase/.test(id)) return "vendor-firebase";
               if (/recharts|d3/.test(id)) return "vendor-charts";
               if (/socket\.io/.test(id)) return "vendor-socket";
+              if (/@simplewebauthn/.test(id)) return "vendor-webauthn";
+              if (/jspdf/.test(id)) return "vendor-pdf";
             }
           },
         },
