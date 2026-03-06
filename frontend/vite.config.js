@@ -82,25 +82,8 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
-    // ⚡ SPEED OPTIMIZATION: Manual Chunking for Smaller JS Files
+    // ⚡ SPEED OPTIMIZATION: Default Vite Chunking
     build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes("node_modules")) {
-              // Smart vendor grouping: reduces 50+ tiny HTTP requests to ~6 logical chunks
-              if (/react|react-dom|react-router|react-redux|@reduxjs/.test(id)) return "vendor-react";
-              if (/lucide|react-hot-toast|canvas-confetti/.test(id)) return "vendor-ui";
-              if (/leaflet|react-leaflet/.test(id)) return "vendor-maps";
-              if (/firebase/.test(id)) return "vendor-firebase";
-              if (/recharts|d3/.test(id)) return "vendor-charts";
-              if (/socket\.io/.test(id)) return "vendor-socket";
-              if (/@simplewebauthn/.test(id)) return "vendor-webauthn";
-              if (/jspdf/.test(id)) return "vendor-pdf";
-            }
-          },
-        },
-      },
       chunkSizeWarningLimit: 2000,
     },
     // 🌐 DEV SERVER: HTTPS ENABLED 🔒 (Only in Dev)

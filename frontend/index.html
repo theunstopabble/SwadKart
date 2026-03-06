@@ -24,14 +24,11 @@
   <link rel="manifest" href="/manifest.webmanifest">
 
   <!-- Preconnect to external CDNs for faster loading -->
-  <link rel="preconnect" href="https://images.unsplash.com" />
   <link rel="preconnect" href="https://res.cloudinary.com" />
   <link rel="dns-prefetch" href="https://res.cloudinary.com" />
 
-  <!-- Preload LCP hero image for fastest possible render -->
-  <link rel="preload" as="image" type="image/webp"
-    href="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=480&q=60&fm=webp&auto=format&fit=crop"
-    imagesizes="100vw" fetchpriority="high" />
+  <!-- Preload LCP hero image: self-hosted for zero DNS/TLS overhead -->
+  <link rel="preload" as="image" type="image/webp" href="/hero.webp" fetchpriority="high" />
 
   <!-- Razorpay: dynamically loaded only on Payment page for performance -->
 

@@ -9,9 +9,8 @@ const VoiceSearch = lazy(() => import("../components/VoiceSearch"));
 import { toast } from "react-hot-toast";
 
 // Hero image URL (aggressively optimized for mobile: 600px width, q=60, WebP)
-// Hero image: w=480 is optimal for mobile-first (saves ~50KB vs w=600)
-const HERO_IMG_URL =
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=480&q=60&fm=webp&auto=format&fit=crop";
+// Hero image: self-hosted for zero DNS/TLS overhead (same Unsplash image, saved locally)
+const HERO_IMG_URL = "/hero.webp";
 
 const Home = () => {
   const [restaurants, setRestaurants] = useState([]);

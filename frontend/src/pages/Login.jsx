@@ -5,8 +5,11 @@ import axios from "axios";
 import { setCredentials } from "../redux/userSlice";
 import { Mail, Lock, LogIn, Loader } from "lucide-react";
 import { toast } from "react-hot-toast";
-import GoogleAuth from "../components/GoogleAuth";
 import { BASE_URL } from "../config";
+
+// Lazy load GoogleAuth to keep Firebase out of main bundle
+import { lazy, Suspense } from "react";
+const GoogleAuth = lazy(() => import("../components/GoogleAuth"));
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -41,7 +44,7 @@ const Login = () => {
 
       if (res.ok) {
         dispatch(setCredentials(data));
-        
+
         // 🔐 AUTO-RESTORE BIOMETRIC (Industry Standard)
         // After login, check if user had biometric enabled
         try {
@@ -49,7 +52,7 @@ const Login = () => {
             `${BASE_URL}/api/v1/users/profile/biometric-status`,
             { headers: { Authorization: `Bearer ${data.token}` } }
           );
-          
+
           // If user has biometric enabled AND has registered credentials
           if (bioRes.data.isBiometricEnabled && bioRes.data.hasCredentials) {
             localStorage.setItem("isBiometricEnabled", "true");
@@ -58,7 +61,7 @@ const Login = () => {
         } catch (bioErr) {
           console.log("Biometric status check skipped:", bioErr.message);
         }
-        
+
         toast.success("Login Successful! Welcome back. 👋");
         navigate("/");
       } else {
@@ -134,13 +137,15 @@ const Login = () => {
         <div className="my-6 flex items-center gap-4 opacity-50">
           <div className="flex-1 h-[1px] bg-gray-700"></div>
           <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-            OR 
+            OR
           </span>
           <div className="flex-1 h-[1px] bg-gray-700"></div>
         </div>
 
         {/* The Magic Button */}
-        <GoogleAuth />
+        <Suspense fallback={<div className="h-[56px] w-full bg-gray-800 animate-pulse rounded-2xl border border-gray-700"></div>}>
+          <GoogleAuth />
+        </Suspense>
 
         <p className="text-gray-400 text-center mt-8 text-sm">
           Hungry for more?{" "}

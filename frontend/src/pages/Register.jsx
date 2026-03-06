@@ -15,7 +15,10 @@ import {
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../config";
 import { setCredentials } from "../redux/userSlice";
-import GoogleAuth from "../components/GoogleAuth"; // ✅ Google Auth Component
+
+// Lazy load GoogleAuth to keep Firebase out of main bundle
+import { lazy, Suspense } from "react";
+const GoogleAuth = lazy(() => import("../components/GoogleAuth"));
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -210,12 +213,14 @@ const Register = () => {
             <div className="my-6 flex items-center gap-4 opacity-50">
               <div className="flex-1 h-[1px] bg-gray-700"></div>
               <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                OR 
+                OR
               </span>
               <div className="flex-1 h-[1px] bg-gray-700"></div>
             </div>
 
-            <GoogleAuth />
+            <Suspense fallback={<div className="h-[56px] w-full bg-gray-800 animate-pulse rounded-2xl border border-gray-700"></div>}>
+              <GoogleAuth />
+            </Suspense>
             {/* 👆 GOOGLE AUTH END */}
           </>
         ) : (
@@ -264,11 +269,10 @@ const Register = () => {
                 type="button"
                 disabled={timer > 0 || isLoading}
                 onClick={() => submitHandler()}
-                className={`font-bold flex items-center gap-1.5 ${
-                  timer > 0
+                className={`font-bold flex items-center gap-1.5 ${timer > 0
                     ? "text-gray-600 cursor-not-allowed"
                     : "text-primary hover:text-red-400 cursor-pointer"
-                }`}
+                  }`}
               >
                 <RefreshCw
                   size={14}
