@@ -113,15 +113,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate Limiting (100 requests per 15 mins per IP)
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: "Too many requests from this IP, please try again later",
-});
-app.use("/api", apiLimiter);
-
-// --- 🛡️ Dynamic CORS Fix (The "Smart Check") ---
+// --- 🛡️ 1. Dynamic CORS Fix (Pehle aayega) ---
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -136,8 +128,18 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  }),
+  })
 );
+
+// --- 🚦 2. Rate Limiting (Baad mein aayega) ---
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500, // Limit updated to 500 requests per IP
+  message: "Too many requests from this IP, please try again later",
+});
+app.use("/api", apiLimiter);
+
+
 
 app.get("/ping", (req, res) => {
   res.status(200).send("Pong");
