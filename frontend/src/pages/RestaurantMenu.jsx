@@ -101,22 +101,28 @@ const RestaurantMenu = () => {
   }, [selectedVariant, selectedAddons, selectedItem]);
 
   const handleAddToCartClick = (item) => {
-    if (item.countInStock === 0) return;
-    if (!userInfo) {
-      navigate("/login");
-      return;
-    }
-    if (item.variants?.length > 0 || item.addons?.length > 0) {
-      setSelectedItem(item);
-      setSelectedVariant(item.variants?.[0] || null);
-      setSelectedAddons([]);
-      setShowModal(true);
-    } else {
-      dispatch(addToCart({ ...item, qty: 1 }));
-      toast.success(`${item.name} added!`);
-    }
-  };
+  if (item.countInStock === 0) return;
 
+  // 🔥 NEW: Block cart if restaurant is closed
+  if (!restaurant?.isOpenNow) {
+    toast.error("Restaurant is currently closed. Please visit during opening hours.");
+    return;
+  }
+
+  if (!userInfo) {
+    navigate("/login");
+    return;
+  }
+  if (item.variants?.length > 0 || item.addons?.length > 0) {
+    setSelectedItem(item);
+    setSelectedVariant(item.variants?.[0] || null);
+    setSelectedAddons([]);
+    setShowModal(true);
+  } else {
+    dispatch(addToCart({ ...item, qty: 1 }));
+    toast.success(`${item.name} added!`);
+  }
+};
   const confirmCustomization = () => {
     dispatch(
       addToCart({
@@ -214,26 +220,30 @@ const RestaurantMenu = () => {
                         {item.description}
                       </p>
                       <button
-                        onClick={() => handleAddToCartClick(item)}
-                        disabled={item.countInStock === 0}
-                        className={`mt-auto w-full font-extrabold py-4 rounded-xl transition-all uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 ${
-                          item.countInStock === 0
-                            ? "bg-gray-800 text-gray-600 cursor-not-allowed"
-                            : "bg-white text-black hover:bg-primary hover:text-white shadow-lg active:scale-[0.98]"
-                        }`}
-                      >
-                        {item.countInStock === 0 ? (
-                          "Unavailable"
-                        ) : item.variants?.length > 0 ? (
-                          <>
-                            Customize <ChevronRight size={14} />
-                          </>
-                        ) : (
-                          <>
-                            Add to Cart <ShoppingBag size={14} />
-                          </>
-                        )}
-                      </button>
+  onClick={() => handleAddToCartClick(item)}
+  disabled={item.countInStock === 0 || !restaurant?.isOpenNow}
+  className={`mt-auto w-full font-extrabold py-4 rounded-xl transition-all uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 ${
+    item.countInStock === 0
+      ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+      : !restaurant?.isOpenNow
+      ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
+      : "bg-white text-black hover:bg-primary hover:text-white shadow-lg active:scale-[0.98]"
+  }`}
+>
+  {item.countInStock === 0 ? (
+    "Unavailable"
+  ) : !restaurant?.isOpenNow ? (
+    "Currently Closed"
+  ) : item.variants?.length > 0 ? (
+    <>
+      Customize <ChevronRight size={14} />
+    </>
+  ) : (
+    <>
+      Add to Cart <ShoppingBag size={14} />
+    </>
+  )}
+</button>
                     </div>
                   </div>
                 ))}
