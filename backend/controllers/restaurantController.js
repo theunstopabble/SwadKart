@@ -4,13 +4,15 @@ import Restaurant from "../models/restaurantModel.js";
 // 🛠️ HELPER: Check if Store is Open
 // ==========================================
 const checkIsOpen = (openTime, closeTime) => {
-  if (!openTime || !closeTime) return true;
+  if (!openTime || !closeTime) return true; // Default open if no time set
 
   const now = new Date();
-  // IST = UTC + 5 hours 30 minutes
-  const istOffsetMinutes = 5 * 60 + 30;
+
+  // 🔥 FIX: Server UTC time ko IST mein convert karo (UTC + 5:30)
+  // now.getHours() → server ka UTC time deta tha → restaurants always closed dikhte the
+  const IST_OFFSET_MINUTES = 5 * 60 + 30; // 330 minutes
   const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
-  const currentMinutes = (utcMinutes + istOffsetMinutes) % (24 * 60); // ✅ IST time
+  const currentMinutes = (utcMinutes + IST_OFFSET_MINUTES) % (24 * 60); // ✅ IST time
 
   const [openH, openM] = openTime.split(":").map(Number);
   const startMinutes = openH * 60 + openM;
@@ -18,9 +20,12 @@ const checkIsOpen = (openTime, closeTime) => {
   const [closeH, closeM] = closeTime.split(":").map(Number);
   const endMinutes = closeH * 60 + closeM;
 
+  // Case 1: Same day (e.g., 10:00 to 22:00)
   if (endMinutes > startMinutes) {
     return currentMinutes >= startMinutes && currentMinutes < endMinutes;
-  } else {
+  }
+  // Case 2: Overnight (e.g., 22:00 to 02:00)
+  else {
     return currentMinutes >= startMinutes || currentMinutes < endMinutes;
   }
 };
