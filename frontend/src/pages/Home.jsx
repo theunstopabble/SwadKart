@@ -188,10 +188,14 @@ const Home = () => {
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
+                  {/* ⭐ Rating Badge */}
                   <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1 text-yellow-400 font-bold text-sm">
                     <Star size={14} fill="currentColor" /> {shop.rating > 0 ? shop.rating.toFixed(1) : "New"}
                   </div>
-                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg">
+                  {/* ✅ FIX: Open = green, Closed = red */}
+                  <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg text-white ${
+                    shop.isOpenNow ? "bg-green-500" : "bg-red-600/90"
+                  }`}>
                     {shop.isOpenNow ? "Open" : "Closed"}
                   </div>
                 </div>
