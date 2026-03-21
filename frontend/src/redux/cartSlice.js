@@ -44,40 +44,52 @@ const cartSlice = createSlice({
   initialState,
   reducers: {
     // ✅ ADD TO CART (FIXED FOR RESTAURANT ID)
-    addToCart: (state, action) => {
-      const item = action.payload;
+   addToCart: (state, action) => {
+  const item = action.payload;
 
-      // 1. Fix Product ID
-      const productId = item.product || item._id;
+  // 1. Fix Product ID
+  const productId = item.product || item._id;
 
-      // 2. 🔥 CRITICAL FIX: Ensure Restaurant ID is captured
-      // Sometimes it comes as an object (populated) or a string. We need the ID string.
-      const restaurantId =
-        typeof item.restaurant === "object"
-          ? item.restaurant._id
-          : item.restaurant;
+  // 2. Ensure Restaurant ID is captured
+  const restaurantId =
+    typeof item.restaurant === "object"
+      ? item.restaurant._id
+      : item.restaurant;
 
-      const itemWithCorrectId = {
-        ...item,
-        product: productId,
-        restaurant: restaurantId, // 👈 This links the order to the owner
-        cartUniqueId: generateCartId(item),
-      };
+  // 🔥 NEW: If cart has items from a different restaurant, clear it first
+  if (state.cartItems.length > 0) {
+    const existingRestaurantId = state.cartItems[0].restaurant;
+    if (
+      existingRestaurantId &&
+      restaurantId &&
+      existingRestaurantId !== restaurantId
+    ) {
+      state.cartItems = [];
+      updateCartStorage([]);
+    }
+  }
 
-      const existItem = state.cartItems.find(
-        (x) => x.cartUniqueId === itemWithCorrectId.cartUniqueId
-      );
+  const itemWithCorrectId = {
+    ...item,
+    product: productId,
+    restaurant: restaurantId,
+    cartUniqueId: generateCartId(item),
+  };
 
-      if (existItem) {
-        state.cartItems = state.cartItems.map((x) =>
-          x.cartUniqueId === existItem.cartUniqueId ? itemWithCorrectId : x
-        );
-      } else {
-        state.cartItems = [...state.cartItems, itemWithCorrectId];
-      }
+  const existItem = state.cartItems.find(
+    (x) => x.cartUniqueId === itemWithCorrectId.cartUniqueId
+  );
 
-      updateCartStorage(state.cartItems);
-    },
+  if (existItem) {
+    state.cartItems = state.cartItems.map((x) =>
+      x.cartUniqueId === existItem.cartUniqueId ? itemWithCorrectId : x
+    );
+  } else {
+    state.cartItems = [...state.cartItems, itemWithCorrectId];
+  }
+
+  updateCartStorage(state.cartItems);
+},
 
     // ✅ REMOVE FROM CART
     removeFromCart: (state, action) => {
