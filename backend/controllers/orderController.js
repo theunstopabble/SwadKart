@@ -4,6 +4,8 @@ import Restaurant from "../models/restaurantModel.js";
 import Coupon from "../models/couponModel.js";
 import sendEmail from "../utils/sendEmail.js";
 import { getOrderConfirmationTemplate } from "../utils/emailTemplates.js";
+import Product from "../models/productModel.js";
+import crypto from "crypto";
 
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
@@ -27,7 +29,7 @@ export const addOrderItems = async (req, res) => {
     }
 
     // 🛡️ Generate a 4-digit OTP for secure delivery verification
-    const deliveryOTP = Math.floor(1000 + Math.random() * 9000);
+    const deliveryOTP = crypto.randomInt(1000, 9999);
 
     const order = new Order({
       user: req.user._id,
@@ -67,6 +69,13 @@ export const addOrderItems = async (req, res) => {
     });
 
     const createdOrder = await order.save();
+    // ✅ NEW: Decrement stock for each ordered item
+const stockUpdates = createdOrder.orderItems.map((item) =>
+  Product.findByIdAndUpdate(item.product, {
+    $inc: { countInStock: -item.qty },
+  })
+);
+await Promise.allSettled(stockUpdates);
 
     // 🎫 Update Coupon Usage Log
     if (couponCode) {
@@ -352,6 +361,13 @@ export const cancelOrder = async (req, res) => {
 
     order.orderStatus = "Cancelled";
     order.cancellationReason = reason || "Cancelled by User";
+    // ✅ NEW: Restore stock on cancellation
+const stockRestores = order.orderItems.map((item) =>
+  Product.findByIdAndUpdate(item.product, {
+    $inc: { countInStock: item.qty },
+  })
+);
+await Promise.allSettled(stockRestores);
 
     const updatedOrder = await order.save();
 
