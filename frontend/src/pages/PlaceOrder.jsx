@@ -40,12 +40,10 @@ const PlaceOrder = () => {
     JSON.parse(localStorage.getItem("appliedCoupon")) || "";
 
   // Calculate Total
-  const totalPrice = (
-    itemsPrice +
-    shippingPrice +
-    taxPrice -
-    couponDiscount
-  ).toFixed(2);
+  const totalPrice = Math.max(
+  0,
+  itemsPrice + shippingPrice + taxPrice - couponDiscount
+).toFixed(2);
 
   // --- Redirect if missing data ---
   useEffect(() => {
