@@ -4,10 +4,13 @@ import Restaurant from "../models/restaurantModel.js";
 // 🛠️ HELPER: Check if Store is Open
 // ==========================================
 const checkIsOpen = (openTime, closeTime) => {
-  if (!openTime || !closeTime) return true; // Default open if no time set
+  if (!openTime || !closeTime) return true;
 
   const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  // IST = UTC + 5 hours 30 minutes
+  const istOffsetMinutes = 5 * 60 + 30;
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const currentMinutes = (utcMinutes + istOffsetMinutes) % (24 * 60); // ✅ IST time
 
   const [openH, openM] = openTime.split(":").map(Number);
   const startMinutes = openH * 60 + openM;
@@ -15,15 +18,13 @@ const checkIsOpen = (openTime, closeTime) => {
   const [closeH, closeM] = closeTime.split(":").map(Number);
   const endMinutes = closeH * 60 + closeM;
 
-  // Case 1: Same day (e.g., 10:00 to 22:00)
   if (endMinutes > startMinutes) {
     return currentMinutes >= startMinutes && currentMinutes < endMinutes;
-  }
-  // Case 2: Overnight (e.g., 22:00 to 02:00)
-  else {
+  } else {
     return currentMinutes >= startMinutes || currentMinutes < endMinutes;
   }
 };
+
 
 // ==========================================
 // 🏠 1. GET ALL RESTAURANTS (Public)
