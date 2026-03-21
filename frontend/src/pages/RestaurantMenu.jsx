@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { addToCart } from "../redux/cartSlice";
+import { addToCart, clearCart } from "../redux/cartSlice";
 import io from "socket.io-client";
 import {
   Plus,
@@ -24,6 +24,7 @@ const RestaurantMenu = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { userInfo } = useSelector((state) => state.user);
+  const { cartItems } = useSelector((state) => state.cart);
 
   const [restaurant, setRestaurant] = useState(null);
   const [menu, setMenu] = useState([]);
@@ -112,6 +113,14 @@ const RestaurantMenu = () => {
   if (!userInfo) {
     navigate("/login");
     return;
+  }
+    // 🔥 NEW: Warn user if switching restaurants
+  if (cartItems.length > 0 && cartItems[0].restaurant !== restaurant._id) {
+    const confirmed = window.confirm(
+      "Your cart has items from another restaurant. Adding this will clear your current cart. Continue?"
+    );
+    if (!confirmed) return;
+    dispatch(clearCart());
   }
   if (item.variants?.length > 0 || item.addons?.length > 0) {
     setSelectedItem(item);
