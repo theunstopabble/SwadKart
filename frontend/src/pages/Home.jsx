@@ -22,7 +22,7 @@ const Home = () => {
   // 1. Fetch Restaurants
   const fetchRestaurants = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/restaurants`);
+      const res = await fetch(`${BASE_URL}/api/v1/restaurants`);
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       const data = await res.json();
       const allShops = Array.isArray(data) ? data : data.restaurants || [];
