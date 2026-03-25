@@ -87,3 +87,5 @@ dist
 
 uploads/
 !uploads/.gitkeep
+
+walkthrough.md.resolved
