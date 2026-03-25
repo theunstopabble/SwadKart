@@ -39,18 +39,21 @@ const RestaurantMenu = () => {
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [finalPrice, setFinalPrice] = useState(0);
 
-  // 1. Data Fetch
+    // 1. Data Fetch
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [resRes, menuRes] = await Promise.all([
-          fetch(`${BASE_URL}/api/v1/users/${id}`),
+        const [restaurantRes, menuRes] = await Promise.all([
+          // ✅ Correct endpoint: restaurant by id (includes isOpenNow)
+          fetch(`${BASE_URL}/api/v1/restaurants/${id}`),
           fetch(`${BASE_URL}/api/v1/products/restaurant/${id}`),
         ]);
-        const resData = await resRes.json();
+
+        const restaurantData = await restaurantRes.json();
         const menuData = await menuRes.json();
-        setRestaurant(resData.data || resData);
+
+        setRestaurant(restaurantData); // payload already is the restaurant object
         setMenu(Array.isArray(menuData) ? menuData : menuData.products || []);
       } catch (error) {
         toast.error("Error loading menu");
