@@ -3,7 +3,7 @@ import Product from "../models/productModel.js";
 import Restaurant from "../models/restaurantModel.js"; // 👈 YE LINE ADD KAREIN
 import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
-import crypto from "crypto";
+import Razorpay from "razorpay"; // 👈 YE IMPORT ADD KAREIN
 
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
@@ -325,40 +325,71 @@ export const getSalesStats = async (req, res) => {
 };
 
 // ==========================================
-// 🚫 10. CANCEL ORDER
+// ❌ CANCEL ORDER & REFUND LOGIC
 // ==========================================
-export const cancelOrder = async (req, res) => {
-  const { reason } = req.body;
-  try {
-    const order = await Order.findById(req.params.id);
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
+// @desc    Cancel an order, process refund & restore stock
+// @route   PUT /api/v1/orders/:id/cancel
+// @access  Private
+export const cancelOrder = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
 
-    const restrictedStatuses = ["Out for Delivery", "Delivered"];
-    if (restrictedStatuses.includes(order.orderStatus)) {
-      return res
-        .status(400)
-        .json({ message: "Order cannot be cancelled at this stage." });
-    }
-
-    order.orderStatus = "Cancelled";
-    order.cancellationReason = reason || "Cancelled by User";
-    // ✅ NEW: Restore stock on cancellation
-    const stockRestores = order.orderItems.map((item) =>
-      Product.findByIdAndUpdate(item.product, {
-        $inc: { countInStock: item.qty },
-      }),
-    );
-    await Promise.allSettled(stockRestores);
-
-    const updatedOrder = await order.save();
-
-    if (req.io) {
-      req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
-    }
-
-    res.json(updatedOrder);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
   }
-};
+
+  if (order.status === "Cancelled" || order.orderStatus === "Cancelled") {
+    res.status(400);
+    throw new Error("Order is already cancelled");
+  }
+
+  // 1. Process Razorpay Refund if previously paid online
+  if (
+    order.isPaid === true &&
+    order.paymentMethod === "Online" &&
+    order.paymentResult?.id
+  ) {
+    try {
+      const razorpayInstance = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
+
+      // Initiate full refund via Razorpay API
+      await razorpayInstance.payments.refund(order.paymentResult.id, {
+        amount: Math.round(order.totalPrice * 100), // convert to paise
+        notes: {
+          reason: "Order Cancelled by User/Admin",
+          orderId: order._id.toString(),
+        },
+      });
+
+      console.log(`✅ Refund processed successfully for order ${order._id}`);
+      order.refundStatus = "Processed"; // Track refund state
+    } catch (error) {
+      console.error("Razorpay Refund Error:", error);
+      res.status(500);
+      throw new Error("Refund failed to process at payment gateway");
+    }
+  }
+
+  // 2. Restore the Product Stock safely
+  for (const item of order.orderItems) {
+    await Product.findByIdAndUpdate(item.product, {
+      $inc: { countInStock: item.qty },
+    });
+  }
+
+  // 3. Update Order Status
+  order.orderStatus = "Cancelled";
+
+  const updatedOrder = await order.save();
+
+  // 4. (Optional) Socket notification goes here if configured
+  if (req.io) {
+    req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
+  }
+
+  res.json(updatedOrder);
+});

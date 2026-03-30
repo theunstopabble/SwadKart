@@ -90,6 +90,13 @@ const orderSchema = mongoose.Schema(
     isPaid: { type: Boolean, required: true, default: false },
     paidAt: { type: Date },
 
+    // 🔄 NEW: Refund tracking for Cancelled Orders (Step 5 Fix)
+    refundStatus: {
+      type: String,
+      enum: ["None", "Pending", "Processed", "Failed"],
+      default: "None",
+    },
+
     // =================================================
     // 📦 7. DELIVERY & PARTNER LOGIC
     // =================================================
@@ -138,7 +145,7 @@ const orderSchema = mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const Order = mongoose.model("Order", orderSchema);
