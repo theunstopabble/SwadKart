@@ -11,6 +11,7 @@ import {
   getAdminOrderAlertTemplate,
   getRestaurantOrderAlertTemplate,
 } from "../utils/emailTemplates.js";
+import CouponUsage from "../models/couponUsageModel.js";
 
 dotenv.config();
 
@@ -79,15 +80,24 @@ export const verifyPayment = async (req, res) => {
 
       const updatedOrder = await order.save();
 
-      // 3. 🎫 Coupon Protocol: Mark as used
-      if (order.couponCode) {
-        await Coupon.findOneAndUpdate(
-          { code: order.couponCode.toUpperCase() },
-          { $addToSet: { usedBy: order.user._id } },
-        );
+      // 3. Coupon Protocol: Create document in CouponUsage (Removed old array push method)
+      if (updatedOrder.couponCode) {
+        const coupon = await Coupon.findOne({ code: updatedOrder.couponCode });
+        if (coupon) {
+          try {
+            await CouponUsage.create({
+              user: updatedOrder.user._id,
+              coupon: coupon._id,
+              order: updatedOrder._id,
+            });
+            console.log(`Coupon Usage recorded successfully.`);
+          } catch (err) {
+            console.error("Coupon usage log error:", err.message);
+          }
+        }
       }
 
-      // 4. 🔔 Real-time Socket: Notify Restaurant immediately
+      // 4. Real-time Socket: Notify Restaurant immediately
       if (req.io && order.orderItems.length > 0) {
         const restaurantId = order.orderItems[0].restaurant;
         const restaurantDoc = await Restaurant.findById(restaurantId);
@@ -99,30 +109,23 @@ export const verifyPayment = async (req, res) => {
         }
       }
 
-      // 5. 📧 Email Dispatch (Non-blocking)
+      // 5. Email Dispatch (Non-blocking)
       try {
-        // User Receipt
         sendEmail({
           email: order.user.email,
-          subject: `SwadKart: Payment Received! ✅ Order #${order._id
-            .toString()
-            .slice(-6)}`,
+          subject: `SwadKart: Payment Received! ✅ Order #${order._id.toString().slice(-6)}`,
           html: getOrderConfirmationTemplate(updatedOrder, true),
         });
 
-        // Admin Alert
         User.findOne({ role: "admin" }).then((admin) => {
           if (admin)
             sendEmail({
               email: admin.email,
-              subject: `💰 Revenue Alert: Order #${order._id
-                .toString()
-                .slice(-6)}`,
+              subject: `💰 Revenue Alert: Order #${order._id.toString().slice(-6)}`,
               html: getAdminOrderAlertTemplate(updatedOrder),
             });
         });
 
-        // Restaurant Notification
         const restaurantId = order.orderItems[0].restaurant;
         Restaurant.findById(restaurantId)
           .populate("owner")
@@ -145,11 +148,13 @@ export const verifyPayment = async (req, res) => {
         console.error("Alert System Delay:", err.message);
       }
 
-      res.status(200).json({
-        success: true,
-        message: "Payment Authorized",
-        order: updatedOrder,
-      });
+      res
+        .status(200)
+        .json({
+          success: true,
+          message: "Payment Authorized",
+          order: updatedOrder,
+        });
     } else {
       res
         .status(400)

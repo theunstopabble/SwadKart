@@ -31,17 +31,10 @@ const couponSchema = mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    // ✅ Ab yeh sahi jagah par hai (Inside the schema object)
-    usedBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const Coupon = mongoose.model("Coupon", couponSchema);

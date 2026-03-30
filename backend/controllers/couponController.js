@@ -1,4 +1,5 @@
 import Coupon from "../models/couponModel.js";
+import CouponUsage from "../models/couponUsageModel.js"; // Import new model
 import Order from "../models/orderModel.js";
 
 // =================================================================
@@ -29,7 +30,7 @@ export const createCoupon = async (req, res) => {
       expirationDate,
       minOrderValue: minOrderValue || 0,
       maxDiscountAmount: maxDiscountAmount || 0,
-      usedBy: [], // Initialize empty array
+      // Removed initialization of usedBy array
     });
 
     res.status(201).json(coupon);
@@ -105,7 +106,7 @@ export const deleteCoupon = async (req, res) => {
 // 🛒 USER ACTIONS
 // =================================================================
 
-// @desc    Validate Coupon (Fixed with 'usedBy' security)
+// @desc    Validate Coupon (Fixed with CouponUsage Model)
 // @route   POST /api/v1/coupons/validate
 // @access  Private
 export const validateCoupon = async (req, res) => {
@@ -118,12 +119,18 @@ export const validateCoupon = async (req, res) => {
     if (!coupon.isActive)
       return res.status(400).json({ message: "Coupon is currently inactive" });
 
-    // 🛡️ SECURITY: Check if user has already used this coupon
-    // Ensure req.user exists (Protected Route)
-    if (req.user && coupon.usedBy.includes(req.user._id)) {
-      return res
-        .status(400)
-        .json({ message: "You have already used this coupon!" });
+    // 🛡️ SECURITY: Check if user has already used this coupon using the new collection
+    if (req.user) {
+      const alreadyUsed = await CouponUsage.findOne({
+        user: req.user._id,
+        coupon: coupon._id,
+      });
+
+      if (alreadyUsed) {
+        return res
+          .status(400)
+          .json({ message: "You have already used this coupon!" });
+      }
     }
 
     if (new Date() > new Date(coupon.expirationDate)) {
@@ -160,39 +167,45 @@ export const validateCoupon = async (req, res) => {
 export const getApplicableCoupons = async (req, res) => {
   try {
     const currentDate = new Date();
-
-    // Ensure user is authenticated to filter 'usedBy'
     const userId = req.user ? req.user._id : null;
 
-    let query = {
+    // Fetch all active and valid coupons
+    const query = {
       isActive: true,
       expirationDate: { $gte: currentDate },
     };
-
-    if (userId) {
-      query.usedBy = { $ne: userId }; // Only show unused coupons
-    }
-
     const allCoupons = await Coupon.find(query).sort({
       discountPercentage: -1,
     });
 
-    // Optional: Filter logic for first-time users
-    let orderCount = 0;
+    let unusedCoupons = allCoupons;
+
     if (userId) {
-      orderCount = await Order.countDocuments({
+      // Find all coupons this user has already used from CouponUsage model
+      const usedCouponsDocs = await CouponUsage.find({ user: userId }).select(
+        "coupon",
+      );
+      const usedCouponIds = usedCouponsDocs.map((doc) => doc.coupon.toString());
+
+      // Filter them out
+      unusedCoupons = allCoupons.filter(
+        (c) => !usedCouponIds.includes(c._id.toString()),
+      );
+
+      // Check if user has past paid orders to hide WELCOME coupons
+      const orderCount = await Order.countDocuments({
         user: userId,
         isPaid: true,
       });
+
+      if (orderCount > 0) {
+        unusedCoupons = unusedCoupons.filter(
+          (c) => !c.code.startsWith("WELCOME"),
+        );
+      }
     }
 
-    const applicableCoupons = allCoupons.filter((coupon) => {
-      // Hide WELCOME coupons for old users
-      if (orderCount > 0 && coupon.code.startsWith("WELCOME")) return false;
-      return true;
-    });
-
-    res.json(applicableCoupons);
+    res.json(unusedCoupons);
   } catch (error) {
     console.error("Coupon Fetch Error:", error);
     res.status(500).json({ message: "Server Error fetching coupons" });
