@@ -36,6 +36,7 @@
     "multer-storage-cloudinary": "^2.2.1",
     "nodemailer": "^7.0.11",
     "razorpay": "^2.9.6",
+    "redis": "^5.11.0",
     "socket.io": "^4.8.3"
   },
   "overrides": {

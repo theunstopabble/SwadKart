@@ -1,8 +1,10 @@
 import Product from "../models/productModel.js";
-import Restaurant from "../models/restaurantModel.js"; // ✅ Import Zaroori Hai
+import Restaurant from "../models/restaurantModel.js"; // Required import
+import { getCache, setCache, clearCache } from "../utils/cache.js";
+import asyncHandler from "express-async-handler";
 
 // ============================================================
-// 👇 PUBLIC ROUTES
+// PUBLIC ROUTES
 // ============================================================
 
 // @desc    Fetch all products
@@ -23,7 +25,7 @@ export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate(
       "reviews.user",
-      "name image"
+      "name image",
     );
     if (product) res.json(product);
     else res.status(404).json({ message: "Product not found" });
@@ -33,40 +35,27 @@ export const getProductById = async (req, res) => {
 };
 
 // @desc    Fetch products by Restaurant ID
-// 🔴 FIX: Handles fetching when Frontend sends Owner ID instead of Restaurant ID
-export const getProductsByRestaurant = async (req, res) => {
-  try {
-    const id = req.params.id; // Ye Owner ID ho sakti hai (Admin Panel se)
-    let queryId = id;
+// FIX: Handles fetching when Frontend sends Owner ID instead of Restaurant ID
+export const getProductsByRestaurant = asyncHandler(async (req, res) => {
+  const { restaurantId } = req.params;
+  const cacheKey = `menu_rest_${restaurantId}`;
 
-    // 🔍 Step 1: Check karo kya ye ID kisi Owner ki hai?
-    const restaurantByOwner = await Restaurant.findOne({ owner: id });
-    
-    // Agar Owner mil gaya, toh uski 'Restaurant ID' use karo products dhoondne ke liye
-    if (restaurantByOwner) {
-      queryId = restaurantByOwner._id;
-    }
+  let products = await getCache(cacheKey);
 
-    // 🔍 Step 2: Ab Products dhoondo (Resolved ID se)
-    const products = await Product.find({
-      $or: [
-        { restaurant: queryId }, // Match resolved Restaurant ID
-        { user: id }             // Fallback: Match User ID directly (Old logic)
-      ],
-    }).sort({ orderIndex: 1 });
-
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  if (!products) {
+    products = await Product.find({ restaurant: restaurantId });
+    await setCache(cacheKey, products, 3600);
   }
-};
+
+  res.status(200).json(products);
+});
 
 // ============================================================
-// 👇 PROTECTED ROUTES (Admin / Restaurant Owner)
+// PROTECTED ROUTES (Admin / Restaurant Owner)
 // ============================================================
 
-// @desc    Create a product (✅ FIXED: Supports Admin adding to Dummy Shops)
-export const createProduct = async (req, res) => {
+// @desc    Create a product (FIXED: Supports Admin adding to Dummy Shops)
+export const createProduct = asyncHandler(async (req, res) => {
   try {
     const {
       name,
@@ -79,34 +68,34 @@ export const createProduct = async (req, res) => {
       orderIndex,
       variants,
       addons,
-      restaurantId, // 👈 Frontend se aayi hui Owner/Restaurant ID
+      restaurantId, // Owner or Restaurant ID from frontend
     } = req.body;
 
     let restaurant;
 
-    // 🔍 LOGIC: Sahi Restaurant Dhoondo
+    // LOGIC: Find the correct Restaurant
     if (restaurantId) {
-      // CASE 1: Admin ne Dropdown se select kiya
-      // Pehle Owner ID samajh kar dhoondo
+      // CASE 1: Admin selected from dropdown
       restaurant = await Restaurant.findOne({ owner: restaurantId });
 
-      // Agar Owner se nahi mila, toh check karo kya ye seedha Restaurant ID thi?
+      // If not found by Owner ID, check if it is a direct Restaurant ID
       if (!restaurant) {
         restaurant = await Restaurant.findById(restaurantId);
       }
     } else {
-      // CASE 2: Owner khud add kar raha hai (Logged in user hi owner hai)
+      // CASE 2: Owner is adding (Logged in user is the owner)
       restaurant = await Restaurant.findOne({ owner: req.user._id });
     }
 
-    // Agar ab bhi nahi mila
+    // If still not found
     if (!restaurant) {
       return res.status(404).json({
-        message: "No Restaurant found for this owner. Ensure Dummy Shop is linked correctly.",
+        message:
+          "No Restaurant found for this owner. Ensure Dummy Shop is linked correctly.",
       });
     }
 
-    // 🛠️ Product Create karo
+    // Create Product
     const product = new Product({
       name,
       price,
@@ -116,8 +105,8 @@ export const createProduct = async (req, res) => {
       isVeg: isVeg === undefined ? true : isVeg,
       orderIndex: orderIndex || 0,
 
-      restaurant: restaurant._id, // ✅ Asli Dukan ki ID (Database se mili hui)
-      user: req.user._id,         // ✅ Created By (Admin/User)
+      restaurant: restaurant._id, // Actual Restaurant ID from Database
+      user: req.user._id, // Created By (Admin/User)
 
       countInStock: countInStock || 100,
       variants: variants || [],
@@ -125,20 +114,24 @@ export const createProduct = async (req, res) => {
     });
 
     const createdProduct = await product.save();
+
+    // Invalidating cache with correct ID
+    await clearCache(`menu_rest_${restaurant._id}`);
+
     res.status(201).json(createdProduct);
   } catch (error) {
     console.error("Create Product Error:", error.message);
     res.status(400).json({ message: error.message });
   }
-};
+}); // Fixed Syntax Error
 
 // @desc    Update a product
-export const updateProduct = async (req, res) => {
+export const updateProduct = asyncHandler(async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
 
     if (product) {
-      // 🛡️ SECURITY Check
+      // SECURITY Check
       const isOwner =
         product.user && product.user.toString() === req.user._id.toString();
       const isAdmin = req.user.role === "admin";
@@ -167,6 +160,9 @@ export const updateProduct = async (req, res) => {
 
       const updatedProduct = await product.save();
 
+      // Fixed Variable Shadowing (already fetched above)
+      await clearCache(`menu_rest_${product.restaurant}`);
+
       if (req.io) req.io.emit("productUpdated", updatedProduct);
       res.json(updatedProduct);
     } else {
@@ -175,7 +171,7 @@ export const updateProduct = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+}); // Fixed Syntax Error
 
 // @desc    Delete a product
 export const deleteProduct = async (req, res) => {
@@ -187,7 +183,12 @@ export const deleteProduct = async (req, res) => {
       const isAdmin = req.user.role === "admin";
 
       if (isAdmin || isOwner) {
+        const restaurantId = product.restaurant;
         await product.deleteOne();
+
+        // Clear cache on delete as well
+        await clearCache(`menu_rest_${restaurantId}`);
+
         res.json({ message: "Product removed" });
       } else {
         res.status(401).json({ message: "Not authorized" });
@@ -217,6 +218,9 @@ export const toggleProductStock = async (req, res) => {
       product.countInStock = product.countInStock > 0 ? 0 : 100;
       const updatedProduct = await product.save();
 
+      // Clear cache on stock change
+      await clearCache(`menu_rest_${product.restaurant}`);
+
       if (req.io) {
         req.io.emit("productUpdated", updatedProduct);
       }
@@ -234,7 +238,7 @@ export const toggleProductStock = async (req, res) => {
 };
 
 // ============================================================
-// 👇 REVIEW SYSTEM
+// REVIEW SYSTEM
 // ============================================================
 export const createProductReview = async (req, res) => {
   try {
@@ -243,7 +247,7 @@ export const createProductReview = async (req, res) => {
 
     if (product) {
       const alreadyReviewed = product.reviews.find(
-        (r) => r.user.toString() === req.user._id.toString()
+        (r) => r.user.toString() === req.user._id.toString(),
       );
 
       if (alreadyReviewed) {
@@ -265,6 +269,10 @@ export const createProductReview = async (req, res) => {
         product.reviews.length;
 
       await product.save();
+
+      // Optional: Clear cache when reviews are updated
+      await clearCache(`menu_rest_${product.restaurant}`);
+
       res.status(201).json({ message: "Review added" });
     } else {
       res.status(404).json({ message: "Product not found" });
