@@ -1,16 +1,18 @@
 import Order from "../models/orderModel.js";
-import User from "../models/userModel.js";
-import Restaurant from "../models/restaurantModel.js";
-import Coupon from "../models/couponModel.js";
-import sendEmail from "../utils/sendEmail.js";
-import { getOrderConfirmationTemplate } from "../utils/emailTemplates.js";
 import Product from "../models/productModel.js";
+import Restaurant from "../models/restaurantModel.js"; // 👈 YE LINE ADD KAREIN
+import mongoose from "mongoose";
+import asyncHandler from "express-async-handler";
 import crypto from "crypto";
 
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
 // ==========================================
-export const addOrderItems = async (req, res) => {
+
+// @desc    Create new order with Stock Race-Condition protection
+// @route   POST /api/v1/orders
+// @access  Private
+export const addOrderItems = asyncHandler(async (req, res) => {
   const {
     orderItems,
     shippingAddress,
@@ -20,112 +22,93 @@ export const addOrderItems = async (req, res) => {
     shippingPrice,
     totalPrice,
     couponCode,
-    couponDiscount,
+    discountAmount,
   } = req.body;
 
+  if (orderItems && orderItems.length === 0) {
+    res.status(400);
+    throw new Error("No order items found");
+    return;
+  }
+
+  // ==========================================
+  // 🛡️ SECURITY FIX: Single Restaurant Validation
+  // ==========================================
+  const firstRestaurantId = orderItems[0].restaurant;
+  const hasMultipleRestaurants = orderItems.some(
+    (item) => item.restaurant.toString() !== firstRestaurantId.toString(),
+  );
+
+  if (hasMultipleRestaurants) {
+    res.status(400);
+    throw new Error("Items must be from a single restaurant");
+    return;
+  }
+  // ==========================================
+
+  // Start a MongoDB Transaction Session
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    if (!orderItems || orderItems.length === 0) {
-      return res.status(400).json({ message: "No order items detected." });
+    // 1. Loop through items to strictly verify and decrement stock atomically
+    for (const item of orderItems) {
+      const product = await Product.findById(item.product).session(session);
+
+      if (!product) {
+        throw new Error(`Product not found: ${item.name}`);
+      }
+
+      // Explicit check to prevent negative stock
+      if (product.countInStock < item.qty) {
+        throw new Error(
+          `Out of stock: ${product.name}. Only ${product.countInStock} items left.`,
+        );
+      }
+
+      // Decrement stock strictly using $inc and the transaction session
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { countInStock: -item.qty } },
+        { session },
+      );
     }
 
-    // 🛡️ Generate a 4-digit OTP for secure delivery verification
-    const deliveryOTP = crypto.randomInt(1000, 9999);
-
+    // 2. Map items and create Order instance
     const order = new Order({
-      user: req.user._id,
       orderItems: orderItems.map((x) => ({
-        name: x.name,
-        qty: Number(x.qty),
-        image: x.image,
-        price: Number(x.price),
+        ...x,
         product: x.product,
-        restaurant: x.restaurant, // ✅ CRITICAL: This links the order to the restaurant
-        selectedVariant: x.selectedVariant || null,
-        selectedAddons: x.selectedAddons || [],
+        _id: undefined,
       })),
-      shippingAddress: {
-        fullName: shippingAddress.fullName,
-        address: shippingAddress.address,
-        city: shippingAddress.city,
-        postalCode: shippingAddress.postalCode,
-        state: shippingAddress.state || "Rajasthan",
-        country: shippingAddress.country || "India",
-        phone: shippingAddress.phone,
-        lat:
-          typeof shippingAddress.lat === "number" ? shippingAddress.lat : null,
-        lng:
-          typeof shippingAddress.lng === "number" ? shippingAddress.lng : null,
-      },
+      user: req.user._id,
+      shippingAddress,
       paymentMethod,
-      itemsPrice: Number(itemsPrice),
-      taxPrice: Number(taxPrice),
-      shippingPrice: Number(shippingPrice),
-      totalPrice: Number(totalPrice),
-      couponCode: couponCode || "",
-      couponDiscount: Number(couponDiscount) || 0,
-      deliveryOTP,
-      isPaid: false,
-      orderStatus: "Placed",
+      itemsPrice,
+      taxPrice,
+      shippingPrice,
+      totalPrice,
+      couponCode,
+      discountAmount,
     });
 
-    const createdOrder = await order.save();
-    // ✅ NEW: Decrement stock for each ordered item
-const stockUpdates = createdOrder.orderItems.map((item) =>
-  Product.findByIdAndUpdate(item.product, {
-    $inc: { countInStock: -item.qty },
-  })
-);
-await Promise.allSettled(stockUpdates);
+    // 3. Save order using the same transaction session
+    const createdOrder = await order.save({ session });
 
-    // 🎫 Update Coupon Usage Log
-    if (couponCode) {
-      await Coupon.findOneAndUpdate(
-        { code: couponCode.toUpperCase() },
-        { $addToSet: { usedBy: req.user._id } }
-      ).catch((err) => console.log("Coupon Log Update Error:", err.message));
-    }
-
-    // 🔔 REAL-TIME SOCKET: Notify Restaurant Owner
-    if (req.io) {
-      try {
-        // 1. Get the Restaurant ID from the first item
-        const restaurantId = createdOrder.orderItems[0].restaurant;
-
-        // 2. Find the Restaurant Document to get the OWNER'S User ID
-        const restaurantDoc = await Restaurant.findById(restaurantId);
-
-        if (restaurantDoc && restaurantDoc.owner) {
-          // 3. Emit to the Owner's User ID (because Dashboard joins room 'userInfo._id')
-          const ownerId = restaurantDoc.owner.toString();
-          req.io.to(ownerId).emit("newOrderReceived", createdOrder);
-          console.log(`🔔 Socket: Notification sent to Owner ID: ${ownerId}`);
-        }
-      } catch (socketError) {
-        console.error("Socket Notification Failed:", socketError.message);
-      }
-    }
-
-    // 📧 Email notification for COD Orders
-    if (paymentMethod === "COD") {
-      try {
-        await sendEmail({
-          email: req.user.email,
-          subject: `SwadKart: Order Confirmed! ✅ #${createdOrder._id
-            .toString()
-            .slice(-6)}`,
-          html: getOrderConfirmationTemplate(createdOrder, false),
-        });
-      } catch (e) {
-        console.error("Email Service Error:", e.message);
-      }
-    }
+    // 4. Commit the transaction if everything is successful
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(201).json(createdOrder);
   } catch (error) {
-    console.error("❌ Order Creation Failed:", error.message);
-    res.status(500).json({ message: "Validation Failed: " + error.message });
+    // 🚨 If anything fails (like stock finishes), abort the entire transaction
+    await session.abortTransaction();
+    session.endSession();
+
+    res.status(400);
+    throw new Error(error.message);
   }
-};
+});
 
 // ==========================================
 // 🔍 2. GET ORDER BY ID
@@ -274,7 +257,6 @@ export const getMyOrders = async (req, res) => {
 // 👨‍🍳 7. RESTAURANT OWNER ORDERS (FIXED)
 // ==========================================
 export const getMyRestaurantOrders = async (req, res) => {
-
   console.log("🔥 Controller Hit: getMyRestaurantOrders");
   console.log("👤 User ID:", req.user._id);
   try {
@@ -296,7 +278,7 @@ export const getMyRestaurantOrders = async (req, res) => {
       .populate("user", "name email")
       .populate("deliveryPartner", "name phone")
       .sort({ createdAt: -1 });
-      console.log(`📦 Orders Found: ${orders.length}`);
+    console.log(`📦 Orders Found: ${orders.length}`);
 
     res.json(orders);
   } catch (error) {
@@ -362,12 +344,12 @@ export const cancelOrder = async (req, res) => {
     order.orderStatus = "Cancelled";
     order.cancellationReason = reason || "Cancelled by User";
     // ✅ NEW: Restore stock on cancellation
-const stockRestores = order.orderItems.map((item) =>
-  Product.findByIdAndUpdate(item.product, {
-    $inc: { countInStock: item.qty },
-  })
-);
-await Promise.allSettled(stockRestores);
+    const stockRestores = order.orderItems.map((item) =>
+      Product.findByIdAndUpdate(item.product, {
+        $inc: { countInStock: item.qty },
+      }),
+    );
+    await Promise.allSettled(stockRestores);
 
     const updatedOrder = await order.save();
 
