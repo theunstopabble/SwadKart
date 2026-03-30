@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import Razorpay from "razorpay";
 import Order from "../models/orderModel.js";
 import Restaurant from "../models/restaurantModel.js";
@@ -42,12 +43,10 @@ export const createRazorpayOrder = async (req, res) => {
     res.status(201).json({ success: true, order });
   } catch (error) {
     console.error("Razorpay Initiation Error:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Handshake with Payment Gateway failed.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Handshake with Payment Gateway failed.",
+    });
   }
 };
 
@@ -63,7 +62,7 @@ export const verifyPayment = async (req, res) => {
     if (payment.status === "captured" || payment.status === "authorized") {
       const order = await Order.findById(orderId).populate(
         "user",
-        "name email"
+        "name email",
       );
 
       if (!order) return res.status(404).json({ message: "Order not found" });
@@ -84,7 +83,7 @@ export const verifyPayment = async (req, res) => {
       if (order.couponCode) {
         await Coupon.findOneAndUpdate(
           { code: order.couponCode.toUpperCase() },
-          { $addToSet: { usedBy: order.user._id } }
+          { $addToSet: { usedBy: order.user._id } },
         );
       }
 
@@ -137,7 +136,7 @@ export const verifyPayment = async (req, res) => {
                 subject: `💰 New Paid Order for ${restro.name}`,
                 html: getRestaurantOrderAlertTemplate(
                   updatedOrder,
-                  restro.name
+                  restro.name,
                 ),
               });
             }
@@ -161,5 +160,63 @@ export const verifyPayment = async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "System failure during verification" });
+  }
+};
+
+// ============================================================
+// RAZORPAY WEBHOOK HANDLER
+// ============================================================
+
+// @desc    Handle Razorpay Webhooks (Async Payment Updates)
+// @route   POST /api/v1/payment/webhook
+// @access  Public (Called by Razorpay bypassing auth)
+export const razorpayWebhook = async (req, res) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const signature = req.headers["x-razorpay-signature"];
+
+    // 1. Verify webhook signature
+    const expectedSignature = crypto
+      .createHmac("sha256", webhookSecret)
+      .update(JSON.stringify(req.body))
+      .digest("hex");
+
+    if (expectedSignature === signature) {
+      // 2. Process only if payment is captured
+      if (req.body.event === "payment.captured") {
+        const paymentData = req.body.payload.payment.entity;
+
+        // 3. Extract orderId from notes (Assuming frontend passes it during creation)
+        const orderId = paymentData.notes ? paymentData.notes.orderId : null;
+
+        if (orderId) {
+          const order = await Order.findById(orderId);
+
+          // 4. Update order if not already paid via frontend verifyPayment
+          if (order && !order.isPaid) {
+            order.isPaid = true;
+            order.paidAt = Date.now();
+            order.paymentResult = {
+              id: paymentData.id,
+              status: paymentData.status,
+              update_time: paymentData.created_at,
+              email_address: paymentData.email,
+            };
+
+            await order.save();
+            console.log(`✅ Webhook Success: Order ${orderId} marked as PAID.`);
+          }
+        }
+      }
+
+      // Return 200 OK to acknowledge receipt and prevent Razorpay retries
+      res.status(200).json({ status: "ok" });
+    } else {
+      console.warn("🚨 Invalid Razorpay Webhook Signature!");
+      res.status(400).json({ error: "Invalid signature" });
+    }
+  } catch (error) {
+    console.error("Webhook Error:", error.message);
+    res.status(500).json({ error: "Server Error" });
   }
 };
