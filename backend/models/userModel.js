@@ -151,5 +151,9 @@ userSchema.methods.getResetPasswordToken = function () {
   return resetToken;
 };
 
+// 🚀 PERFORMANCE FIX (STEP 1): Indexing
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ role: 1 });
+
 const User = mongoose.model("User", userSchema);
 export default User;

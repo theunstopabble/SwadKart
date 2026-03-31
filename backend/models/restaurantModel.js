@@ -11,20 +11,20 @@ const reviewSchema = mongoose.Schema(
       ref: "User",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const restaurantSchema = mongoose.Schema(
   {
     name: { type: String, required: true },
-    image: { 
-      type: String, 
+    image: {
+      type: String,
       required: true,
-      default: "https://placehold.co/600x400/png?text=Restaurant" 
+      default: "https://placehold.co/600x400/png?text=Restaurant",
     },
     description: { type: String, required: true },
     address: { type: String, required: true },
-    
+
     // ✅ CRITICAL: Link to Owner (User)
     owner: {
       type: mongoose.Schema.Types.ObjectId,
@@ -46,8 +46,13 @@ const restaurantSchema = mongoose.Schema(
     openingTime: { type: String, default: "09:00" },
     closingTime: { type: String, default: "23:00" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
+
+// 🚀 PERFORMANCE FIX (STEP 1): Indexing
+restaurantSchema.index({ owner: 1 });
+restaurantSchema.index({ isVerified: 1 });
+restaurantSchema.index({ isActive: 1 });
 
 const Restaurant = mongoose.model("Restaurant", restaurantSchema);
 export default Restaurant;

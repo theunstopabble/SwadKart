@@ -16,7 +16,7 @@ const reviewSchema = mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const productSchema = mongoose.Schema(
@@ -85,8 +85,13 @@ const productSchema = mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
+
+// 🚀 PERFORMANCE FIX (STEP 1): Indexing
+productSchema.index({ restaurant: 1 });
+productSchema.index({ category: 1 });
+productSchema.index({ name: "text" });
 
 const Product = mongoose.model("Product", productSchema);
 export default Product;
