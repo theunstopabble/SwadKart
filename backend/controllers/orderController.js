@@ -145,7 +145,6 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 // ==========================================
 export const getOrderById = async (req, res) => {
   try {
-    // 🛡️ SECURITY FIX: Added .lean() to allow modifying the result object
     const order = await Order.findById(req.params.id)
       .populate("user", "name email")
       .populate("deliveryPartner", "name phone")
@@ -155,15 +154,25 @@ export const getOrderById = async (req, res) => {
       })
       .lean();
 
-    if (order) {
-      // 🛡️ SECURITY FIX: Completely remove OTP if the user is a delivery partner
-      if (req.user && req.user.role === "delivery_partner") {
-        delete order.deliveryOTP;
-      }
-      res.json(order);
-    } else {
-      res.status(404).json({ message: "Order not found." });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found." });
     }
+
+    // 🛡️ SECURITY FIX (SEC-2): Authorization check — only order owner, admin, restaurant owner, or assigned delivery partner can view
+    const isOwner = order.user._id.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+    const isRestaurantOwner = req.user.role === "restaurant_owner";
+    const isAssignedDriver = order.deliveryPartner && order.deliveryPartner._id.toString() === req.user._id.toString();
+
+    if (!isOwner && !isAdmin && !isRestaurantOwner && !isAssignedDriver) {
+      return res.status(403).json({ message: "Not authorized to view this order" });
+    }
+
+    // 🛡️ SECURITY FIX: Completely remove OTP if the user is a delivery partner
+    if (req.user && req.user.role === "delivery_partner") {
+      delete order.deliveryOTP;
+    }
+    res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -176,28 +185,35 @@ export const updateOrderToPaid = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
 
-    if (order) {
-      order.isPaid = true;
-      order.paidAt = Date.now();
-      order.paymentResult = {
-        id: req.body.id,
-        status: req.body.status,
-        update_time: req.body.update_time,
-        email_address: req.body.email_address,
-      };
-
-      const updatedOrder = await order.save();
-
-      if (req.io) {
-        req.io
-          .to(updatedOrder._id.toString())
-          .emit("orderUpdated", updatedOrder);
-      }
-
-      res.json(updatedOrder);
-    } else {
-      res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
     }
+
+    // 🛡️ SECURITY FIX (SEC-2/BUG-1): Only the order owner or admin can mark as paid
+    const isOwner = order.user.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ message: "Not authorized to update this order" });
+    }
+
+    order.isPaid = true;
+    order.paidAt = Date.now();
+    order.paymentResult = {
+      id: req.body.id,
+      status: req.body.status,
+      update_time: req.body.update_time,
+      email_address: req.body.email_address,
+    };
+
+    const updatedOrder = await order.save();
+
+    if (req.io) {
+      req.io
+        .to(updatedOrder._id.toString())
+        .emit("orderUpdated", updatedOrder);
+    }
+
+    res.json(updatedOrder);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -459,49 +475,75 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     throw new Error("Order not found");
   }
 
+  // 🛡️ SECURITY FIX (SEC-2/BUG-2): Only order owner or admin can cancel
+  const isOwner = order.user.toString() === req.user._id.toString();
+  const isAdmin = req.user.role === "admin";
+  if (!isOwner && !isAdmin) {
+    res.status(403);
+    throw new Error("Not authorized to cancel this order");
+  }
+
   if (order.status === "Cancelled" || order.orderStatus === "Cancelled") {
     res.status(400);
     throw new Error("Order is already cancelled");
   }
 
-  // 1. 💳 WALLET REFUND SYSTEM (STEP 2): Refund to Wallet Wallet instead of Payment Gateway
-  if (
-    order.isPaid === true &&
-    (order.paymentMethod === "Online" || order.paymentMethod === "Wallet")
-  ) {
-    const buyer = await User.findById(order.user);
-    if (buyer) {
-      buyer.walletBalance += order.totalPrice;
-      buyer.walletTransactions.push({
-        amount: order.totalPrice,
-        type: "Credit",
-        description: `Refund for Cancelled Order #${order._id}`,
-        date: Date.now(),
-      });
-      await buyer.save();
+  // 🛡️ BUG-9 FIX: Use MongoDB transaction for atomic cancel + refund + stock restore
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-      order.refundStatus = "Processed";
-      console.log(
-        `✅ Wallet Refund Processed: ₹${order.totalPrice} credited to ${buyer.name}`,
+  try {
+    // 1. 💳 WALLET REFUND SYSTEM: Refund to Wallet instead of Payment Gateway
+    if (
+      order.isPaid === true &&
+      (order.paymentMethod === "Online" || order.paymentMethod === "Wallet")
+    ) {
+      const buyer = await User.findById(order.user).session(session);
+      if (buyer) {
+        buyer.walletBalance += order.totalPrice;
+        buyer.walletTransactions.push({
+          amount: order.totalPrice,
+          type: "Credit",
+          description: `Refund for Cancelled Order #${order._id}`,
+          date: Date.now(),
+        });
+        await buyer.save({ session });
+
+        order.refundStatus = "Processed";
+        console.log(
+          `✅ Wallet Refund Processed: ₹${order.totalPrice} credited to ${buyer.name}`,
+        );
+      }
+    }
+
+    // 2. Restore the Product Stock safely (within transaction)
+    for (const item of order.orderItems) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { countInStock: item.qty } },
+        { session },
       );
     }
+
+    // 3. Update Order Status
+    order.orderStatus = "Cancelled";
+    order.cancelledAt = Date.now();
+    const updatedOrder = await order.save({ session });
+
+    // 4. Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    // 5. Socket notification (outside transaction)
+    if (req.io) {
+      req.io.to(order.user.toString()).emit("orderUpdated", updatedOrder);
+    }
+
+    res.json(updatedOrder);
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500);
+    throw new Error(error.message);
   }
-
-  // 2. Restore the Product Stock safely
-  for (const item of order.orderItems) {
-    await Product.findByIdAndUpdate(item.product, {
-      $inc: { countInStock: item.qty },
-    });
-  }
-
-  // 3. Update Order Status
-  order.orderStatus = "Cancelled";
-  const updatedOrder = await order.save();
-
-  // 4. Socket notification
-  if (req.io) {
-    req.io.to(order.user.toString()).emit("orderUpdated", updatedOrder);
-  }
-
-  res.json(updatedOrder);
 });

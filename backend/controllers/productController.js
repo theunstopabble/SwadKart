@@ -16,8 +16,10 @@ export const getProducts = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Search query builder
+    // 🛡️ SECURITY FIX (BUG-6): Escape user input to prevent regex injection (ReDoS)
+    const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const keyword = req.query.keyword
-      ? { name: { $regex: req.query.keyword, $options: "i" } }
+      ? { name: { $regex: escapeRegex(req.query.keyword), $options: "i" } }
       : {};
 
     const categoryFilter = req.query.category

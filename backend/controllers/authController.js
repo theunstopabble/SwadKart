@@ -26,7 +26,8 @@ export const registerUser = async (req, res, next) => {
         res.status(400);
         throw new Error("User already exists");
       } else {
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // 🛡️ SECURITY FIX: Use cryptographically secure OTP generation
+        const otp = crypto.randomInt(100000, 999999).toString();
         userExists.otp = otp;
         userExists.otpExpires = Date.now() + 10 * 60 * 1000;
         userExists.name = name;
@@ -61,7 +62,8 @@ export const registerUser = async (req, res, next) => {
       throw new Error("Phone number already used.");
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // 🛡️ SECURITY FIX: Use cryptographically secure OTP generation
+    const otp = crypto.randomInt(100000, 999999).toString();
 
     // --- Scenario C: Create New User ---
     const user = await User.create({
@@ -69,7 +71,8 @@ export const registerUser = async (req, res, next) => {
       email,
       password,
       phone, // Using raw phone input
-      role: role || "user",
+      // 🛡️ SECURITY FIX (SEC-3): Never trust client-provided role — always hardcode to "user"
+      role: "user",
       isVerified: false,
       otp,
       otpExpires: Date.now() + 10 * 60 * 1000,
@@ -209,8 +212,8 @@ export const forgotPassword = async (req, res, next) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user) {
-      res.status(404);
-      throw new Error("User not found");
+      // 🛡️ SECURITY FIX (BUG-11): Generic message prevents user enumeration
+      return res.json({ message: "If that email exists, a reset link has been sent." });
     }
     const resetToken = user.getResetPasswordToken();
     await user.save({ validateBeforeSave: false });

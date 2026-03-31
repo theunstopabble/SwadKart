@@ -3,6 +3,7 @@ import Restaurant from "../models/restaurantModel.js";
 import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import mongoose from "mongoose";
+import crypto from "crypto";
 
 // =================================================================
 // 👤 1. USER PROFILE OPERATIONS (Self)
@@ -422,7 +423,7 @@ export const googleRegister = async (req, res, next) => {
       email,
       phone,
       image,
-      password: Date.now().toString(), // Dummy password since Google handles auth
+      password: crypto.randomBytes(32).toString("hex"), // 🛡️ SECURITY FIX (BUG-8): Cryptographically secure dummy password
       isVerified: true,
     });
 

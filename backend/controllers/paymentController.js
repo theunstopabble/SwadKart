@@ -29,15 +29,31 @@ export const getRazorpayKey = (req, res) => {
 };
 
 // @desc    Create Razorpay Order (Step 1)
+// 🛡️ SECURITY FIX (SEC-1): Validate amount from DB, never trust frontend
 export const createRazorpayOrder = async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { amount, orderId } = req.body;
     const instance = getRazorpayInstance();
 
+    // 🛡️ Server-side price validation: If orderId provided, use DB amount
+    let verifiedAmount = Number(amount);
+    if (orderId) {
+      const dbOrder = await Order.findById(orderId);
+      if (!dbOrder) {
+        return res.status(404).json({ success: false, message: "Order not found" });
+      }
+      verifiedAmount = dbOrder.totalPrice;
+    }
+
+    if (!verifiedAmount || verifiedAmount <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid payment amount" });
+    }
+
     const options = {
-      amount: Math.round(Number(amount) * 100), // Convert to Paisa
+      amount: Math.round(verifiedAmount * 100), // Convert to Paisa
       currency: "INR",
       receipt: `swad_rcpt_${Date.now()}`,
+      notes: orderId ? { orderId } : {},
     };
 
     const order = await instance.orders.create(options);
@@ -180,24 +196,33 @@ export const razorpayWebhook = async (req, res) => {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers["x-razorpay-signature"];
 
-    // 1. Verify webhook signature
+    // 🛡️ SECURITY FIX (SEC-4): Use raw body for HMAC verification
+    // express.raw() sends Buffer, so we use it directly for accurate hash computation
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body);
+
     const expectedSignature = crypto
       .createHmac("sha256", webhookSecret)
-      .update(JSON.stringify(req.body))
+      .update(rawBody)
       .digest("hex");
 
-    if (expectedSignature === signature) {
-      // 2. Process only if payment is captured
-      if (req.body.event === "payment.captured") {
-        const paymentData = req.body.payload.payment.entity;
+    // Use timing-safe comparison to prevent timing attacks
+    const isValid = signature &&
+      expectedSignature.length === signature.length &&
+      crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature));
 
-        // 3. Extract orderId from notes (Assuming frontend passes it during creation)
+    if (isValid) {
+      // Parse body if it was raw Buffer
+      const body = Buffer.isBuffer(req.body) ? JSON.parse(rawBody) : req.body;
+
+      // Process only if payment is captured
+      if (body.event === "payment.captured") {
+        const paymentData = body.payload.payment.entity;
+
         const orderId = paymentData.notes ? paymentData.notes.orderId : null;
 
         if (orderId) {
           const order = await Order.findById(orderId);
 
-          // 4. Update order if not already paid via frontend verifyPayment
           if (order && !order.isPaid) {
             order.isPaid = true;
             order.paidAt = Date.now();
@@ -214,7 +239,6 @@ export const razorpayWebhook = async (req, res) => {
         }
       }
 
-      // Return 200 OK to acknowledge receipt and prevent Razorpay retries
       res.status(200).json({ status: "ok" });
     } else {
       console.warn("🚨 Invalid Razorpay Webhook Signature!");

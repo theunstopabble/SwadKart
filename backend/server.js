@@ -39,23 +39,21 @@ const httpServer = createServer(app);
 app.set("trust proxy", 1);
 
 // --- 🌐 Configuration ---
+// 🛡️ SECURITY FIX (SEC-7): Only allow specific Vercel domains, not any *.vercel.app
 const allowedOrigins = [
   "http://localhost:5173",
   "https://localhost:5173",
   "https://swadkart.vercel.app",
   process.env.FRONTEND_URL,
   "https://swadkart-5wtf.onrender.com",
-];
+].filter(Boolean); // Remove undefined/null entries
 
 // --- 🔌 Socket.io Setup ---
 const io = new Server(httpServer, {
   cors: {
     origin: (origin, callback) => {
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        origin.endsWith(".vercel.app")
-      ) {
+      // 🛡️ SECURITY FIX (SEC-7): Removed wildcard .vercel.app check
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("CORS Protocol Violation: Socket Access Denied"));
@@ -96,14 +94,39 @@ io.use((socket, next) => {
 });
 
 // 🛰️ Socket.io Logic
+// 🛡️ SECURITY FIX (SEC-5): Verify order ownership before joining room
+import Order from "./models/orderModel.js";
+
 io.on("connection", (socket) => {
   console.log(
     `⚡ Secure Signal Established: ${socket.id} (User: ${socket.user.userId})`,
   );
 
-  socket.on("joinOrder", (id) => {
-    socket.join(id);
-    console.log(`👤 Security: Socket locked into Sector ${id}`);
+  // 🛡️ Auto-join user to their personal room for notifications
+  socket.join(socket.user.userId);
+
+  socket.on("joinOrder", async (id) => {
+    try {
+      // 🛡️ SEC-5: Verify the user is allowed to join this order room
+      const order = await Order.findById(id).select("user deliveryPartner orderItems").lean();
+      if (!order) return;
+
+      const userId = socket.user.userId;
+      const isOrderOwner = order.user.toString() === userId;
+      const isDriver = order.deliveryPartner && order.deliveryPartner.toString() === userId;
+      // Allow admin and restaurant owner roles to join any room
+      const userDoc = await import("./models/userModel.js").then(m => m.default.findById(userId).select("role").lean());
+      const isPrivileged = userDoc && (userDoc.role === "admin" || userDoc.role === "restaurant_owner");
+
+      if (isOrderOwner || isDriver || isPrivileged) {
+        socket.join(id);
+        console.log(`👤 Security: Socket locked into Sector ${id}`);
+      } else {
+        console.warn(`🚫 Socket ${socket.id} denied access to order room ${id}`);
+      }
+    } catch (err) {
+      console.error(`⚠️ joinOrder error: ${err.message}`);
+    }
   });
 
   socket.on("updateLocation", ({ orderId, lat, lng }) => {
@@ -163,11 +186,10 @@ const csrfProtection = (req, res, next) => {
 
   const isValidOrigin =
     origin &&
-    (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"));
+    allowedOrigins.includes(origin);
   const isValidReferer =
     referer &&
-    (allowedOrigins.some((o) => referer.startsWith(o)) ||
-      referer.includes(".vercel.app"));
+    allowedOrigins.some((o) => referer.startsWith(o));
 
   if (!isValidOrigin && !isValidReferer) {
     console.error("🚫 CSRF Attack Blocked from:", origin || referer);
@@ -185,10 +207,10 @@ app.use(csrfProtection);
 app.use(
   cors({
     origin: (origin, callback) => {
-      const isVercel = origin && origin.endsWith(".vercel.app");
+      // 🛡️ SECURITY FIX (SEC-7): Use exact allowedOrigins, no wildcards
       const isAllowed = !origin || allowedOrigins.includes(origin);
 
-      if (isAllowed || isVercel) {
+      if (isAllowed) {
         callback(null, true);
       } else {
         callback(new Error("CORS Protocol Violation: Access Denied"));
@@ -206,6 +228,18 @@ const apiLimiter = rateLimit({
   message: "Too many requests from this IP, please try again later",
 });
 app.use("/api", apiLimiter);
+
+// 🛡️ SECURITY FIX (BUG-5): Strict rate limiter for OTP/auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5, // Max 5 attempts per window
+  message: "Too many attempts. Please try again after 10 minutes.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/v1/users/verify-email", authLimiter);
+app.use("/api/v1/users/login", authLimiter);
+app.use("/api/v1/users/password/forgot", authLimiter);
 
 app.get("/ping", (req, res) => {
   res.status(200).send("Pong");

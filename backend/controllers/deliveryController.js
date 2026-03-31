@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import Order from "../models/orderModel.js";
 import User from "../models/userModel.js";
 import sendEmail from "../utils/sendEmail.js";
@@ -54,7 +55,8 @@ export const assignDeliveryPartner = async (req, res) => {
 
     // OTP logic (Already generated in orderController, but safe to check/refresh here)
     if (!order.deliveryOTP) {
-      order.deliveryOTP = Math.floor(1000 + Math.random() * 9000);
+      // 🛡️ SECURITY FIX (BUG-4): Use cryptographically secure OTP
+      order.deliveryOTP = crypto.randomInt(1000, 9999);
     }
 
     const updatedOrder = await order.save();

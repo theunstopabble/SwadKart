@@ -13,7 +13,7 @@ router.get("/key", protect, getRazorpayKey);
 router.post("/create", protect, createRazorpayOrder);
 router.post("/verify", protect, verifyPayment);
 
-// Route for Razorpay Webhooks (No 'protect' middleware here)
-router.post("/webhook", razorpayWebhook);
+// 🛡️ SECURITY FIX (SEC-4): Use express.raw() for webhook to preserve raw body for HMAC verification
+router.post("/webhook", express.raw({ type: "application/json" }), razorpayWebhook);
 
 export default router;
