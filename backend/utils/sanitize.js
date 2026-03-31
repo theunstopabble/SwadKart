@@ -31,7 +31,10 @@ export const sanitizeEmail = (email) => {
 
 // Validates phone is a plain string of digits.
 export const sanitizePhone = (phone) => {
-  const cleanPhone = sanitizeString(phone);
+  let cleanPhone = sanitizeString(phone);
+  // Strip spaces, dashes, and parentheses which are common in phone formatting
+  cleanPhone = cleanPhone.replace(/[\s\-\(\)]/g, "");
+  
   if (!cleanPhone || !/^\+?\d{7,15}$/.test(cleanPhone)) {
     throw new Error("Invalid phone format");
   }
