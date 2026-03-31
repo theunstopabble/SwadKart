@@ -1,74 +1,38 @@
-import axios from "axios";
+import { Queue } from "bullmq";
+import IORedis from "ioredis";
+import dotenv from "dotenv";
+dotenv.config();
 
-/**
- * @desc Sends an email using Brevo (formerly Sendinblue) API v3
- * Fixed: Strictly uses .env variables. No hardcoded emails.
- */
+// Create Redis Connection for the Queue
+const connection = new IORedis(
+  process.env.REDIS_URL || "redis://127.0.0.1:6379",
+  {
+    maxRetriesPerRequest: null,
+  },
+);
+
+// Initialize the Queue
+const emailQueue = new Queue("emailQueue", { connection });
+
+// @desc    Add Email to BullMQ Queue (Non-Blocking)
 const sendEmail = async (options) => {
   try {
-    // 1. Env Variables Check
-    const senderEmail = process.env.SMTP_MAIL;
-    const apiKey = process.env.BREVO_API_KEY;
-
-    // 🛡️ Safety Check: Agar .env me ye nahi mile, to yahi ruk jao.
-    // Hardcoded email use karne se accha hai hum warning de de.
-    if (!senderEmail || !apiKey) {
-      console.warn(
-        "⚠️ EMAIL SKIPPED: Missing 'SMTP_MAIL' or 'BREVO_API_KEY' in .env file."
-      );
-      return false;
-    }
-
-    console.log(`📨 Sending email to: ${options.email}`);
-
-    const url = "https://api.brevo.com/v3/smtp/email";
-
-    // 🛠️ HTML content fallback
-    const htmlContent = options.html
-      ? options.html
-      : `<html><body style="font-family: Arial, sans-serif; line-height: 1.6;">
-          <p>${
-            options.message
-              ? options.message.replace(/\n/g, "<br>")
-              : "No message content."
-          }</p>
-        </body></html>`;
-
-    const data = {
-      sender: {
-        name: "SwadKart Support",
-        email: senderEmail, // ✅ Sirf .env se lega (Perfect!)
+    // Adds job to the queue, it returns immediately without waiting for actual email dispatch
+    const job = await emailQueue.add("sendEmailJob", options, {
+      attempts: 3, // Agar fail ho jaye toh 3 baar retry karega
+      backoff: {
+        type: "exponential",
+        delay: 5000, // Fail hone par 5 sec wait karke wapas try karega
       },
-      to: [
-        {
-          email: options.email,
-          name: options.email ? options.email.split("@")[0] : "User",
-        },
-      ],
-      subject: options.subject || "SwadKart Notification",
-      htmlContent: htmlContent,
-    };
-
-    const response = await axios.post(url, data, {
-      headers: {
-        accept: "application/json",
-        "api-key": apiKey, // ✅ Sirf .env se lega
-        "content-type": "application/json",
-      },
+      removeOnComplete: true, // Queue complete hone par task delete kar dega memory bachane ke liye
     });
 
-    if (response.status === 201 || response.status === 200) {
-      console.log("✅ Email sent successfully!");
-      return true;
-    }
+    console.log(`📥 [BullMQ] Email Job Added with ID: ${job.id}`);
   } catch (error) {
-    // 🔍 Error logging without crashing the server
-    const errorDetail = error.response ? error.response.data : error.message;
-
-    console.error("⚠️ EMAIL SYSTEM ERROR:", errorDetail);
-
-    // 🔥 IMPORTANT: Error throw nahi kar rahe, taaki server chalta rahe.
-    return false;
+    console.error(
+      "❌ [BullMQ] Failed to add email job to queue:",
+      error.message,
+    );
   }
 };
 

@@ -14,6 +14,9 @@ import cookie from "cookie"; // 👈 YEH IMPORT GAYAB THA, ISEY ADD KAREIN
 
 import connectDB from "./config/db.js";
 
+// 🚀 PERFORMANCE FIX (STEP 3): Initialize Background Workers
+import "./workers/emailWorker.js";
+
 // Error Middlewares
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
