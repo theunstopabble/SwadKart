@@ -45,6 +45,8 @@
   "overrides": {
     "deep-email-validator": {
       "axios": "$axios"
-    }
+    },
+    "@tootallnate/once": "^3.0.1",
+    "http-proxy-agent": "^7.0.0"
   }
 }
