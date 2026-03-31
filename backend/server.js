@@ -150,6 +150,37 @@ const safeMongoSanitize = (req, res, next) => {
 
 app.use(safeMongoSanitize);
 
+// ==========================================
+// 🛡️ SECURITY FIX (CodeQL): Anti-CSRF Middleware
+// ==========================================
+const csrfProtection = (req, res, next) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    return next();
+  }
+
+  const origin = req.headers.origin;
+  const referer = req.headers.referer;
+
+  const isValidOrigin =
+    origin &&
+    (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"));
+  const isValidReferer =
+    referer &&
+    (allowedOrigins.some((o) => referer.startsWith(o)) ||
+      referer.includes(".vercel.app"));
+
+  if (!isValidOrigin && !isValidReferer) {
+    console.error("🚫 CSRF Attack Blocked from:", origin || referer);
+    return res
+      .status(403)
+      .json({ message: "CSRF Blocked: Unauthorized Request Origin" });
+  }
+
+  next();
+};
+
+app.use(csrfProtection);
+
 // --- 🛡️ 1. Dynamic CORS Fix ---
 app.use(
   cors({
