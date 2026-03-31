@@ -5,7 +5,6 @@ import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import mongoSanitize from "express-mongo-sanitize"; // 👈 Naya Import
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
@@ -126,8 +125,30 @@ app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// 🛡️ SECURITY FIX (CodeQL): Prevent NoSQL Injection automatically
-app.use(mongoSanitize());
+// ==========================================
+// 🛡️ SECURITY FIX: Safe Custom NoSQL Sanitizer
+// ==========================================
+const safeMongoSanitize = (req, res, next) => {
+  const sanitize = (obj) => {
+    if (obj instanceof Object) {
+      for (const key in obj) {
+        if (/^\$/.test(key) || key.includes(".")) {
+          delete obj[key];
+        } else {
+          sanitize(obj[key]);
+        }
+      }
+    }
+  };
+
+  ["body", "query", "params"].forEach((k) => {
+    if (req[k]) sanitize(req[k]);
+  });
+
+  next();
+};
+
+app.use(safeMongoSanitize);
 
 // --- 🛡️ 1. Dynamic CORS Fix ---
 app.use(

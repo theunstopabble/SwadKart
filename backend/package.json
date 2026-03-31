@@ -27,7 +27,6 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-async-handler": "^1.2.0",
-    "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.2.1",
     "groq-sdk": "^0.37.0",
     "helmet": "^8.1.0",
