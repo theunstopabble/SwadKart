@@ -57,8 +57,8 @@ export const getProducts = async (req, res) => {
 export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate(
-      "reviews.user",
-      "name image",
+      "restaurant",
+      "name isOpenNow",
     );
     if (product) res.json(product);
     else res.status(404).json({ message: "Product not found" });
@@ -68,9 +68,9 @@ export const getProductById = async (req, res) => {
 };
 
 // @desc    Fetch products by Restaurant ID
-// FIX: Handles fetching when Frontend sends Owner ID instead of Restaurant ID
+// FIX: Map req.params.id properly to restaurantId
 export const getProductsByRestaurant = asyncHandler(async (req, res) => {
-  const { restaurantId } = req.params;
+  const restaurantId = req.params.id; // 👈 BUG FIXED HERE: Extracted 'id' instead of 'restaurantId'
   const cacheKey = `menu_rest_${restaurantId}`;
 
   let products = await getCache(cacheKey);
