@@ -6,6 +6,7 @@ import { BASE_URL } from "../config";
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { userInfo } = useSelector((state) => state.user);
+  const { cartItems } = useSelector((state) => state.cart);
 
   const [messages, setMessages] = useState([
     {
@@ -21,11 +22,10 @@ const ChatBot = () => {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  const scrollToBottom = () => {
+  // 👈 FIX 1: Inline the scroll logic to remove useEffect dependency lint error
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(scrollToBottom, [messages, loading]);
+  }, [messages, loading]);
 
   useEffect(() => {
     if (isOpen) {
@@ -48,7 +48,7 @@ const ChatBot = () => {
           "Content-Type": "application/json",
           Authorization: userInfo ? `Bearer ${userInfo.token}` : "",
         },
-        body: JSON.stringify({ message: userMsg }),
+        body: JSON.stringify({ message: userMsg, cartItems }),
       });
 
       const data = await res.json();
@@ -63,6 +63,7 @@ const ChatBot = () => {
         },
       ]);
     } catch (error) {
+      console.error("ChatBot Error:", error); // 👈 FIX 2: Use the error variable
       setMessages((prev) => [
         ...prev,
         {

@@ -92,3 +92,5 @@ walkthrough.md.resolved
 swadkart-codebase-file.txt
 
 .github/copilot-instructions.md
+# Firebase Admin Key
+backend/config/firebase-service-account.json

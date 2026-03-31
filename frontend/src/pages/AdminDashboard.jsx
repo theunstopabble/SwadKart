@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 import {
@@ -23,62 +22,51 @@ import CouponsTab from "../components/admin/CouponsTab";
 import UsersTab from "../components/admin/UsersTab";
 import HeatmapTab from "../components/admin/HeatmapTab";
 
-
 const AdminDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
 
   // --- CENTRALIZED DATA STATES ---
-  const [stats, setStats] = useState({ revenue: 0, orders: 0, users: 0 });
   const [orders, setOrders] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
   const [coupons, setCoupons] = useState([]);
 
   // --- FETCH ALL DATA ---
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     if (!userInfo || !userInfo.token) return;
 
     const headers = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${userInfo?.token}`,
+      Authorization: `Bearer ${userInfo.token}`,
     };
 
     try {
       // 1. Fetch Restaurants
-      const resRest = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
-        headers,
-      });
+      const resRest = await fetch(
+        `${BASE_URL}/api/v1/users/admin/all?limit=1000`,
+        {
+          headers,
+        },
+      );
       if (resRest.ok) {
-        const dataRest = await resRest.json();
-        setRestaurants(dataRest);
-        setStats((prev) => ({ ...prev, users: dataRest.length }));
+        const restResponse = await resRest.json();
+        setRestaurants(restResponse.data || restResponse);
       }
 
-      // 2. Fetch Orders & Calculate Revenue
-      const resOrders = await fetch(`${BASE_URL}/api/v1/orders`, {
+      // 2. Fetch Orders
+      const resOrders = await fetch(`${BASE_URL}/api/v1/orders?limit=1000`, {
         headers,
       });
-
       if (resOrders.ok) {
-        const dataOrders = await resOrders.json();
-        setOrders(dataOrders);
-        const totalRev = dataOrders.reduce(
-          (acc, order) => acc + (order.isPaid ? order.totalPrice : 0),
-          0
-        );
-        setStats((prev) => ({
-          ...prev,
-          revenue: totalRev,
-          orders: dataOrders.length,
-        }));
+        const ordersResponse = await resOrders.json();
+        setOrders(ordersResponse.data || ordersResponse);
       }
 
       // 3. Delivery Partners
       const resPartners = await fetch(
         `${BASE_URL}/api/v1/users/delivery-partners`,
-        { headers }
+        { headers },
       );
       if (resPartners.ok) setDeliveryPartners(await resPartners.json());
 
@@ -91,15 +79,18 @@ const AdminDashboard = () => {
     } catch (err) {
       console.error("Dashboard Fetch Error:", err);
     }
-  };
+  }, [userInfo]);
 
   useEffect(() => {
-    if (userInfo && (userInfo.isAdmin || userInfo.role === "admin")) {
-      fetchAllData();
-    } else {
-      navigate("/");
-    }
-  }, [userInfo, activeTab, navigate]);
+    // Navigate की ज़रूरत नहीं, Protected Route हैंडल कर रहा है!
+    const loadDashboardData = async () => {
+      if (userInfo?.isAdmin || userInfo?.role === "admin") {
+        await fetchAllData();
+      }
+    };
+
+    loadDashboardData();
+  }, [userInfo, fetchAllData]);
 
   return (
     <div className="min-h-screen bg-black text-white pt-28 pb-10 px-4 md:px-10 font-sans">
