@@ -298,10 +298,29 @@ export const getMyRestaurantOrders = async (req, res) => {
 // ==========================================
 export const getOrders = async (req, res) => {
   try {
+    // 🚀 PERFORMANCE FIX: Extracted Page & Limit
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const count = await Order.countDocuments({});
+
     const orders = await Order.find({})
       .populate("user", "id name email")
-      .sort({ createdAt: -1 });
-    res.json(orders);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(); // Faster JSON conversion
+
+    res.json({
+      data: orders,
+      metadata: {
+        total: count,
+        page,
+        pages: Math.ceil(count / limit),
+        limit,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

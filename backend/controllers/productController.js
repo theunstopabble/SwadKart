@@ -10,13 +10,46 @@ import asyncHandler from "express-async-handler";
 // @desc    Fetch all products
 export const getProducts = async (req, res) => {
   try {
+    // 🚀 PERFORMANCE FIX: Pagination variables
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Search query builder
     const keyword = req.query.keyword
       ? { name: { $regex: req.query.keyword, $options: "i" } }
       : {};
-    const products = await Product.find({ ...keyword }).sort({ orderIndex: 1 });
-    res.json({ products });
+
+    const categoryFilter = req.query.category
+      ? { category: req.query.category }
+      : {};
+
+    const restaurantFilter = req.query.restaurant
+      ? { restaurant: req.query.restaurant }
+      : {};
+
+    const query = { ...keyword, ...categoryFilter, ...restaurantFilter };
+
+    const count = await Product.countDocuments(query);
+
+    const products = await Product.find(query)
+      .populate("restaurant", "name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    res.json({
+      data: products,
+      metadata: {
+        total: count,
+        page,
+        pages: Math.ceil(count / limit),
+        limit,
+      },
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Failed to fetch products" });
   }
 };
 
@@ -278,6 +311,7 @@ export const createProductReview = async (req, res) => {
       res.status(404).json({ message: "Product not found" });
     }
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    // 👈 YAHAN CATCH BLOCK AUR MISSING BRACKETS THEEK KIYE GAYE HAIN
+    res.status(500).json({ message: error.message });
   }
 };

@@ -126,11 +126,29 @@ export const getBiometricStatus = async (req, res, next) => {
 // ✅ CRITICAL FIX: Fetch ALL users (Users, Delivery, Owners) for Admin Panel
 export const getUsers = async (req, res, next) => {
   try {
-    // Empty object {} means fetch everything
+    // 🚀 PERFORMANCE FIX: Extracted Page & Limit
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const count = await User.countDocuments({});
+
     const users = await User.find({})
       .select("-password")
-      .sort({ createdAt: -1 }); // Newest first
-    res.json(users);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    res.json({
+      data: users,
+      metadata: {
+        total: count,
+        page,
+        pages: Math.ceil(count / limit),
+        limit,
+      },
+    });
   } catch (error) {
     next(error);
   }
