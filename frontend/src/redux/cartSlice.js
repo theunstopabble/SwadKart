@@ -1,13 +1,13 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 // ==========================================
-// 🛡️ SECURITY FIX (CodeQL): Encode LocalStorage Data
 // ==========================================
-const secureStorage = {
+// 🛒 LocalStorage Utility
+// ==========================================
+const browserStorage = {
   setItem: (key, value) => {
     try {
-      const encodedValue = btoa(encodeURIComponent(JSON.stringify(value)));
-      localStorage.setItem(key, encodedValue);
+      localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
       console.error("Storage error", e);
     }
@@ -16,9 +16,8 @@ const secureStorage = {
     try {
       const data = localStorage.getItem(key);
       if (!data) return null;
-      return JSON.parse(decodeURIComponent(atob(data)));
+      return JSON.parse(data);
     } catch {
-      // 👈 FIX: Omit catch parameter since error is not used
       return null;
     }
   },
@@ -49,13 +48,13 @@ const generateCartId = (item) => {
 // 🛠️ HELPER: Update LocalStorage
 // ==========================================
 const updateCartStorage = (cartItems) => {
-  secureStorage.setItem("cartItems", cartItems);
+  browserStorage.setItem("cartItems", cartItems);
 };
 
 const initialState = {
-  cartItems: secureStorage.getItem("cartItems") || [],
-  shippingAddress: secureStorage.getItem("shippingAddress") || {},
-  paymentMethod: secureStorage.getItem("paymentMethod") || "Online",
+  cartItems: browserStorage.getItem("cartItems") || [],
+  shippingAddress: browserStorage.getItem("shippingAddress") || {},
+  paymentMethod: browserStorage.getItem("paymentMethod") || "Online",
 };
 
 const cartSlice = createSlice({
@@ -114,17 +113,17 @@ const cartSlice = createSlice({
 
     saveShippingAddress: (state, action) => {
       state.shippingAddress = action.payload;
-      secureStorage.setItem("shippingAddress", action.payload);
+      browserStorage.setItem("shippingAddress", action.payload);
     },
 
     savePaymentMethod: (state, action) => {
       state.paymentMethod = action.payload;
-      secureStorage.setItem("paymentMethod", action.payload);
+      browserStorage.setItem("paymentMethod", action.payload);
     },
 
     clearCart: (state) => {
       state.cartItems = [];
-      secureStorage.removeItem("cartItems");
+      browserStorage.removeItem("cartItems");
     },
   },
 });

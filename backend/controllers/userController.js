@@ -4,6 +4,7 @@ import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
+import { sanitizeEmail, sanitizePhone } from "../utils/sanitize.js";
 
 // =================================================================
 // 👤 1. USER PROFILE OPERATIONS (Self)
@@ -387,8 +388,9 @@ export const subscribeToNewsletter = async (req, res) => {
 // Google Auth Logic
 export const googleCheck = async (req, res, next) => {
   try {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
+    const rawEmail = req.body.email;
+    const email = sanitizeEmail(rawEmail);
+    const user = await User.findOne({ email: String(email) });
 
     if (user) {
       generateToken(res, user._id); // Sets HttpOnly Cookie
@@ -408,9 +410,10 @@ export const googleCheck = async (req, res, next) => {
 
 export const googleRegister = async (req, res, next) => {
   try {
-    const { name, email, image, phone } = req.body;
+    const { name, email, image, phone: rawPhone } = req.body;
 
-    const phoneExists = await User.findOne({ phone });
+    const phone = sanitizePhone(rawPhone);
+    const phoneExists = await User.findOne({ phone: String(phone) });
     if (phoneExists) {
       res.status(400);
       throw new Error(

@@ -12,6 +12,7 @@ import {
   getRestaurantOrderAlertTemplate,
 } from "../utils/emailTemplates.js";
 import CouponUsage from "../models/couponUsageModel.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 dotenv.config();
 
@@ -32,8 +33,9 @@ export const getRazorpayKey = (req, res) => {
 // 🛡️ SECURITY FIX (SEC-1): Validate amount from DB, never trust frontend
 export const createRazorpayOrder = async (req, res) => {
   try {
-    const { amount, orderId } = req.body;
+    const { amount, orderId: rawOrderId } = req.body;
     const instance = getRazorpayInstance();
+    const orderId = rawOrderId ? sanitizeObjectId(rawOrderId) : null;
 
     // 🛡️ Server-side price validation: If orderId provided, use DB amount
     let verifiedAmount = Number(amount);
@@ -70,7 +72,8 @@ export const createRazorpayOrder = async (req, res) => {
 // @desc    Verify Payment & Execute Business Logic (Step 2)
 export const verifyPayment = async (req, res) => {
   try {
-    const { razorpay_payment_id, orderId } = req.body;
+    const { razorpay_payment_id, orderId: rawOrderId } = req.body;
+    const orderId = sanitizeObjectId(rawOrderId);
     const instance = getRazorpayInstance();
 
     // 1. Verify payment status directly via Razorpay API for security
@@ -218,7 +221,15 @@ export const razorpayWebhook = async (req, res) => {
       if (body.event === "payment.captured") {
         const paymentData = body.payload.payment.entity;
 
-        const orderId = paymentData.notes ? paymentData.notes.orderId : null;
+        const rawOrderId = paymentData.notes ? paymentData.notes.orderId : null;
+        let orderId = null;
+        if (rawOrderId) {
+           try {
+             orderId = sanitizeObjectId(rawOrderId);
+           } catch {
+             orderId = null;
+           }
+        }
 
         if (orderId) {
           const order = await Order.findById(orderId);

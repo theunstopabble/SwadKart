@@ -1,4 +1,5 @@
 import Restaurant from "../models/restaurantModel.js";
+import { sanitizeString, sanitizeObjectId } from "../utils/sanitize.js";
 
 // ==========================================
 // 🛠️ HELPER: Check if Store is Open
@@ -119,9 +120,11 @@ const getTopRestaurants = async (req, res) => {
 // @route   POST /api/v1/restaurants
 const createRestaurant = async (req, res) => {
   try {
-    const { name, address, image, description } = req.body;
+    const rawName = req.body.name;
+    const name = sanitizeString(rawName);
+    const { address, image, description } = req.body;
 
-    const restaurantExists = await Restaurant.findOne({ name });
+    const restaurantExists = await Restaurant.findOne({ name: String(name) });
     if (restaurantExists) {
       return res.status(400).json({ message: "Restaurant name already taken" });
     }
@@ -197,7 +200,7 @@ const updateRestaurantSettings = async (req, res) => {
 // @route   PUT /api/v1/restaurants/:id/approve
 const verifyRestaurant = async (req, res) => {
   try {
-    const id = req.params.id;
+    const id = sanitizeObjectId(req.params.id);
 
     // 1. Find by ID or Owner ID (Dono check karo)
     let restaurant = await Restaurant.findById(id);

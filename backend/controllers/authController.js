@@ -2,6 +2,7 @@ import crypto from "crypto";
 import User from "../models/userModel.js";
 import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
+import { sanitizeString, sanitizeEmail, sanitizePhone } from "../utils/sanitize.js";
 import {
   getOtpTemplate,
   getResetPasswordTemplate,
@@ -11,14 +12,18 @@ import {
 // @desc    Register user (Sends OTP via Email Only)
 export const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email: rawEmail, password, phone: rawPhone, role } = req.body;
 
-    if (!name || !email || !password || !phone) {
+    if (!name || !rawEmail || !password || !rawPhone) {
       res.status(400);
       throw new Error("🚫 All fields are mandatory!");
     }
 
-    const userExists = await User.findOne({ email });
+    // 🛡️ CodeQL FIX: Sanitize inputs before database queries
+    const email = sanitizeEmail(rawEmail);
+    const phone = sanitizePhone(rawPhone);
+
+    const userExists = await User.findOne({ email: String(email) });
 
     // --- Scenario A: User Exists but Not Verified (Resend OTP) ---
     if (userExists) {
@@ -56,7 +61,7 @@ export const registerUser = async (req, res, next) => {
     }
 
     // --- Scenario B: Check Phone Duplicity ---
-    const phoneExists = await User.findOne({ phone });
+    const phoneExists = await User.findOne({ phone: String(phone) });
     if (phoneExists) {
       res.status(400);
       throw new Error("Phone number already used.");
@@ -108,8 +113,10 @@ export const registerUser = async (req, res, next) => {
 // @desc    Verify OTP
 export const verifyEmailAPI = async (req, res, next) => {
   try {
-    const { email, otp } = req.body;
-    const user = await User.findOne({ email });
+    const { email: rawEmail, otp } = req.body;
+    // 🛡️ CodeQL FIX: Sanitize email before DB query
+    const email = sanitizeEmail(rawEmail);
+    const user = await User.findOne({ email: String(email) });
 
     if (!user) {
       res.status(404);
@@ -177,8 +184,10 @@ export const verifyEmailAPI = async (req, res, next) => {
 // @desc    Login user
 export const loginUser = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const { email: rawEmail, password } = req.body;
+    // 🛡️ CodeQL FIX: Sanitize email before DB query
+    const email = sanitizeEmail(rawEmail);
+    const user = await User.findOne({ email: String(email) });
 
     if (user && (await user.matchPassword(password))) {
       if (!user.isVerified) {
@@ -210,7 +219,9 @@ export const loginUser = async (req, res, next) => {
 // @desc    Forgot Password
 export const forgotPassword = async (req, res, next) => {
   try {
-    const user = await User.findOne({ email: req.body.email });
+    // 🛡️ CodeQL FIX: Sanitize email before DB query
+    const cleanEmail = sanitizeEmail(req.body.email);
+    const user = await User.findOne({ email: String(cleanEmail) });
     if (!user) {
       // 🛡️ SECURITY FIX (BUG-11): Generic message prevents user enumeration
       return res.json({ message: "If that email exists, a reset link has been sent." });

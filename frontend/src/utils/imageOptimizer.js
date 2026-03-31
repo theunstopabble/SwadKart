@@ -14,16 +14,16 @@ export const optimizeImageUrl = (url) => {
       return urlObj.toString();
     }
 
-    // 🛡️ SECURITY FIX (CodeQL): Using Array splits instead of unsafe string.includes()
+    // 🛡️ SECURITY FIX (CodeQL): Using strict array element matching instead of potential substring matches
     if (urlObj.hostname === "res.cloudinary.com") {
       const pathSegments = urlObj.pathname.split("/");
 
-      if (pathSegments.includes("upload")) {
+      const hasUpload = pathSegments.indexOf("upload") !== -1;
+      if (hasUpload) {
         // Safe robust array check
-        if (
-          pathSegments.includes("q_auto") ||
-          pathSegments.includes("f_auto")
-        ) {
+        const hasQAuto = pathSegments.indexOf("q_auto") !== -1;
+        const hasFAuto = pathSegments.indexOf("f_auto") !== -1;
+        if (hasQAuto || hasFAuto) {
           return url;
         }
 

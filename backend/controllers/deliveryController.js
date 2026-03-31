@@ -6,6 +6,7 @@ import {
   getDeliveryRequestTemplate,
   getUserDriverAssignedTemplate,
 } from "../utils/emailTemplates.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 import Emergency from "../models/emergencyModel.js";
 
 // ============================================================
@@ -36,9 +37,11 @@ export const getMyDeliveryOrders = async (req, res) => {
 // 👑 2. ASSIGN DELIVERY PARTNER (Admin/Restaurant)
 // ============================================================
 export const assignDeliveryPartner = async (req, res) => {
-  const { deliveryPartnerId } = req.body;
   try {
-    const order = await Order.findById(req.params.id).populate(
+    const orderId = sanitizeObjectId(req.params.id);
+    const deliveryPartnerId = sanitizeObjectId(req.body.deliveryPartnerId);
+
+    const order = await Order.findById(orderId).populate(
       "user",
       "name email phone",
     );
