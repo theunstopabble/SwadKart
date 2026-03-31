@@ -115,15 +115,21 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 // ==========================================
 export const getOrderById = async (req, res) => {
   try {
+    // 🛡️ SECURITY FIX: Added .lean() to allow modifying the result object
     const order = await Order.findById(req.params.id)
       .populate("user", "name email")
       .populate("deliveryPartner", "name phone")
       .populate({
         path: "orderItems.product",
         select: "name image category",
-      });
+      })
+      .lean();
 
     if (order) {
+      // 🛡️ SECURITY FIX: Completely remove OTP if the user is a delivery partner
+      if (req.user && req.user.role === "delivery_partner") {
+        delete order.deliveryOTP;
+      }
       res.json(order);
     } else {
       res.status(404).json({ message: "Order not found." });

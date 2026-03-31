@@ -13,10 +13,19 @@ import Emergency from "../models/emergencyModel.js";
 export const getMyDeliveryOrders = async (req, res) => {
   try {
     // Populate customer info and restaurant location if needed
+    // 🛡️ SECURITY FIX: Added .lean()
     const orders = await Order.find({ deliveryPartner: req.user._id })
-      .populate("user", "name email phone")
-      .sort({ createdAt: -1 });
-    res.json(orders);
+      .populate("user", "name phone")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 🛡️ SECURITY FIX: Strip out the deliveryOTP from every order in the array
+    const securedOrders = orders.map((order) => {
+      delete order.deliveryOTP;
+      return order;
+    });
+
+    res.json(securedOrders);
   } catch (error) {
     res.status(500).json({ message: "Error fetching your deliveries" });
   }
@@ -30,7 +39,7 @@ export const assignDeliveryPartner = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate(
       "user",
-      "name email phone"
+      "name email phone",
     );
 
     if (!order) return res.status(404).json({ message: "Order not found" });
@@ -106,7 +115,7 @@ export const updateDeliveryAction = async (req, res) => {
             html: getUserDriverAssignedTemplate(
               order,
               req.user,
-              order.deliveryOTP
+              order.deliveryOTP,
             ),
           });
         } catch (err) {
@@ -146,12 +155,10 @@ export const updateOrderToDelivered = async (req, res) => {
 
     // 🛡️ Security: OTP Check
     if (order.deliveryOTP !== Number(otp)) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "❌ Incorrect OTP! Please ask the customer for the correct code.",
-        });
+      return res.status(400).json({
+        message:
+          "❌ Incorrect OTP! Please ask the customer for the correct code.",
+      });
     }
 
     order.isDelivered = true;
