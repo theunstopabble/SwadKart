@@ -39,7 +39,7 @@ const RestaurantMenu = () => {
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [finalPrice, setFinalPrice] = useState(0);
 
-    // 1. Data Fetch
+  // 1. Data Fetch
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -53,8 +53,14 @@ const RestaurantMenu = () => {
         const restaurantData = await restaurantRes.json();
         const menuData = await menuRes.json();
 
-        setRestaurant(restaurantData); // payload already is the restaurant object
-        setMenu(Array.isArray(menuData) ? menuData : menuData.products || []);
+        // 👈 FIX: Added `.data` fallback for both Restaurant and Menu Items
+        setRestaurant(restaurantData.data || restaurantData);
+
+        setMenu(
+          Array.isArray(menuData)
+            ? menuData
+            : menuData.data || menuData.products || [], // 👈 Check for backend pagination object
+        );
       } catch (error) {
         toast.error("Error loading menu");
       } finally {
@@ -69,7 +75,7 @@ const RestaurantMenu = () => {
     const socket = io(BASE_URL);
     socket.on("productUpdated", (updated) => {
       setMenu((prev) =>
-        prev.map((it) => (it._id === updated._id ? { ...it, ...updated } : it))
+        prev.map((it) => (it._id === updated._id ? { ...it, ...updated } : it)),
       );
     });
     return () => socket.disconnect();
@@ -80,7 +86,7 @@ const RestaurantMenu = () => {
     let filtered = menu.filter(
       (it) =>
         it.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (!isVegOnly || it.isVeg)
+        (!isVegOnly || it.isVeg),
     );
     const groups = {};
     filtered.forEach((it) => {
@@ -99,42 +105,44 @@ const RestaurantMenu = () => {
       : Number(selectedItem.price);
     const addonsPrice = selectedAddons.reduce(
       (acc, a) => acc + Number(a.price),
-      0
+      0,
     );
     setFinalPrice(price + addonsPrice);
   }, [selectedVariant, selectedAddons, selectedItem]);
 
   const handleAddToCartClick = (item) => {
-  if (item.countInStock === 0) return;
+    if (item.countInStock === 0) return;
 
-  // 🔥 NEW: Block cart if restaurant is closed
-  if (!restaurant?.isOpenNow) {
-    toast.error("Restaurant is currently closed. Please visit during opening hours.");
-    return;
-  }
+    // 🔥 NEW: Block cart if restaurant is closed
+    if (!restaurant?.isOpenNow) {
+      toast.error(
+        "Restaurant is currently closed. Please visit during opening hours.",
+      );
+      return;
+    }
 
-  if (!userInfo) {
-    navigate("/login");
-    return;
-  }
+    if (!userInfo) {
+      navigate("/login");
+      return;
+    }
     // 🔥 NEW: Warn user if switching restaurants
-  if (cartItems.length > 0 && cartItems[0].restaurant !== restaurant._id) {
-    const confirmed = window.confirm(
-      "Your cart has items from another restaurant. Adding this will clear your current cart. Continue?"
-    );
-    if (!confirmed) return;
-    dispatch(clearCart());
-  }
-  if (item.variants?.length > 0 || item.addons?.length > 0) {
-    setSelectedItem(item);
-    setSelectedVariant(item.variants?.[0] || null);
-    setSelectedAddons([]);
-    setShowModal(true);
-  } else {
-    dispatch(addToCart({ ...item, qty: 1 }));
-    toast.success(`${item.name} added!`);
-  }
-};
+    if (cartItems.length > 0 && cartItems[0].restaurant !== restaurant._id) {
+      const confirmed = window.confirm(
+        "Your cart has items from another restaurant. Adding this will clear your current cart. Continue?",
+      );
+      if (!confirmed) return;
+      dispatch(clearCart());
+    }
+    if (item.variants?.length > 0 || item.addons?.length > 0) {
+      setSelectedItem(item);
+      setSelectedVariant(item.variants?.[0] || null);
+      setSelectedAddons([]);
+      setShowModal(true);
+    } else {
+      dispatch(addToCart({ ...item, qty: 1 }));
+      toast.success(`${item.name} added!`);
+    }
+  };
   const confirmCustomization = () => {
     dispatch(
       addToCart({
@@ -143,7 +151,7 @@ const RestaurantMenu = () => {
         selectedVariant,
         selectedAddons,
         qty: 1,
-      })
+      }),
     );
     setShowModal(false);
     toast.success("Customized dish added! 🛒");
@@ -232,30 +240,32 @@ const RestaurantMenu = () => {
                         {item.description}
                       </p>
                       <button
-  onClick={() => handleAddToCartClick(item)}
-  disabled={item.countInStock === 0 || !restaurant?.isOpenNow}
-  className={`mt-auto w-full font-extrabold py-4 rounded-xl transition-all uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 ${
-    item.countInStock === 0
-      ? "bg-gray-800 text-gray-600 cursor-not-allowed"
-      : !restaurant?.isOpenNow
-      ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
-      : "bg-white text-black hover:bg-primary hover:text-white shadow-lg active:scale-[0.98]"
-  }`}
->
-  {item.countInStock === 0 ? (
-    "Unavailable"
-  ) : !restaurant?.isOpenNow ? (
-    "Currently Closed"
-  ) : item.variants?.length > 0 ? (
-    <>
-      Customize <ChevronRight size={14} />
-    </>
-  ) : (
-    <>
-      Add to Cart <ShoppingBag size={14} />
-    </>
-  )}
-</button>
+                        onClick={() => handleAddToCartClick(item)}
+                        disabled={
+                          item.countInStock === 0 || !restaurant?.isOpenNow
+                        }
+                        className={`mt-auto w-full font-extrabold py-4 rounded-xl transition-all uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 ${
+                          item.countInStock === 0
+                            ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                            : !restaurant?.isOpenNow
+                              ? "bg-gray-800 text-gray-500 cursor-not-allowed opacity-60"
+                              : "bg-white text-black hover:bg-primary hover:text-white shadow-lg active:scale-[0.98]"
+                        }`}
+                      >
+                        {item.countInStock === 0 ? (
+                          "Unavailable"
+                        ) : !restaurant?.isOpenNow ? (
+                          "Currently Closed"
+                        ) : item.variants?.length > 0 ? (
+                          <>
+                            Customize <ChevronRight size={14} />
+                          </>
+                        ) : (
+                          <>
+                            Add to Cart <ShoppingBag size={14} />
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -345,7 +355,7 @@ const RestaurantMenu = () => {
                   <div className="grid grid-cols-1 gap-3">
                     {selectedItem.addons.map((a) => {
                       const isSel = selectedAddons.some(
-                        (sa) => sa._id === a._id
+                        (sa) => sa._id === a._id,
                       );
                       return (
                         <label
@@ -383,7 +393,7 @@ const RestaurantMenu = () => {
                               setSelectedAddons((prev) =>
                                 isSel
                                   ? prev.filter((sa) => sa._id !== a._id)
-                                  : [...prev, a]
+                                  : [...prev, a],
                               )
                             }
                           />
