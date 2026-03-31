@@ -51,6 +51,33 @@ export const addOrderItems = asyncHandler(async (req, res) => {
   session.startTransaction();
 
   try {
+    const user = await User.findById(req.user._id).session(session);
+
+    // 💳 WALLET SYSTEM (STEP 2): Check and deduct balance
+    let orderIsPaid = false;
+    let orderPaidAt = null;
+
+    if (paymentMethod === "Wallet") {
+      if (user.walletBalance < totalPrice) {
+        throw new Error(
+          `Insufficient Wallet Balance. You only have ₹${user.walletBalance}.`,
+        );
+      }
+
+      // Deduct balance and record transaction
+      user.walletBalance -= totalPrice;
+      user.walletTransactions.push({
+        amount: totalPrice,
+        type: "Debit",
+        description: "Payment for Order",
+        date: Date.now(),
+      });
+      await user.save({ session }); // Save user strictly inside transaction
+
+      orderIsPaid = true;
+      orderPaidAt = Date.now();
+    }
+
     // 1. Loop through items to strictly verify and decrement stock atomically
     for (const item of orderItems) {
       const product = await Product.findById(item.product).session(session);
@@ -90,6 +117,8 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       totalPrice,
       couponCode,
       discountAmount,
+      isPaid: orderIsPaid, // 👈 Set from wallet logic
+      paidAt: orderPaidAt, // 👈 Set from wallet logic
     });
 
     // 3. Save order using the same transaction session
@@ -406,12 +435,8 @@ export const getSalesStats = async (req, res) => {
 };
 
 // ==========================================
-// ❌ CANCEL ORDER & REFUND LOGIC
+// ❌ CANCEL ORDER & WALLET REFUND LOGIC
 // ==========================================
-
-// @desc    Cancel an order, process refund & restore stock
-// @route   PUT /api/v1/orders/:id/cancel
-// @access  Private
 export const cancelOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
 
@@ -425,33 +450,26 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     throw new Error("Order is already cancelled");
   }
 
-  // 1. Process Razorpay Refund if previously paid online
+  // 1. 💳 WALLET REFUND SYSTEM (STEP 2): Refund to Wallet Wallet instead of Payment Gateway
   if (
     order.isPaid === true &&
-    order.paymentMethod === "Online" &&
-    order.paymentResult?.id
+    (order.paymentMethod === "Online" || order.paymentMethod === "Wallet")
   ) {
-    try {
-      const razorpayInstance = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET,
+    const buyer = await User.findById(order.user);
+    if (buyer) {
+      buyer.walletBalance += order.totalPrice;
+      buyer.walletTransactions.push({
+        amount: order.totalPrice,
+        type: "Credit",
+        description: `Refund for Cancelled Order #${order._id}`,
+        date: Date.now(),
       });
+      await buyer.save();
 
-      // Initiate full refund via Razorpay API
-      await razorpayInstance.payments.refund(order.paymentResult.id, {
-        amount: Math.round(order.totalPrice * 100), // convert to paise
-        notes: {
-          reason: "Order Cancelled by User/Admin",
-          orderId: order._id.toString(),
-        },
-      });
-
-      console.log(`✅ Refund processed successfully for order ${order._id}`);
-      order.refundStatus = "Processed"; // Track refund state
-    } catch (error) {
-      console.error("Razorpay Refund Error:", error);
-      res.status(500);
-      throw new Error("Refund failed to process at payment gateway");
+      order.refundStatus = "Processed";
+      console.log(
+        `✅ Wallet Refund Processed: ₹${order.totalPrice} credited to ${buyer.name}`,
+      );
     }
   }
 
@@ -464,12 +482,11 @@ export const cancelOrder = asyncHandler(async (req, res) => {
 
   // 3. Update Order Status
   order.orderStatus = "Cancelled";
-
   const updatedOrder = await order.save();
 
-  // 4. (Optional) Socket notification goes here if configured
+  // 4. Socket notification
   if (req.io) {
-    req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
+    req.io.to(order.user.toString()).emit("orderUpdated", updatedOrder);
   }
 
   res.json(updatedOrder);

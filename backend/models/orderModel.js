@@ -33,11 +33,11 @@ const orderSchema = mongoose.Schema(
         },
         // ⭐ Variants & Add-ons
         selectedVariant: {
-          type: Object, // Stores { name: "Large", price: 500 }
+          type: Object,
           default: null,
         },
         selectedAddons: {
-          type: Array, // Stores [{ name: "Cheese", price: 50 }, ...]
+          type: Array,
           default: [],
         },
       },
@@ -54,15 +54,18 @@ const orderSchema = mongoose.Schema(
       country: { type: String, required: true, default: "India" },
       state: { type: String, required: true },
       phone: { type: String, required: true },
-      // ✅ NEW: For Heatmap + LiveTracking
       lat: { type: Number, default: null },
       lng: { type: Number, default: null },
     },
 
     // =================================================
-    // 💳 4. PAYMENT INFO
+    // 💳 4. PAYMENT INFO (STEP 2: Wallet System Added)
     // =================================================
-    paymentMethod: { type: String, required: true },
+    paymentMethod: {
+      type: String,
+      required: true,
+      enum: ["COD", "Online", "Wallet"], // 👈 WALLET ADDED HERE
+    },
     paymentResult: {
       id: { type: String },
       status: { type: String },
@@ -76,12 +79,8 @@ const orderSchema = mongoose.Schema(
     itemsPrice: { type: Number, required: true, default: 0.0 },
     taxPrice: { type: Number, required: true, default: 0.0 },
     shippingPrice: { type: Number, required: true, default: 0.0 },
-
-    // 👇 Coupon Calculation
     couponCode: { type: String, default: "" },
     couponDiscount: { type: Number, required: true, default: 0.0 },
-
-    // itemsPrice + taxPrice + shippingPrice - couponDiscount
     totalPrice: { type: Number, required: true, default: 0.0 },
 
     // =================================================
@@ -89,8 +88,6 @@ const orderSchema = mongoose.Schema(
     // =================================================
     isPaid: { type: Boolean, required: true, default: false },
     paidAt: { type: Date },
-
-    // 🔄 NEW: Refund tracking for Cancelled Orders (Step 5 Fix)
     refundStatus: {
       type: String,
       enum: ["None", "Pending", "Processed", "Failed"],
@@ -102,7 +99,6 @@ const orderSchema = mongoose.Schema(
     // =================================================
     isDelivered: { type: Boolean, required: true, default: false },
     deliveredAt: { type: Date },
-
     deliveryPartner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -121,7 +117,7 @@ const orderSchema = mongoose.Schema(
       default: "None",
     },
     deliveryOTP: {
-      type: Number, // 4 Digit code
+      type: Number,
     },
 
     // =================================================
