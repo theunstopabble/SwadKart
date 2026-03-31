@@ -5,12 +5,13 @@ import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import mongoSanitize from "express-mongo-sanitize"; // 👈 Naya Import
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
-import cookie from "cookie"; // 👈 YEH IMPORT GAYAB THA, ISEY ADD KAREIN
+import cookie from "cookie";
 
 import connectDB from "./config/db.js";
 
@@ -29,7 +30,7 @@ import couponRoutes from "./routes/couponRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import restaurantRoutes from "./routes/restaurantRoutes.js";
-import biometricRoutes from "./routes/biometricRoutes.js"; // 🔐 NEW IMPORT
+import biometricRoutes from "./routes/biometricRoutes.js";
 
 dotenv.config();
 connectDB(); // 🗄️ Database Connection
@@ -41,17 +42,16 @@ app.set("trust proxy", 1);
 // --- 🌐 Configuration ---
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://localhost:5173", // 🔒 Added for Secure-Context local testing (Biometrics)
+  "https://localhost:5173",
   "https://swadkart.vercel.app",
-  process.env.FRONTEND_URL, // Ab ye Northflank se uthayega
+  process.env.FRONTEND_URL,
   "https://swadkart-5wtf.onrender.com",
 ];
 
-// --- 🔌 Socket.io Setup (Fixed for Vercel & Northflank) ---
+// --- 🔌 Socket.io Setup ---
 const io = new Server(httpServer, {
   cors: {
     origin: (origin, callback) => {
-      // Allow if origin is in list or ends with .vercel.app
       if (
         !origin ||
         allowedOrigins.includes(origin) ||
@@ -80,7 +80,7 @@ app.use((req, res, next) => {
 io.use((socket, next) => {
   try {
     const cookies = cookie.parse(socket.request.headers.cookie || "");
-    const token = cookies.jwt; // HttpOnly cookie token
+    const token = cookies.jwt;
 
     if (!token) {
       console.warn("🚫 Socket Access Denied: No Token");
@@ -88,8 +88,8 @@ io.use((socket, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.user = decoded; // Attach user data to socket
-    next(); // Authenticated! Let them connect.
+    socket.user = decoded;
+    next();
   } catch (error) {
     console.error("🚫 Socket Access Denied: Invalid Token");
     return next(new Error("Authentication error"));
@@ -120,30 +120,16 @@ io.on("connection", (socket) => {
 });
 
 // --- 🛡️ Standard Middleware ---
-app.use(helmet()); // Set security HTTP headers
+app.use(helmet());
 app.use(compression());
-app.use(express.json({ limit: "10kb" })); // Limit body payload
+app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// NoSQL Injection Protection (Express v5 compatible — sanitizes req.body only)
-app.use((req, res, next) => {
-  if (req.body) {
-    const sanitize = (obj) => {
-      for (const key in obj) {
-        if (key.startsWith("$") || key.includes(".")) {
-          delete obj[key];
-        } else if (typeof obj[key] === "object" && obj[key] !== null) {
-          sanitize(obj[key]);
-        }
-      }
-    };
-    sanitize(req.body);
-  }
-  next();
-});
+// 🛡️ SECURITY FIX (CodeQL): Prevent NoSQL Injection automatically
+app.use(mongoSanitize());
 
-// --- 🛡️ 1. Dynamic CORS Fix (Pehle aayega) ---
+// --- 🛡️ 1. Dynamic CORS Fix ---
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -161,10 +147,10 @@ app.use(
   }),
 );
 
-// --- 🚦 2. Rate Limiting (Baad mein aayega) ---
+// --- 🚦 2. Rate Limiting ---
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Limit updated to 500 requests per IP
+  windowMs: 15 * 60 * 1000,
+  max: 500,
   message: "Too many requests from this IP, please try again later",
 });
 app.use("/api", apiLimiter);
@@ -182,7 +168,7 @@ app.use("/api/v1/coupons", couponRoutes);
 app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/restaurants", restaurantRoutes);
-app.use("/api/v1/biometric", biometricRoutes); // 🔐 MOUNTED HERE
+app.use("/api/v1/biometric", biometricRoutes);
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -202,10 +188,9 @@ app.get("/", (req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 
-// --- 🚀 Server Start (Fixed Port) ---
-// Aapne Northflank par 8000 set kiya hai
+// --- 🚀 Server Start ---
 const PORT = process.env.PORT || 8000;
 
 httpServer.listen(PORT, () => {
-  console.log(`🔥 Mainframe firing on Sector ${PORT}`); //
+  console.log(`🔥 Mainframe firing on Sector ${PORT}`);
 });
