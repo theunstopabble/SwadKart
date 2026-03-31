@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 import Product from "../models/productModel.js";
 import Order from "../models/orderModel.js";
+import User from "../models/userModel.js"; // 👈 Import User model to fetch wallet balance
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -12,7 +13,7 @@ const groq = new Groq({
 
 export const chatWithGenie = async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, cartItems } = req.body; // 👈 Include cartItems from request body
     const userId = req.user ? req.user._id : null;
 
     if (!message) {
@@ -22,7 +23,7 @@ export const chatWithGenie = async (req, res) => {
     }
 
     // =================================================
-    // 1️⃣ DATA GATHERING (Context Creation) - [SAME AS BEFORE]
+    // 1️⃣ DATA GATHERING (Context Creation)
     // =================================================
 
     // A. Fetch Live Menu
@@ -50,6 +51,20 @@ export const chatWithGenie = async (req, res) => {
       }
     }
 
+    // C. Fetch Wallet Balance & Format Cart Items (STEP 2)
+    let walletBalance = 0;
+    if (userId) {
+      const user = await User.findById(userId).select("walletBalance");
+      if (user) walletBalance = user.walletBalance || 0;
+    }
+
+    let cartContext = "User cart is currently empty.";
+    if (cartItems && Array.isArray(cartItems) && cartItems.length > 0) {
+      cartContext = cartItems
+        .map((item) => `${item.qty}x ${item.name} (₹${item.price})`)
+        .join(", ");
+    }
+
     // =================================================
     // 2️⃣ BRAIN CONFIGURATION (Groq Llama-3)
     // =================================================
@@ -60,6 +75,8 @@ export const chatWithGenie = async (req, res) => {
         
         🛑 CONTEXT DATA:
         [USER'S LAST ORDER]: ${orderContext}
+        [USER'S WALLET BALANCE]: ₹${walletBalance}
+        [USER'S CURRENT CART]: ${cartContext}
         [LIVE MENU]: 
         ${menuContext}
 
@@ -67,8 +84,9 @@ export const chatWithGenie = async (req, res) => {
         1. **Language:** Hinglish (Hindi + English mix). Use slang like "Boss", "Arre", "Bindaas".
         2. **Order Status:** If asked "Where is my order?", use [USER'S LAST ORDER] info.
         3. **Food Recs:** ONLY recommend items from [LIVE MENU]. Do not invent dishes.
-        4. **Navigation:** Cart? -> "Check Cart 🛍️". Profile? -> "Profile section".
-        5. **Tone:** Short (max 2-3 sentences), helpful, emojis 🍕🍔.
+        4. **Smart Salesperson:** Read [USER'S CURRENT CART] and [USER'S WALLET BALANCE]. Suggest pairings based on the cart (e.g., if they have a Burger, offer Coke). If they have wallet balance, remind them to use their Swad Wallet!
+        5. **Navigation:** Cart? -> "Check Cart 🛍️". Profile? -> "Profile section".
+        6. **Tone:** Short (max 2-3 sentences), helpful, emojis 🍕🍔.
         `;
 
     // 🚀 Call Groq API

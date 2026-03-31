@@ -72,6 +72,9 @@ const userSchema = mongoose.Schema(
     ],
     currentChallenge: { type: String },
     isBiometricEnabled: { type: Boolean, default: false },
+
+    // 🔔 FCM PUSH NOTIFICATIONS
+    fcmToken: { type: String },
   },
   { timestamps: true },
 );

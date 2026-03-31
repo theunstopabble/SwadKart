@@ -5,6 +5,7 @@ import User from "../models/userModel.js"; // 👈 YEH LINE ADD KAREIN
 import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
 import Razorpay from "razorpay";
+import { sendPush } from "../utils/pushNotification.js";
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
 // ==========================================
@@ -242,7 +243,10 @@ export const updateOrderToDelivered = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   const { status } = req.body;
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate(
+      "user",
+      "fcmToken _id",
+    );
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.orderStatus = status;
@@ -309,9 +313,19 @@ export const updateOrderStatus = async (req, res) => {
 
     const updatedOrder = await order.save();
 
+    // 🔔 Notify via Firebase Cloud Messaging
+    if (order.user && order.user.fcmToken) {
+      await sendPush(
+        order.user.fcmToken,
+        "Order Update 📦",
+        `Your order status is now: ${status}`,
+        { orderId: order._id.toString(), status },
+      );
+    }
+
     // 🔔 Notify User & Delivery Partner via Socket.io
     if (req.io) {
-      req.io.to(order.user.toString()).emit("orderUpdated", updatedOrder);
+      req.io.to(order.user._id.toString()).emit("orderUpdated", updatedOrder);
 
       // Tell specifically assigned partner securely
       if (status === "Ready" && updatedOrder.deliveryPartner) {
