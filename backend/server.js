@@ -9,6 +9,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
+import cookie from "cookie"; // 👈 YEH IMPORT GAYAB THA, ISEY ADD KAREIN
 
 import connectDB from "./config/db.js";
 
@@ -31,7 +33,7 @@ connectDB(); // 🗄️ Database Connection
 
 const app = express();
 const httpServer = createServer(app);
-app.set('trust proxy', 1); 
+app.set("trust proxy", 1);
 
 // --- 🌐 Configuration ---
 const allowedOrigins = [
@@ -69,9 +71,33 @@ app.use((req, res, next) => {
   next();
 });
 
+// ==========================================
+// 🛡️ SECURITY FIX (STEP 3): Socket.io Auth Middleware
+// ==========================================
+io.use((socket, next) => {
+  try {
+    const cookies = cookie.parse(socket.request.headers.cookie || "");
+    const token = cookies.jwt; // HttpOnly cookie token
+
+    if (!token) {
+      console.warn("🚫 Socket Access Denied: No Token");
+      return next(new Error("Authentication error"));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded; // Attach user data to socket
+    next(); // Authenticated! Let them connect.
+  } catch (error) {
+    console.error("🚫 Socket Access Denied: Invalid Token");
+    return next(new Error("Authentication error"));
+  }
+});
+
 // 🛰️ Socket.io Logic
 io.on("connection", (socket) => {
-  console.log(`⚡ Signal Established: ${socket.id}`);
+  console.log(
+    `⚡ Secure Signal Established: ${socket.id} (User: ${socket.user.userId})`,
+  );
 
   socket.on("joinOrder", (id) => {
     socket.join(id);
@@ -129,7 +155,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  })
+  }),
 );
 
 // --- 🚦 2. Rate Limiting (Baad mein aayega) ---
@@ -139,8 +165,6 @@ const apiLimiter = rateLimit({
   message: "Too many requests from this IP, please try again later",
 });
 app.use("/api", apiLimiter);
-
-
 
 app.get("/ping", (req, res) => {
   res.status(200).send("Pong");
@@ -159,10 +183,13 @@ app.use("/api/v1/biometric", biometricRoutes); // 🔐 MOUNTED HERE
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-app.use("/uploads", express.static(path.join(__dirname, "/uploads"), {
-  maxAge: "7d",
-  immutable: true,
-}));
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "/uploads"), {
+    maxAge: "7d",
+    immutable: true,
+  }),
+);
 
 app.get("/", (req, res) => {
   res.send("🚀 SwadKart Beast Engine is running...");

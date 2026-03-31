@@ -28,16 +28,19 @@ export const updateUserProfile = async (req, res, next) => {
     if (user) {
       user.name = req.body.name || user.name;
       user.email = req.body.email || user.email;
-      user.phone = req.body.phone || user.phone;
-      if (req.body.password) user.password = req.body.password;
-
+      if (req.body.password) {
+        user.password = req.body.password;
+      }
       const updatedUser = await user.save();
-      const token = generateToken(res, updatedUser._id);
+      generateToken(res, updatedUser._id); // Refreshes HttpOnly cookie
 
       return res.json({
         _id: updatedUser._id,
         name: updatedUser.name,
-        token: token,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        isAdmin: updatedUser.isAdmin,
+        // 🛡️ SECURITY FIX: Token removed from JSON body
       });
     } else {
       res.status(404);
@@ -82,7 +85,9 @@ export const updateBiometricStatus = async (req, res, next) => {
     return res.json({
       success: true,
       isBiometricEnabled: user.isBiometricEnabled,
-      message: isEnabled ? "Biometric Enabled ✅" : "Biometric Disabled & Credentials Cleared 🔒",
+      message: isEnabled
+        ? "Biometric Enabled ✅"
+        : "Biometric Disabled & Credentials Cleared 🔒",
     });
   } catch (error) {
     next(error);
@@ -102,7 +107,8 @@ export const getBiometricStatus = async (req, res, next) => {
     }
 
     // Check if user has registered any biometric credentials
-    const hasCredentials = user.biometricCredentials && user.biometricCredentials.length > 0;
+    const hasCredentials =
+      user.biometricCredentials && user.biometricCredentials.length > 0;
 
     return res.json({
       isBiometricEnabled: user.isBiometricEnabled,
@@ -297,7 +303,7 @@ export const getRestaurantById = async (req, res, next) => {
 export const getDeliveryPartners = async (req, res, next) => {
   try {
     const partners = await User.find({ role: "delivery_partner" }).select(
-      "-password"
+      "-password",
     );
     return res.json(partners);
   } catch (error) {
@@ -366,8 +372,13 @@ export const googleCheck = async (req, res, next) => {
     const user = await User.findOne({ email });
 
     if (user) {
-      const token = generateToken(res, user._id);
-      return res.json({ exists: true, user: { ...user._doc, token } });
+      generateToken(res, user._id); // Sets HttpOnly Cookie
+
+      // 🛡️ SECURITY FIX: Sanitize user object, strictly remove password and omit token
+      const userSafeData = { ...user._doc };
+      delete userSafeData.password;
+
+      return res.json({ exists: true, user: userSafeData });
     } else {
       return res.json({ exists: false });
     }
@@ -383,7 +394,9 @@ export const googleRegister = async (req, res, next) => {
     const phoneExists = await User.findOne({ phone });
     if (phoneExists) {
       res.status(400);
-      throw new Error("Phone number already registered with another account.");
+      throw new Error(
+        "Phone number is already associated with another account",
+      );
     }
 
     const user = await User.create({
@@ -391,16 +404,23 @@ export const googleRegister = async (req, res, next) => {
       email,
       phone,
       image,
-      password:
-        Math.random().toString(36).slice(-8) +
-        Math.random().toString(36).slice(-8),
-      role: "user",
+      password: Date.now().toString(), // Dummy password since Google handles auth
       isVerified: true,
     });
 
     if (user) {
-      const token = generateToken(res, user._id);
-      res.status(201).json({ ...user._doc, token });
+      generateToken(res, user._id); // Sets HttpOnly Cookie
+
+      return res.status(201).json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isVerified: user.isVerified,
+        image: user.image,
+        // 🛡️ SECURITY FIX: Token removed from JSON body
+      });
     }
   } catch (error) {
     next(error);

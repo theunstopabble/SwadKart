@@ -1,11 +1,19 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-import { BASE_URL } from "../config"; // 👈 IMPORT FROM CONFIG (Best Practice)
+import { BASE_URL } from "../config";
+
+// 🛡️ SECURITY FIX: Strip out tokens from old sessions to prevent XSS
+let storedUserInfo = localStorage.getItem("userInfo")
+  ? JSON.parse(localStorage.getItem("userInfo"))
+  : null;
+
+if (storedUserInfo && storedUserInfo.token) {
+  delete storedUserInfo.token;
+  localStorage.setItem("userInfo", JSON.stringify(storedUserInfo));
+}
 
 const initialState = {
-  userInfo: localStorage.getItem("userInfo")
-    ? JSON.parse(localStorage.getItem("userInfo"))
-    : null,
+  userInfo: storedUserInfo,
   loading: false,
   error: null,
   success: false,
@@ -14,24 +22,21 @@ const initialState = {
 // 👇 1. UPDATE PROFILE ACTION
 export const updateUserProfile = createAsyncThunk(
   "user/updateProfile",
-  async (userData, { getState, rejectWithValue }) => {
+  async (userData, { rejectWithValue }) => {
     try {
-      const {
-        user: { userInfo },
-      } = getState();
-
+      // 🛡️ SECURITY FIX: Token Authorization header removed.
+      // Using withCredentials to automatically send HttpOnly cookie.
       const config = {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
         },
+        withCredentials: true,
       };
 
-      // ✅ FIX: Using BASE_URL from config
       const { data } = await axios.put(
         `${BASE_URL}/api/v1/users/profile`,
         userData,
-        config
+        config,
       );
 
       return data;
@@ -39,10 +44,10 @@ export const updateUserProfile = createAsyncThunk(
       return rejectWithValue(
         error.response && error.response.data.message
           ? error.response.data.message
-          : error.message
+          : error.message,
       );
     }
-  }
+  },
 );
 
 const userSlice = createSlice({
@@ -50,14 +55,16 @@ const userSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      state.userInfo = action.payload;
-      localStorage.setItem("userInfo", JSON.stringify(action.payload));
+      // 🛡️ SECURITY FIX: Explicitly ensure token is never saved
+      const userData = { ...action.payload };
+      delete userData.token;
+
+      state.userInfo = userData;
+      localStorage.setItem("userInfo", JSON.stringify(userData));
     },
     logout: (state) => {
       state.userInfo = null;
       localStorage.removeItem("userInfo");
-      // 🔐 Clear biometric flag on logout (Industry Standard)
-      // Credentials remain in database, flag restored on next login
       localStorage.removeItem("isBiometricEnabled");
       state.success = false;
       state.error = null;
@@ -73,8 +80,13 @@ const userSlice = createSlice({
       .addCase(updateUserProfile.fulfilled, (state, action) => {
         state.loading = false;
         state.success = true;
-        state.userInfo = action.payload; // ✅ Update Redux State
-        localStorage.setItem("userInfo", JSON.stringify(action.payload)); // ✅ Update LocalStorage
+
+        // 🛡️ SECURITY FIX: Prevent token from being saved on update
+        const updatedData = { ...action.payload };
+        delete updatedData.token;
+
+        state.userInfo = updatedData;
+        localStorage.setItem("userInfo", JSON.stringify(updatedData));
       })
       .addCase(updateUserProfile.rejected, (state, action) => {
         state.loading = false;

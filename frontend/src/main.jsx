@@ -9,9 +9,13 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast"; // Notifications ke liye
 import { Analytics } from "@vercel/analytics/react";
+import axios from "axios";
 
 // Google Client ID Load
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+// 🛡️ SECURITY FIX: Globally allow HttpOnly cookies cross-origin
+axios.defaults.withCredentials = true;
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -36,6 +40,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         </BrowserRouter>
       </GoogleOAuthProvider>
     </Provider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );
-/* trigger v2 */

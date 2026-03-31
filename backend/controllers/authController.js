@@ -93,7 +93,7 @@ export const registerUser = async (req, res, next) => {
         await User.findByIdAndDelete(user._id);
         res.status(500);
         throw new Error(
-          "Email sending failed. Please check your email address."
+          "Email sending failed. Please check your email address.",
         );
       }
     }
@@ -148,17 +148,19 @@ export const verifyEmailAPI = async (req, res, next) => {
       } catch (emailError) {
         console.error(
           "⚠️ Notification Logic Failed (Silent):",
-          emailError.message
+          emailError.message,
         );
       }
 
-      const token = generateToken(res, user._id);
+      generateToken(res, user._id); // Sets Secure HttpOnly Cookie
+
+      // 🛡️ SECURITY FIX: `token` removed from JSON response
       return res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token,
+        isVerified: user.isVerified,
       });
     } else {
       res.status(400);
@@ -174,12 +176,16 @@ export const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
+
     if (user && (await user.matchPassword(password))) {
       if (!user.isVerified) {
         res.status(401);
         throw new Error("🚫 Email not verified!");
       }
-      const token = generateToken(res, user._id);
+
+      generateToken(res, user._id); // Sets Secure HttpOnly Cookie
+
+      // 🛡️ SECURITY FIX: `token` removed from JSON response
       return res.json({
         _id: user._id,
         name: user.name,
@@ -187,7 +193,7 @@ export const loginUser = async (req, res, next) => {
         phone: user.phone,
         role: user.role,
         image: user.image,
-        token,
+        isVerified: user.isVerified,
       });
     } else {
       res.status(401);
