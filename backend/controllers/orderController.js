@@ -1,10 +1,10 @@
 import Order from "../models/orderModel.js";
 import Product from "../models/productModel.js";
-import Restaurant from "../models/restaurantModel.js"; // 👈 YE LINE ADD KAREIN
+import Restaurant from "../models/restaurantModel.js";
+import User from "../models/userModel.js"; // 👈 YEH LINE ADD KAREIN
 import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
-import Razorpay from "razorpay"; // 👈 YE IMPORT ADD KAREIN
-
+import Razorpay from "razorpay";
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
 // ==========================================
@@ -208,7 +208,7 @@ export const updateOrderToDelivered = async (req, res) => {
 };
 
 // ==========================================
-// 🛠️ 5. UPDATE ORDER STATUS (Generic)
+// 🛠️ 5. UPDATE ORDER STATUS (Generic with Auto-Assign)
 // ==========================================
 export const updateOrderStatus = async (req, res) => {
   const { status } = req.body;
@@ -225,16 +225,72 @@ export const updateOrderStatus = async (req, res) => {
         order.isPaid = true;
         order.paidAt = Date.now();
       }
+
+      // Free up the delivery partner
+      if (order.deliveryPartner) {
+        await User.findByIdAndUpdate(order.deliveryPartner, {
+          isAvailable: true,
+        });
+      }
+    }
+
+    // 🛰️ GEOSPATIAL AI: Auto-Assign Nearest Delivery Partner
+    if (
+      status === "Ready" &&
+      !order.deliveryPartner &&
+      order.orderItems.length > 0
+    ) {
+      const restaurant = await Restaurant.findById(
+        order.orderItems[0].restaurant,
+      );
+
+      if (
+        restaurant &&
+        restaurant.location &&
+        restaurant.location.coordinates
+      ) {
+        // Query nearest partner within 5 KM radius using GeoJSON
+        const nearestPartner = await User.findOne({
+          role: "delivery_partner",
+          isAvailable: true,
+          currentLocation: {
+            $nearSphere: {
+              $geometry: {
+                type: "Point",
+                coordinates: restaurant.location.coordinates, // [longitude, latitude]
+              },
+              $maxDistance: 5000, // 5000 meters = 5 KM
+            },
+          },
+        });
+
+        if (nearestPartner) {
+          order.deliveryPartner = nearestPartner._id;
+          // Mark partner as busy
+          nearestPartner.isAvailable = false;
+          await nearestPartner.save();
+          console.log(
+            `🛵 Auto-Assigned Order to Partner: ${nearestPartner.name}`,
+          );
+        } else {
+          console.log("⚠️ No delivery partner found within 5KM.");
+        }
+      }
     }
 
     const updatedOrder = await order.save();
 
-    // 🔔 Notify User & Delivery Partner
+    // 🔔 Notify User & Delivery Partner via Socket.io
     if (req.io) {
-      req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
+      req.io.to(order.user.toString()).emit("orderUpdated", updatedOrder);
 
-      // If ready, notify delivery partners
-      if (status === "Ready") {
+      // Tell specifically assigned partner securely
+      if (status === "Ready" && updatedOrder.deliveryPartner) {
+        req.io
+          .to(updatedOrder.deliveryPartner.toString())
+          .emit("orderAssigned", updatedOrder);
+      } else if (status === "Ready") {
+        // Fallback: Notify all if no one was assigned via AI
         req.io.emit("newDeliveryTask", updatedOrder);
       }
     }

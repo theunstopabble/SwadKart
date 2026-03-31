@@ -34,8 +34,18 @@ const userSchema = mongoose.Schema(
     resetPasswordToken: String,
     resetPasswordExpire: Date,
 
-    // For Delivery Partners
-    currentLocation: { lat: Number, lng: Number },
+    // 🛰️ GEOSPATIAL AI (STEP 1): Delivery Partner Location in GeoJSON
+    currentLocation: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude] format
+        default: [0, 0],
+      },
+    },
     isAvailable: { type: Boolean, default: true },
 
     // 💳 WALLET SYSTEM
@@ -50,21 +60,17 @@ const userSchema = mongoose.Schema(
     ],
 
     // 🔐 BIOMETRIC AUTHENTICATION (WebAuthn)
-    // Stores registered authenticators (Fingerprint/FaceID)
     biometricCredentials: [
       {
-        credentialID: { type: String, required: true }, // Base64URL ID
-        credentialPublicKey: { type: Buffer, required: true }, // Public Key (Binary)
-        counter: { type: Number, required: true }, // Replay attack protection
-        transports: [String], // e.g., ['internal', 'hybrid']
-        deviceType: { type: String }, // e.g., 'singleDevice' or 'multiDevice'
+        credentialID: { type: String, required: true },
+        credentialPublicKey: { type: Buffer, required: true },
+        counter: { type: Number, required: true },
+        transports: [String],
+        deviceType: { type: String },
         backedUp: { type: Boolean, default: false },
       },
     ],
-    // Stores the temporary challenge during registration/login flow
     currentChallenge: { type: String },
-
-    // 🔒 Biometric Status (Industry Standard - Synced to DB)
     isBiometricEnabled: { type: Boolean, default: false },
   },
   { timestamps: true },
@@ -75,49 +81,32 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// 🔒 PRE-SAVE HOOK (Hashing & Role Sync)
-// ✅ FIXED: Removed 'next' parameter. Modern Mongoose automatically handles async hooks.
+// 🔒 PRE-SAVE HOOK
 userSchema.pre("save", async function () {
   try {
-    // Role to Admin Sync
     if (this.isModified("role")) {
       this.isAdmin = this.role === "admin";
     }
-
-    // Password Hashing
     if (this.isModified("password")) {
       const salt = await bcrypt.genSalt(10);
       this.password = await bcrypt.hash(this.password, salt);
     }
-
-    // Yahan next() call nahi karna hai, async function apne aap complete ho jata hai.
   } catch (error) {
     throw new Error(error);
   }
 });
 
-// 🔔 ADMIN ALERT HOOK (Post-Save)
-// ✅ FIXED: post hooks strictly should not use 'next' with async logic.
+// 🔔 ADMIN ALERT HOOK
 userSchema.post("save", function (doc) {
-  // Check if newly created (createdAt and updatedAt match)
   const isNewUser = doc.createdAt.getTime() === doc.updatedAt.getTime();
-
   if (isNewUser) {
     setTimeout(async () => {
       try {
-        // 🛠️ FIX: Hardcoded email hata diya.
-        // Ab ye sirf Environment Variable (.env) se email uthayega.
         const adminMail = process.env.SMTP_MAIL;
-
-        if (!adminMail) {
-          console.warn("⚠️ Admin Alert Skipped: SMTP_MAIL not set in .env");
-          return; // Email nahi hai to yahi ruk jao (Crash nahi hoga)
-        }
-
-        console.log(`🚀 Dispatching Registration Alert for: ${doc.email}`);
+        if (!adminMail) return;
 
         await sendEmail({
-          email: adminMail, // ✅ Using Secure Variable
+          email: adminMail,
           subject: "🆕 New User Registration Alert - SwadKart",
           html: `
             <div style="font-family: sans-serif; border: 2px solid #ef4444; padding: 25px; border-radius: 15px; background-color: #000; color: #fff; max-width: 600px;">
@@ -131,9 +120,7 @@ userSchema.post("save", function (doc) {
             </div>
           `,
         });
-        console.log("✅ Admin Notified Successfully!");
       } catch (error) {
-        // Silent fail (server crash hone se bachega)
         console.error("❌ Admin Alert Failed:", error.message);
       }
     }, 1000);
@@ -154,6 +141,9 @@ userSchema.methods.getResetPasswordToken = function () {
 // 🚀 PERFORMANCE FIX (STEP 1): Indexing
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ role: 1 });
+
+// 🛰️ GEOSPATIAL FIX (STEP 1): 2dsphere index for location queries
+userSchema.index({ currentLocation: "2dsphere" });
 
 const User = mongoose.model("User", userSchema);
 export default User;
