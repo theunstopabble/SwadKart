@@ -15,6 +15,7 @@ import { toast } from "react-hot-toast";
 // Config & Components
 import { BASE_URL } from "../config";
 import CouponSection from "../components/order/CouponSection";
+import axios from "axios";
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const Cart = () => {
   // --- 3. Calculations ---
   const itemsPrice = cartItems.reduce(
     (acc, item) => acc + item.price * item.qty,
-    0
+    0,
   );
 
   // 5% Tax
@@ -98,51 +99,36 @@ const Cart = () => {
   const applyCouponHandler = async (codeOverride) => {
     const codeToApply = codeOverride || couponCode;
 
-    if (!codeToApply) return toast.error("Enter a coupon code");
-    if (!userInfo) {
-      toast.error("Please login to verify coupon eligibility");
-      return navigate("/login?redirect=/cart");
-    }
+    if (!codeToApply) return toast.error("Please enter a coupon code");
+    if (!userInfo) return toast.error("Please login to apply coupons"); // Security check
 
     setLoading(true);
     try {
+      // ✅ ADDED AUTHORIZATION HEADERS
       const config = {
-        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userInfo.token}`,
         },
-        body: JSON.stringify({
-          code: codeToApply,
-          orderAmount: itemsPrice,
-        }),
       };
 
-      const res = await fetch(`${BASE_URL}/api/v1/coupons/validate`, config);
-      const data = await res.json();
+      const { data } = await axios.post(
+        `${BASE_URL}/api/v1/coupons/validate`,
+        { code: codeToApply, orderAmount: itemsPrice },
+        config,
+      );
 
-      if (res.ok) {
-        setDiscount(data.discountAmount);
-        setAppliedCoupon(codeToApply);
-        setCouponCode(codeToApply);
-
-        localStorage.setItem("couponDiscount", data.discountAmount);
-        localStorage.setItem("appliedCoupon", JSON.stringify(codeToApply));
-
-        toast.success(
-          `Coupon ${codeToApply} Applied! Saved ₹${data.discountAmount}`
-        );
-      } else {
-        // Reset if invalid
-        setDiscount(0);
-        setAppliedCoupon("");
-        localStorage.removeItem("couponDiscount");
-        localStorage.removeItem("appliedCoupon");
-        toast.error(data.message || "Invalid Coupon");
-      }
+      // Apply the discount based on your backend response structure
+      setAppliedCoupon(codeToApply);
+      setDiscount(data.discountAmount || 0); // Ensure your backend returns this payload
+      toast.success(data.message || "Coupon Applied Successfully! 🎉");
     } catch (error) {
-      console.error(error);
-      toast.error("Something went wrong validating coupon");
+      toast.error(
+        error.response && error.response.data.message
+          ? error.response.data.message
+          : "Invalid or Expired Coupon",
+      );
+      removeCouponHandler();
     } finally {
       setLoading(false);
     }
