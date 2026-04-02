@@ -4,12 +4,10 @@ import { toast } from "react-hot-toast";
 import { BASE_URL } from "../config";
 
 const Contact = () => {
-  // ✅ Environment variables for Email & Phone
   const supportEmail =
     import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
   const supportPhone = "+91 98765 43210";
 
-  // 📝 Form State
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -18,12 +16,10 @@ const Contact = () => {
   });
   const [loading, setLoading] = useState(false);
 
-  // 🔄 Handle Input Change
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🚀 Handle Form Submission
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
@@ -45,11 +41,11 @@ const Contact = () => {
 
       if (res.ok) {
         toast.success(data.message || "Message dispatched successfully! 🚀");
-        setFormData({ name: "", subject: "", message: "" }); // Reset form
+        setFormData({ name: "", email: "", subject: "", message: "" });
       } else {
         toast.error(data.message || "Failed to send message ❌");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network Error: Could not reach the server 🌐");
     } finally {
       setLoading(false);
@@ -59,7 +55,6 @@ const Contact = () => {
   return (
     <div className="min-h-screen bg-black text-white pt-24 pb-20 px-6 font-sans">
       <div className="max-w-6xl mx-auto">
-        {/* Header Section */}
         <div className="text-center mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-primary text-[10px] font-black uppercase tracking-[0.3em] mb-6">
             <Headphones size={14} /> 24/7 Live Support
@@ -74,10 +69,8 @@ const Contact = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Quick Contact Cards */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-gray-900 border border-gray-800 p-8 rounded-[2rem] space-y-8 shadow-2xl h-full">
-              {/* Email Section */}
               <div className="flex items-center gap-4 group">
                 <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-primary border border-gray-800 group-hover:border-primary/50 transition-colors">
                   <Mail size={20} />
@@ -95,7 +88,6 @@ const Contact = () => {
                 </div>
               </div>
 
-              {/* Phone Section */}
               <div className="flex items-center gap-4 group">
                 <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-green-500 border border-gray-800 group-hover:border-green-500/50 transition-colors">
                   <Phone size={20} />
@@ -113,7 +105,6 @@ const Contact = () => {
                 </div>
               </div>
 
-              {/* Service Hours */}
               <div className="flex items-center gap-4 group">
                 <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-blue-500 border border-gray-800 group-hover:border-blue-500/50 transition-colors">
                   <Clock size={20} />
@@ -128,7 +119,6 @@ const Contact = () => {
                 </div>
               </div>
 
-              {/* HQ Location */}
               <div className="flex items-center gap-4 group">
                 <div className="h-12 w-12 bg-black/50 rounded-xl flex items-center justify-center text-orange-500 border border-gray-800 group-hover:border-orange-500/50 transition-colors">
                   <MapPin size={20} />
@@ -145,7 +135,6 @@ const Contact = () => {
             </div>
           </div>
 
-          {/* Contact Form Section */}
           <div className="lg:col-span-2 bg-gray-900 border border-gray-800 p-10 md:p-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
 
@@ -188,18 +177,17 @@ const Contact = () => {
               </div>
 
               <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="john@example.com"
-                    className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all"
-                  />
-                </div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleChange}
+                  placeholder="Order Issue"
+                  className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all"
+                />
               </div>
 
               <div className="space-y-2">
