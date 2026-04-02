@@ -46,16 +46,16 @@ const OrderDetails = () => {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/api/v1/orders/${id}`, {
-          headers: { Authorization: `Bearer ${userInfo.token}` },
-        });
+       const res = await fetch(`${BASE_URL}/api/v1/orders/${id}`, {
+         credentials: "include",
+       });
         const data = await res.json();
         if (res.ok) {
           setOrder(data);
         } else {
           toast.error(data.message || "Order not found");
         }
-      } catch (err) {
+     } catch {
         toast.error("Network radar interference");
       } finally {
         setLoading(false);

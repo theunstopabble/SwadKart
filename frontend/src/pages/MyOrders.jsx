@@ -30,15 +30,15 @@ const MyOrders = () => {
       const fetchOrders = async () => {
         try {
           const res = await fetch(`${BASE_URL}/api/v1/orders/myorders`, {
-            headers: { Authorization: `Bearer ${userInfo.token}` },
+            credentials: "include",
           });
           const data = await res.json();
           // Sort by latest first
           setOrders(
-            data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
           );
           setLoading(false);
-        } catch (error) {
+        } catch {
           toast.error("Failed to load orders");
           setLoading(false);
         }
@@ -60,12 +60,12 @@ const MyOrders = () => {
             restaurant: item.restaurant,
             selectedVariant: item.selectedVariant,
             selectedAddons: item.selectedAddons,
-          })
+          }),
         );
       });
       toast.success("Order items added to cart! 🎉");
       navigate("/cart");
-    } catch (err) {
+    } catch {
       toast.error("Failed to re-order");
     }
   };

@@ -509,7 +509,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to cancel this order");
   }
 
-  if (order.status === "Cancelled" || order.orderStatus === "Cancelled") {
+  if (order.orderStatus === "Cancelled") {
     res.status(400);
     throw new Error("Order is already cancelled");
   }

@@ -53,21 +53,17 @@ const Cart = () => {
   // --- 4. Fetch Coupons & Load Saved Coupon ---
   useEffect(() => {
     const fetchCoupons = async () => {
-      try {
-        const headers = {};
-        if (userInfo?.token) {
-          headers.Authorization = `Bearer ${userInfo.token}`;
-        }
-        const res = await fetch(`${BASE_URL}/api/v1/coupons/available`, {
-          headers,
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setAvailableCoupons(data);
-        }
-      } catch (error) {
-        console.error("Error fetching coupons:", error);
-      }
+            try {
+              const res = await fetch(`${BASE_URL}/api/v1/coupons/available`, {
+                credentials: "include",
+              });
+              const data = await res.json();
+              if (res.ok) {
+                setAvailableCoupons(data);
+              }
+            } catch (error) {
+              console.error("Error fetching coupons:", error);
+            }
     };
 
     fetchCoupons();
@@ -76,11 +72,11 @@ const Cart = () => {
     const savedCoupon = localStorage.getItem("appliedCoupon");
     const savedDiscount = localStorage.getItem("couponDiscount");
 
-    if (savedCoupon && savedDiscount) {
-      setAppliedCoupon(JSON.parse(savedCoupon));
-      setCouponCode(JSON.parse(savedCoupon));
-      setDiscount(Number(savedDiscount));
-    }
+        if (savedCoupon && savedDiscount) {
+          setAppliedCoupon(savedCoupon);
+          setCouponCode(savedCoupon);
+          setDiscount(Number(savedDiscount));
+        }
   }, []);
 
   // --- 5. Handlers ---
@@ -117,11 +113,6 @@ const Cart = () => {
         withCredentials: true,
       };
 
-      // ✅ FIX: Sirf tabhi header set karo jab token valid ho
-      if (userInfo?.token) {
-        config.headers.Authorization = `Bearer ${userInfo.token}`;
-      }
-
       const { data } = await axios.post(
         `${BASE_URL}/api/v1/coupons/validate`,
         { code: codeToApply, orderAmount: itemsPrice },
@@ -130,8 +121,11 @@ const Cart = () => {
 
       setAppliedCoupon(codeToApply);
       setDiscount(data.discountAmount || 0);
-      localStorage.setItem("appliedCoupon", JSON.stringify(codeToApply));
-      localStorage.setItem("couponDiscount", data.discountAmount || 0);
+           localStorage.setItem("appliedCoupon", codeToApply);
+           localStorage.setItem(
+             "couponDiscount",
+             String(data.discountAmount || 0),
+           );
       toast.success(data.message || "Coupon Applied Successfully! 🎉");
     } catch (error) {
       // ✅ FIX: Agar session/token expire ho isliye 401 aaye
@@ -215,12 +209,9 @@ const Cart = () => {
 
                 {/* Product Details */}
                 <div className="sm:ml-6 flex-1 text-center sm:text-left">
-                  <Link
-                    to={`/product/${item.product}`}
-                    className="text-lg font-bold italic uppercase text-white hover:text-primary transition-colors"
-                  >
+                  <span className="text-lg font-bold italic uppercase text-white">
                     {item.name}
-                  </Link>
+                  </span>
                   <p className="text-primary font-bold text-lg mt-1">
                     ₹{item.price}
                   </p>

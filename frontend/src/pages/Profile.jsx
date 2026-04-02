@@ -50,16 +50,13 @@ const Profile = () => {
         }
 
         // 2. Fetch biometric status from server (if logged in)
-        if (userInfo?.token) {
-          const config = {
-            headers: { Authorization: `Bearer ${userInfo.token}` },
-          };
+        if (userInfo) {
           const { data } = await axios.get(
             `${BASE_URL}/api/v1/users/profile/biometric-status`,
-            config
+            { withCredentials: true },
           );
           setBioEnabled(data.isBiometricEnabled);
-          
+
           // Also sync to localStorage for app lock
           if (data.isBiometricEnabled && data.hasCredentials) {
             localStorage.setItem("isBiometricEnabled", "true");
@@ -98,8 +95,8 @@ const Profile = () => {
 
     try {
       const config = {
+        withCredentials: true,
         headers: {
-          Authorization: `Bearer ${userInfo.token}`,
           "Content-Type": "application/json",
         },
       };
