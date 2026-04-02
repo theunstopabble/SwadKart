@@ -8,7 +8,7 @@ import {
   deleteCoupon,
   updateCoupon,
 } from "../controllers/couponController.js";
-import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { protect, authorizeRoles, optionalAuth } from "../middleware/authMiddleware.js";
 
 // =================================================================
 // 🛒 USER ROUTES (Apply & Check Availability)
@@ -16,7 +16,7 @@ import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 
 // Get Available Coupons (Cart Page - Smart List)
 // 🔓 Public Route: Taki bina login kiye bhi offers dikh sakein
-router.get("/available", getApplicableCoupons);
+router.get("/available", optionalAuth, getApplicableCoupons);
 
 // Validate Coupon (Checkout Page)
 // 🔒 Protected: Kyunki hum check karte hain ki user ne ise pehle use to nahi kiya

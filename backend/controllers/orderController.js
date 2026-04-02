@@ -2,6 +2,8 @@ import Order from "../models/orderModel.js";
 import Product from "../models/productModel.js";
 import Restaurant from "../models/restaurantModel.js";
 import User from "../models/userModel.js"; // 👈 YEH LINE ADD KAREIN
+import Coupon from "../models/couponModel.js";
+import CouponUsage from "../models/couponUsageModel.js";
 import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
 import Razorpay from "razorpay";
@@ -125,7 +127,24 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     // 3. Save order using the same transaction session
     const createdOrder = await order.save({ session });
 
-    // 4. Commit the transaction if everything is successful
+    // 4. Create CouponUsage record to prevent reuse
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() }).session(session);
+      if (coupon) {
+        // Double check not already used
+        const alreadyUsed = await CouponUsage.findOne({ user: req.user._id, coupon: coupon._id }).session(session);
+        if (alreadyUsed) {
+          throw new Error("Coupon already used by this account");
+        }
+        await CouponUsage.create([{
+          user: req.user._id,
+          coupon: coupon._id,
+          order: createdOrder._id,
+        }], { session });
+      }
+    }
+
+    // 5. Commit the transaction if everything is successful
     await session.commitTransaction();
     session.endSession();
 

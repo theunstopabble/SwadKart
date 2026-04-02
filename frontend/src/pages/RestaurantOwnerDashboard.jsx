@@ -19,7 +19,11 @@ import MenuManagement from "../components/restaurant/MenuManagement";
 import ItemModal from "../components/restaurant/ItemModal";
 
 // Socket Instance
-const socket = io(BASE_URL, { autoConnect: false });
+const socket = io(BASE_URL, {
+  autoConnect: false,
+  transports: ["websocket"],
+  withCredentials: true,
+});
 
 const RestaurantOwnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -63,21 +67,26 @@ const RestaurantOwnerDashboard = () => {
     }
   }, [userInfo, navigate]);
 
-  const getFetchOptions = (method = "GET", body = null) => ({
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${userInfo?.token}`,
-    },
-    body: body ? JSON.stringify(body) : null,
-  });
+  // ✅ Wrap getFetchOptions in useCallback
+  const getFetchOptions = useCallback(
+    (method = "GET", body = null) => ({
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userInfo?.token}`,
+      },
+      body: body ? JSON.stringify(body) : null,
+    }),
+    [userInfo?.token],
+  );
 
-  const fetchData = async () => {
+  // ✅ Wrap fetchData in useCallback to prevent infinite render loops
+  const fetchData = useCallback(async () => {
     if (!userInfo) return;
     try {
       console.log(
         "Fetching from:",
-        `${BASE_URL}/api/v1/orders/restaurant-orders`
+        `${BASE_URL}/api/v1/orders/restaurant-orders`,
       );
       console.log("Token:", userInfo.token);
       // Helper to safely parse JSON
@@ -97,20 +106,23 @@ const RestaurantOwnerDashboard = () => {
         safeJson(
           fetch(
             `${BASE_URL}/api/v1/orders/restaurant-orders`,
-            getFetchOptions()
-          )
+            getFetchOptions(),
+          ),
         ),
         safeJson(
           fetch(
             `${BASE_URL}/api/v1/products/restaurant/${userInfo._id}`,
-            getFetchOptions()
-          )
+            getFetchOptions(),
+          ),
         ),
         safeJson(
-          fetch(`${BASE_URL}/api/v1/users/delivery-partners`, getFetchOptions())
+          fetch(
+            `${BASE_URL}/api/v1/users/delivery-partners`,
+            getFetchOptions(),
+          ),
         ),
         safeJson(
-          fetch(`${BASE_URL}/api/v1/orders/sales-stats`, getFetchOptions())
+          fetch(`${BASE_URL}/api/v1/orders/sales-stats`, getFetchOptions()),
         ),
       ]);
 
@@ -130,16 +142,16 @@ const RestaurantOwnerDashboard = () => {
             weekday: "short",
           }),
           sales: i.sales,
-        }))
+        })),
       );
 
       setStats({
         revenue: safeOrders.reduce(
           (acc, o) => acc + (o.isPaid ? o.totalPrice : 0),
-          0
+          0,
         ),
         pending: safeOrders.filter(
-          (o) => o.orderStatus !== "Delivered" && o.orderStatus !== "Cancelled"
+          (o) => o.orderStatus !== "Delivered" && o.orderStatus !== "Cancelled",
         ).length,
         delivered: safeOrders.filter((o) => o.orderStatus === "Delivered")
           .length,
@@ -150,7 +162,7 @@ const RestaurantOwnerDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userInfo, getFetchOptions]); // ✅ Added dependencies here
 
   // 🔌 Socket Connection Logic
   useEffect(() => {
@@ -184,13 +196,12 @@ const RestaurantOwnerDashboard = () => {
       socket.off("newOrderReceived");
       socket.disconnect();
     };
-  }, [userInfo, isSoundEnabled]);
+  }, [userInfo, isSoundEnabled, fetchData]); // ✅ Added fetchData to the dependency array
 
-  // ✅ Fixed Duplicate Function
   const handleToggleStock = async (id) => {
     const res = await fetch(
       `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
-      getFetchOptions("PATCH")
+      getFetchOptions("PATCH"),
     );
     if (res.ok) {
       fetchData();
@@ -205,7 +216,7 @@ const RestaurantOwnerDashboard = () => {
     try {
       const res = await fetch(
         `${BASE_URL}/api/v1/orders/${orderId}/assign`,
-        getFetchOptions("PUT", { deliveryPartnerId: pId })
+        getFetchOptions("PUT", { deliveryPartnerId: pId }),
       );
 
       if (res.ok) {
@@ -222,7 +233,7 @@ const RestaurantOwnerDashboard = () => {
   const handleStatusUpdate = async (orderId, newStatus) => {
     const res = await fetch(
       `${BASE_URL}/api/v1/orders/${orderId}/status`,
-      getFetchOptions("PUT", { status: newStatus })
+      getFetchOptions("PUT", { status: newStatus }),
     );
     if (res.ok) {
       toast.success(`Order set to ${newStatus}`);
@@ -345,7 +356,7 @@ const RestaurantOwnerDashboard = () => {
                 if (window.confirm("Permanent removal from menu?")) {
                   await fetch(
                     `${BASE_URL}/api/v1/products/${id}`,
-                    getFetchOptions("DELETE")
+                    getFetchOptions("DELETE"),
                   );
                   fetchData();
                   toast.success("Item removed");

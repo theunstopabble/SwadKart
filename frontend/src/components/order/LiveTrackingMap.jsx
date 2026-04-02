@@ -4,7 +4,6 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { io } from "socket.io-client";
 import { BASE_URL } from "../../config";
-import { Truck, MapPin } from "lucide-react";
 
 // 🛵 Custom Driver Icon (SVG string for high quality)
 const driverIcon = new L.Icon({
@@ -30,11 +29,14 @@ function ChangeView({ center }) {
 const LiveTrackingMap = ({ orderId, restaurantCoords, userCoords }) => {
   // Default position agar signal na mile (Jaipur example)
   const [driverPos, setDriverPos] = useState(
-    restaurantCoords || [26.9124, 75.7873]
+    restaurantCoords || [26.9124, 75.7873],
   );
 
   useEffect(() => {
-    const socket = io(BASE_URL);
+    const socket = io(BASE_URL, {
+      transports: ["websocket"],
+      withCredentials: true,
+    });
 
     // Join order room to listen specifically for this order's driver
     socket.emit("joinOrder", orderId);

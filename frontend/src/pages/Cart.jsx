@@ -54,7 +54,13 @@ const Cart = () => {
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/api/v1/coupons/available`);
+        const headers = {};
+        if (userInfo?.token) {
+          headers.Authorization = `Bearer ${userInfo.token}`;
+        }
+        const res = await fetch(`${BASE_URL}/api/v1/coupons/available`, {
+          headers,
+        });
         const data = await res.json();
         if (res.ok) {
           setAvailableCoupons(data);
@@ -100,17 +106,21 @@ const Cart = () => {
     const codeToApply = codeOverride || couponCode;
 
     if (!codeToApply) return toast.error("Please enter a coupon code");
-    if (!userInfo) return toast.error("Please login to apply coupons"); // Security check
+    if (!userInfo) return toast.error("Please login to apply coupons");
 
     setLoading(true);
     try {
-      // ✅ ADDED AUTHORIZATION HEADERS
       const config = {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
         },
+        withCredentials: true,
       };
+
+      // ✅ FIX: Sirf tabhi header set karo jab token valid ho
+      if (userInfo?.token) {
+        config.headers.Authorization = `Bearer ${userInfo.token}`;
+      }
 
       const { data } = await axios.post(
         `${BASE_URL}/api/v1/coupons/validate`,
@@ -118,17 +128,24 @@ const Cart = () => {
         config,
       );
 
-      // Apply the discount based on your backend response structure
       setAppliedCoupon(codeToApply);
-      setDiscount(data.discountAmount || 0); // Ensure your backend returns this payload
+      setDiscount(data.discountAmount || 0);
+      localStorage.setItem("appliedCoupon", JSON.stringify(codeToApply));
+      localStorage.setItem("couponDiscount", data.discountAmount || 0);
       toast.success(data.message || "Coupon Applied Successfully! 🎉");
     } catch (error) {
-      toast.error(
-        error.response && error.response.data.message
-          ? error.response.data.message
-          : "Invalid or Expired Coupon",
-      );
-      removeCouponHandler();
+      // ✅ FIX: Agar session/token expire ho isliye 401 aaye
+      if (error.response?.status === 401) {
+        toast.error("Session expired! Please log out and log in again.");
+      } else {
+        toast.error(
+          error.response?.data?.message || "Invalid or Expired Coupon",
+        );
+      }
+
+      if (error.response?.status !== 401) {
+        removeCouponHandler();
+      }
     } finally {
       setLoading(false);
     }

@@ -19,7 +19,10 @@ import EarningsHistory from "../components/delivery/EarningsHistory";
 import SOSButton from "../components/delivery/SOSButton";
 
 // 🔌 Socket Connection
-const socket = io(BASE_URL);
+const socket = io(BASE_URL, {
+  transports: ["websocket"],
+  withCredentials: true,
+});
 
 const DeliveryPartnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -93,12 +96,12 @@ const DeliveryPartnerDashboard = () => {
             Authorization: `Bearer ${userInfo.token}`,
           },
           body: JSON.stringify({ action }),
-        }
+        },
       );
 
       if (res.ok) {
         toast.success(
-          `Mission ${action === "accept" ? "Locked In" : "Declined"}`
+          `Mission ${action === "accept" ? "Locked In" : "Declined"}`,
         );
         fetchMyDeliveries();
       } else {
