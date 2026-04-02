@@ -36,7 +36,7 @@ const ForgotPassword = () => {
       } else {
         setError(data.message || "❌ Email not found in our records.");
       }
-    } catch (error) {
+    } catch {
       setError("❌ System error. Please try again later.");
     } finally {
       setLoading(false);

@@ -60,7 +60,7 @@ const Shipping = () => {
           state: stateName, // Updated state
         }));
       }
-    } catch (e) {
+    } catch {
       console.error("Geocoding Error");
     }
   };
@@ -71,7 +71,8 @@ const Shipping = () => {
     setIsSearching(true);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&countrycodes=in`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&countrycodes=in`,
+        { headers: { "User-Agent": "SwadKart/1.0" } }
       );
       const data = await res.json();
       if (data && data.length > 0) {
@@ -79,7 +80,7 @@ const Shipping = () => {
         setMapCenter(newPos);
         fetchAddressFromCoords(newPos[0], newPos[1]);
       }
-    } catch (e) {
+    } catch {
       console.error("Search Error");
     } finally {
       setIsSearching(false);
@@ -96,7 +97,7 @@ const Shipping = () => {
         setLoadingLocation(false);
       },
       () => {
-        alert("Permission denied");
+        toast.error("Location permission denied");
         setLoadingLocation(false);
       },
       { enableHighAccuracy: true }

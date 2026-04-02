@@ -33,11 +33,11 @@ const CouponsTab = ({ userInfo }) => {
   const fetchCoupons = async () => {
     try {
       const { data } = await axios.get(`${BASE_URL}/api/v1/coupons`, {
-        headers: { Authorization: `Bearer ${userInfo.token}` },
+        withCredentials: true,
       });
       setCoupons(data);
-    } catch (error) {
-      console.error("Error fetching coupons:", error);
+    } catch {
+      console.error("Error fetching coupons");
     }
   };
 
@@ -60,9 +60,9 @@ const CouponsTab = ({ userInfo }) => {
 
     try {
       const config = {
+        withCredentials: true,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
         },
       };
 
@@ -134,11 +134,11 @@ const CouponsTab = ({ userInfo }) => {
       return;
     try {
       await axios.delete(`${BASE_URL}/api/v1/coupons/${id}`, {
-        headers: { Authorization: `Bearer ${userInfo.token}` },
+        withCredentials: true,
       });
       toast.success("Coupon scrubbed from database");
       fetchCoupons();
-    } catch (error) {
+    } catch {
       toast.error("Scrub protocol failed");
     }
   };
@@ -148,11 +148,127 @@ const CouponsTab = ({ userInfo }) => {
       await axios.put(
         `${BASE_URL}/api/v1/coupons/${coupon._id}`,
         { isActive: !coupon.isActive }, // Sending correct payload for update
-        { headers: { Authorization: `Bearer ${userInfo.token}` } }
+        { withCredentials: true }
       );
       toast.success(coupon.isActive ? "Offer Deactivated 🔴" : "Offer Live 🟢");
       fetchCoupons();
+    } catch {
+      // Silent fail or toast
+    }
+  };
+
+  useEffect(() => {
+    fetchCoupons();
+  }, []);
+
+  const handleCouponSubmit = async (e) => {
+    e.preventDefault();
+
+    if (
+      !newCoupon.code ||
+      !newCoupon.discountPercentage ||
+      !newCoupon.expirationDate
+    ) {
+      return toast.error("Please fill all required fields");
+    }
+
+    setLoading(true);
+
+    try {
+      const config = {
+        withCredentials: true,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      };
+
+      // 🎯 CRITICAL FIX: Payload keys match Backend Schema EXACTLY
+      // Backend expects: discountPercentage, minOrderValue, maxDiscountAmount
+      const payload = {
+        code: newCoupon.code.toUpperCase(),
+        discountPercentage: Number(newCoupon.discountPercentage), // Was sending 'discount'
+        minOrderValue: Number(newCoupon.minOrderValue) || 0, // Was sending 'minOrderAmount'
+        maxDiscountAmount: Number(newCoupon.maxDiscountAmount) || 0, // Was sending 'maxDiscount'
+        expirationDate: newCoupon.expirationDate,
+      };
+
+      if (isEditingCoupon) {
+        await axios.put(
+          `${BASE_URL}/api/v1/coupons/${editCouponId}`,
+          payload,
+          config
+        );
+        toast.success("Identity Updated: Coupon Sync Complete! 🔄");
+      } else {
+        await axios.post(`${BASE_URL}/api/v1/coupons`, payload, config);
+        toast.success("Protocol Active: New Coupon Deployed! 🎫");
+      }
+
+      resetForm();
+      fetchCoupons();
     } catch (error) {
+      // Show exact error from backend
+      const msg = error.response?.data?.message || "Transmission Failed";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setNewCoupon({
+      code: "",
+      discountPercentage: "",
+      minOrderValue: "",
+      maxDiscountAmount: "",
+      expirationDate: "",
+    });
+    setIsEditingCoupon(false);
+    setEditCouponId(null);
+  };
+
+  const handleEditCouponClick = (coupon) => {
+    setIsEditingCoupon(true);
+    setEditCouponId(coupon._id);
+    // Map backend data back to form state
+    setNewCoupon({
+      code: coupon.code,
+      discountPercentage: coupon.discountPercentage,
+      minOrderValue: coupon.minOrderValue,
+      maxDiscountAmount: coupon.maxDiscountAmount,
+      expirationDate: new Date(coupon.expirationDate)
+        .toISOString()
+        .split("T")[0],
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteCoupon = async (id) => {
+    if (
+      !window.confirm("WARNING: Permanent scrub of this promo code. Proceed?")
+    )
+      return;
+    try {
+      await axios.delete(`${BASE_URL}/api/v1/coupons/${id}`, {
+        withCredentials: true,
+      });
+      toast.success("Coupon scrubbed from database");
+      fetchCoupons();
+    } catch {
+      toast.error("Scrub protocol failed");
+    }
+  };
+
+  const toggleCouponStatus = async (coupon) => {
+    try {
+      await axios.put(
+        `${BASE_URL}/api/v1/coupons/${coupon._id}`,
+        { isActive: !coupon.isActive }, // Sending correct payload for update
+        { withCredentials: true }
+      );
+      toast.success(coupon.isActive ? "Offer Deactivated 🔴" : "Offer Live 🟢");
+      fetchCoupons();
+    } catch {
       // Silent fail or toast
     }
   };

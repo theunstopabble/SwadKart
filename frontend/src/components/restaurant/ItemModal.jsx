@@ -51,10 +51,8 @@ const ItemModal = ({
     try {
       const res = await fetch(`${BASE_URL}/api/v1/upload`, {
         method: "POST",
+        credentials: "include",
         body: formData,
-        headers: {
-          Authorization: `Bearer ${userInfo.token}`,
-        },
       });
 
       const data = await res.json();
@@ -65,7 +63,12 @@ const ItemModal = ({
       } else {
         toast.error(data.message || "Upload failed");
       }
-    } catch (error) {
+    } catch {
+      toast.error("Network error during upload");
+    } finally {
+      setUploading(false);
+    }
+    } catch {
       toast.error("Network error during upload");
     } finally {
       setUploading(false);

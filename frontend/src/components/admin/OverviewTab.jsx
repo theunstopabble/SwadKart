@@ -30,7 +30,7 @@ const OverviewTab = () => {
     const fetchAllAdminStats = async () => {
       try {
         const config = {
-          headers: { Authorization: `Bearer ${userInfo.token}` },
+          credentials: "include",
         };
 
         // 1. Fetch Graph Data & Analytics in Parallel for Speed
@@ -59,7 +59,7 @@ const OverviewTab = () => {
             restaurants: statsResult.totalRestaurants || 0,
           });
         }
-      } catch (error) {
+      } catch {
         toast.error("Analytics sync failed");
       } finally {
         setLoading(false);

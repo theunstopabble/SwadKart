@@ -39,12 +39,12 @@ const HeatmapTab = ({ userInfo }) => {
     const fetchHeatmap = async () => {
       try {
         const res = await fetch(`${BASE_URL}/api/v1/orders/heatmap`, {
-          headers: { Authorization: `Bearer ${userInfo.token}` },
+          credentials: "include",
         });
         const data = await res.json();
         setHeatmapData(data);
-      } catch (err) {
-        console.error("Heatmap Error:", err);
+      } catch {
+        console.error("Heatmap Error");
       } finally {
         setLoading(false);
       }

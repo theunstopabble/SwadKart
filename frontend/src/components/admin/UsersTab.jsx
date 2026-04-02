@@ -21,13 +21,13 @@ const UsersTab = ({ userInfo }) => {
   const fetchUsers = async () => {
     try {
       const res = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
-        headers: { Authorization: `Bearer ${userInfo.token}` },
+        credentials: "include",
       });
       const data = await res.json();
       if (res.ok) {
         setUsers(data);
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to sync user database");
     } finally {
       setLoading(false);
@@ -44,9 +44,9 @@ const UsersTab = ({ userInfo }) => {
       // Backend expects: /api/v1/users/admin/user/:id
       const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${userId}`, {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
         },
         body: JSON.stringify({ role: newRole }), // Send new role
       });
@@ -60,7 +60,7 @@ const UsersTab = ({ userInfo }) => {
         const err = await res.json();
         toast.error(err.message || "Protocol Failure: Role update failed");
       }
-    } catch (err) {
+    } catch {
       toast.error("Radar interference while updating role");
     }
   };
@@ -75,7 +75,7 @@ const UsersTab = ({ userInfo }) => {
       // Backend expects: /api/v1/users/admin/user/:id
       const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${userInfo.token}` },
+        credentials: "include",
       });
       if (res.ok) {
         toast.success("Identity scrubbed from database");
@@ -84,15 +84,88 @@ const UsersTab = ({ userInfo }) => {
         const error = await res.json();
         toast.error(error.message || "Scrub failed");
       }
-    } catch (err) {
+    } catch {
       toast.error("System connection error");
     }
   };
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase());
+      u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = filterRole === "all" || u.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
+      const data = await res.json();
+      if (res.ok) {
+        setUsers(data);
+      }
+    } catch {
+      toast.error("Failed to sync user database");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userInfo) fetchUsers();
+  }, [userInfo]);
+
+  // ✅ FIX 1: URL & Method corrected for Role Update
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      // Backend expects: /api/v1/users/admin/user/:id
+      const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${userId}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ role: newRole }), // Send new role
+      });
+
+      if (res.ok) {
+        toast.success(
+          `Identity Protocol: Access level granted to ${newRole.toUpperCase()}! 🛡️`
+        );
+        fetchUsers(); // Refresh list
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Protocol Failure: Role update failed");
+      }
+    } catch {
+      toast.error("Radar interference while updating role");
+    }
+  };
+
+  // ✅ FIX 2: URL corrected for Delete
+  const handleDelete = async (id) => {
+    if (
+      !window.confirm("WARNING: Permanent deletion of this identity. Proceed?")
+    )
+      return;
+    try {
+      // Backend expects: /api/v1/users/admin/user/:id
+      const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        toast.success("Identity scrubbed from database");
+        setUsers(users.filter((u) => u._id !== id));
+      } else {
+        const error = await res.json();
+        toast.error(error.message || "Scrub failed");
+      }
+    } catch {
+      toast.error("System connection error");
+    }
+  };
+
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
+      u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === "all" || u.role === filterRole;
     return matchesSearch && matchesRole;
   });

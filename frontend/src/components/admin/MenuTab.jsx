@@ -31,9 +31,9 @@ const MenuTab = ({ restaurants, userInfo }) => {
 
   const getFetchOptions = (method = "GET", body = null) => ({
     method,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${userInfo?.token}`,
     },
     body: body ? JSON.stringify(body) : null,
   });
@@ -49,7 +49,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
       );
       const data = await res.json();
       setMenuItems(Array.isArray(data) ? data : []);
-    } catch (e) {
+    } catch {
       toast.error("Sync error");
     }
   };

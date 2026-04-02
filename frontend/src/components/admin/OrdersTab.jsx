@@ -26,11 +26,14 @@ const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
   const getFetchOptions = (method = "GET", body = null) => {
     const options = {
       method,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${userInfo?.token}`,
       },
     };
+    if (body) options.body = JSON.stringify(body);
+    return options;
+  };
     if (body) options.body = JSON.stringify(body);
     return options;
   };
@@ -53,7 +56,7 @@ const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
         const error = await res.json();
         toast.error(error.message || "Assignment failed");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network radar lost");
     } finally {
       setIsAssigning(false);

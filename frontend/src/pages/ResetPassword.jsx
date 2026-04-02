@@ -40,7 +40,7 @@ const ResetPassword = () => {
       } else {
         toast.error(data.message || "❌ Invalid or Expired Token");
       }
-    } catch (err) {
+    } catch {
       toast.error("❌ Server Error. Please try again.");
     } finally {
       setLoading(false);

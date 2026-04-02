@@ -20,9 +20,9 @@ const DashboardHeader = ({
     try {
       const res = await fetch(`${BASE_URL}/api/v1/restaurants/settings`, {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo?.token}`,
         },
         body: JSON.stringify({
           openingTime: timings.open,

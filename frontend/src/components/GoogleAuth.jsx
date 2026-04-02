@@ -69,39 +69,7 @@ const GoogleAuth = () => {
         });
         setShowPhoneModal(true);
       }
-    } catch (error) {
-      console.error(error);
-      toast.error("Google Auth Failed");
-    }
-  };
-
-  // 2. Final Registration
-  const handleFinalRegister = async () => {
-    if (phoneNumber.length < 10)
-      return toast.error("Enter valid 10-digit phone number");
-    setLoading(true);
-
-    try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/google-register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...tempGoogleUser,
-          phone: phoneNumber,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        dispatch(setCredentials(data));
-        setShowPhoneModal(false);
-        toast.success("Registration Successful! 🎉");
-        navigate("/");
-      } else {
-        toast.error(data.message || "Registration Failed");
-      }
-    } catch (error) {
+    } catch {
       toast.error("Server Error");
     } finally {
       setLoading(false);
