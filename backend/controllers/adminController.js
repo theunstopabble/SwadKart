@@ -104,56 +104,6 @@ export const getHeatmapData = async (req, res) => {
       "shippingAddress.lng": { $exists: true, $ne: null },
     };
 
-    // 🛡️ PRIVACY FIX: restaurant_owner can only see their own restaurant's orders
-    if (req.user && req.user.role === "restaurant_owner") {
-      const restaurants = await import("../models/restaurantModel.js").then(
-        (m) => m.default.find({ owner: req.user.userId }).select("_id")
-      );
-      const restaurantIds = restaurants.map((r) => r._id.toString());
-      filter["orderItems.restaurant"] = { $in: restaurantIds };
-    }
-
-    const orders = await Order.find(filter).select(
-      "shippingAddress.lat shippingAddress.lng totalPrice"
-    );
-
-    const heatmapData = orders.map((order) => ({
-      lat: order.shippingAddress.lat,
-      lng: order.shippingAddress.lng,
-      weight: Math.min(order.totalPrice / 500, 1),
-    }));
-
-    res.json(heatmapData);
-  } catch (error) {
-    res.status(500).json({ message: "Heatmap data fetch failed." });
-  }
-};
-
-    // 🛡️ PRIVACY FIX: restaurant_owner can only see their own restaurant's orders
-    if (req.user && req.user.role === "restaurant_owner") {
-      const restaurants = await import("../models/restaurantModel.js").then(
-        (m) => m.default.find({ owner: req.user.userId }).select("_id")
-      );
-      const restaurantIds = restaurants.map((r) => r._id.toString());
-      filter["orderItems.restaurant"] = { $in: restaurantIds };
-    }
-
-    const orders = await Order.find(filter).select(
-      "shippingAddress.lat shippingAddress.lng totalPrice"
-    );
-
-    const heatmapData = orders.map((order) => ({
-      lat: order.shippingAddress.lat,
-      lng: order.shippingAddress.lng,
-      weight: Math.min(order.totalPrice / 500, 1),
-    }));
-
-    res.json(heatmapData);
-  } catch (error) {
-    res.status(500).json({ message: "Heatmap data fetch failed." });
-  }
-};
-
 
 // ==========================================
 // 🛡️ 3. USER MANAGEMENT (Admin)
