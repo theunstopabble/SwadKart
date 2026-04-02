@@ -29,7 +29,13 @@ export const updateUserProfile = async (req, res, next) => {
     const user = await User.findById(req.user._id);
     if (user) {
       user.name = req.body.name || user.name;
-      user.email = req.body.email || user.email;
+      user.email = sanitizeEmail(req.body.email) || user.email;
+      if (req.body.phone) {
+        user.phone = sanitizePhone(req.body.phone);
+      }
+      if (req.body.password) {
+        user.password = req.body.password;
+      }
       if (req.body.password) {
         user.password = req.body.password;
       }

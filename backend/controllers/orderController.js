@@ -25,7 +25,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     shippingPrice,
     totalPrice,
     couponCode,
-    discountAmount,
+    couponDiscount,
   } = req.body;
 
   if (orderItems && orderItems.length === 0) {
@@ -131,7 +131,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       shippingPrice,
       totalPrice,
       couponCode,
-      discountAmount,
+      couponDiscount,
       isPaid: orderIsPaid, // 👈 Set from wallet logic
       paidAt: orderPaidAt, // 👈 Set from wallet logic
     });

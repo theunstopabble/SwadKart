@@ -21,9 +21,9 @@ const OrderItemCard = ({ item }) => (
               Size: {item.selectedVariant.name}
             </span>
           )}
-          {item.selectedAddons?.map((a, idx) => (
+          {item.selectedAddons?.map((a) => (
             <span
-              key={idx}
+              key={a._id || a.name}
               className="text-[8px] font-black bg-green-500/10 text-green-400 px-2 py-0.5 rounded uppercase border border-green-500/20 italic tracking-widest"
             >
               + {a.name}

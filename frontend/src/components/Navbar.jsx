@@ -101,7 +101,7 @@ const Navbar = () => {
                 >
                   <User size={18} />
                   <span className="text-sm font-bold truncate max-w-[100px]">
-                    {userInfo.name.split(" ")[0]}
+                    {userInfo.name?.split(" ")[0] || "User"}
                   </span>
                 </Link>
 
@@ -163,7 +163,7 @@ const Navbar = () => {
               <ShoppingCart size={22} className="text-gray-300" />
               {cartItems.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold w-4 h-4 flex items-center justify-center rounded-full">
-                  {cartItems.length}
+                  {cartItems.reduce((acc, item) => acc + item.qty, 0)}
                 </span>
               )}
             </Link>
@@ -239,7 +239,7 @@ const Navbar = () => {
                   className="block px-3 py-3 rounded-md text-base font-medium hover:bg-gray-800 hover:text-primary"
                   onClick={closeMenu}
                 >
-                  Profile ({userInfo.name})
+                  Profile ({userInfo.name || "User"})
                 </Link>
 
                 <button

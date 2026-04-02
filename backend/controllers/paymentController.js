@@ -70,11 +70,27 @@ export const createRazorpayOrder = async (req, res) => {
 };
 
 // @desc    Verify Payment & Execute Business Logic (Step 2)
+// 🛡️ SECURITY FIX: Added HMAC signature verification
 export const verifyPayment = async (req, res) => {
   try {
-    const { razorpay_payment_id, orderId: rawOrderId } = req.body;
-    const orderId = sanitizeObjectId(rawOrderId);
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId: rawOrderId } = req.body;
+    const orderId = sanitizeObjectId(rawOrderId) || razorpay_order_id;
     const instance = getRazorpayInstance();
+
+    // 🛡️ SECURITY FIX: Verify Razorpay signature using HMAC
+    if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
+      const generatedSignature = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest("hex");
+
+      if (generatedSignature !== razorpay_signature) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid payment signature. Possible tampering detected.",
+        });
+      }
+    }
 
     // 1. Verify payment status directly via Razorpay API for security
     const payment = await instance.payments.fetch(razorpay_payment_id);

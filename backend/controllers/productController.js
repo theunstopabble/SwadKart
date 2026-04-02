@@ -250,7 +250,8 @@ export const toggleProductStock = async (req, res) => {
       product.user && product.user.toString() === req.user._id.toString();
 
     if (isAdmin || isOwner) {
-      product.countInStock = product.countInStock > 0 ? 0 : 100;
+      const previousStock = product.countInStock;
+      product.countInStock = previousStock > 0 ? 0 : (product.originalStock || 100);
       const updatedProduct = await product.save();
 
       // Clear cache on stock change

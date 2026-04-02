@@ -9,31 +9,13 @@ import { BASE_URL } from "../config";
 const API_URL = `${BASE_URL}/api/v1/biometric`;
 
 /**
- * 🛠️ HELPER: Get Configured Axios (with Strict Token Check)
- * Ensures we don't send "Bearer null" which crashes the backend.
+ * 🛠️ HELPER: Get Configured Axios (with Cookie-based Auth)
+ * Uses HttpOnly cookies instead of Bearer tokens for security
  */
 const getAxiosConfig = () => {
-  const userInfoStr = localStorage.getItem("userInfo");
-
-  if (!userInfoStr) {
-    throw new Error("User session not found. Please login again.");
-  }
-
-  let token;
-  try {
-    const userInfo = JSON.parse(userInfoStr);
-    token = userInfo.token;
-  } catch (e) {
-    throw new Error("Session corrupted. Please login again.");
-  }
-
-  if (!token) {
-    throw new Error("Authentication token missing. Please login again.");
-  }
-
   return {
+    withCredentials: true,
     headers: {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
   };
@@ -63,7 +45,7 @@ export const registerBiometric = async () => {
       throw new Error("No fingerprint/biometric set up on this device. Please set up fingerprint in device settings first.");
     }
 
-    // 1. Get Challenge from Server (Token check happens here first)
+    // 1. Get Challenge from Server (Cookie-based auth)
     const config = getAxiosConfig();
     console.log("🔐 Step 1: Getting registration options from server...");
     const resp = await axios.get(`${API_URL}/register/start`, config);
@@ -73,7 +55,6 @@ export const registerBiometric = async () => {
     let attResp;
     try {
       console.log("🔐 Step 2: Triggering fingerprint scan...");
-      // v13+ API: pass options as optionsJSON
       attResp = await startRegistration({ optionsJSON: resp.data });
       console.log("🔐 Step 2 SUCCESS: Got attestation response");
     } catch (error) {
@@ -106,7 +87,7 @@ export const registerBiometric = async () => {
     }
   } catch (error) {
     console.error("🔐 Biometric Register Error:", error);
-    throw error; // Re-throw to handle in UI
+    throw error;
   }
 };
 
@@ -119,14 +100,13 @@ export const registerBiometric = async () => {
  */
 export const authenticateBiometric = async () => {
   try {
-    // 1. Get Challenge
+    // 1. Get Challenge (Cookie-based auth)
     const config = getAxiosConfig();
     const resp = await axios.get(`${API_URL}/login/start`, config);
 
     // 2. Trigger Scan
     let asseResp;
     try {
-      // v13+ API: pass options as optionsJSON
       asseResp = await startAuthentication({ optionsJSON: resp.data });
     } catch (error) {
       throw error;

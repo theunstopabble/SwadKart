@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
@@ -17,13 +17,6 @@ import AnalyticsSection from "../components/restaurant/AnalyticsSection";
 import LiveOrders from "../components/restaurant/LiveOrders";
 import MenuManagement from "../components/restaurant/MenuManagement";
 import ItemModal from "../components/restaurant/ItemModal";
-
-// Socket Instance
-const socket = io(BASE_URL, {
-  autoConnect: false,
-  transports: ["websocket"],
-  withCredentials: true,
-});
 
 const RestaurantOwnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -58,6 +51,7 @@ const RestaurantOwnerDashboard = () => {
   });
 
   const audioPlayer = useRef(null);
+  const socketRef = useRef(null);
 
   // 🛡️ Security Check
   useEffect(() => {
@@ -73,11 +67,10 @@ const RestaurantOwnerDashboard = () => {
       method,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${userInfo?.token}`,
       },
       body: body ? JSON.stringify(body) : null,
     }),
-    [userInfo?.token],
+    [],
   );
 
   // ✅ Wrap fetchData in useCallback to prevent infinite render loops
@@ -88,7 +81,6 @@ const RestaurantOwnerDashboard = () => {
         "Fetching from:",
         `${BASE_URL}/api/v1/orders/restaurant-orders`,
       );
-      console.log("Token:", userInfo.token);
       // Helper to safely parse JSON
       const safeJson = async (promise) => {
         try {
@@ -168,7 +160,12 @@ const RestaurantOwnerDashboard = () => {
   useEffect(() => {
     fetchData();
     if (userInfo) {
-      socket.connect();
+      const socket = io(BASE_URL, {
+        autoConnect: true,
+        transports: ["websocket"],
+        withCredentials: true,
+      });
+      socketRef.current = socket;
       socket.emit("joinOrder", userInfo._id);
 
       socket.on("newOrderReceived", (newOrder) => {
@@ -177,25 +174,27 @@ const RestaurantOwnerDashboard = () => {
             .play()
             .catch((e) => console.log("Audio play failed", e));
         }
-        toast.success(`🔔 NEW ORDER! #${newOrder._id.slice(-6)}`, {
-          duration: 6000,
-          icon: "🍕",
-          style: {
-            borderRadius: "12px",
-            background: "#111827",
-            color: "#fff",
-            border: "1px solid #ef4444",
+        toast.success(
+          `🔔 NEW ORDER! #${newOrder._id?.slice(-6) || "Unknown"}`,
+          {
+            duration: 6000,
+            icon: "🍕",
+            style: {
+              borderRadius: "12px",
+              background: "#111827",
+              color: "#fff",
+              border: "1px solid #ef4444",
+            },
           },
-        });
-        fetchData(); // Refresh Data
+        );
+        fetchData();
       });
-    }
 
-    // Cleanup on Unmount
-    return () => {
-      socket.off("newOrderReceived");
-      socket.disconnect();
-    };
+      return () => {
+        socket.off("newOrderReceived");
+        socket.disconnect();
+      };
+    }
   }, [userInfo, isSoundEnabled, fetchData]); // ✅ Added fetchData to the dependency array
 
   const handleToggleStock = async (id) => {
@@ -225,7 +224,7 @@ const RestaurantOwnerDashboard = () => {
       } else {
         toast.error("Assignment failed");
       }
-    } catch (e) {
+    } catch {
       toast.error("Network error");
     }
   };

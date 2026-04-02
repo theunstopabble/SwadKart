@@ -10,6 +10,11 @@ const SOSButton = () => {
   const [loading, setLoading] = useState(false);
 
   const handleSOS = () => {
+    if (!userInfo) {
+      toast.error("Please login to use SOS feature");
+      return;
+    }
+
     setLoading(true);
     if (!navigator.geolocation) {
       toast.error("GPS not supported");
@@ -26,8 +31,8 @@ const SOSButton = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${userInfo.token}`,
             },
+            credentials: "include",
             body: JSON.stringify({
               lat: latitude,
               lng: longitude,
@@ -41,7 +46,7 @@ const SOSButton = () => {
           } else {
             toast.error("SOS Signal Failed");
           }
-        } catch (error) {
+        } catch {
           toast.error("Network Error");
         } finally {
           setLoading(false);

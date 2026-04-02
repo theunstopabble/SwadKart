@@ -144,9 +144,21 @@ io.on("connection", (socket) => {
 // --- 🛡️ Standard Middleware ---
 app.use(helmet());
 app.use(compression());
+app.use(cookieParser());
+
+// ==========================================
+// 🛡️ WEBHOOK FIX: Skip JSON parsing for Razorpay webhook
+// ==========================================
+app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+
+// ==========================================
+// 🛡️ WEBHOOK FIX: Skip JSON parsing for Razorpay webhook
+// ==========================================
+app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true }));
 
 // ==========================================
 // 🛡️ SECURITY FIX: Safe Custom NoSQL Sanitizer
@@ -176,8 +188,19 @@ app.use(safeMongoSanitize);
 // ==========================================
 // 🛡️ SECURITY FIX (CodeQL): Anti-CSRF Middleware
 // ==========================================
+const csrfExemptPaths = [
+  "/api/v1/payment/webhook",
+  "/api/v1/users/contact-support",
+  "/ping",
+];
+
 const csrfProtection = (req, res, next) => {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    return next();
+  }
+
+  // Exempt specific public endpoints from CSRF (webhooks, contact form)
+  if (csrfExemptPaths.some((path) => req.path.startsWith(path))) {
     return next();
   }
 

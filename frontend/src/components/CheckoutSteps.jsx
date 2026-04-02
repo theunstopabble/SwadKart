@@ -11,8 +11,8 @@ const CheckoutSteps = ({ step1, step2, step3, step4 }) => {
 
   return (
     <div className="flex justify-center items-center mb-8 w-full max-w-3xl mx-auto">
-      {steps.map((step, index) => (
-        <div key={index} className="flex items-center w-full">
+      {steps.map((step) => (
+        <div key={step.name} className="flex items-center w-full">
           {/* Step Circle & Link */}
           <div className="relative flex flex-col items-center">
             {step.active ? (

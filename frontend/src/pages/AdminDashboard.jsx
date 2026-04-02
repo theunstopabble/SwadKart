@@ -34,29 +34,26 @@ const AdminDashboard = () => {
 
   // --- FETCH ALL DATA ---
   const fetchAllData = useCallback(async () => {
-    if (!userInfo || !userInfo.token) return;
+    if (!userInfo) return;
 
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${userInfo.token}`,
+    const fetchOptions = {
+      credentials: "include",
     };
 
     try {
-      // 1. Fetch Restaurants
+      // 1. Fetch Restaurants (from restaurants endpoint, not users)
       const resRest = await fetch(
-        `${BASE_URL}/api/v1/users/admin/all?limit=1000`,
-        {
-          headers,
-        },
+        `${BASE_URL}/api/v1/restaurants`,
+        fetchOptions,
       );
       if (resRest.ok) {
         const restResponse = await resRest.json();
-        setRestaurants(restResponse.data || restResponse);
+        setRestaurants(Array.isArray(restResponse) ? restResponse : restResponse.data || []);
       }
 
       // 2. Fetch Orders
       const resOrders = await fetch(`${BASE_URL}/api/v1/orders?limit=1000`, {
-        headers,
+        credentials: "include",
       });
       if (resOrders.ok) {
         const ordersResponse = await resOrders.json();
@@ -66,13 +63,12 @@ const AdminDashboard = () => {
       // 3. Delivery Partners
       const resPartners = await fetch(
         `${BASE_URL}/api/v1/users/delivery-partners`,
-        { headers },
+        { credentials: "include" },
       );
       if (resPartners.ok) setDeliveryPartners(await resPartners.json());
 
       // 4. Coupons
       const resCoupons = await axios.get(`${BASE_URL}/api/v1/coupons`, {
-        headers: { Authorization: `Bearer ${userInfo.token}` },
         withCredentials: true,
       });
       setCoupons(resCoupons.data || []);
@@ -82,9 +78,8 @@ const AdminDashboard = () => {
   }, [userInfo]);
 
   useEffect(() => {
-    // Navigate की ज़रूरत नहीं, Protected Route हैंडल कर रहा है!
     const loadDashboardData = async () => {
-      if (userInfo?.isAdmin || userInfo?.role === "admin") {
+      if (userInfo?.role === "admin") {
         await fetchAllData();
       }
     };
@@ -107,7 +102,7 @@ const AdminDashboard = () => {
           </p>
         </header>
 
-        {/* --- TABS NAVIGATION (Matched with Login Theme) --- */}
+        {/* --- TABS NAVIGATION --- */}
         <div className="flex overflow-x-auto gap-3 mb-10 pb-4 no-scrollbar border-b border-gray-800">
           {[
             { id: "overview", label: "Analytics", icon: LayoutDashboard },

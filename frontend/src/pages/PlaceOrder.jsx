@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { clearCart } from "../redux/cartSlice";
@@ -27,6 +27,17 @@ const PlaceOrder = () => {
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const [countdown, setCountdown] = useState(4);
   const [paymentDetails, setPaymentDetails] = useState({ id: "", date: "" });
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const timerRef = useRef(null);
+  const isMounted = useRef(true);
+
+  // Track mounted state for cleanup
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
   // --- Calculations ---
   const itemsPrice = cart.cartItems.reduce(
@@ -35,9 +46,14 @@ const PlaceOrder = () => {
   );
   const shippingPrice = itemsPrice > 500 ? 0 : 40;
   const taxPrice = Number((0.05 * itemsPrice).toFixed(2));
-  const couponDiscount = Number(localStorage.getItem("couponDiscount")) || 0;
-  const appliedCouponCode =
-    JSON.parse(localStorage.getItem("appliedCoupon")) || "";
+  const couponDiscount = (() => {
+    try { return Number(localStorage.getItem("couponDiscount")) || 0; }
+    catch { return 0; }
+  })();
+  const appliedCouponCode = (() => {
+    try { return localStorage.getItem("appliedCoupon") || ""; }
+    catch { return ""; }
+  })();
 
   // Calculate Total
   const totalPrice = Math.max(
@@ -45,21 +61,32 @@ const PlaceOrder = () => {
   itemsPrice + shippingPrice + taxPrice - couponDiscount
 ).toFixed(2);
 
-  // --- Redirect if missing data ---
+  // --- Redirect if missing data or not logged in ---
   useEffect(() => {
-    if (!cart.shippingAddress.address) {
+    if (!userInfo) {
+      navigate("/login");
+      return;
+    }
+    if (!cart.shippingAddress?.address) {
       navigate("/shipping");
     } else if (!cart.paymentMethod) {
       navigate("/payment");
     }
-  }, [cart, navigate]);
+  }, [userInfo, cart, navigate]);
 
-  // --- Razorpay SDK Loader ---
+  // --- Razorpay SDK Loader (with deduplication) ---
   const loadRazorpay = () => {
     return new Promise((resolve) => {
+      if (window.Razorpay) {
+        setRazorpayLoaded(true);
+        return resolve(true);
+      }
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
+      script.onload = () => {
+        setRazorpayLoaded(true);
+        resolve(true);
+      };
       script.onerror = () => resolve(false);
       document.body.appendChild(script);
     });
@@ -86,13 +113,18 @@ const PlaceOrder = () => {
 
     // Countdown and Redirect
     let timer = 4;
-    const interval = setInterval(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
       timer -= 1;
-      setCountdown(timer);
+      if (isMounted.current) {
+        setCountdown(timer);
+      }
       if (timer === 0) {
-        clearInterval(interval);
-        dispatch(clearCart());
-        navigate(`/order/${dbOrderId}`);
+        clearInterval(timerRef.current);
+        if (isMounted.current) {
+          dispatch(clearCart());
+          navigate(`/order/${dbOrderId}`);
+        }
       }
     }, 1000);
   };
@@ -104,8 +136,8 @@ const PlaceOrder = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           razorpay_payment_id: response.razorpay_payment_id,
           razorpay_order_id: response.razorpay_order_id,
@@ -118,14 +150,22 @@ const PlaceOrder = () => {
         handleOrderSuccess(dbOrderId, response.razorpay_payment_id);
       } else {
         toast.error("Security Alert: Payment verification failed!");
+        if (isMounted.current) setIsProcessing(false);
       }
-    } catch (error) {
+    } catch {
       toast.error("Verification protocol error");
+      if (isMounted.current) setIsProcessing(false);
     }
   };
 
   // --- Main Order Handler ---
   const placeOrderHandler = async () => {
+    if (!userInfo) {
+      toast.error("Please login to place an order");
+      navigate("/login");
+      return;
+    }
+
     try {
       setIsProcessing(true);
 
@@ -150,7 +190,7 @@ const PlaceOrder = () => {
           image: item.image,
           price: Number(item.price),
           product: item.product,
-          restaurant: item.restaurant, // 👈 Must match what we saved in cartSlice
+          restaurant: item.restaurant,
           selectedVariant: item.selectedVariant || null,
           selectedAddons: item.selectedAddons || [],
         };
@@ -168,8 +208,8 @@ const PlaceOrder = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           orderItems: formattedItems,
           shippingAddress: finalShippingAddress,
@@ -177,7 +217,7 @@ const PlaceOrder = () => {
           itemsPrice,
           taxPrice,
           shippingPrice,
-          totalPrice,
+          totalPrice: Number(totalPrice),
           couponCode: appliedCouponCode,
           couponDiscount,
         }),
@@ -199,15 +239,15 @@ const PlaceOrder = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${userInfo.token}`,
             },
-            body: JSON.stringify({ amount: totalPrice }),
+            credentials: "include",
+            body: JSON.stringify({ amount: Number(totalPrice), orderId: dbData._id }),
           }
         );
         const { order: razorpayOrder } = await orderRes.json();
 
         const keyRes = await fetch(`${BASE_URL}/api/v1/payment/key`, {
-          headers: { Authorization: `Bearer ${userInfo.token}` },
+          credentials: "include",
         });
         const { key } = await keyRes.json();
 
@@ -231,7 +271,9 @@ const PlaceOrder = () => {
         setIsProcessing(false);
       }
     } catch (error) {
-      setIsProcessing(false);
+      if (isMounted.current) {
+        setIsProcessing(false);
+      }
       console.error(error);
       toast.error(error.message || "Mission Failed: Order error");
     }
@@ -311,9 +353,9 @@ const PlaceOrder = () => {
             </div>
 
             <div className="space-y-4 max-h-[500px] overflow-y-auto no-scrollbar pr-2">
-              {cart.cartItems.map((item, i) => (
+              {cart.cartItems.map((item) => (
                 <div
-                  key={i}
+                  key={item.cartUniqueId || item._id || item.product}
                   className="bg-black/50 border border-gray-800 rounded-xl p-2"
                 >
                   <OrderItemCard item={item} />

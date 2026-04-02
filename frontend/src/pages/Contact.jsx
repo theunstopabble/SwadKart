@@ -12,6 +12,7 @@ const Contact = () => {
   // 📝 Form State
   const [formData, setFormData] = useState({
     name: "",
+    email: "",
     subject: "",
     message: "",
   });
@@ -26,7 +27,7 @@ const Contact = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.subject || !formData.message) {
+    if (!formData.name || !formData.email || !formData.subject || !formData.message) {
       return toast.error("Please fill all fields! ✍️");
     }
 
@@ -173,14 +174,29 @@ const Contact = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">
-                    Subject
+                    Email Address
                   </label>
                   <input
-                    type="text"
-                    name="subject"
-                    value={formData.subject}
+                    type="email"
+                    name="email"
+                    value={formData.email}
                     onChange={handleChange}
-                    placeholder="Order Issue"
+                    placeholder="john@example.com"
+                    className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="john@example.com"
                     className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-sm font-bold text-white focus:border-primary focus:outline-none transition-all"
                   />
                 </div>

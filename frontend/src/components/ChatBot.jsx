@@ -147,7 +147,7 @@ const ChatBot = () => {
               className="flex-1 bg-black border border-gray-800 text-white rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-gray-600 font-medium shadow-inner"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
             />
             <button
               onClick={handleSend}

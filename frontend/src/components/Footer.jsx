@@ -54,7 +54,8 @@ const Footer = () => {
 
   const handleSubscribe = async (e) => {
     e.preventDefault();
-    if (!email) return toast.error("Please enter your email 📧");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) return toast.error("Please enter a valid email 📧");
 
     setLoading(true);
     try {
