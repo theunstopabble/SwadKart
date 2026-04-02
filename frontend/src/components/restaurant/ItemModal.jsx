@@ -68,11 +68,6 @@ const ItemModal = ({
     } finally {
       setUploading(false);
     }
-    } catch {
-      toast.error("Network error during upload");
-    } finally {
-      setUploading(false);
-    }
   };
 
   // --- Handlers for Dynamic Fields (Variants & Addons) ---
