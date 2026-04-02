@@ -38,24 +38,22 @@ const UsersTab = ({ userInfo }) => {
     if (userInfo) fetchUsers();
   }, [userInfo]);
 
-  // ✅ FIX 1: URL & Method corrected for Role Update
   const handleRoleChange = async (userId, newRole) => {
     try {
-      // Backend expects: /api/v1/users/admin/user/:id
       const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${userId}`, {
         method: "PUT",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ role: newRole }), // Send new role
+        body: JSON.stringify({ role: newRole }),
       });
 
       if (res.ok) {
         toast.success(
           `Identity Protocol: Access level granted to ${newRole.toUpperCase()}! 🛡️`
         );
-        fetchUsers(); // Refresh list
+        fetchUsers();
       } else {
         const err = await res.json();
         toast.error(err.message || "Protocol Failure: Role update failed");
@@ -65,87 +63,12 @@ const UsersTab = ({ userInfo }) => {
     }
   };
 
-  // ✅ FIX 2: URL corrected for Delete
   const handleDelete = async (id) => {
     if (
       !window.confirm("WARNING: Permanent deletion of this identity. Proceed?")
     )
       return;
     try {
-      // Backend expects: /api/v1/users/admin/user/:id
-      const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (res.ok) {
-        toast.success("Identity scrubbed from database");
-        setUsers(users.filter((u) => u._id !== id));
-      } else {
-        const error = await res.json();
-        toast.error(error.message || "Scrub failed");
-      }
-    } catch {
-      toast.error("System connection error");
-    }
-  };
-
-  const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === "all" || u.role === filterRole;
-    return matchesSearch && matchesRole;
-  });
-      const data = await res.json();
-      if (res.ok) {
-        setUsers(data);
-      }
-    } catch {
-      toast.error("Failed to sync user database");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (userInfo) fetchUsers();
-  }, [userInfo]);
-
-  // ✅ FIX 1: URL & Method corrected for Role Update
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      // Backend expects: /api/v1/users/admin/user/:id
-      const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${userId}`, {
-        method: "PUT",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ role: newRole }), // Send new role
-      });
-
-      if (res.ok) {
-        toast.success(
-          `Identity Protocol: Access level granted to ${newRole.toUpperCase()}! 🛡️`
-        );
-        fetchUsers(); // Refresh list
-      } else {
-        const err = await res.json();
-        toast.error(err.message || "Protocol Failure: Role update failed");
-      }
-    } catch {
-      toast.error("Radar interference while updating role");
-    }
-  };
-
-  // ✅ FIX 2: URL corrected for Delete
-  const handleDelete = async (id) => {
-    if (
-      !window.confirm("WARNING: Permanent deletion of this identity. Proceed?")
-    )
-      return;
-    try {
-      // Backend expects: /api/v1/users/admin/user/:id
       const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${id}`, {
         method: "DELETE",
         credentials: "include",
@@ -172,7 +95,6 @@ const UsersTab = ({ userInfo }) => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20">
-      {/* 🛠️ Tactical Filters & Search */}
       <div className="flex flex-col xl:flex-row gap-6 justify-between items-center bg-gray-900/40 p-8 rounded-[3rem] border border-gray-800 shadow-2xl backdrop-blur-sm">
         <div className="relative w-full xl:w-[450px] group">
           <Search
@@ -205,7 +127,6 @@ const UsersTab = ({ userInfo }) => {
         </div>
       </div>
 
-      {/* 👥 Identity Grid Table */}
       <div className="bg-gray-950 border border-gray-900 rounded-[3.5rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -232,7 +153,7 @@ const UsersTab = ({ userInfo }) => {
                     <div className="flex items-center gap-6">
                       <div className="h-16 w-16 bg-gradient-to-br from-gray-900 to-black rounded-[1.5rem] flex items-center justify-center border border-gray-800 group-hover:border-primary/50 transition-all shadow-xl group-hover:rotate-3">
                         <span className="text-2xl font-black text-primary italic uppercase tracking-tighter">
-                          {user.name.charAt(0)}
+                          {user.name?.charAt(0) || "?"}
                         </span>
                       </div>
                       <div className="space-y-1">
