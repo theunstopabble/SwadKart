@@ -34,9 +34,6 @@ const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
     if (body) options.body = JSON.stringify(body);
     return options;
   };
-    if (body) options.body = JSON.stringify(body);
-    return options;
-  };
 
   // Assign Partner Logic
   const handleAssignPartner = async (orderId) => {
