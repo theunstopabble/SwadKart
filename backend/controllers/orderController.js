@@ -60,6 +60,18 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     let orderIsPaid = false;
     let orderPaidAt = null;
 
+    // 0. 🎟️ STRICT COUPON VALIDATION BEFORE ORDER PROCESSING
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() }).session(session);
+      if (!coupon) throw new Error("Invalid Coupon Code");
+      if (!coupon.isActive) throw new Error("Coupon is no longer active");
+      if (new Date() > new Date(coupon.expirationDate)) throw new Error("Coupon has expired");
+      if (itemsPrice < coupon.minOrderValue) throw new Error(`Minimum order for this coupon is ₹${coupon.minOrderValue}`);
+
+      const alreadyUsed = await CouponUsage.findOne({ user: req.user._id, coupon: coupon._id }).session(session);
+      if (alreadyUsed) throw new Error("Coupon already used by this account");
+    }
+
     if (paymentMethod === "Wallet") {
       if (user.walletBalance < totalPrice) {
         throw new Error(
@@ -131,11 +143,6 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     if (couponCode) {
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() }).session(session);
       if (coupon) {
-        // Double check not already used
-        const alreadyUsed = await CouponUsage.findOne({ user: req.user._id, coupon: coupon._id }).session(session);
-        if (alreadyUsed) {
-          throw new Error("Coupon already used by this account");
-        }
         await CouponUsage.create([{
           user: req.user._id,
           coupon: coupon._id,
@@ -544,7 +551,12 @@ export const cancelOrder = asyncHandler(async (req, res) => {
       );
     }
 
-    // 3. Update Order Status
+    // 3. Free up exactly the coupon used in this cancelled order
+    if (order.couponCode) {
+      await CouponUsage.deleteMany({ order: order._id }).session(session);
+    }
+
+    // 4. Update Order Status
     order.orderStatus = "Cancelled";
     order.cancelledAt = Date.now();
     const updatedOrder = await order.save({ session });
