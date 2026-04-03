@@ -65,6 +65,7 @@ const RestaurantOwnerDashboard = () => {
   const getFetchOptions = useCallback(
     (method = "GET", body = null) => ({
       method,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
