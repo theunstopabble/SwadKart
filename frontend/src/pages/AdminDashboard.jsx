@@ -41,9 +41,9 @@ const AdminDashboard = () => {
     };
 
     try {
-      // 1. Fetch Restaurants (from restaurants endpoint, not users)
+      // 1. Fetch Restaurants (Admin needs ALL restaurants, not just verified)
       const resRest = await fetch(
-        `${BASE_URL}/api/v1/restaurants`,
+        `${BASE_URL}/api/v1/restaurants/admin/all`,
         fetchOptions,
       );
       if (resRest.ok) {
