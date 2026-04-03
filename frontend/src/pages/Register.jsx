@@ -78,7 +78,7 @@ const Register = () => {
       } else {
         toast.error(data.message || "Registration Failed");
       }
-    } catch (err) {
+    } catch {
       toast.error("Server Error. Please try again.");
     } finally {
       setIsLoading(false);
@@ -105,7 +105,7 @@ const Register = () => {
       } else {
         toast.error(data.message || "Invalid OTP");
       }
-    } catch (err) {
+    } catch {
       toast.error("Verification failed.");
     } finally {
       setIsLoading(false);
