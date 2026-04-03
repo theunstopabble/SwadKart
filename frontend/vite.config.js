@@ -32,12 +32,21 @@ export default defineConfig(({ mode }) => {
           runtimeCaching: [
             {
               // API Calls: ALWAYS go to the network (No Cache)
-              urlPattern: ({ url }) => url.pathname.startsWith("/api"),
+              urlPattern: ({ request, url }) =>
+                request.destination !== "document" &&
+                (url.pathname.startsWith("/api") || url.hostname.includes("onrender.com")),
               handler: "NetworkOnly",
+              options: {
+                fetchOptions: {
+                  credentials: "include",
+                },
+              },
             },
             {
               // Socket.io: WebSocket must use network
-              urlPattern: ({ url }) => url.pathname.startsWith("/socket.io"),
+              urlPattern: ({ url }) =>
+                url.pathname.startsWith("/socket.io") ||
+                url.hostname.includes("onrender.com"),
               handler: "NetworkOnly",
             },
             {
