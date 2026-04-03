@@ -37,6 +37,7 @@ const Login = () => {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -50,7 +51,7 @@ const Login = () => {
         try {
           const bioRes = await axios.get(
             `${BASE_URL}/api/v1/users/profile/biometric-status`,
-            { headers: { Authorization: `Bearer ${data.token}` } }
+            { withCredentials: true }
           );
 
           // If user has biometric enabled AND has registered credentials

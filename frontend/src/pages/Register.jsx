@@ -94,6 +94,7 @@ const Register = () => {
       const res = await fetch(`${BASE_URL}/api/v1/users/verify-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, otp }),
       });
       const data = await res.json();
