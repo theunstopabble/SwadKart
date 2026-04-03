@@ -41,8 +41,10 @@ const HeatmapTab = ({ userInfo }) => {
         const res = await fetch(`${BASE_URL}/api/v1/orders/heatmap`, {
           credentials: "include",
         });
-        const data = await res.json();
-        setHeatmapData(data);
+        if (res.ok) {
+          const data = await res.json();
+          setHeatmapData(Array.isArray(data) ? data : []);
+        }
       } catch {
         console.error("Heatmap Error");
       } finally {

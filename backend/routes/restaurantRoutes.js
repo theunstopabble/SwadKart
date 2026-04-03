@@ -9,6 +9,7 @@ import {
   updateRestaurantSettings,
   verifyRestaurant,
   createRestaurantReview,
+  getAllRestaurantsAdmin,
 } from "../controllers/restaurantController.js";
 
 // ✅ FIX: 'seller' aur 'admin' hata diya, 'authorizeRoles' use kiya
@@ -26,13 +27,72 @@ router
 router.get("/top", getTopRestaurants); // Top Rated
 
 // =================================================================
-// 🟠 OWNER DASHBOARD ROUTES
+// 🔴 ADMIN ROUTES
 // =================================================================
+
+// Get ALL restaurants (including pending) for admin
 router.get(
-  "/mine",
+  "/admin/all",
   protect,
-  authorizeRoles("restaurant_owner"), // ✅ FIX
-  getOwnerRestaurant
+  authorizeRoles("admin"),
+  getAllRestaurantsAdmin
+);
+
+// Approve/Verify restaurant
+router.put(
+  "/:id/approve",
+  protect,
+  authorizeRoles("admin"),
+  verifyRestaurant
+);
+
+// Update restaurant details (admin)
+router.put(
+  "/:id",
+  protect,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const restaurant = await Restaurant.findById(req.params.id);
+      if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+
+      const { name, image, description, openingTime, closingTime, address, phone } = req.body;
+      if (name) restaurant.name = name;
+      if (image) restaurant.image = image;
+      if (description) restaurant.description = description;
+      if (openingTime) restaurant.openingTime = openingTime;
+      if (closingTime) restaurant.closingTime = closingTime;
+      if (address) restaurant.address = address;
+      if (phone) restaurant.phone = phone;
+
+      const updated = await restaurant.save();
+      res.json({ message: "Restaurant updated", restaurant: updated });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+);
+
+// Delete restaurant (admin)
+router.delete(
+  "/:id",
+  protect,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const restaurant = await Restaurant.findById(req.params.id);
+      if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+
+      // Also delete all products for this restaurant
+      const Product = (await import("../models/productModel.js")).default;
+      await Product.deleteMany({ restaurant: req.params.id });
+
+      await restaurant.deleteOne();
+      res.json({ message: "Restaurant and associated menu items deleted" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
 );
 
 router.put(
@@ -45,11 +105,70 @@ router.put(
 // =================================================================
 // 🔴 ADMIN ROUTES
 // =================================================================
+
+// Get ALL restaurants (including pending) for admin
+router.get(
+  "/admin/all",
+  protect,
+  authorizeRoles("admin"),
+  getAllRestaurantsAdmin
+);
+
+// Approve/Verify restaurant
 router.put(
   "/:id/approve",
   protect,
-  authorizeRoles("admin"), // ✅ FIX: 'admin' middleware ki jagah authorizeRoles use kiya
+  authorizeRoles("admin"),
   verifyRestaurant
+);
+
+// Update restaurant details (admin)
+router.put(
+  "/:id",
+  protect,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const restaurant = await Restaurant.findById(req.params.id);
+      if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+
+      const { name, image, description, openingTime, closingTime, address, phone } = req.body;
+      if (name) restaurant.name = name;
+      if (image) restaurant.image = image;
+      if (description) restaurant.description = description;
+      if (openingTime) restaurant.openingTime = openingTime;
+      if (closingTime) restaurant.closingTime = closingTime;
+      if (address) restaurant.address = address;
+      if (phone) restaurant.phone = phone;
+
+      const updated = await restaurant.save();
+      res.json({ message: "Restaurant updated", restaurant: updated });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+);
+
+// Delete restaurant (admin)
+router.delete(
+  "/:id",
+  protect,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const restaurant = await Restaurant.findById(req.params.id);
+      if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+
+      // Also delete all products for this restaurant
+      const Product = (await import("../models/productModel.js")).default;
+      await Product.deleteMany({ restaurant: req.params.id });
+
+      await restaurant.deleteOne();
+      res.json({ message: "Restaurant and associated menu items deleted" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
 );
 
 // =================================================================

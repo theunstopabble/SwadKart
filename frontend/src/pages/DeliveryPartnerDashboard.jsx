@@ -36,22 +36,23 @@ const DeliveryPartnerDashboard = () => {
 
   // --- Fetch Logic ---
   const fetchMyDeliveries = useCallback(async () => {
-    if (!userInfo || !userInfo.token) return;
+    if (!userInfo) return;
     try {
       const res = await fetch(`${BASE_URL}/api/v1/orders/my-deliveries`, {
-        headers: { Authorization: `Bearer ${userInfo.token}` },
+        credentials: "include",
       });
-      const data = await res.json();
       if (res.ok) {
-        const sortedTasks = (data || []).sort((a, b) => {
+        const data = await res.json();
+        const safeData = Array.isArray(data) ? data : (data.data || []);
+        const sortedTasks = safeData.sort((a, b) => {
           if (a.isDelivered === b.isDelivered) {
-            return new Date(b.createdAt) - new Date(a.createdAt);
+            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
           }
           return a.isDelivered ? 1 : -1;
         });
         setTasks(sortedTasks);
       }
-    } catch (error) {
+    } catch {
       toast.error("Radar Sync Failed: Could not load tasks");
     } finally {
       setLoading(false);

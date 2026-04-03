@@ -3,7 +3,8 @@ import { IndianRupee, TrendingUp, CheckCircle } from "lucide-react";
 
 const EarningsHistory = ({ tasks }) => {
   // Filter only delivered orders
-  const completedTasks = tasks.filter((t) => t.isDelivered);
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const completedTasks = safeTasks.filter((t) => t.isDelivered);
 
   // Calculate total earnings
   const totalEarnings = completedTasks.reduce(
@@ -64,8 +65,9 @@ const EarningsHistory = ({ tasks }) => {
                     #{task._id.slice(-6).toUpperCase()}
                   </p>
                   <p className="text-[10px] text-gray-500 mt-1 uppercase font-bold tracking-tighter">
-                    {new Date(task.deliveredAt).toLocaleDateString()} |{" "}
-                    {new Date(task.deliveredAt).toLocaleTimeString()}
+                    {task.deliveredAt
+                      ? `${new Date(task.deliveredAt).toLocaleDateString()} | ${new Date(task.deliveredAt).toLocaleTimeString()}`
+                      : "N/A"}
                   </p>
                 </div>
                 <div className="text-right">

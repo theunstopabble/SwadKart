@@ -39,12 +39,47 @@ const OverviewTab = () => {
           fetch(`${BASE_URL}/api/v1/orders/analytics`, config),
         ]);
 
-        const graphResult = await resGraph.json();
-        const statsResult = await resStats.json();
+        if (resGraph.ok && resStats.ok) {
+          const graphResult = await resGraph.json();
+          const statsResult = await resStats.json();
+
+          // Format Graph with dynamic sorting if needed
+          const safeGraph = Array.isArray(graphResult) ? graphResult : [];
+          const formatted = safeGraph.map((item) => ({
+            day: new Date(item._id).toLocaleDateString("en-IN", {
+              weekday: "short",
+            }),
+            sales: item.sales,
+          }));
+          setGraphData(formatted);
+
+          // Set Dashboard Totals
+          setStats({
+            revenue: statsResult.totalSales || 0,
+            orders: statsResult.totalOrders || 0,
+            restaurants: statsResult.totalRestaurants || 0,
+          });
+        }
+      } catch {
+        toast.error("Analytics sync failed");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+        // 1. Fetch Graph Data & Analytics in Parallel for Speed
+        const [resGraph, resStats] = await Promise.all([
+          fetch(`${BASE_URL}/api/v1/orders/sales-stats`, config),
+          fetch(`${BASE_URL}/api/v1/orders/analytics`, config),
+        ]);
 
         if (resGraph.ok && resStats.ok) {
+          const graphResult = await resGraph.json();
+          const statsResult = await resStats.json();
+
           // Format Graph with dynamic sorting if needed
-          const formatted = graphResult.map((item) => ({
+          const safeGraph = Array.isArray(graphResult) ? graphResult : [];
+          const formatted = safeGraph.map((item) => ({
             day: new Date(item._id).toLocaleDateString("en-IN", {
               weekday: "short",
             }),

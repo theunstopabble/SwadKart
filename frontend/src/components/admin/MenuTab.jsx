@@ -24,10 +24,9 @@ const MenuTab = ({ restaurants, userInfo }) => {
     addons: [],
   });
 
-  // ✅ FIX 1: Filter wapas laga diya. Ab sirf 'Owners' dikhenge.
-  // Normal users dropdown se hat jayenge.
-  const shopOwners =
-    restaurants?.filter((r) => r.role === "restaurant_owner") || [];
+  // ✅ FIX: restaurants are Restaurant documents (not User docs), no 'role' field
+  // Show all restaurants from admin endpoint
+  const shopOwners = restaurants || [];
 
   const getFetchOptions = (method = "GET", body = null) => ({
     method,

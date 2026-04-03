@@ -23,9 +23,10 @@ const UsersTab = ({ userInfo }) => {
       const res = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
         credentials: "include",
       });
-      const data = await res.json();
+      const response = await res.json();
       if (res.ok) {
-        setUsers(data);
+        // Backend returns { data: [...], metadata: {...} }
+        setUsers(Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []));
       }
     } catch {
       toast.error("Failed to sync user database");

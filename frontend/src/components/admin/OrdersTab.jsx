@@ -105,7 +105,7 @@ const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-900/50">
-            {orders.map((o) => (
+            {orders && orders.length > 0 ? orders.map((o) => (
               <tr
                 key={o._id}
                 className="hover:bg-primary/5 transition-all group"
@@ -126,7 +126,7 @@ const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
                 </td>
                 <td className="p-8">
                   <div className="text-lg font-black text-white italic tracking-tighter">
-                    ₹{o.totalPrice.toLocaleString("en-IN")}
+                    ₹{(o.totalPrice || 0).toLocaleString("en-IN")}
                   </div>
                 </td>
                 <td className="p-8">{getStatusBadge(o)}</td>
