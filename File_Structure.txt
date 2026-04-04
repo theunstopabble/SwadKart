@@ -1,0 +1,154 @@
+Directory structure:
+└── theunstopabble-swadkart-pro/
+    ├── README.md
+    ├── SECURITY.md
+    ├── backend/
+    │   ├── package.json
+    │   ├── server.js
+    │   ├── config/
+    │   │   ├── cloudinary.js
+    │   │   ├── db.js
+    │   │   ├── redis.js
+    │   │   └── webauthnConfig.js
+    │   ├── controllers/
+    │   │   ├── adminController.js
+    │   │   ├── authController.js
+    │   │   ├── biometricController.js
+    │   │   ├── chatController.js
+    │   │   ├── couponController.js
+    │   │   ├── deliveryController.js
+    │   │   ├── orderController.js
+    │   │   ├── paymentController.js
+    │   │   ├── productController.js
+    │   │   ├── restaurantController.js
+    │   │   ├── reviewController.js
+    │   │   ├── supportController.js
+    │   │   └── userController.js
+    │   ├── middleware/
+    │   │   ├── authMiddleware.js
+    │   │   └── errorMiddleware.js
+    │   ├── models/
+    │   │   ├── couponModel.js
+    │   │   ├── couponUsageModel.js
+    │   │   ├── emergencyModel.js
+    │   │   ├── orderModel.js
+    │   │   ├── productModel.js
+    │   │   ├── restaurantModel.js
+    │   │   └── userModel.js
+    │   ├── routes/
+    │   │   ├── biometricRoutes.js
+    │   │   ├── chatRoutes.js
+    │   │   ├── couponRoutes.js
+    │   │   ├── orderRoutes.js
+    │   │   ├── paymentRoutes.js
+    │   │   ├── productRoutes.js
+    │   │   ├── restaurantRoutes.js
+    │   │   ├── uploadRoutes.js
+    │   │   └── userRoutes.js
+    │   ├── utils/
+    │   │   ├── cache.js
+    │   │   ├── emailTemplates.js
+    │   │   ├── generateToken.js
+    │   │   ├── pushNotification.js
+    │   │   ├── sanitize.js
+    │   │   └── sendEmail.js
+    │   └── workers/
+    │       └── emailWorker.js
+    ├── frontend/
+    │   ├── README.md
+    │   ├── eslint.config.js
+    │   ├── index.html
+    │   ├── package.json
+    │   ├── postcss.config.js
+    │   ├── tailwind.config.js
+    │   ├── vercel.json
+    │   ├── vite.config.js
+    │   ├── .npmrc
+    │   ├── public/
+    │   │   ├── hero.webp
+    │   │   └── robots.txt
+    │   └── src/
+    │       ├── App.css
+    │       ├── App.jsx
+    │       ├── config.js
+    │       ├── index.css
+    │       ├── main.jsx
+    │       ├── components/
+    │       │   ├── ChatBot.jsx
+    │       │   ├── CheckoutSteps.jsx
+    │       │   ├── Footer.jsx
+    │       │   ├── GoogleAuth.jsx
+    │       │   ├── InstallPWA.jsx
+    │       │   ├── Navbar.jsx
+    │       │   ├── notificationHelper.js
+    │       │   ├── ProductCard.jsx
+    │       │   ├── Rating.jsx
+    │       │   ├── ReviewModal.jsx
+    │       │   ├── VoiceSearch.jsx
+    │       │   ├── admin/
+    │       │   │   ├── CouponsTab.jsx
+    │       │   │   ├── HeatmapTab.jsx
+    │       │   │   ├── MenuHeader.jsx
+    │       │   │   ├── MenuItemCard.jsx
+    │       │   │   ├── MenuTab.jsx
+    │       │   │   ├── OrdersTab.jsx
+    │       │   │   ├── OverviewTab.jsx
+    │       │   │   ├── ShopsTab.jsx
+    │       │   │   └── UsersTab.jsx
+    │       │   ├── delivery/
+    │       │   │   ├── DeliveryCard.jsx
+    │       │   │   ├── EarningsHistory.jsx
+    │       │   │   ├── OTPSection.jsx
+    │       │   │   └── SOSButton.jsx
+    │       │   ├── order/
+    │       │   │   ├── AddressForm.jsx
+    │       │   │   ├── AddressMap.jsx
+    │       │   │   ├── CartItem.jsx
+    │       │   │   ├── CouponSection.jsx
+    │       │   │   ├── LiveTrackingMap.jsx
+    │       │   │   ├── OrderItemCard.jsx
+    │       │   │   ├── OrderItemList.jsx
+    │       │   │   ├── OrderProgress.jsx
+    │       │   │   ├── OrderSummary.jsx
+    │       │   │   ├── PlaceOrderSection.jsx
+    │       │   │   └── SuccessScreen.jsx
+    │       │   └── restaurant/
+    │       │       ├── AnalyticsSection.jsx
+    │       │       ├── DashboardHeader.jsx
+    │       │       ├── ItemModal.jsx
+    │       │       ├── LiveOrders.jsx
+    │       │       ├── MenuFilters.jsx
+    │       │       ├── MenuHero.jsx
+    │       │       ├── MenuManagement.jsx
+    │       │       ├── RestaurantAnalytics.jsx
+    │       │       └── StatsCards.jsx
+    │       ├── pages/
+    │       │   ├── AdminDashboard.jsx
+    │       │   ├── Cart.jsx
+    │       │   ├── Contact.jsx
+    │       │   ├── DeliveryPartnerDashboard.jsx
+    │       │   ├── ForgotPassword.jsx
+    │       │   ├── Home.jsx
+    │       │   ├── InfoPage.jsx
+    │       │   ├── Login.jsx
+    │       │   ├── MyOrders.jsx
+    │       │   ├── OrderDetails.jsx
+    │       │   ├── Payment.jsx
+    │       │   ├── PlaceOrder.jsx
+    │       │   ├── Profile.jsx
+    │       │   ├── Register.jsx
+    │       │   ├── ResetPassword.jsx
+    │       │   ├── RestaurantMenu.jsx
+    │       │   ├── RestaurantOwnerDashboard.jsx
+    │       │   └── Shipping.jsx
+    │       ├── redux/
+    │       │   ├── cartSlice.js
+    │       │   ├── store.js
+    │       │   └── userSlice.js
+    │       └── utils/
+    │           ├── biometricService.js
+    │           ├── firebaseConfig.js
+    │           ├── imageOptimizer.js
+    │           └── invoiceGenerator.js
+    └── .github/
+        └── dependabot.yml
