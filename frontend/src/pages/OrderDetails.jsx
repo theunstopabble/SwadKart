@@ -67,7 +67,11 @@ const OrderDetails = () => {
       fetchOrder();
       // Dynamic import: Socket.IO loaded only when OrderDetails mounts
       import("socket.io-client").then(({ default: io }) => {
-        socket = io(BASE_URL);
+        socket = io(BASE_URL, {
+          autoConnect: true,
+          transports: ["websocket"],
+          withCredentials: true,
+        });
         socket.emit("joinOrder", id);
         socket.on("orderUpdated", (updatedOrder) => {
           if (updatedOrder._id === id) {

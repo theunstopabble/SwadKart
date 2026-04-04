@@ -101,7 +101,11 @@ function App() {
     let socket = null;
     if (userInfo) {
       import("socket.io-client").then(({ default: io }) => {
-        socket = io(BASE_URL);
+        socket = io(BASE_URL, {
+          autoConnect: true,
+          transports: ["websocket"],
+          withCredentials: true,
+        });
         socket.emit("joinOrder", userInfo._id);
         socket.on("orderUpdated", (order) => {
           import("./components/notificationHelper").then(({ sendNotification }) => {

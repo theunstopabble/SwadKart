@@ -154,13 +154,6 @@ app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // ==========================================
-// 🛡️ WEBHOOK FIX: Skip JSON parsing for Razorpay webhook
-// ==========================================
-app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true }));
-
-// ==========================================
 // 🛡️ SECURITY FIX: Safe Custom NoSQL Sanitizer
 // ==========================================
 const safeMongoSanitize = (req, res, next) => {

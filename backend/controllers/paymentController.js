@@ -139,7 +139,7 @@ export const verifyPayment = async (req, res) => {
         if (restaurantDoc?.owner) {
           req.io
             .to(restaurantDoc.owner.toString())
-            .emit("orderUpdated", updatedOrder);
+            .emit("newOrderReceived", updatedOrder);
           req.io.to(orderId).emit("orderUpdated", updatedOrder);
         }
       }

@@ -72,7 +72,11 @@ const RestaurantMenu = () => {
 
   // 2. Socket Connection
   useEffect(() => {
-    const socket = io(BASE_URL);
+    const socket = io(BASE_URL, {
+      autoConnect: true,
+      transports: ["websocket"],
+      withCredentials: true,
+    });
     socket.on("productUpdated", (updated) => {
       setMenu((prev) =>
         prev.map((it) => (it._id === updated._id ? { ...it, ...updated } : it)),

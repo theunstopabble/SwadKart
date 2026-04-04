@@ -29,7 +29,7 @@ const orderSchema = mongoose.Schema(
         restaurant: {
           type: mongoose.Schema.Types.ObjectId,
           required: true,
-          ref: "User",
+          ref: "Restaurant",
         },
         // ⭐ Variants & Add-ons
         selectedVariant: {

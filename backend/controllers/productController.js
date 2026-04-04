@@ -60,7 +60,7 @@ export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate(
       "restaurant",
-      "name isOpenNow",
+      "name",
     );
     if (product) res.json(product);
     else res.status(404).json({ message: "Product not found" });
@@ -262,7 +262,7 @@ export const toggleProductStock = async (req, res) => {
 
     if (isAdmin || isOwner) {
       const previousStock = product.countInStock;
-      product.countInStock = previousStock > 0 ? 0 : (product.originalStock || 100);
+      product.countInStock = previousStock > 0 ? 0 : 100;
       const updatedProduct = await product.save();
 
       // Clear cache on stock change

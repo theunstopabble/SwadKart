@@ -205,7 +205,9 @@ export const getOrderById = async (req, res) => {
 };
 
 // ==========================================
-// 💳 3. UPDATE ORDER TO PAID
+// 🚚 4. UPDATE ORDER TO DELIVERED (DEPRECATED - use deliveryController.js with OTP)
+// ==========================================
+
 // ==========================================
 export const updateOrderToPaid = async (req, res) => {
   try {
@@ -246,38 +248,8 @@ export const updateOrderToPaid = async (req, res) => {
 };
 
 // ==========================================
-// 🚚 4. UPDATE ORDER TO DELIVERED
+// 🚚 4. UPDATE ORDER TO DELIVERED (DEPRECATED - use deliveryController.js with OTP)
 // ==========================================
-export const updateOrderToDelivered = async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-
-    if (order) {
-      order.isDelivered = true;
-      order.deliveredAt = Date.now();
-      order.orderStatus = "Delivered";
-
-      if (order.paymentMethod === "COD") {
-        order.isPaid = true;
-        order.paidAt = Date.now();
-      }
-
-      const updatedOrder = await order.save();
-
-      if (req.io) {
-        req.io
-          .to(updatedOrder._id.toString())
-          .emit("orderUpdated", updatedOrder);
-      }
-
-      res.json(updatedOrder);
-    } else {
-      res.status(404).json({ message: "Order not found" });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
 
 // ==========================================
 // 🛠️ 5. UPDATE ORDER STATUS (Generic with Auto-Assign)
@@ -472,8 +444,17 @@ export const getOrders = async (req, res) => {
 // ==========================================
 export const getSalesStats = async (req, res) => {
   try {
+    let matchQuery = { isPaid: true, orderStatus: { $ne: "Cancelled" } };
+
+    if (req.user.role === "restaurant_owner") {
+      const restaurantDoc = await Restaurant.findOne({ owner: req.user._id });
+      if (!restaurantDoc)
+        return res.status(404).json({ message: "Restaurant not found." });
+      matchQuery["orderItems.restaurant"] = restaurantDoc._id;
+    }
+
     const stats = await Order.aggregate([
-      { $match: { isPaid: true } },
+      { $match: matchQuery },
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },

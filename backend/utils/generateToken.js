@@ -5,12 +5,15 @@ const generateToken = (res, userId) => {
     expiresIn: "30d",
   });
 
+  const isProduction = process.env.NODE_ENV === "production";
+
   // Set HTTP-Only Cookie
+  // Local: secure=false, sameSite=lax → works on http://localhost
+  // Production: secure=true, sameSite=none → works on HTTPS cross-origin
   res.cookie("jwt", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV !== "development", // Use secure cookies in production (HTTPS)
-    // 🛡️ FIX: Use "none" for cross-origin (Vercel → Render), "strict" for same-origin dev
-    sameSite: process.env.NODE_ENV === "development" ? "strict" : "none",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 Days
   });
 

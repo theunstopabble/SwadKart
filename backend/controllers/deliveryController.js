@@ -59,7 +59,7 @@ export const assignDeliveryPartner = async (req, res) => {
     // OTP logic (Already generated in orderController, but safe to check/refresh here)
     if (!order.deliveryOTP) {
       // 🛡️ SECURITY FIX (BUG-4): Use cryptographically secure OTP
-      order.deliveryOTP = crypto.randomInt(1000, 9999);
+      order.deliveryOTP = crypto.randomInt(1000, 10000);
     }
 
     const updatedOrder = await order.save();

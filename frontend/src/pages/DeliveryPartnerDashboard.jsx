@@ -18,12 +18,6 @@ import DeliveryCard from "../components/delivery/DeliveryCard";
 import EarningsHistory from "../components/delivery/EarningsHistory";
 import SOSButton from "../components/delivery/SOSButton";
 
-// 🔌 Socket Connection
-const socket = io(BASE_URL, {
-  transports: ["websocket"],
-  withCredentials: true,
-});
-
 const DeliveryPartnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
   const navigate = useNavigate();
@@ -64,6 +58,12 @@ const DeliveryPartnerDashboard = () => {
 
     fetchMyDeliveries();
 
+    const socket = io(BASE_URL, {
+      autoConnect: true,
+      transports: ["websocket"],
+      withCredentials: true,
+    });
+
     socket.emit("joinOrder", userInfo._id);
 
     socket.on("orderAssigned", () => {
@@ -82,6 +82,7 @@ const DeliveryPartnerDashboard = () => {
 
     return () => {
       socket.off("orderAssigned");
+      socket.disconnect();
     };
   }, [userInfo, navigate, fetchMyDeliveries]);
 
@@ -94,8 +95,8 @@ const DeliveryPartnerDashboard = () => {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${userInfo.token}`,
           },
+          credentials: "include",
           body: JSON.stringify({ action }),
         },
       );
@@ -124,8 +125,8 @@ const DeliveryPartnerDashboard = () => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo.token}`,
         },
+        credentials: "include",
         body: JSON.stringify({ otp: Number(otp) }),
       });
 

@@ -27,7 +27,11 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 400;
   }
 
-  console.error("❌ BACKEND_ERROR:", err); // यह तुम्हारे VS Code टर्मिनल में असली एरर छापेगा
+  // Suppress auth errors in dev (not actual bugs)
+  const isAuthError = message.includes("Not authorized") || message.includes("no token");
+  if (!isAuthError) {
+    console.error("❌ BACKEND_ERROR:", err);
+  }
 
   res.status(statusCode).json({
     message,

@@ -9,9 +9,14 @@ const CheckoutSteps = ({ step1, step2, step3, step4 }) => {
     { name: "Place Order", active: step4, link: "/placeorder" },
   ];
 
+  const lastActiveIndex = steps.reduce(
+    (last, s, i) => (s.active ? i : last),
+    -1
+  );
+
   return (
     <div className="flex justify-center items-center mb-8 w-full max-w-3xl mx-auto">
-      {steps.map((step) => (
+      {steps.map((step, index) => (
         <div key={step.name} className="flex items-center w-full">
           {/* Step Circle & Link */}
           <div className="relative flex flex-col items-center">
@@ -20,7 +25,7 @@ const CheckoutSteps = ({ step1, step2, step3, step4 }) => {
                 to={step.link}
                 className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center bg-primary text-white font-bold transition-all shadow-lg shadow-primary/30"
               >
-                {index + 1 < steps.filter((s) => s.active).length ? (
+                {index < lastActiveIndex ? (
                   <Check size={18} />
                 ) : (
                   index + 1

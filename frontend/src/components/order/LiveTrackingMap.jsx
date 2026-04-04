@@ -34,6 +34,7 @@ const LiveTrackingMap = ({ orderId, restaurantCoords, userCoords }) => {
 
   useEffect(() => {
     const socket = io(BASE_URL, {
+      autoConnect: true,
       transports: ["websocket"],
       withCredentials: true,
     });

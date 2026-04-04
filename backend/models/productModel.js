@@ -26,7 +26,7 @@ const productSchema = mongoose.Schema(
     // =================================================
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Restaurant",
       required: true,
     },
     user: {

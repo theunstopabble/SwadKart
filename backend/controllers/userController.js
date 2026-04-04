@@ -36,9 +36,6 @@ export const updateUserProfile = async (req, res, next) => {
       if (req.body.password) {
         user.password = req.body.password;
       }
-      if (req.body.password) {
-        user.password = req.body.password;
-      }
       const updatedUser = await user.save();
       generateToken(res, updatedUser._id); // Refreshes HttpOnly cookie
 
@@ -257,7 +254,7 @@ export const createRestaurantByAdmin = async (req, res, next) => {
         owner: user._id,
         image: user.image,
         address: "Default Address, India",
-        isVerified: false,
+        isVerified: true,
         isActive: true,
       });
     }

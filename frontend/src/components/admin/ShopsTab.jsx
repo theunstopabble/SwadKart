@@ -38,7 +38,11 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
 
   // --- 🔌 Socket Listener ---
   useEffect(() => {
-    const socket = io(BASE_URL);
+    const socket = io(BASE_URL, {
+      autoConnect: true,
+      transports: ["websocket"],
+      withCredentials: true,
+    });
     socket.on("shopStatusUpdated", (updatedShop) => {
       console.log("Socket Signal Received: Updating List...");
       if (fetchAllData) fetchAllData();

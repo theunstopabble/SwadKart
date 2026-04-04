@@ -1,6 +1,5 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import basicSsl from "@vitejs/plugin-basic-ssl"; // 👈 HTTPS Support
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
@@ -9,7 +8,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
-      isDev ? basicSsl() : null, // 👈 Only enable HTTPS in Dev
       VitePWA({
         registerType: "autoUpdate",
         includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
@@ -95,11 +93,11 @@ export default defineConfig(({ mode }) => {
     build: {
       chunkSizeWarningLimit: 2000,
     },
-    // 🌐 DEV SERVER: HTTPS ENABLED 🔒 (Only in Dev)
+    // 🌐 DEV SERVER
     server: {
       port: 5173,
       host: isDev, // Listen on all IPs only in dev
-      https: isDev, // Enable HTTPS only in dev
+      https: false, // HTTP for local dev (avoids SSL cert issues with ServiceWorker + cookies)
       proxy: {
         "/api": {
           target: "http://localhost:8000",

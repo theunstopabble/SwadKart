@@ -39,10 +39,8 @@ const checkIsOpen = (openTime, closeTime) => {
 // @route   GET /api/v1/restaurants
 const getRestaurants = async (req, res) => {
   try {
-    // Show only Verified OR Dummy restaurants to public
-    const restaurants = await Restaurant.find({
-      $or: [{ isVerified: true }, { isDummy: true }],
-    }).sort({ createdAt: -1 });
+    // Show all restaurants (no filter - debug mode)
+    const restaurants = await Restaurant.find({}).sort({ createdAt: -1 });
 
     // ✨ Compute 'isOpenNow' dynamically
     const updatedRestaurants = restaurants.map((rest) => {
