@@ -234,7 +234,7 @@ const PlaceOrder = () => {
         );
       } else {
         const orderRes = await fetch(
-          `${BASE_URL}/api/v1/payment/create-order`,
+          `${BASE_URL}/api/v1/payment/create`,
           {
             method: "POST",
             headers: {

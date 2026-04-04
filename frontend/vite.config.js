@@ -103,6 +103,7 @@ export default defineConfig(({ mode }) => {
           target: "http://localhost:8000",
           changeOrigin: true,
           secure: false,
+          cookieDomainRewrite: { "*": "" }, // Rewrite cookie domain to match frontend
         },
         "/socket.io": {
           target: "http://localhost:8000",
