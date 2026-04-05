@@ -26,51 +26,54 @@ const inMemoryClient = {
   connect: async () => {},
 };
 
-// Create Redis client using the URL from .env
-const redisClient = createClient({
-  url: process.env.REDIS_URL,
-  socket: {
-    reconnectStrategy: (retries) => {
-      if (retries > 3) return false; // Stop retrying after 3 attempts
-      return Math.min(retries * 1000, 5000);
+let cacheClient = inMemoryClient;
+
+// Only connect to Redis if URL is provided
+if (process.env.REDIS_URL) {
+  const redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+      reconnectStrategy: (retries) => {
+        if (retries > 3) return false;
+        return Math.min(retries * 1000, 5000);
+      },
+      connectTimeout: 5000,
     },
-    connectTimeout: 5000,
-  },
-});
+  });
 
-// Event listeners for Redis
-redisClient.on("error", (err) => {
-  if (isProduction) {
-    console.error("Redis Client Error", err);
-  } else {
-    // Silent fail in dev — in-memory cache handles it
-  }
-});
-redisClient.on("connect", () => console.log("Redis connected successfully 🔥"));
-
-// Connect to Redis server
-const connectRedis = async () => {
-  try {
-    await redisClient.connect();
-  } catch (error) {
+  redisClient.on("error", (err) => {
     if (isProduction) {
-      console.error("Failed to connect to Redis", error);
-    } else {
-      console.log("⚡ Redis unavailable — using in-memory cache for local dev");
+      console.error("Redis Client Error", err);
     }
+  });
+  redisClient.on("connect", () => console.log("Redis connected successfully 🔥"));
+
+  const connectRedis = async () => {
+    try {
+      await redisClient.connect();
+    } catch (error) {
+      if (isProduction) {
+        console.error("Failed to connect to Redis", error);
+      } else {
+        console.log("⚡ Redis unavailable — using in-memory cache for local dev");
+      }
+    }
+  };
+
+  connectRedis();
+
+  cacheClient = new Proxy(redisClient, {
+    get: (target, prop) => {
+      if (!isProduction && !target.isOpen) {
+        return inMemoryClient[prop];
+      }
+      return target[prop];
+    },
+  });
+} else {
+  if (!isProduction) {
+    console.log("⚡ No REDIS_URL — using in-memory cache for local dev");
   }
-};
-
-connectRedis();
-
-// Export a wrapper that falls back to in-memory if Redis is down
-const cacheClient = new Proxy(redisClient, {
-  get: (target, prop) => {
-    if (!isProduction && !target.isOpen) {
-      return inMemoryClient[prop];
-    }
-    return target[prop];
-  },
-});
+}
 
 export default cacheClient;

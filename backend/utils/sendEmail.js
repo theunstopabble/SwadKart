@@ -1,38 +1,37 @@
-import { Queue } from "bullmq";
-import IORedis from "ioredis";
 import dotenv from "dotenv";
 dotenv.config();
 
 const isProduction = process.env.NODE_ENV === "production";
 
-// Create Redis Connection for the Queue
-const connection = new IORedis(
-  process.env.REDIS_URL || "redis://127.0.0.1:6379",
-  {
-    maxRetriesPerRequest: null,
-    lazyConnect: true,
-    retryStrategy: (times) => {
-      if (times > 3) return null; // Stop retrying
-      return Math.min(times * 1000, 5000);
-    },
-  },
-);
-
-// Initialize the Queue
-const emailQueue = new Queue("emailQueue", { connection });
-
 // @desc    Add Email to BullMQ Queue (Non-Blocking)
+// If Redis is not available, skip queueing in dev
 const sendEmail = async (options) => {
   try {
     if (!isProduction) {
-      // In dev, just log — don't wait for Redis
-      emailQueue.add("sendEmailJob", options, {
-        attempts: 1,
-        removeOnComplete: true,
-      }).catch(() => {}); // Silently fail if Redis is down
+      // In dev, just log — skip Redis entirely
+      console.log(`📧 [DEV] Email would be sent to: ${options.email}`);
       return;
     }
 
+    // Production: Use BullMQ
+    const { Queue } = await import("bullmq");
+    const IORedis = (await import("ioredis")).default;
+
+    if (!process.env.REDIS_URL) {
+      console.error("❌ REDIS_URL not set in production. Email queue disabled.");
+      return;
+    }
+
+    const connection = new IORedis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      lazyConnect: true,
+      retryStrategy: (times) => {
+        if (times > 3) return null;
+        return Math.min(times * 1000, 5000);
+      },
+    });
+
+    const emailQueue = new Queue("emailQueue", { connection });
     const job = await emailQueue.add("sendEmailJob", options, {
       attempts: 3,
       backoff: { type: "exponential", delay: 5000 },
