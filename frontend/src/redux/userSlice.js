@@ -19,7 +19,24 @@ const initialState = {
   success: false,
 };
 
-// 👇 1. UPDATE PROFILE ACTION
+// 👇 1. VALIDATE SESSION (Check if JWT cookie is still valid)
+export const validateSession = createAsyncThunk(
+  "user/validateSession",
+  async (_, { rejectWithValue }) => {
+    try {
+      const config = { withCredentials: true };
+      const { data } = await axios.get(
+        `${BASE_URL}/api/v1/users/profile`,
+        config,
+      );
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.status || 500);
+    }
+  },
+);
+
+// 👇 2. UPDATE PROFILE ACTION
 export const updateUserProfile = createAsyncThunk(
   "user/updateProfile",
   async (userData, { rejectWithValue }) => {
@@ -73,6 +90,20 @@ const userSlice = createSlice({
   // 👇 2. EXTRA REDUCERS
   extraReducers: (builder) => {
     builder
+      .addCase(validateSession.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(validateSession.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userInfo = action.payload;
+        localStorage.setItem("userInfo", JSON.stringify(action.payload));
+      })
+      .addCase(validateSession.rejected, (state) => {
+        state.loading = false;
+        state.userInfo = null;
+        localStorage.removeItem("userInfo");
+        localStorage.removeItem("isBiometricEnabled");
+      })
       .addCase(updateUserProfile.pending, (state) => {
         state.loading = true;
         state.error = null;

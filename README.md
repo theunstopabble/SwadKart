@@ -113,13 +113,15 @@ Follow these steps to set up SwadKart locally.
 git clone https://github.com/theunstopabble/SwadKart-pro.git
 
 ```
-2. Backend Setup
+### 2. Backend Setup
+
 Navigate to the backend folder and install dependencies:
 ```bash
 cd backend
 npm install
 ```
-Create a .env file in /backend and add the following:
+
+Create a `.env` file in `/backend` and add the following:
 ```env
 PORT=8000
 MONGO_URI=your_mongodb_connection_string
@@ -140,20 +142,39 @@ FRONTEND_URL=http://localhost:5173
 # Biometric Config (CRITICAL)
 RP_ID=localhost                     # Or your Vercel Domain (e.g., swadkart.vercel.app)
 RP_NAME=SwadKart
+
+# Redis (Optional - falls back to in-memory if omitted)
+REDIS_URL=your_upstash_or_redis_url
+
+# Payment Gateway
+STRIPE_SECRET_KEY=your_stripe_secret
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_secret
+
+# Cloudinary (for image uploads)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 Start the backend server:
 ```bash
 node server.js
 ```
-3. Frontend Setup
+
+### 3. Frontend Setup
+
 Open a new terminal, navigate to frontend, and install dependencies:
 ```bash
 cd frontend
 npm install
 ```
-Create a .env file in /frontend:
+Create a `.env` file in `/frontend`:
 ```env
-VITE_API_URL=http://localhost:5000
+# Leave empty for local dev (Vite proxy handles routing)
+# Set to your Vercel URL for production builds
+VITE_API_URL=
+
+# Firebase Config (for Google Auth)
 VITE_FIREBASE_API_KEY=your_firebase_key
 VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your_project_id
@@ -180,11 +201,21 @@ SwadKart-pro/
     │   ├── redux/      # Global State (Cart, User Slice)
     │   └── utils/      # Helpers
 ```
-### 🛡️ Security & Performance###
-Rate Limiting: Protects API endpoints from abuse.
-Data Sanitization: Prevents NoSQL injection.
-Secure OTP: Delivery verification uses crypto-generated 4-digit codes.
-Lazy Loading: React components load only when needed for faster performance.
+### 🛡️ Security & Performance
+
+* **Session Validation:** Auto-detects expired/missing JWT cookies on app load and gracefully redirects to login
+* **Rate Limiting:** Protects API endpoints from abuse
+* **Data Sanitization:** Prevents NoSQL injection
+* **Secure OTP:** Delivery verification uses crypto-generated 4-digit codes
+* **Lazy Loading:** React components load only when needed for faster performance
+* **Redis Fallback:** Gracefully falls back to in-memory cache if Redis is unavailable (ideal for local dev)
+
+### 🚀 Production Deployment
+
+* **Frontend:** Deployed on Vercel (`frontend/` directory)
+* **Backend:** Deployed on Render
+* **API Proxy:** `frontend/vercel.json` rewrites `/api/*` requests to the Render backend, ensuring cookies are treated as same-origin
+* **Cookie Config:** Production uses `secure: true` + `sameSite: "none"` for cross-origin HTTPS; local uses `secure: false` + `sameSite: "lax"`
 
 ---
 

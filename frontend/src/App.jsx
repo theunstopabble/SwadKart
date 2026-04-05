@@ -44,7 +44,7 @@ const PageLoader = () => (
 
 // Helpers & Services (lazy-loaded for initial bundle reduction)
 import { BASE_URL } from "./config";
-import { logout } from "./redux/userSlice";
+import { logout, validateSession } from "./redux/userSlice";
 
 // ✨ ScrollToTop Helper
 const ScrollToTop = () => {
@@ -63,6 +63,13 @@ function App() {
   const [isLocked, setIsLocked] = useState(false);
   const [unlockAttempts, setUnlockAttempts] = useState(0);
   const MAX_ATTEMPTS = 3;
+
+  // 🔄 Validate session on app load (catches zombie localStorage state)
+  useEffect(() => {
+    if (userInfo) {
+      dispatch(validateSession());
+    }
+  }, []);
 
   // 🔍 Check device capability and lock status on mount
   useEffect(() => {
