@@ -48,7 +48,6 @@ router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
 router.post("/contact-support", contactSupport);
 
-
 // Google Authentication
 router.post("/google-check", googleCheck);
 router.post("/google-register", googleRegister);
@@ -68,7 +67,7 @@ router.get(
   "/delivery-partners",
   protect,
   authorizeRoles("admin", "restaurant_owner"),
-  getDeliveryPartners
+  getDeliveryPartners,
 );
 
 // User Profile (Self Access)
@@ -93,7 +92,7 @@ router.get(
   "/admin/all",
   protect,
   authorizeRoles("admin"),
-  getUsers // 👈 Ab ye function call hoga
+  getUsers, // 👈 Ab ye function call hoga
 );
 
 // Shop Management
@@ -101,14 +100,14 @@ router.post(
   "/admin/create-shop",
   protect,
   authorizeRoles("admin"),
-  createRestaurantByAdmin
+  createRestaurantByAdmin,
 );
 
 router.post(
   "/admin/create-dummy",
   protect,
   authorizeRoles("admin"),
-  createDummyRestaurant
+  createDummyRestaurant,
 );
 
 // Database Seeding (Dev only)
@@ -118,14 +117,13 @@ router.post("/admin/seed", protect, authorizeRoles("admin"), seedDatabase);
 // 🆔 DYNAMIC ID ROUTES (MUST BE AT THE END)
 // =================================================================
 
-// Publicly get single restaurant by ID
-// ⚠️ WARNING: Keep this at the bottom to avoid conflicting with other GET routes
-router.get("/:id", getRestaurantById);
-
 // Admin Control by ID (Update/Delete any user)
 router
   .route("/admin/user/:id")
   .put(protect, authorizeRoles("admin"), updateUserByAdmin)
   .delete(protect, authorizeRoles("admin"), deleteUserByAdmin);
+
+// ⚠️ MUST BE LAST — Dynamic catch-all
+router.get("/:id", getRestaurantById);
 
 export default router;

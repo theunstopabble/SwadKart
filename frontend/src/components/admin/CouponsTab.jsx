@@ -15,7 +15,7 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../../config";
 
-const CouponsTab = ({ userInfo }) => {
+const CouponsTab = ({ userInfo, fetchAllData }) => {
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isEditingCoupon, setIsEditingCoupon] = useState(false);
@@ -80,7 +80,7 @@ const CouponsTab = ({ userInfo }) => {
         await axios.put(
           `${BASE_URL}/api/v1/coupons/${editCouponId}`,
           payload,
-          config
+          config,
         );
         toast.success("Identity Updated: Coupon Sync Complete! 🔄");
       } else {
@@ -90,6 +90,7 @@ const CouponsTab = ({ userInfo }) => {
 
       resetForm();
       fetchCoupons();
+      if (fetchAllData) fetchAllData();
     } catch (error) {
       // Show exact error from backend
       const msg = error.response?.data?.message || "Transmission Failed";
@@ -138,6 +139,7 @@ const CouponsTab = ({ userInfo }) => {
       });
       toast.success("Coupon scrubbed from database");
       fetchCoupons();
+      if (fetchAllData) fetchAllData();
     } catch {
       toast.error("Scrub protocol failed");
     }
@@ -148,10 +150,11 @@ const CouponsTab = ({ userInfo }) => {
       await axios.put(
         `${BASE_URL}/api/v1/coupons/${coupon._id}`,
         { isActive: !coupon.isActive },
-        { withCredentials: true }
+        { withCredentials: true },
       );
       toast.success(coupon.isActive ? "Offer Deactivated 🔴" : "Offer Live 🟢");
       fetchCoupons();
+      if (fetchAllData) fetchAllData();
     } catch {
       // Silent fail or toast
     }
@@ -379,7 +382,7 @@ const CouponsTab = ({ userInfo }) => {
                       <div className="flex items-center gap-2 text-[9px] text-gray-600 font-black uppercase tracking-widest">
                         <Calendar size={12} className="text-primary/60" /> Exp:{" "}
                         {new Date(coupon.expirationDate).toLocaleDateString(
-                          "en-IN"
+                          "en-IN",
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-[9px] text-blue-400 font-black uppercase tracking-widest">

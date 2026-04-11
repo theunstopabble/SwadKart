@@ -20,13 +20,19 @@ const UsersTab = ({ userInfo }) => {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/admin/all`, {
+      const res = await fetch(`${BASE_URL}/api/v1/users/admin/all?limit=500`, {
         credentials: "include",
       });
       const response = await res.json();
       if (res.ok) {
         // Backend returns { data: [...], metadata: {...} }
-        setUsers(Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []));
+        setUsers(
+          Array.isArray(response.data)
+            ? response.data
+            : Array.isArray(response)
+              ? response
+              : [],
+        );
       }
     } catch {
       toast.error("Failed to sync user database");
@@ -52,7 +58,7 @@ const UsersTab = ({ userInfo }) => {
 
       if (res.ok) {
         toast.success(
-          `Identity Protocol: Access level granted to ${newRole.toUpperCase()}! 🛡️`
+          `Identity Protocol: Access level granted to ${newRole.toUpperCase()}! 🛡️`,
         );
         fetchUsers();
       } else {
@@ -123,7 +129,7 @@ const UsersTab = ({ userInfo }) => {
               >
                 {role.replace("_", " ")}
               </button>
-            )
+            ),
           )}
         </div>
       </div>

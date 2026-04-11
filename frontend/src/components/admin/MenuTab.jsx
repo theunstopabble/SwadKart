@@ -83,6 +83,9 @@ const MenuTab = ({ restaurants, userInfo }) => {
 
   const handleSubmitItem = async (e) => {
     e.preventDefault();
+    const selectedRestaurantObj = shopOwners.find(
+      (r) => r._id === selectedRestaurant,
+    );
     const url = isEditingItem
       ? `${BASE_URL}/api/v1/products/${editItemId}`
       : `${BASE_URL}/api/v1/products`;
@@ -94,7 +97,10 @@ const MenuTab = ({ restaurants, userInfo }) => {
       image: optimizeImageUrl(newItem.image), // Compress image URL before DB save
       price: Number(newItem.price),
       isVeg: newItem.isVeg === "true",
-      restaurantId: selectedRestaurant, // Backend check karega: findOne({ owner: restaurantId })
+      restaurantId:
+        selectedRestaurantObj?.owner?._id ||
+        selectedRestaurantObj?.owner ||
+        selectedRestaurant,
       variants: newItem.variants.map((v) => ({ ...v, price: Number(v.price) })),
       addons: newItem.addons.map((a) => ({ ...a, price: Number(a.price) })),
     };

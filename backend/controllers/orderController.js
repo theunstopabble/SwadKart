@@ -62,13 +62,22 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 
     // 0. 🎟️ STRICT COUPON VALIDATION BEFORE ORDER PROCESSING
     if (couponCode) {
-      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() }).session(session);
+      const coupon = await Coupon.findOne({
+        code: couponCode.toUpperCase(),
+      }).session(session);
       if (!coupon) throw new Error("Invalid Coupon Code");
       if (!coupon.isActive) throw new Error("Coupon is no longer active");
-      if (new Date() > new Date(coupon.expirationDate)) throw new Error("Coupon has expired");
-      if (itemsPrice < coupon.minOrderValue) throw new Error(`Minimum order for this coupon is ₹${coupon.minOrderValue}`);
+      if (new Date() > new Date(coupon.expirationDate))
+        throw new Error("Coupon has expired");
+      if (itemsPrice < coupon.minOrderValue)
+        throw new Error(
+          `Minimum order for this coupon is ₹${coupon.minOrderValue}`,
+        );
 
-      const alreadyUsed = await CouponUsage.findOne({ user: req.user._id, coupon: coupon._id }).session(session);
+      const alreadyUsed = await CouponUsage.findOne({
+        user: req.user._id,
+        coupon: coupon._id,
+      }).session(session);
       if (alreadyUsed) throw new Error("Coupon already used by this account");
     }
 
@@ -141,13 +150,20 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 
     // 4. Create CouponUsage record to prevent reuse
     if (couponCode) {
-      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() }).session(session);
+      const coupon = await Coupon.findOne({
+        code: couponCode.toUpperCase(),
+      }).session(session);
       if (coupon) {
-        await CouponUsage.create([{
-          user: req.user._id,
-          coupon: coupon._id,
-          order: createdOrder._id,
-        }], { session });
+        await CouponUsage.create(
+          [
+            {
+              user: req.user._id,
+              coupon: coupon._id,
+              order: createdOrder._id,
+            },
+          ],
+          { session },
+        );
       }
     }
 
@@ -188,10 +204,14 @@ export const getOrderById = async (req, res) => {
     const isOwner = order.user._id.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin";
     const isRestaurantOwner = req.user.role === "restaurant_owner";
-    const isAssignedDriver = order.deliveryPartner && order.deliveryPartner._id.toString() === req.user._id.toString();
+    const isAssignedDriver =
+      order.deliveryPartner &&
+      order.deliveryPartner._id.toString() === req.user._id.toString();
 
     if (!isOwner && !isAdmin && !isRestaurantOwner && !isAssignedDriver) {
-      return res.status(403).json({ message: "Not authorized to view this order" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to view this order" });
     }
 
     // 🛡️ SECURITY FIX: Completely remove OTP if the user is a delivery partner
@@ -221,7 +241,9 @@ export const updateOrderToPaid = async (req, res) => {
     const isOwner = order.user.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin";
     if (!isOwner && !isAdmin) {
-      return res.status(403).json({ message: "Not authorized to update this order" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update this order" });
     }
 
     order.isPaid = true;
@@ -236,9 +258,7 @@ export const updateOrderToPaid = async (req, res) => {
     const updatedOrder = await order.save();
 
     if (req.io) {
-      req.io
-        .to(updatedOrder._id.toString())
-        .emit("orderUpdated", updatedOrder);
+      req.io.to(updatedOrder._id.toString()).emit("orderUpdated", updatedOrder);
     }
 
     res.json(updatedOrder);
@@ -420,6 +440,7 @@ export const getOrders = async (req, res) => {
 
     const orders = await Order.find({})
       .populate("user", "id name email")
+      .populate("deliveryPartner", "name phone")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
