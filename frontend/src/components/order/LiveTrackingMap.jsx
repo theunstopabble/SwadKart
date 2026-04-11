@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { io } from "socket.io-client";
+import { getSocket } from "../../utils/socket";
 import { BASE_URL } from "../../config";
 
 // 🛵 Custom Driver Icon (SVG string for high quality)
@@ -33,11 +33,7 @@ const LiveTrackingMap = ({ orderId, restaurantCoords, userCoords }) => {
   );
 
   useEffect(() => {
-    const socket = io(BASE_URL, {
-      autoConnect: true,
-      transports: ["websocket"],
-      withCredentials: true,
-    });
+    const socket = getSocket();
 
     // Join order room to listen specifically for this order's driver
     socket.emit("joinOrder", orderId);
@@ -47,7 +43,9 @@ const LiveTrackingMap = ({ orderId, restaurantCoords, userCoords }) => {
       setDriverPos([coords.lat, coords.lng]);
     });
 
-    return () => socket.disconnect();
+    return () => {
+      socket.off("driverLocationUpdate");
+    };
   }, [orderId]);
 
   return (

@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, clearCart } from "../redux/cartSlice";
-import io from "socket.io-client";
+import { getSocket } from "../utils/socket";
 import {
   Plus,
   UtensilsCrossed,
@@ -72,18 +72,18 @@ const RestaurantMenu = () => {
 
   // 2. Socket Connection
   useEffect(() => {
-    const socket = io(BASE_URL, {
-      autoConnect: true,
-      transports: ["websocket"],
-      withCredentials: true,
-    });
+    if (!userInfo) return; // Only connect if logged in
+    const socket = getSocket();
     socket.on("productUpdated", (updated) => {
       setMenu((prev) =>
-        prev.map((it) => (it._id === updated._id ? { ...it, ...updated } : it)),
+        prev.map((it) => (it._id === updated._id ? { ...it, ...updated } : it))
       );
     });
-    return () => socket.disconnect();
-  }, []);
+    return () => {
+      socket.off("productUpdated");
+      // Do NOT call socket.disconnect() — shared singleton
+    };
+  }, [userInfo]);
 
   // 3. Categorization Logic
   const categorizedMenu = useMemo(() => {

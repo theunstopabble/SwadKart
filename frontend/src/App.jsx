@@ -45,7 +45,7 @@ const PageLoader = () => (
 // Helpers & Services (lazy-loaded for initial bundle reduction)
 import { BASE_URL } from "./config";
 import { logout, validateSession } from "./redux/userSlice";
-import { getSocket, disconnectSocket } from "./utils/socket";
+import { getSocket } from "./utils/socket";
 
 // ✨ ScrollToTop Helper
 const ScrollToTop = () => {
@@ -124,7 +124,8 @@ function App() {
     return () => {
       if (socket) {
         socket.off("orderUpdated");
-        disconnectSocket();
+        // DO NOT call disconnectSocket() here.
+        // The singleton should only be disconnected on logout.
       }
     };
   }, [userInfo]);

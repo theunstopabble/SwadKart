@@ -101,7 +101,10 @@ export const updateDeliveryAction = async (req, res) => {
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Authorization: Only the assigned partner can act
+    // Authorization: Guard and verify
+    if (!order.deliveryPartner) {
+      return res.status(400).json({ message: "No delivery partner assigned to this order" });
+    }
     if (order.deliveryPartner.toString() !== req.user._id.toString()) {
       return res.status(401).json({ message: "Not authorized for this task" });
     }
@@ -158,13 +161,32 @@ export const updateOrderToDelivered = async (req, res) => {
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // 🛡️ Security: OTP Check
-    if (order.deliveryOTP !== Number(otp)) {
-      return res.status(400).json({
-        message:
-          "❌ Incorrect OTP! Please ask the customer for the correct code.",
+    // 🛡️ Auth check: only assigned partner can deliver
+    if (
+      !order.deliveryPartner ||
+      order.deliveryPartner.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "Not authorized to deliver this order" });
+    }
+
+    // 🛡️ Security: OTP attempt limiting
+    if (!order.otpAttempts) order.otpAttempts = 0;
+    if (order.otpAttempts >= 5) {
+      return res.status(429).json({
+        message: "Too many OTP attempts. Contact support.",
       });
     }
+
+    if (order.deliveryOTP !== Number(otp)) {
+      order.otpAttempts += 1;
+      await order.save();
+      return res.status(400).json({
+        message: `❌ Incorrect OTP! ${5 - order.otpAttempts} attempts remaining.`,
+      });
+    }
+
+    // Reset attempts on success
+    order.otpAttempts = 0;
 
     order.isDelivered = true;
     order.deliveredAt = Date.now();

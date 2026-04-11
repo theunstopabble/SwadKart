@@ -119,6 +119,10 @@ const orderSchema = mongoose.Schema(
     deliveryOTP: {
       type: Number,
     },
+    otpAttempts: { 
+      type: Number, 
+      default: 0 
+    },
 
     // =================================================
     // 🔄 8. ORDER LIFECYCLE

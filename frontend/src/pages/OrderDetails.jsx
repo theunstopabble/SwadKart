@@ -22,6 +22,7 @@ import { BASE_URL } from "../config";
 import OrderProgress from "../components/order/OrderProgress";
 import OrderItemList from "../components/order/OrderItemList";
 import ReviewModal from "../components/ReviewModal";
+import { getSocket } from "../utils/socket";
 // ✅ Conditional Import: Ensure LiveTrackingMap exists before using, or comment out if not ready
 import LiveTrackingMap from "../components/order/LiveTrackingMap";
 import { toast } from "react-hot-toast";
@@ -62,34 +63,22 @@ const OrderDetails = () => {
       }
     };
 
-    let socket = null;
     if (userInfo) {
       fetchOrder();
-      // Dynamic import: Socket.IO loaded only when OrderDetails mounts
-      import("socket.io-client").then(({ default: io }) => {
-        socket = io(BASE_URL, {
-          autoConnect: true,
-          transports: ["websocket"],
-          withCredentials: true,
-        });
-        socket.emit("joinOrder", id);
-        socket.on("orderUpdated", (updatedOrder) => {
-          if (updatedOrder._id === id) {
-            setOrder(updatedOrder);
-            toast.success(`Protocol Update: ${updatedOrder.orderStatus}`, {
-              icon: "🛵",
-            });
-          }
-        });
+      const socket = getSocket();
+      socket.emit("joinOrder", id);
+      socket.on("orderUpdated", (updatedOrder) => {
+        if (updatedOrder._id === id) {
+          setOrder(updatedOrder);
+          toast.success(`Protocol Update: ${updatedOrder.orderStatus}`, {
+            icon: "🛵",
+          });
+        }
       });
-    }
-
-    return () => {
-      if (socket) {
+      return () => {
         socket.off("orderUpdated");
-        socket.disconnect();
-      }
-    };
+      };
+    }
   }, [id, userInfo]);
 
   if (loading)

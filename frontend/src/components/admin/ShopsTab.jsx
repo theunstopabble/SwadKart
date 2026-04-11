@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../../config";
-import { io } from "socket.io-client";
+import { getSocket } from "../../utils/socket";
 import { optimizeImageUrl } from "../../utils/imageOptimizer";
 
 const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
@@ -38,19 +38,14 @@ const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
 
   // --- 🔌 Socket Listener ---
   useEffect(() => {
-    const socket = io(BASE_URL, {
-      autoConnect: true,
-      transports: ["websocket"],
-      withCredentials: true,
-    });
-    socket.on("shopStatusUpdated", (updatedShop) => {
+    const socket = getSocket();
+    socket.on("shopStatusUpdated", () => {
       console.log("Socket Signal Received: Updating List...");
       if (fetchAllData) fetchAllData();
     });
 
     return () => {
       socket.off("shopStatusUpdated");
-      socket.disconnect();
     };
   }, [fetchAllData]);
 
