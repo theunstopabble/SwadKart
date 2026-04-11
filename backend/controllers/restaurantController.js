@@ -40,7 +40,7 @@ const checkIsOpen = (openTime, closeTime) => {
 const getRestaurants = async (req, res) => {
   try {
     // Show all restaurants (no filter - debug mode)
-    const restaurants = await Restaurant.find({}).sort({ createdAt: -1 });
+    const restaurants = await Restaurant.find({ isVerified: true }).sort({ createdAt: -1 });
 
     // ✨ Compute 'isOpenNow' dynamically
     const updatedRestaurants = restaurants.map((rest) => {
@@ -151,7 +151,8 @@ const getOwnerRestaurant = async (req, res) => {
   try {
     const restaurant = await Restaurant.findOne({ owner: req.user._id });
     if (restaurant) {
-      res.json(restaurant);
+      const isOpen = checkIsOpen(restaurant.openingTime, restaurant.closingTime);
+      res.json({ ...restaurant._doc, isOpenNow: isOpen });
     } else {
       res.status(404).json({ message: "No restaurant found for this owner" });
     }
@@ -177,9 +178,9 @@ const updateRestaurantSettings = async (req, res) => {
       if (closingTime) restaurant.closingTime = closingTime;
 
       // Update Profile Info
-      if (name) restaurant.name = name;
-      if (description) restaurant.description = description;
-      if (address) restaurant.address = address;
+      if (name) restaurant.name = sanitizeString(name);
+      if (description) restaurant.description = sanitizeString(description);
+      if (address) restaurant.address = sanitizeString(address);
       if (image) restaurant.image = image;
 
       const updatedRestaurant = await restaurant.save();

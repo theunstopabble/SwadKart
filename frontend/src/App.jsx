@@ -45,6 +45,7 @@ const PageLoader = () => (
 // Helpers & Services (lazy-loaded for initial bundle reduction)
 import { BASE_URL } from "./config";
 import { logout, validateSession } from "./redux/userSlice";
+import { getSocket, disconnectSocket } from "./utils/socket";
 
 // ✨ ScrollToTop Helper
 const ScrollToTop = () => {
@@ -107,29 +108,23 @@ function App() {
     // ⚡ Dynamic import: Socket.IO is loaded only when user is logged in (~100KB saved from initial bundle)
     let socket = null;
     if (userInfo) {
-      import("socket.io-client").then(({ default: io }) => {
-        socket = io(BASE_URL, {
-          autoConnect: true,
-          transports: ["websocket"],
-          withCredentials: true,
-        });
-        socket.emit("joinOrder", userInfo._id);
-        socket.on("orderUpdated", (order) => {
-          import("./components/notificationHelper").then(({ sendNotification }) => {
-            sendNotification(`SwadKart: Order Update! 🛵`, {
-              body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${order.orderStatus}".`,
-            });
+      socket = getSocket();
+      socket.emit("joinOrder", userInfo._id);
+      socket.on("orderUpdated", (order) => {
+        import("./components/notificationHelper").then(({ sendNotification }) => {
+          sendNotification(`SwadKart: Order Update! 🛵`, {
+            body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${order.orderStatus}".`,
           });
-          const audio = new Audio("/notification.mp3");
-          audio.play().catch(() => console.log("Audio alert blocked"));
         });
+        const audio = new Audio("/notification.mp3");
+        audio.play().catch(() => console.log("Audio alert blocked"));
       });
     }
 
     return () => {
       if (socket) {
         socket.off("orderUpdated");
-        socket.disconnect();
+        disconnectSocket();
       }
     };
   }, [userInfo]);

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { io } from "socket.io-client";
+import { getSocket } from "../utils/socket";
 import {
   Truck,
   Package,
@@ -17,6 +17,7 @@ import { BASE_URL } from "../config";
 import DeliveryCard from "../components/delivery/DeliveryCard";
 import EarningsHistory from "../components/delivery/EarningsHistory";
 import SOSButton from "../components/delivery/SOSButton";
+import OTPSection from "../components/delivery/OTPSection";
 
 const DeliveryPartnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -58,11 +59,7 @@ const DeliveryPartnerDashboard = () => {
 
     fetchMyDeliveries();
 
-    const socket = io(BASE_URL, {
-      autoConnect: true,
-      transports: ["websocket"],
-      withCredentials: true,
-    });
+    const socket = getSocket();
 
     socket.emit("joinOrder", userInfo._id);
 
@@ -82,7 +79,7 @@ const DeliveryPartnerDashboard = () => {
 
     return () => {
       socket.off("orderAssigned");
-      socket.disconnect();
+      // Intentionally not calling disconnectSocket here since it's a shared singleton
     };
   }, [userInfo, navigate, fetchMyDeliveries]);
 
@@ -247,15 +244,24 @@ const DeliveryPartnerDashboard = () => {
                         key={task._id}
                         className="bg-gray-900 border border-gray-800 rounded-2xl p-1 shadow-2xl hover:border-blue-500/30 transition-all"
                       >
-                        <DeliveryCard
-                          order={task}
-                          onAction={handleDeliveryAction}
-                          onVerify={markAsDelivered}
-                          otpValue={otpInputs[task._id] || ""}
-                          setOtpValue={(val) =>
-                            setOtpInputs({ ...otpInputs, [task._id]: val })
-                          }
-                        />
+                        <div className="relative">
+                          <DeliveryCard
+                            order={task}
+                            onAction={handleDeliveryAction}
+                          />
+                          {task.orderStatus === "Out for Delivery" && (
+                            <div className="absolute bottom-4 right-4 z-10 w-full sm:w-auto p-4 sm:p-0">
+                               <OTPSection
+                                 orderId={task._id}
+                                 otpValue={otpInputs[task._id] || ""}
+                                 onOtpChange={(val) =>
+                                   setOtpInputs({ ...otpInputs, [task._id]: val })
+                                 }
+                                 onVerify={() => markAsDelivered(task._id)}
+                               />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                 </div>

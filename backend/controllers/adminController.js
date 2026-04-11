@@ -190,6 +190,10 @@ export const deleteUser = async (req, res) => {
     if (user.role === "admin")
       return res.status(400).json({ message: "Cannot delete Admin" });
 
+    await Order.updateMany(
+      { user: user._id },
+      { $set: { deletedUserName: user.name, user: null } }
+    );
     await Restaurant.findOneAndDelete({ owner: user._id });
     await user.deleteOne();
     res.json({ message: "User deleted" });

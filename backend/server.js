@@ -96,6 +96,7 @@ io.use((socket, next) => {
 // 🛰️ Socket.io Logic
 // 🛡️ SECURITY FIX (SEC-5): Verify order ownership before joining room
 import Order from "./models/orderModel.js";
+import User from "./models/userModel.js";
 
 io.on("connection", (socket) => {
   console.log(
@@ -115,7 +116,7 @@ io.on("connection", (socket) => {
       const isOrderOwner = order.user.toString() === userId;
       const isDriver = order.deliveryPartner && order.deliveryPartner.toString() === userId;
       // Allow admin and restaurant owner roles to join any room
-      const userDoc = await import("./models/userModel.js").then(m => m.default.findById(userId).select("role").lean());
+      const userDoc = await User.findById(userId).select("role").lean();
       const isPrivileged = userDoc && (userDoc.role === "admin" || userDoc.role === "restaurant_owner");
 
       if (isOrderOwner || isDriver || isPrivileged) {
@@ -129,11 +130,21 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("updateLocation", ({ orderId, lat, lng }) => {
-    io.to(orderId).emit("driverLocationUpdate", { lat, lng });
-    console.log(
-      `📍 Logistics: Driver for ${orderId} shifted to [${lat}, ${lng}]`,
-    );
+  socket.on("updateLocation", async ({ orderId, lat, lng }) => {
+    try {
+      const order = await Order.findById(orderId).select("deliveryPartner").lean();
+      if (!order) return;
+      if (!order.deliveryPartner || order.deliveryPartner.toString() !== socket.user.userId) {
+        console.warn(`🚫 Unauthorized location update attempt for order ${orderId}`);
+        return;
+      }
+      io.to(orderId).emit("driverLocationUpdate", { lat, lng });
+      console.log(
+        `📍 Logistics: Driver for ${orderId} shifted to [${lat}, ${lng}]`,
+      );
+    } catch (err) {
+      console.error("updateLocation error:", err.message);
+    }
   });
 
   socket.on("disconnect", () => {

@@ -333,9 +333,6 @@ export const updateOrderStatus = async (req, res) => {
 
         if (nearestPartner) {
           order.deliveryPartner = nearestPartner._id;
-          // Mark partner as busy
-          nearestPartner.isAvailable = false;
-          await nearestPartner.save();
           console.log(
             `🛵 Auto-Assigned Order to Partner: ${nearestPartner.name}`,
           );
@@ -346,6 +343,15 @@ export const updateOrderStatus = async (req, res) => {
     }
 
     const updatedOrder = await order.save();
+    
+    // Only mark partner unavailable after order is successfully saved
+    if (status === "Ready" && updatedOrder.deliveryPartner) {
+      const nearestPartner = await User.findById(updatedOrder.deliveryPartner);
+      if (nearestPartner) {
+        nearestPartner.isAvailable = false;
+        await nearestPartner.save();
+      }
+    }
 
     // 🔔 Notify via Firebase Cloud Messaging
     if (order.user && order.user.fcmToken) {

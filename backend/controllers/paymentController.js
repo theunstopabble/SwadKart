@@ -74,7 +74,17 @@ export const createRazorpayOrder = async (req, res) => {
 export const verifyPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId: rawOrderId } = req.body;
-    const orderId = sanitizeObjectId(rawOrderId) || razorpay_order_id;
+    
+    let orderId;
+    try {
+      orderId = rawOrderId ? sanitizeObjectId(rawOrderId) : null;
+    } catch {
+      orderId = null;
+    }
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "Invalid or missing orderId" });
+    }
+    
     const instance = getRazorpayInstance();
 
     // 🛡️ SECURITY FIX: Verify Razorpay signature using HMAC
@@ -114,23 +124,6 @@ export const verifyPayment = async (req, res) => {
       };
 
       const updatedOrder = await order.save();
-
-      // 3. Coupon Protocol: Create document in CouponUsage (Removed old array push method)
-      if (updatedOrder.couponCode) {
-        const coupon = await Coupon.findOne({ code: updatedOrder.couponCode });
-        if (coupon) {
-          try {
-            await CouponUsage.create({
-              user: updatedOrder.user._id,
-              coupon: coupon._id,
-              order: updatedOrder._id,
-            });
-            console.log(`Coupon Usage recorded successfully.`);
-          } catch (err) {
-            console.error("Coupon usage log error:", err.message);
-          }
-        }
-      }
 
       // 4. Real-time Socket: Notify Restaurant immediately
       if (req.io && order.orderItems.length > 0) {

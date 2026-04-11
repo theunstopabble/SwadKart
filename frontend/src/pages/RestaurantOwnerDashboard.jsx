@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { BASE_URL } from "../config";
 import { toast } from "react-hot-toast";
-import { io } from "socket.io-client";
+import { getSocket } from "../utils/socket";
 
 // Modular Components
 import AnalyticsSection from "../components/restaurant/AnalyticsSection";
@@ -161,11 +161,7 @@ const RestaurantOwnerDashboard = () => {
   useEffect(() => {
     fetchData();
     if (userInfo) {
-      const socket = io(BASE_URL, {
-        autoConnect: true,
-        transports: ["websocket"],
-        withCredentials: true,
-      });
+      const socket = getSocket();
       socketRef.current = socket;
       socket.emit("joinOrder", userInfo._id);
 
@@ -193,7 +189,7 @@ const RestaurantOwnerDashboard = () => {
 
       return () => {
         socket.off("newOrderReceived");
-        socket.disconnect();
+        // socket.disconnect() removed due to singleton pattern
       };
     }
   }, [userInfo, isSoundEnabled, fetchData]); // ✅ Added fetchData to the dependency array
