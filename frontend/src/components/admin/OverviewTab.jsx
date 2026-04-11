@@ -17,7 +17,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 import { toast } from "react-hot-toast";
 
 const OverviewTab = () => {
@@ -35,21 +35,23 @@ const OverviewTab = () => {
 
         // ADMIN-07 FIX: Handle graph and stats API failures independently + fix field name mismatch
         const [resGraph, resStats] = await Promise.all([
-          fetch(`${BASE_URL}/api/v1/orders/sales-stats`, config),
-          fetch(`${BASE_URL}/api/v1/orders/analytics`, config),
+          fetch(`${BASEURL}/api/v1/orders/sales-stats`, config),
+          fetch(`${BASEURL}/api/v1/orders/analytics`, config),
         ]);
 
         // Handle graph independently
         if (resGraph.ok) {
           const graphResult = await resGraph.json();
           const safeGraph = Array.isArray(graphResult) ? graphResult : [];
-          const formatted = safeGraph.map(item => ({
-            day: new Date(item._id).toLocaleDateString('en-IN', { weekday: 'short' }),
+          const formatted = safeGraph.map((item) => ({
+            day: new Date(item._id).toLocaleDateString("en-IN", {
+              weekday: "short",
+            }),
             sales: item.sales || 0,
           }));
           setGraphData(formatted);
         } else {
-          console.warn('Sales graph API failed:', resGraph.status);
+          console.warn("Sales graph API failed:", resGraph.status);
           setGraphData([]);
         }
 
@@ -57,13 +59,13 @@ const OverviewTab = () => {
         if (resStats.ok) {
           const statsResult = await resStats.json();
           setStats({
-            revenue: statsResult.totalSales || 0,      // ADMIN-07 FIX: was stats.revenue, backend sends totalSales
+            revenue: statsResult.totalSales || 0, // ADMIN-07 FIX: was stats.revenue, backend sends totalSales
             orders: statsResult.totalOrders || 0,
             restaurants: statsResult.totalRestaurants || 0,
             users: statsResult.totalUsers || 0,
           });
         } else {
-          console.warn('Dashboard stats API failed:', resStats.status);
+          console.warn("Dashboard stats API failed:", resStats.status);
         }
       } catch {
         toast.error("Analytics sync failed");
@@ -87,8 +89,6 @@ const OverviewTab = () => {
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-    
-    
       {/* 👆 BAS YE ADD KARNA HAI */}
       {/* 🚀 1. Stats Cards Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

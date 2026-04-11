@@ -43,7 +43,7 @@ const PageLoader = () => (
 );
 
 // Helpers & Services (lazy-loaded for initial bundle reduction)
-import { BASE_URL } from "./config";
+import { BASEURL } from "./config";
 import { logout, validateSession } from "./redux/userSlice";
 import { getSocket } from "./utils/socket";
 
@@ -101,9 +101,11 @@ function App() {
     // Notification permission is now requested only when user is logged in
     // Dynamic import to reduce initial bundle (~5KB saved)
     if (userInfo) {
-      import("./components/notificationHelper").then(({ requestNotificationPermission }) => {
-        requestNotificationPermission();
-      });
+      import("./components/notificationHelper").then(
+        ({ requestNotificationPermission }) => {
+          requestNotificationPermission();
+        },
+      );
     }
 
     // ⚡ Dynamic import: Socket.IO is loaded only when user is logged in (~100KB saved from initial bundle)
@@ -112,11 +114,13 @@ function App() {
       socket = getSocket();
       socket.emit("joinOrder", userInfo._id);
       socket.on("orderUpdated", (order) => {
-        import("./components/notificationHelper").then(({ sendNotification }) => {
-          sendNotification(`SwadKart: Order Update! 🛵`, {
-            body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${order.orderStatus}".`,
-          });
-        });
+        import("./components/notificationHelper").then(
+          ({ sendNotification }) => {
+            sendNotification(`SwadKart: Order Update! 🛵`, {
+              body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${order.orderStatus}".`,
+            });
+          },
+        );
         const audio = new Audio("/notification.mp3");
         audio.play().catch(() => console.log("Audio alert blocked"));
       });
@@ -135,7 +139,8 @@ function App() {
   const handleUnlock = async () => {
     try {
       // Dynamic import: biometricService only loaded when lock screen is shown (~5KB saved)
-      const { authenticateBiometric } = await import("./utils/biometricService");
+      const { authenticateBiometric } =
+        await import("./utils/biometricService");
       const success = await authenticateBiometric();
       if (success) {
         setIsLocked(false);

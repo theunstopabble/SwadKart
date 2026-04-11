@@ -13,7 +13,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 import { getSocket } from "../../utils/socket";
 import { optimizeImageUrl } from "../../utils/imageOptimizer";
 
@@ -66,7 +66,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
     try {
       setIsProcessing(true);
       const res = await fetch(
-        `${BASE_URL}/api/v1/restaurants/${id}/approve`,
+        `${BASEURL}/api/v1/restaurants/${id}/approve`,
         getFetchOptions("PUT"),
       );
       const data = await res.json();
@@ -96,7 +96,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
     try {
       // ✅ Corrected: Hits the Restaurant route, not User route
       const res = await fetch(
-        `${BASE_URL}/api/v1/restaurants/${id}`,
+        `${BASEURL}/api/v1/restaurants/${id}`,
         getFetchOptions("DELETE"),
       );
       if (res.ok) {
@@ -117,7 +117,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
     try {
       const payload = { ...newShop, image: optimizeImageUrl(newShop.image) };
       const res = await fetch(
-        `${BASE_URL}/api/v1/users/admin/create-shop`,
+        `${BASEURL}/api/v1/users/admin/create-shop`,
         getFetchOptions("POST", payload),
       );
       if (res.ok) {
@@ -140,7 +140,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
     try {
       // ✅ Corrected: Hits the Restaurant route, not User route
       const res = await fetch(
-        `${BASE_URL}/api/v1/restaurants/${editingShop._id}`,
+        `${BASEURL}/api/v1/restaurants/${editingShop._id}`,
         getFetchOptions("PUT", {
           name: editingShop.name,
           image: optimizeImageUrl(editingShop.image),
@@ -169,7 +169,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
         image: optimizeImageUrl(dummyShopData.image),
       };
       const res = await fetch(
-        `${BASE_URL}/api/v1/users/admin/create-dummy`,
+        `${BASEURL}/api/v1/users/admin/create-dummy`,
         getFetchOptions("POST", payload),
       );
       if (res.ok) {

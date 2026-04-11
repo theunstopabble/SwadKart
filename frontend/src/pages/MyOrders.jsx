@@ -11,7 +11,7 @@ import {
   AlertCircle,
   ChevronRight,
 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 import { addToCart } from "../redux/cartSlice";
 import { toast } from "react-hot-toast";
 
@@ -30,12 +30,16 @@ const MyOrders = () => {
       // NEW-01 FIX: Handle paginated response from backend { data: [], metadata: {} }
       const fetchOrders = async () => {
         try {
-          const res = await fetch(`${BASE_URL}/api/v1/orders/myorders`, {
+          const res = await fetch(`${BASEURL}/api/v1/orders/myorders`, {
             credentials: "include",
           });
           const data = await res.json();
-          const ordersArray = Array.isArray(data) ? data : (data.data || []);
-          setOrders(ordersArray.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+          const ordersArray = Array.isArray(data) ? data : data.data || [];
+          setOrders(
+            ordersArray.sort(
+              (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+            ),
+          );
         } catch {
           toast.error("Failed to load orders");
         } finally {

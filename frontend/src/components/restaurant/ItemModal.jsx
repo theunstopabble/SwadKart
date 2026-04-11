@@ -9,7 +9,7 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 import { useSelector } from "react-redux";
 
 const ItemModal = ({
@@ -49,7 +49,7 @@ const ItemModal = ({
     setUploading(true);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/upload`, {
+      const res = await fetch(`${BASEURL}/api/v1/upload`, {
         method: "POST",
         credentials: "include",
         body: formData,
@@ -412,8 +412,8 @@ const ItemModal = ({
             {uploading
               ? "Uploading Image..."
               : isEditing
-              ? "Save Changes"
-              : "Create Item"}
+                ? "Save Changes"
+                : "Create Item"}
           </button>
         </form>
       </div>

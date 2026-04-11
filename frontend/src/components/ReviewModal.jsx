@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Star, X, CheckCircle, ChevronRight } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 import { toast } from "react-hot-toast";
 import { useSelector } from "react-redux";
 
@@ -40,7 +40,7 @@ const ReviewModal = ({ isOpen, onClose, orderItems }) => {
     setIsSubmitting(true);
     try {
       const res = await fetch(
-        `${BASE_URL}/api/v1/products/${currentItem.product}/reviews`,
+        `${BASEURL}/api/v1/products/${currentItem.product}/reviews`,
         {
           method: "POST",
           headers: {
@@ -48,7 +48,7 @@ const ReviewModal = ({ isOpen, onClose, orderItems }) => {
           },
           credentials: "include",
           body: JSON.stringify({ rating, comment }),
-        }
+        },
       );
 
       const data = await res.json();

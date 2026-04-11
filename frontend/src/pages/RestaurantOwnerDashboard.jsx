@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   Utensils,
 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 import { toast } from "react-hot-toast";
 import { getSocket } from "../utils/socket";
 
@@ -80,7 +80,7 @@ const RestaurantOwnerDashboard = () => {
     try {
       console.log(
         "Fetching from:",
-        `${BASE_URL}/api/v1/orders/restaurant-orders`,
+        `${BASEURL}/api/v1/orders/restaurant-orders`,
       );
       // Helper to safely parse JSON
       const safeJson = async (promise) => {
@@ -98,24 +98,21 @@ const RestaurantOwnerDashboard = () => {
       const [dOrders, dMenu, dPartners, dGraph] = await Promise.all([
         safeJson(
           fetch(
-            `${BASE_URL}/api/v1/orders/restaurant-orders`,
+            `${BASEURL}/api/v1/orders/restaurant-orders`,
             getFetchOptions(),
           ),
         ),
         safeJson(
           fetch(
-            `${BASE_URL}/api/v1/products/restaurant/${userInfo._id}`,
+            `${BASEURL}/api/v1/products/restaurant/${userInfo._id}`,
             getFetchOptions(),
           ),
         ),
         safeJson(
-          fetch(
-            `${BASE_URL}/api/v1/users/delivery-partners`,
-            getFetchOptions(),
-          ),
+          fetch(`${BASEURL}/api/v1/users/delivery-partners`, getFetchOptions()),
         ),
         safeJson(
-          fetch(`${BASE_URL}/api/v1/orders/sales-stats`, getFetchOptions()),
+          fetch(`${BASEURL}/api/v1/orders/sales-stats`, getFetchOptions()),
         ),
       ]);
 
@@ -196,7 +193,7 @@ const RestaurantOwnerDashboard = () => {
 
   const handleToggleStock = async (id) => {
     const res = await fetch(
-      `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
+      `${BASEURL}/api/v1/products/${id}/toggle-stock`,
       getFetchOptions("PATCH"),
     );
     if (res.ok) {
@@ -211,7 +208,7 @@ const RestaurantOwnerDashboard = () => {
 
     try {
       const res = await fetch(
-        `${BASE_URL}/api/v1/orders/${orderId}/assign`,
+        `${BASEURL}/api/v1/orders/${orderId}/assign`,
         getFetchOptions("PUT", { deliveryPartnerId: pId }),
       );
 
@@ -228,7 +225,7 @@ const RestaurantOwnerDashboard = () => {
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     const res = await fetch(
-      `${BASE_URL}/api/v1/orders/${orderId}/status`,
+      `${BASEURL}/api/v1/orders/${orderId}/status`,
       getFetchOptions("PUT", { status: newStatus }),
     );
     if (res.ok) {
@@ -241,8 +238,8 @@ const RestaurantOwnerDashboard = () => {
     e.preventDefault();
     const method = isEditing ? "PUT" : "POST";
     const url = isEditing
-      ? `${BASE_URL}/api/v1/products/${editId}`
-      : `${BASE_URL}/api/v1/products`;
+      ? `${BASEURL}/api/v1/products/${editId}`
+      : `${BASEURL}/api/v1/products`;
 
     const payload = {
       ...newItem,
@@ -351,7 +348,7 @@ const RestaurantOwnerDashboard = () => {
               handleDeleteItem={async (id) => {
                 if (window.confirm("Permanent removal from menu?")) {
                   await fetch(
-                    `${BASE_URL}/api/v1/products/${id}`,
+                    `${BASEURL}/api/v1/products/${id}`,
                     getFetchOptions("DELETE"),
                   );
                   fetchData();

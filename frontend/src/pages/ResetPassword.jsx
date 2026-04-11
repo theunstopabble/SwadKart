@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Lock, Save, Loader } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 const ResetPassword = () => {
   const { token } = useParams();
@@ -24,13 +24,13 @@ const ResetPassword = () => {
 
     try {
       const res = await fetch(
-        `${BASE_URL}/api/v1/users/password/reset/${token}`,
+        `${BASEURL}/api/v1/users/password/reset/${token}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          credentials: 'include', // BUG-13 FIX
+          credentials: "include", // BUG-13 FIX
           body: JSON.stringify({ password, confirmPassword }),
-        }
+        },
       );
 
       const data = await res.json();

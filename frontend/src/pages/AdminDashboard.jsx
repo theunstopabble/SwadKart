@@ -10,7 +10,7 @@ import {
   Users as UsersIcon,
   Flame,
 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 // 👇 IMPORT CHILD COMPONENTS
 import OverviewTab from "../components/admin/OverviewTab";
@@ -35,56 +35,67 @@ const AdminDashboard = () => {
   // ADMIN-02 FIX: Per-section error isolation + reduced order limit to prevent Render timeout
   const fetchAllData = useCallback(async () => {
     if (!userInfo) return;
-    const fetchOptions = { credentials: 'include' };
+    const fetchOptions = { credentials: "include" };
 
     // 1. Restaurants — isolated
     try {
-      const resRest = await fetch(`${BASE_URL}/api/v1/restaurants/adminall`, fetchOptions);
+      const resRest = await fetch(
+        `${BASEURL}/api/v1/restaurants/adminall`,
+        fetchOptions,
+      );
       if (resRest.ok) {
         const restResponse = await resRest.json();
-        setRestaurants(Array.isArray(restResponse) ? restResponse : (restResponse.data || []));
+        setRestaurants(
+          Array.isArray(restResponse) ? restResponse : restResponse.data || [],
+        );
       } else {
-        console.warn('Restaurants fetch failed:', resRest.status);
+        console.warn("Restaurants fetch failed:", resRest.status);
       }
     } catch (err) {
-      console.error('Restaurants fetch error:', err.message);
+      console.error("Restaurants fetch error:", err.message);
     }
 
     // 2. Orders — isolated, reduced limit to 50
     try {
-      const resOrders = await fetch(`${BASE_URL}/api/v1/orders?limit=50&page=1`, fetchOptions);
+      const resOrders = await fetch(
+        `${BASEURL}/api/v1/orders?limit=50&page=1`,
+        fetchOptions,
+      );
       if (resOrders.ok) {
         const ordersResponse = await resOrders.json();
         setOrders(ordersResponse.data || ordersResponse);
       } else {
-        console.warn('Orders fetch failed:', resOrders.status);
+        console.warn("Orders fetch failed:", resOrders.status);
       }
     } catch (err) {
-      console.error('Orders fetch error:', err.message);
+      console.error("Orders fetch error:", err.message);
     }
 
     // 3. Delivery Partners — isolated
     try {
-      const resPartners = await fetch(`${BASE_URL}/api/v1/users/delivery-partners`, fetchOptions);
+      const resPartners = await fetch(
+        `${BASEURL}/api/v1/users/delivery-partners`,
+        fetchOptions,
+      );
       if (resPartners.ok) {
         setDeliveryPartners(await resPartners.json());
       } else {
-        console.warn('Partners fetch failed:', resPartners.status);
+        console.warn("Partners fetch failed:", resPartners.status);
       }
     } catch (err) {
-      console.error('Partners fetch error:', err.message);
+      console.error("Partners fetch error:", err.message);
     }
 
     // 4. Coupons — isolated (was using axios which could throw on non-2xx)
     try {
-      const resCoupons = await fetch(`${BASE_URL}/api/v1/coupons`, fetchOptions);
+      const resCoupons = await fetch(`${BASEURL}/api/v1/coupons`, fetchOptions);
       if (resCoupons.ok) {
         setCoupons(await resCoupons.json());
       } else {
-        console.warn('Coupons fetch failed:', resCoupons.status);
+        console.warn("Coupons fetch failed:", resCoupons.status);
       }
     } catch (err) {
-      console.error('Coupons fetch error:', err.message);
+      console.error("Coupons fetch error:", err.message);
     }
   }, [userInfo]);
 

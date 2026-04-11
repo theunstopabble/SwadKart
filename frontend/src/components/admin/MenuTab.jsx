@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { X, Plus, Trash2, Layers, Tag, Loader2 } from "lucide-react";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 import MenuHeader from "./MenuHeader";
 import MenuItemCard from "./MenuItemCard";
 import { optimizeImageUrl } from "../../utils/imageOptimizer";
@@ -43,7 +43,7 @@ const MenuTab = ({ restaurants }) => {
     try {
       // Backend Owner ID se menu fetch kar lega
       const res = await fetch(
-        `${BASE_URL}/api/v1/products/restaurant/${selectedRestaurant}`,
+        `${BASEURL}/api/v1/products/restaurant/${selectedRestaurant}`,
         getFetchOptions(),
       );
       const data = await res.json();
@@ -61,7 +61,7 @@ const MenuTab = ({ restaurants }) => {
   // --- Actions ---
   const handleAdminToggleStock = async (id) => {
     const res = await fetch(
-      `${BASE_URL}/api/v1/products/${id}/toggle-stock`,
+      `${BASEURL}/api/v1/products/${id}/toggle-stock`,
       getFetchOptions("PATCH"),
     );
     if (res.ok) {
@@ -73,7 +73,7 @@ const MenuTab = ({ restaurants }) => {
   const handleDeleteItem = async (id) => {
     if (!window.confirm("Destroy this menu item?")) return;
     const res = await fetch(
-      `${BASE_URL}/api/v1/products/${id}`,
+      `${BASEURL}/api/v1/products/${id}`,
       getFetchOptions("DELETE"),
     );
     if (res.ok) {
@@ -88,8 +88,8 @@ const MenuTab = ({ restaurants }) => {
       (r) => r._id === selectedRestaurant,
     );
     const url = isEditingItem
-      ? `${BASE_URL}/api/v1/products/${editItemId}`
-      : `${BASE_URL}/api/v1/products`;
+      ? `${BASEURL}/api/v1/products/${editItemId}`
+      : `${BASEURL}/api/v1/products`;
 
     // ✅ FIX 2: Backend ko "Owner ID" chahiye.
     // 'selectedRestaurant' mein Owner ki ID hai, wahi bhej rahe hain.

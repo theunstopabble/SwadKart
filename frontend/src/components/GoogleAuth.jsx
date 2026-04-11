@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 import { useDispatch } from "react-redux";
 import { setCredentials } from "../redux/userSlice";
 import { useNavigate } from "react-router-dom";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 import { Phone, ArrowRight, X } from "lucide-react";
 
 // ✅ FIX: Google Icon ka SVG Code (No External Image Link)
@@ -49,7 +49,7 @@ const GoogleAuth = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      const res = await fetch(`${BASE_URL}/api/v1/users/google-check`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/google-check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user.email }),
@@ -82,7 +82,7 @@ const GoogleAuth = () => {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/google-register`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/google-register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

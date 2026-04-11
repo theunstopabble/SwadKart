@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 // 🛡️ SECURITY FIX: Strip out tokens from old sessions to prevent XSS
 let storedUserInfo = localStorage.getItem("userInfo")
   ? JSON.parse(localStorage.getItem("userInfo"))
@@ -61,7 +61,7 @@ export const updateUserProfile = createAsyncThunk(
       };
 
       const { data } = await axios.put(
-        `${BASE_URL}/api/v1/users/profile`,
+        `${BASEURL}/api/v1/users/profile`,
         userData,
         config,
       );

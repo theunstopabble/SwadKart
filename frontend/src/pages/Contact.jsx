@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Mail, MapPin, Send, Clock, Headphones, Phone } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 const Contact = () => {
   const supportEmail =
@@ -23,13 +23,18 @@ const Contact = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+    if (
+      !formData.name ||
+      !formData.email ||
+      !formData.subject ||
+      !formData.message
+    ) {
       return toast.error("Please fill all fields! ✍️");
     }
 
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/contact-support`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/contact-support`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

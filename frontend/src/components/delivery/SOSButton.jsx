@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Siren, X, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 import { useSelector } from "react-redux";
 
 const SOSButton = () => {
@@ -27,7 +27,7 @@ const SOSButton = () => {
         const { latitude, longitude } = position.coords;
 
         try {
-          const res = await fetch(`${BASE_URL}/api/v1/orders/sos`, {
+          const res = await fetch(`${BASEURL}/api/v1/orders/sos`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -55,7 +55,7 @@ const SOSButton = () => {
       () => {
         toast.error("GPS Permission Denied");
         setLoading(false);
-      }
+      },
     );
   };
 

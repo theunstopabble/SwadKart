@@ -1,11 +1,11 @@
 // ADMIN-05 FIX: Import Leaflet CSS directly here — map won't render without it
-import 'leaflet/dist/leaflet.css';
+import "leaflet/dist/leaflet.css";
 import React, { useEffect, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import "leaflet.heat";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 import { Loader2, Map as MapIcon } from "lucide-react";
 
 // Helper component to render Heatmap Layer
@@ -40,7 +40,7 @@ const HeatmapTab = ({ userInfo }) => {
   useEffect(() => {
     const fetchHeatmap = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/api/v1/orders/heatmap`, {
+        const res = await fetch(`${BASEURL}/api/v1/orders/heatmap`, {
           credentials: "include",
         });
         if (res.ok) {
@@ -81,7 +81,10 @@ const HeatmapTab = ({ userInfo }) => {
       </div>
 
       {/* ADMIN-05 FIX: Leaflet MapContainer needs explicit pixel height to render */}
-      <div style={{ height: '500px', width: '100%' }} className="rounded-2xl overflow-hidden border-2 border-gray-800 relative z-0">
+      <div
+        style={{ height: "500px", width: "100%" }}
+        className="rounded-2xl overflow-hidden border-2 border-gray-800 relative z-0"
+      >
         <MapContainer
           center={[26.9124, 75.7873]} // Jaipur Coordinates (Default)
           zoom={12}

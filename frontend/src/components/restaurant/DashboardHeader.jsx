@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ChefHat, Bell, BellOff, Clock, Save, Settings } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useSelector } from "react-redux";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 
 const DashboardHeader = ({
   isSoundEnabled,
@@ -18,7 +18,7 @@ const DashboardHeader = ({
 
   const handleSaveSettings = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/restaurants/settings`, {
+      const res = await fetch(`${BASEURL}/api/v1/restaurants/settings`, {
         method: "PUT",
         credentials: "include",
         headers: {

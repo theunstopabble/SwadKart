@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, Clock, Star, ArrowRight, Loader2 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 // Lazy-load VoiceSearch: non-critical, only needed on user interaction
 const VoiceSearch = lazy(() => import("../components/VoiceSearch"));
@@ -22,7 +22,7 @@ const Home = () => {
   // 1. Fetch Restaurants
   const fetchRestaurants = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/restaurants`);
+      const res = await fetch(`${BASEURL}/api/v1/restaurants`);
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       const data = await res.json();
       const allShops = Array.isArray(data) ? data : data.restaurants || [];
@@ -48,7 +48,7 @@ const Home = () => {
 
     // Dynamic import: Socket.IO is loaded only when needed (~100KB saved from initial bundle)
     import("socket.io-client").then(({ default: io }) => {
-      const socket = io(BASE_URL, {
+      const socket = io(BASEURL, {
         autoConnect: true,
         transports: ["websocket"],
         withCredentials: true,
@@ -194,12 +194,15 @@ const Home = () => {
                   />
                   {/* ⭐ Rating Badge */}
                   <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1 text-yellow-400 font-bold text-sm">
-                    <Star size={14} fill="currentColor" /> {shop.rating > 0 ? shop.rating.toFixed(1) : "New"}
+                    <Star size={14} fill="currentColor" />{" "}
+                    {shop.rating > 0 ? shop.rating.toFixed(1) : "New"}
                   </div>
                   {/* ✅ FIX: Open = green, Closed = red */}
-                  <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg text-white ${
-                    shop.isOpenNow ? "bg-green-500" : "bg-red-600/90"
-                  }`}>
+                  <div
+                    className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg text-white ${
+                      shop.isOpenNow ? "bg-green-500" : "bg-red-600/90"
+                    }`}
+                  >
                     {shop.isOpenNow ? "Open" : "Closed"}
                   </div>
                 </div>
@@ -216,7 +219,8 @@ const Home = () => {
 
                   <div className="border-t border-gray-800 pt-4 flex justify-between items-center text-sm text-gray-500">
                     <div className="flex items-center gap-2">
-                      <Clock size={16} /> {shop.isOpenNow ? "30-40 mins" : "Currently Closed"}
+                      <Clock size={16} />{" "}
+                      {shop.isOpenNow ? "30-40 mins" : "Currently Closed"}
                     </div>
                     <span className="flex items-center gap-1 text-white font-bold group-hover:translate-x-2 transition-transform">
                       View Menu <ArrowRight size={16} />

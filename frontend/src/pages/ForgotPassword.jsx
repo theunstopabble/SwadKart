@@ -7,7 +7,7 @@ import {
   ShieldCheck,
   AlertCircle,
 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -22,7 +22,7 @@ const ForgotPassword = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${BASE_URL}/api/v1/users/password/forgot`, {
+      const response = await fetch(`${BASEURL}/api/v1/users/password/forgot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

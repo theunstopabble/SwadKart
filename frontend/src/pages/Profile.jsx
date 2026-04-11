@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { setCredentials, updateUserProfile } from "../redux/userSlice";
 import { registerBiometric } from "../utils/biometricService";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 const Profile = () => {
   const [name, setName] = useState("");
@@ -39,7 +39,7 @@ const Profile = () => {
   useEffect(() => {
     const fetchFreshProfile = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/api/v1/users/profile`, {
+        const res = await fetch(`${BASEURL}/api/v1/users/profile`, {
           credentials: "include",
         });
         if (res.ok) {
@@ -60,7 +60,8 @@ const Profile = () => {
       try {
         // 1. Check if device supports biometric (WebAuthn)
         if (window.PublicKeyCredential) {
-          const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+          const available =
+            await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
           setIsBiometricSupported(available);
           console.log("🔐 Biometric Supported:", available);
         } else {
@@ -70,7 +71,7 @@ const Profile = () => {
         // 2. Fetch biometric status from server (if logged in)
         if (userInfo) {
           const { data } = await axios.get(
-            `${BASE_URL}/api/v1/users/profile/biometric-status`,
+            `${BASEURL}/api/v1/users/profile/biometric-status`,
             { withCredentials: true },
           );
           setBioEnabled(data.isBiometricEnabled);
@@ -122,9 +123,9 @@ const Profile = () => {
       if (bioEnabled) {
         // DISABLE: Update server + clear localStorage
         await axios.put(
-          `${BASE_URL}/api/v1/users/profile/biometric-status`,
+          `${BASEURL}/api/v1/users/profile/biometric-status`,
           { isEnabled: false },
-          config
+          config,
         );
         localStorage.removeItem("isBiometricEnabled");
         setBioEnabled(false);
@@ -138,9 +139,9 @@ const Profile = () => {
 
         // 2. Update server status
         await axios.put(
-          `${BASE_URL}/api/v1/users/profile/biometric-status`,
+          `${BASEURL}/api/v1/users/profile/biometric-status`,
           { isEnabled: true },
-          config
+          config,
         );
 
         // 3. Set localStorage for app lock
@@ -150,7 +151,10 @@ const Profile = () => {
       }
     } catch (err) {
       console.error(err);
-      setLocalMsg("Biometric Error: " + (err.response?.data?.message || err.message || "Failed"));
+      setLocalMsg(
+        "Biometric Error: " +
+          (err.response?.data?.message || err.message || "Failed"),
+      );
     } finally {
       setBioLoading(false);
       setTimeout(() => setLocalMsg(null), 4000);
@@ -231,7 +235,9 @@ const Profile = () => {
                     readOnly
                     title="Email cannot be changed. Contact support."
                   />
-                  <p className="text-xs text-gray-600 mt-1 pl-1">⚠️ Email cannot be changed directly.</p>
+                  <p className="text-xs text-gray-600 mt-1 pl-1">
+                    ⚠️ Email cannot be changed directly.
+                  </p>
                 </div>
               </div>
 
@@ -341,13 +347,17 @@ const Profile = () => {
             <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-xl ${isBiometricSupported ? "bg-gray-800 text-primary" : "bg-gray-800/50 text-gray-600"}`}>
+                  <div
+                    className={`p-3 rounded-xl ${isBiometricSupported ? "bg-gray-800 text-primary" : "bg-gray-800/50 text-gray-600"}`}
+                  >
                     <Fingerprint size={24} />
                   </div>
                   <div>
                     <h3 className="font-bold text-white">App Lock</h3>
                     <p className="text-xs text-gray-500">
-                      {isBiometricSupported ? "Biometric Login" : "Not Available"}
+                      {isBiometricSupported
+                        ? "Biometric Login"
+                        : "Not Available"}
                     </p>
                   </div>
                 </div>
@@ -370,7 +380,9 @@ const Profile = () => {
                 ) : (
                   <div className="flex items-center gap-1 text-gray-600">
                     <AlertTriangle size={14} />
-                    <span className="text-[10px] font-bold uppercase">Unsupported</span>
+                    <span className="text-[10px] font-bold uppercase">
+                      Unsupported
+                    </span>
                   </div>
                 )}
               </div>

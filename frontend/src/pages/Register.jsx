@@ -13,7 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 import { setCredentials } from "../redux/userSlice";
 
 // Lazy load GoogleAuth to keep Firebase out of main bundle
@@ -63,7 +63,7 @@ const Register = () => {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/register`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, phone, password }),
@@ -91,7 +91,7 @@ const Register = () => {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/verify-email`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/verify-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -219,7 +219,11 @@ const Register = () => {
               <div className="flex-1 h-[1px] bg-gray-700"></div>
             </div>
 
-            <Suspense fallback={<div className="h-[56px] w-full bg-gray-800 animate-pulse rounded-2xl border border-gray-700"></div>}>
+            <Suspense
+              fallback={
+                <div className="h-[56px] w-full bg-gray-800 animate-pulse rounded-2xl border border-gray-700"></div>
+              }
+            >
               <GoogleAuth />
             </Suspense>
             {/* 👆 GOOGLE AUTH END */}
@@ -270,10 +274,11 @@ const Register = () => {
                 type="button"
                 disabled={timer > 0 || isLoading}
                 onClick={() => submitHandler()}
-                className={`font-bold flex items-center gap-1.5 ${timer > 0
+                className={`font-bold flex items-center gap-1.5 ${
+                  timer > 0
                     ? "text-gray-600 cursor-not-allowed"
                     : "text-primary hover:text-red-400 cursor-pointer"
-                  }`}
+                }`}
               >
                 <RefreshCw
                   size={14}

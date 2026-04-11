@@ -15,11 +15,11 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 
 const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
   // ADMIN-04 FIX: Normalize orders prop — handle both array and paginated object
-  const safeOrders = Array.isArray(orders) ? orders : (orders?.data || []);
+  const safeOrders = Array.isArray(orders) ? orders : orders?.data || [];
 
   const [selectedPartner, setSelectedPartner] = useState({});
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -46,8 +46,8 @@ const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
     try {
       setIsAssigning(true);
       const res = await fetch(
-        `${BASE_URL}/api/v1/orders/${orderId}/assign`,
-        getFetchOptions("PUT", { deliveryPartnerId: partnerId })
+        `${BASEURL}/api/v1/orders/${orderId}/assign`,
+        getFetchOptions("PUT", { deliveryPartnerId: partnerId }),
       );
       if (res.ok) {
         toast.success("Pilot assigned to mission! 🚀");
@@ -79,10 +79,10 @@ const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
       order.orderStatus === "Delivered"
         ? CheckCircle
         : order.orderStatus === "Out for Delivery"
-        ? Truck
-        : order.orderStatus === "Cancelled"
-        ? X
-        : Clock;
+          ? Truck
+          : order.orderStatus === "Cancelled"
+            ? X
+            : Clock;
 
     return (
       <span
@@ -110,90 +110,93 @@ const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
           <tbody className="divide-y divide-gray-900/50">
             {safeOrders && safeOrders.length > 0 ? (
               safeOrders.map((o) => (
-              <tr
-                key={o._id}
-                className="hover:bg-primary/5 transition-all group"
-              >
-                <td className="p-8">
-                  <span className="font-mono text-xs text-primary font-black tracking-widest bg-primary/5 px-3 py-1 rounded-lg border border-primary/10">
-                    #{o._id.slice(-6).toUpperCase()}
-                  </span>
-                </td>
-                <td className="p-8">
-                  <div className="font-black text-white text-sm uppercase italic tracking-tight group-hover:text-primary transition-colors">
-                    {o.shippingAddress?.fullName || o.user?.name}
-                  </div>
-                  <div className="text-[10px] text-gray-600 font-bold flex items-center gap-2 mt-1 uppercase tracking-widest">
-                    <MapPin size={10} className="text-primary" />{" "}
-                    {o.shippingAddress?.city}
-                  </div>
-                </td>
-                <td className="p-8">
-                  <div className="text-lg font-black text-white italic tracking-tighter">
-                    ₹{(o.totalPrice || 0).toLocaleString("en-IN")}
-                  </div>
-                </td>
-                <td className="p-8">{getStatusBadge(o)}</td>
-                <td className="p-8">
-                  {o.deliveryPartner ? (
-                    <div className="flex items-center gap-3 bg-blue-500/5 border border-blue-500/10 px-4 py-2 rounded-2xl w-fit">
-                      <div className="h-2 w-2 bg-blue-500 rounded-full animate-ping"></div>
-                      <span className="text-blue-400 font-black text-[10px] uppercase italic tracking-widest">
-                        {o.deliveryPartner.name}
-                      </span>
+                <tr
+                  key={o._id}
+                  className="hover:bg-primary/5 transition-all group"
+                >
+                  <td className="p-8">
+                    <span className="font-mono text-xs text-primary font-black tracking-widest bg-primary/5 px-3 py-1 rounded-lg border border-primary/10">
+                      #{o._id.slice(-6).toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="p-8">
+                    <div className="font-black text-white text-sm uppercase italic tracking-tight group-hover:text-primary transition-colors">
+                      {o.shippingAddress?.fullName || o.user?.name}
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <select
-                        disabled={isAssigning}
-                        className="bg-black border border-gray-800 text-gray-400 p-2.5 rounded-xl text-[10px] font-black outline-none focus:border-primary transition-all uppercase tracking-widest"
-                        onChange={(e) =>
-                          setSelectedPartner({
-                            ...selectedPartner,
-                            [o._id]: e.target.value,
-                          })
-                        }
-                        value={selectedPartner[o._id] || ""}
-                      >
-                        <option value="">Scan Drivers</option>
-                        {deliveryPartners.map((p) => (
-                          <option key={p._id} value={p._id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="text-[10px] text-gray-600 font-bold flex items-center gap-2 mt-1 uppercase tracking-widest">
+                      <MapPin size={10} className="text-primary" />{" "}
+                      {o.shippingAddress?.city}
+                    </div>
+                  </td>
+                  <td className="p-8">
+                    <div className="text-lg font-black text-white italic tracking-tighter">
+                      ₹{(o.totalPrice || 0).toLocaleString("en-IN")}
+                    </div>
+                  </td>
+                  <td className="p-8">{getStatusBadge(o)}</td>
+                  <td className="p-8">
+                    {o.deliveryPartner ? (
+                      <div className="flex items-center gap-3 bg-blue-500/5 border border-blue-500/10 px-4 py-2 rounded-2xl w-fit">
+                        <div className="h-2 w-2 bg-blue-500 rounded-full animate-ping"></div>
+                        <span className="text-blue-400 font-black text-[10px] uppercase italic tracking-widest">
+                          {o.deliveryPartner.name}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <select
+                          disabled={isAssigning}
+                          className="bg-black border border-gray-800 text-gray-400 p-2.5 rounded-xl text-[10px] font-black outline-none focus:border-primary transition-all uppercase tracking-widest"
+                          onChange={(e) =>
+                            setSelectedPartner({
+                              ...selectedPartner,
+                              [o._id]: e.target.value,
+                            })
+                          }
+                          value={selectedPartner[o._id] || ""}
+                        >
+                          <option value="">Scan Drivers</option>
+                          {deliveryPartners.map((p) => (
+                            <option key={p._id} value={p._id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleAssignPartner(o._id)}
+                          disabled={isAssigning}
+                          className="bg-primary hover:bg-red-600 text-white p-3 rounded-xl transition-all shadow-lg shadow-primary/20 active:scale-90 disabled:opacity-50"
+                        >
+                          {isAssigning ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Truck size={14} />
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-8">
+                    <div className="flex justify-center">
                       <button
-                        onClick={() => handleAssignPartner(o._id)}
-                        disabled={isAssigning}
-                        className="bg-primary hover:bg-red-600 text-white p-3 rounded-xl transition-all shadow-lg shadow-primary/20 active:scale-90 disabled:opacity-50"
+                        onClick={() => setSelectedOrder(o)}
+                        className="p-4 bg-gray-900 text-gray-500 hover:text-white rounded-[1.2rem] border border-gray-800 hover:border-primary/50 transition-all shadow-xl group/btn"
                       >
-                        {isAssigning ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <Truck size={14} />
-                        )}
+                        <Eye
+                          size={20}
+                          className="group-hover/btn:scale-110 transition-transform"
+                        />
                       </button>
                     </div>
-                  )}
-                </td>
-                <td className="p-8">
-                  <div className="flex justify-center">
-                    <button
-                      onClick={() => setSelectedOrder(o)}
-                      className="p-4 bg-gray-900 text-gray-500 hover:text-white rounded-[1.2rem] border border-gray-800 hover:border-primary/50 transition-all shadow-xl group/btn"
-                    >
-                      <Eye
-                        size={20}
-                        className="group-hover/btn:scale-110 transition-transform"
-                      />
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="p-16 text-center text-gray-600 font-black uppercase text-xs tracking-widest">
+                <td
+                  colSpan="6"
+                  className="p-16 text-center text-gray-600 font-black uppercase text-xs tracking-widest"
+                >
                   No orders found
                 </td>
               </tr>

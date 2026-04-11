@@ -14,7 +14,7 @@ import {
   ArrowLeft,
   ShieldCheck,
 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 import { toast } from "react-hot-toast";
 
 const PlaceOrder = () => {
@@ -42,24 +42,30 @@ const PlaceOrder = () => {
   // --- Calculations ---
   const itemsPrice = cart.cartItems.reduce(
     (acc, item) => acc + item.price * item.qty,
-    0
+    0,
   );
   const shippingPrice = itemsPrice > 500 ? 0 : 40;
   const taxPrice = Number((0.05 * itemsPrice).toFixed(2));
   const couponDiscount = (() => {
-    try { return Number(localStorage.getItem("couponDiscount")) || 0; }
-    catch { return 0; }
+    try {
+      return Number(localStorage.getItem("couponDiscount")) || 0;
+    } catch {
+      return 0;
+    }
   })();
   const appliedCouponCode = (() => {
-    try { return localStorage.getItem("appliedCoupon") || ""; }
-    catch { return ""; }
+    try {
+      return localStorage.getItem("appliedCoupon") || "";
+    } catch {
+      return "";
+    }
   })();
 
   // Calculate Total
   const totalPrice = Math.max(
-  0,
-  itemsPrice + shippingPrice + taxPrice - couponDiscount
-).toFixed(2);
+    0,
+    itemsPrice + shippingPrice + taxPrice - couponDiscount,
+  ).toFixed(2);
 
   // --- Redirect if missing data or not logged in ---
   useEffect(() => {
@@ -132,7 +138,7 @@ const PlaceOrder = () => {
   // --- Verify Online Payment ---
   const verifyPayment = async (response, dbOrderId) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/payment/verify`, {
+      const res = await fetch(`${BASEURL}/api/v1/payment/verify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -204,7 +210,7 @@ const PlaceOrder = () => {
       };
 
       // 4. Create Order in Database
-      const res = await fetch(`${BASE_URL}/api/v1/orders`, {
+      const res = await fetch(`${BASEURL}/api/v1/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -228,25 +234,31 @@ const PlaceOrder = () => {
 
       // 5. Handle Payment Flow
       if (cart.paymentMethod === "COD") {
-        handleOrderSuccess(dbData._id, "COD-" + dbData._id.slice(-6).toUpperCase());
+        handleOrderSuccess(
+          dbData._id,
+          "COD-" + dbData._id.slice(-6).toUpperCase(),
+        );
       } else if (cart.paymentMethod === "Wallet") {
         // Wallet handled server-side — order already isPaid=true
-        handleOrderSuccess(dbData._id, "WALLET-" + dbData._id.slice(-6).toUpperCase());
-      } else {
-        const orderRes = await fetch(
-          `${BASE_URL}/api/v1/payment/create`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify({ amount: Number(totalPrice), orderId: dbData._id }),
-          }
+        handleOrderSuccess(
+          dbData._id,
+          "WALLET-" + dbData._id.slice(-6).toUpperCase(),
         );
+      } else {
+        const orderRes = await fetch(`${BASEURL}/api/v1/payment/create`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            amount: Number(totalPrice),
+            orderId: dbData._id,
+          }),
+        });
         const { order: razorpayOrder } = await orderRes.json();
 
-        const keyRes = await fetch(`${BASE_URL}/api/v1/payment/key`, {
+        const keyRes = await fetch(`${BASEURL}/api/v1/payment/key`, {
           credentials: "include",
         });
         const { key } = await keyRes.json();
@@ -333,8 +345,8 @@ const PlaceOrder = () => {
                   {cart.paymentMethod === "Online"
                     ? "Secure Digital Transaction"
                     : cart.paymentMethod === "Wallet"
-                    ? "Swad Wallet Payment"
-                    : "Manual Cash Protocol"}
+                      ? "Swad Wallet Payment"
+                      : "Manual Cash Protocol"}
                 </p>
                 <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
                   Encrypted End-to-End

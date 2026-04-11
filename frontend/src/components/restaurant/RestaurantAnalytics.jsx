@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { TrendingUp, IndianRupee, Loader2 } from "lucide-react";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 
 const RestaurantAnalytics = ({ token }) => {
   const [data, setData] = useState([]);
@@ -22,7 +22,7 @@ const RestaurantAnalytics = ({ token }) => {
       try {
         setLoading(true);
         // ✅ Correct Backend Route
-        const res = await fetch(`${BASE_URL}/api/v1/orders/sales-stats`, {
+        const res = await fetch(`${BASEURL}/api/v1/orders/sales-stats`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

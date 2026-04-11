@@ -5,7 +5,7 @@ import axios from "axios";
 import { setCredentials } from "../redux/userSlice";
 import { Mail, Lock, LogIn, Loader } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 // Lazy load GoogleAuth to keep Firebase out of main bundle
 import { lazy, Suspense } from "react";
@@ -32,7 +32,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/login`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -50,8 +50,8 @@ const Login = () => {
         // After login, check if user had biometric enabled
         try {
           const bioRes = await axios.get(
-            `${BASE_URL}/api/v1/users/profile/biometric-status`,
-            { withCredentials: true }
+            `${BASEURL}/api/v1/users/profile/biometric-status`,
+            { withCredentials: true },
           );
 
           // If user has biometric enabled AND has registered credentials
@@ -144,7 +144,11 @@ const Login = () => {
         </div>
 
         {/* The Magic Button */}
-        <Suspense fallback={<div className="h-[56px] w-full bg-gray-800 animate-pulse rounded-2xl border border-gray-700"></div>}>
+        <Suspense
+          fallback={
+            <div className="h-[56px] w-full bg-gray-800 animate-pulse rounded-2xl border border-gray-700"></div>
+          }
+        >
           <GoogleAuth />
         </Suspense>
 

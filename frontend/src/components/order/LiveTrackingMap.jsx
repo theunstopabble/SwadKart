@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { getSocket } from "../../utils/socket";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 
 // 🛵 Custom Driver Icon (SVG string for high quality)
 const driverIcon = new L.Icon({

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Bot, Sparkles, RefreshCw } from "lucide-react";
 import { useSelector } from "react-redux";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,7 +42,7 @@ const ChatBot = () => {
     setLoading(true);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/chat`, {
+      const res = await fetch(`${BASEURL}/api/v1/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

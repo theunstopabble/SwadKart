@@ -3,10 +3,10 @@ import {
   startAuthentication,
 } from "@simplewebauthn/browser";
 import axios from "axios";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 // Backend Base URL - Using dynamic config for devtunnels/production
-const API_URL = `${BASE_URL}/api/v1/biometric`;
+const API_URL = `${BASEURL}/api/v1/biometric`;
 
 /**
  * 🛠️ HELPER: Get Configured Axios (with Cookie-based Auth)
@@ -33,16 +33,19 @@ export const registerBiometric = async () => {
   try {
     // 0. PRE-CHECK: Verify device actually supports biometric
     console.log("🔐 Step 0: Pre-checking device capability...");
-    
+
     if (!window.PublicKeyCredential) {
       throw new Error("This browser doesn't support WebAuthn.");
     }
-    
-    const isAvailable = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+
+    const isAvailable =
+      await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     console.log("🔐 Platform authenticator available:", isAvailable);
-    
+
     if (!isAvailable) {
-      throw new Error("No fingerprint/biometric set up on this device. Please set up fingerprint in device settings first.");
+      throw new Error(
+        "No fingerprint/biometric set up on this device. Please set up fingerprint in device settings first.",
+      );
     }
 
     // 1. Get Challenge from Server (Cookie-based auth)

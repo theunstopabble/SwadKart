@@ -18,7 +18,7 @@ import {
   Wallet,
   Truck,
 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 import OrderProgress from "../components/order/OrderProgress";
 import OrderItemList from "../components/order/OrderItemList";
 import ReviewModal from "../components/ReviewModal";
@@ -26,8 +26,6 @@ import { getSocket } from "../utils/socket";
 // ✅ Conditional Import: Ensure LiveTrackingMap exists before using, or comment out if not ready
 import LiveTrackingMap from "../components/order/LiveTrackingMap";
 import { toast } from "react-hot-toast";
-
-
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -47,16 +45,16 @@ const OrderDetails = () => {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-       const res = await fetch(`${BASE_URL}/api/v1/orders/${id}`, {
-         credentials: "include",
-       });
+        const res = await fetch(`${BASEURL}/api/v1/orders/${id}`, {
+          credentials: "include",
+        });
         const data = await res.json();
         if (res.ok) {
           setOrder(data);
         } else {
           toast.error(data.message || "Order not found");
         }
-     } catch {
+      } catch {
         toast.error("Network radar interference");
       } finally {
         setLoading(false);

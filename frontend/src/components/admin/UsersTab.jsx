@@ -10,7 +10,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 
 const UsersTab = ({ userInfo }) => {
   const [users, setUsers] = useState([]);
@@ -22,19 +22,19 @@ const UsersTab = ({ userInfo }) => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASE_URL}/api/v1/users/adminall`, {
-        credentials: 'include',
+      const res = await fetch(`${BASEURL}/api/v1/users/adminall`, {
+        credentials: "include",
       });
       if (res.ok) {
         const data = await res.json();
         // Handle both paginated { data: [] } and plain array formats
-        const usersArray = Array.isArray(data) ? data : (data.data || []);
+        const usersArray = Array.isArray(data) ? data : data.data || [];
         setUsers(usersArray);
       } else {
-        toast.error('Failed to load users');
+        toast.error("Failed to load users");
       }
     } catch (err) {
-      toast.error('Network error loading users');
+      toast.error("Network error loading users");
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ const UsersTab = ({ userInfo }) => {
 
   const handleRoleChange = async (userId, newRole) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${userId}`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/admin/user/${userId}`, {
         method: "PUT",
         credentials: "include",
         headers: {
@@ -75,7 +75,7 @@ const UsersTab = ({ userInfo }) => {
     )
       return;
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/admin/user/${id}`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/admin/user/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -151,77 +151,80 @@ const UsersTab = ({ userInfo }) => {
             </thead>
             <tbody className="divide-y divide-gray-900/50">
               {/* ADMIN-03 FIX: Safe array access guard */}
-              {Array.isArray(filteredUsers) && filteredUsers.map((user) => (
-                <tr
-                  key={user._id}
-                  className="hover:bg-primary/5 transition-all group"
-                >
-                  <td className="p-8">
-                    <div className="flex items-center gap-6">
-                      <div className="h-16 w-16 bg-gradient-to-br from-gray-900 to-black rounded-[1.5rem] flex items-center justify-center border border-gray-800 group-hover:border-primary/50 transition-all shadow-xl group-hover:rotate-3">
-                        <span className="text-2xl font-black text-primary italic uppercase tracking-tighter">
-                          {user.name?.charAt(0) || "?"}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="font-black text-white text-lg uppercase italic tracking-tight group-hover:text-primary transition-colors">
-                          {user.name}
-                        </p>
-                        <p className="text-[10px] text-gray-500 flex items-center gap-2 font-bold tracking-widest">
-                          <Mail size={12} className="text-primary/60" />{" "}
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-8">
-                    <div className="flex flex-col items-center gap-3">
-                      {user.role === "admin" ? (
-                        <div className="flex items-center gap-2 px-6 py-2 rounded-2xl text-[9px] font-black uppercase italic border-2 bg-red-500/10 text-red-500 border-red-500/20 shadow-lg shadow-red-500/10">
-                          <ShieldCheck size={14} /> System Command
+              {Array.isArray(filteredUsers) &&
+                filteredUsers.map((user) => (
+                  <tr
+                    key={user._id}
+                    className="hover:bg-primary/5 transition-all group"
+                  >
+                    <td className="p-8">
+                      <div className="flex items-center gap-6">
+                        <div className="h-16 w-16 bg-gradient-to-br from-gray-900 to-black rounded-[1.5rem] flex items-center justify-center border border-gray-800 group-hover:border-primary/50 transition-all shadow-xl group-hover:rotate-3">
+                          <span className="text-2xl font-black text-primary italic uppercase tracking-tighter">
+                            {user.name?.charAt(0) || "?"}
+                          </span>
                         </div>
-                      ) : (
-                        <div className="relative w-full max-w-[200px]">
-                          <select
-                            value={user.role}
-                            onChange={(e) =>
-                              handleRoleChange(user._id, e.target.value)
-                            }
-                            className="w-full bg-black border border-gray-800 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] px-4 py-3 rounded-2xl focus:border-primary outline-none cursor-pointer hover:text-white transition-all appearance-none text-center italic shadow-inner"
+                        <div className="space-y-1">
+                          <p className="font-black text-white text-lg uppercase italic tracking-tight group-hover:text-primary transition-colors">
+                            {user.name}
+                          </p>
+                          <p className="text-[10px] text-gray-500 flex items-center gap-2 font-bold tracking-widest">
+                            <Mail size={12} className="text-primary/60" />{" "}
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-8">
+                      <div className="flex flex-col items-center gap-3">
+                        {user.role === "admin" ? (
+                          <div className="flex items-center gap-2 px-6 py-2 rounded-2xl text-[9px] font-black uppercase italic border-2 bg-red-500/10 text-red-500 border-red-500/20 shadow-lg shadow-red-500/10">
+                            <ShieldCheck size={14} /> System Command
+                          </div>
+                        ) : (
+                          <div className="relative w-full max-w-[200px]">
+                            <select
+                              value={user.role}
+                              onChange={(e) =>
+                                handleRoleChange(user._id, e.target.value)
+                              }
+                              className="w-full bg-black border border-gray-800 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] px-4 py-3 rounded-2xl focus:border-primary outline-none cursor-pointer hover:text-white transition-all appearance-none text-center italic shadow-inner"
+                            >
+                              <option value="user">Customer</option>
+                              <option value="delivery_partner">
+                                Logistics
+                              </option>
+                              <option value="restaurant_owner">Merchant</option>
+                            </select>
+                            <ChevronDown
+                              size={14}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-8">
+                      <div className="flex justify-center">
+                        {user.role !== "admin" ? (
+                          <button
+                            onClick={() => handleDelete(user._id)}
+                            className="p-5 bg-red-500/5 text-red-500/40 hover:bg-red-500 hover:text-white rounded-[1.5rem] border border-red-500/10 hover:border-red-500 transition-all shadow-xl active:scale-90 group/del"
                           >
-                            <option value="user">Customer</option>
-                            <option value="delivery_partner">Logistics</option>
-                            <option value="restaurant_owner">Merchant</option>
-                          </select>
-                          <ChevronDown
-                            size={14}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-8">
-                    <div className="flex justify-center">
-                      {user.role !== "admin" ? (
-                        <button
-                          onClick={() => handleDelete(user._id)}
-                          className="p-5 bg-red-500/5 text-red-500/40 hover:bg-red-500 hover:text-white rounded-[1.5rem] border border-red-500/10 hover:border-red-500 transition-all shadow-xl active:scale-90 group/del"
-                        >
-                          <Trash2
-                            size={20}
-                            className="group-hover/del:animate-bounce"
-                          />
-                        </button>
-                      ) : (
-                        <div className="p-5 bg-gray-900 rounded-[1.5rem] border border-gray-800 text-gray-700">
-                          <ShieldAlert size={20} />
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                            <Trash2
+                              size={20}
+                              className="group-hover/del:animate-bounce"
+                            />
+                          </button>
+                        ) : (
+                          <div className="p-5 bg-gray-900 rounded-[1.5rem] border border-gray-800 text-gray-700">
+                            <ShieldAlert size={20} />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

@@ -12,7 +12,7 @@ import {
   AlertCircle,
   ShoppingBag,
 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 import { toast } from "react-hot-toast";
 
 // Modular Components
@@ -46,8 +46,8 @@ const RestaurantMenu = () => {
         setLoading(true);
         const [restaurantRes, menuRes] = await Promise.all([
           // ✅ Correct endpoint: restaurant by id (includes isOpenNow)
-          fetch(`${BASE_URL}/api/v1/restaurants/${id}`),
-          fetch(`${BASE_URL}/api/v1/products/restaurant/${id}`),
+          fetch(`${BASEURL}/api/v1/restaurants/${id}`),
+          fetch(`${BASEURL}/api/v1/products/restaurant/${id}`),
         ]);
 
         const restaurantData = await restaurantRes.json();
@@ -76,7 +76,7 @@ const RestaurantMenu = () => {
     const socket = getSocket();
     socket.on("productUpdated", (updated) => {
       setMenu((prev) =>
-        prev.map((it) => (it._id === updated._id ? { ...it, ...updated } : it))
+        prev.map((it) => (it._id === updated._id ? { ...it, ...updated } : it)),
       );
     });
     return () => {
@@ -130,7 +130,11 @@ const RestaurantMenu = () => {
       return;
     }
     // 🔥 NEW: Warn user if switching restaurants
-    if (cartItems.length > 0 && restaurant && cartItems[0].restaurant?.toString() !== restaurant._id?.toString()) {
+    if (
+      cartItems.length > 0 &&
+      restaurant &&
+      cartItems[0].restaurant?.toString() !== restaurant._id?.toString()
+    ) {
       const confirmed = window.confirm(
         "Your cart has items from another restaurant. Adding this will clear your current cart. Continue?",
       );

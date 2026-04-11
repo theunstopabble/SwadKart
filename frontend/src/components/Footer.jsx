@@ -12,7 +12,7 @@ import {
   ArrowRight,
   Heart,
 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 const Footer = () => {
   const [email, setEmail] = useState("");
@@ -55,11 +55,12 @@ const Footer = () => {
   const handleSubscribe = async (e) => {
     e.preventDefault();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email)) return toast.error("Please enter a valid email 📧");
+    if (!email || !emailRegex.test(email))
+      return toast.error("Please enter a valid email 📧");
 
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/newsletter`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/newsletter`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

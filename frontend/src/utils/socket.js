@@ -1,11 +1,11 @@
 import { io } from "socket.io-client";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 let socket = null;
 
 export const getSocket = () => {
   if (!socket || socket.disconnected) {
-    socket = io(BASE_URL, {
+    socket = io(BASEURL, {
       autoConnect: true,
       transports: ["websocket"],
       withCredentials: true,

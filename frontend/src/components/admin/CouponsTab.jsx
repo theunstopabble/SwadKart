@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import { BASE_URL } from "../../config";
+import { BASEURL } from "../../config";
 
 const CouponsTab = ({ fetchAllData }) => {
   const [coupons, setCoupons] = useState([]);
@@ -32,7 +32,7 @@ const CouponsTab = ({ fetchAllData }) => {
 
   const fetchCoupons = async () => {
     try {
-      const { data } = await axios.get(`${BASE_URL}/api/v1/coupons`, {
+      const { data } = await axios.get(`${BASEURL}/api/v1/coupons`, {
         withCredentials: true,
       });
       setCoupons(data);
@@ -78,13 +78,13 @@ const CouponsTab = ({ fetchAllData }) => {
 
       if (isEditingCoupon) {
         await axios.put(
-          `${BASE_URL}/api/v1/coupons/${editCouponId}`,
+          `${BASEURL}/api/v1/coupons/${editCouponId}`,
           payload,
           config,
         );
         toast.success("Identity Updated: Coupon Sync Complete! 🔄");
       } else {
-        await axios.post(`${BASE_URL}/api/v1/coupons`, payload, config);
+        await axios.post(`${BASEURL}/api/v1/coupons`, payload, config);
         toast.success("Protocol Active: New Coupon Deployed! 🎫");
       }
 
@@ -134,7 +134,7 @@ const CouponsTab = ({ fetchAllData }) => {
     )
       return;
     try {
-      await axios.delete(`${BASE_URL}/api/v1/coupons/${id}`, {
+      await axios.delete(`${BASEURL}/api/v1/coupons/${id}`, {
         withCredentials: true,
       });
       toast.success("Coupon scrubbed from database");
@@ -148,7 +148,7 @@ const CouponsTab = ({ fetchAllData }) => {
   const toggleCouponStatus = async (coupon) => {
     try {
       await axios.put(
-        `${BASE_URL}/api/v1/coupons/${coupon._id}`,
+        `${BASEURL}/api/v1/coupons/${coupon._id}`,
         { isActive: !coupon.isActive },
         { withCredentials: true },
       );

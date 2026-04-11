@@ -11,7 +11,7 @@ import {
   Loader2,
   Signal,
 } from "lucide-react";
-import { BASE_URL } from "../config";
+import { BASEURL } from "../config";
 
 // Modular Components
 import DeliveryCard from "../components/delivery/DeliveryCard";
@@ -33,12 +33,12 @@ const DeliveryPartnerDashboard = () => {
   const fetchMyDeliveries = useCallback(async () => {
     if (!userInfo) return;
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/orders/my-deliveries`, {
+      const res = await fetch(`${BASEURL}/api/v1/orders/my-deliveries`, {
         credentials: "include",
       });
       if (res.ok) {
         const data = await res.json();
-        const safeData = Array.isArray(data) ? data : (data.data || []);
+        const safeData = Array.isArray(data) ? data : data.data || [];
         const sortedTasks = safeData.sort((a, b) => {
           if (a.isDelivered === b.isDelivered) {
             return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
@@ -87,7 +87,7 @@ const DeliveryPartnerDashboard = () => {
   const handleDeliveryAction = async (id, action) => {
     try {
       const res = await fetch(
-        `${BASE_URL}/api/v1/orders/${id}/delivery-action`,
+        `${BASEURL}/api/v1/orders/${id}/delivery-action`,
         {
           method: "PUT",
           headers: {
@@ -118,7 +118,7 @@ const DeliveryPartnerDashboard = () => {
       return toast.error("Enter valid 4-digit OTP");
 
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/orders/${id}/deliver`, {
+      const res = await fetch(`${BASEURL}/api/v1/orders/${id}/deliver`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -251,14 +251,17 @@ const DeliveryPartnerDashboard = () => {
                           />
                           {task.orderStatus === "Out for Delivery" && (
                             <div className="absolute bottom-4 right-4 z-10 w-full sm:w-auto p-4 sm:p-0">
-                               <OTPSection
-                                 orderId={task._id}
-                                 otpValue={otpInputs[task._id] || ""}
-                                 onOtpChange={(val) =>
-                                   setOtpInputs({ ...otpInputs, [task._id]: val })
-                                 }
-                                 onVerify={() => markAsDelivered(task._id)}
-                               />
+                              <OTPSection
+                                orderId={task._id}
+                                otpValue={otpInputs[task._id] || ""}
+                                onOtpChange={(val) =>
+                                  setOtpInputs({
+                                    ...otpInputs,
+                                    [task._id]: val,
+                                  })
+                                }
+                                onVerify={() => markAsDelivered(task._id)}
+                              />
                             </div>
                           )}
                         </div>
