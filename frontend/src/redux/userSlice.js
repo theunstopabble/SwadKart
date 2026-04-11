@@ -22,28 +22,39 @@ const initialState = {
   success: false,
 };
 
-// 👇 1. VALIDATE SESSION (Check if JWT cookie is still valid)
+// SESSION-01 FIX: Only logout on 401 (expired token), NOT on 5xx/network errors
+// Render free tier cold starts take 30-50s — don't punish user with logout for that
 export const validateSession = createAsyncThunk(
-  "user/validateSession",
+  'user/validateSession',
   async (_, { dispatch }) => {
     try {
-      const response = await fetch("/api/v1/users/profile", {
-        credentials: "include",
+      const controller = new AbortController();
+      // 10s timeout — if Render doesn't respond, keep user logged in
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(`${BASEURL}/api/v1/users/profile`, {
+        credentials: 'include',
+        signal: controller.signal,
       });
-      // Only logout on explicit 401 (invalid/expired token)
-      if (response.status === 401) {
+
+      clearTimeout(timeoutId);
+
+      if (res.status === 401) {
+        // SESSION-01 FIX: ONLY logout on 401 — token genuinely expired or invalid
         dispatch(logout());
-        return null;
       }
-      // For 500, network errors, Render cold start timeouts — keep user logged in
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data;
-    } catch {
-      // Network error (Render sleeping) — do NOT logout, just silently fail
-      return null;
+      // 5xx errors (Render sleeping/bad gateway) → DO NOT logout
+      // Cookie is still valid; server is just temporarily unavailable
+
+    } catch (error) {
+      // SESSION-01 FIX: Network error / AbortError (timeout) → DO NOT logout
+      // Render cold start can take 30-50s; user shouldn't lose their session
+      if (error.name !== 'AbortError') {
+        console.warn('SESSION CHECK: Network unavailable, keeping session alive.', error.message);
+      }
+      // Intentionally NO dispatch(logout()) here
     }
-  },
+  }
 );
 
 // 👇 2. UPDATE PROFILE ACTION
