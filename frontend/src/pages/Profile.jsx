@@ -13,7 +13,7 @@ import {
   Fingerprint,
   AlertTriangle, // For unsupported device warning
 } from "lucide-react";
-import { updateUserProfile } from "../redux/userSlice";
+import { setCredentials, updateUserProfile } from "../redux/userSlice";
 import { registerBiometric } from "../utils/biometricService";
 import { BASE_URL } from "../config";
 
@@ -35,6 +35,23 @@ const Profile = () => {
   const { userInfo, loading, error, success } = useSelector(
     (state) => state.user,
   );
+
+  useEffect(() => {
+    const fetchFreshProfile = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/v1/users/profile`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const freshData = await res.json();
+          dispatch(setCredentials({ ...userInfo, ...freshData }));
+        }
+      } catch (err) {
+        console.error("Error fetching fresh profile:", err);
+      }
+    };
+    if (userInfo) fetchFreshProfile();
+  }, []);
 
   // 🔍 Check Device Capability + Fetch Server Status
   useEffect(() => {

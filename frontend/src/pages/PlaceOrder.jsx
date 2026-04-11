@@ -332,6 +332,8 @@ const PlaceOrder = () => {
                 <p className="text-xs font-extrabold text-blue-400 uppercase tracking-[0.2em] italic">
                   {cart.paymentMethod === "Online"
                     ? "Secure Digital Transaction"
+                    : cart.paymentMethod === "Wallet"
+                    ? "Swad Wallet Payment"
                     : "Manual Cash Protocol"}
                 </p>
                 <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
