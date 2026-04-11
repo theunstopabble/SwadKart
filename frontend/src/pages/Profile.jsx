@@ -51,6 +51,7 @@ const Profile = () => {
       }
     };
     if (userInfo) fetchFreshProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 🔍 Check Device Capability + Fetch Server Status

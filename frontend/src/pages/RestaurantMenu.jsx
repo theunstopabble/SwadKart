@@ -61,7 +61,7 @@ const RestaurantMenu = () => {
             ? menuData
             : menuData.data || menuData.products || [], // 👈 Check for backend pagination object
         );
-      } catch (error) {
+      } catch {
         toast.error("Error loading menu");
       } finally {
         setLoading(false);

@@ -107,7 +107,7 @@ const DeliveryPartnerDashboard = () => {
         const error = await res.json();
         toast.error(error.message || "Action Failed");
       }
-    } catch (error) {
+    } catch {
       toast.error("Transmission Error");
     }
   };

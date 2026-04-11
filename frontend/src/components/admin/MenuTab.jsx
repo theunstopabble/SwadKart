@@ -6,7 +6,7 @@ import MenuHeader from "./MenuHeader";
 import MenuItemCard from "./MenuItemCard";
 import { optimizeImageUrl } from "../../utils/imageOptimizer";
 
-const MenuTab = ({ restaurants, userInfo }) => {
+const MenuTab = ({ restaurants }) => {
   const [selectedRestaurant, setSelectedRestaurant] = useState("");
   const [menuItems, setMenuItems] = useState([]);
   const [showItemModal, setShowItemModal] = useState(false);
@@ -54,6 +54,7 @@ const MenuTab = ({ restaurants, userInfo }) => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line
     fetchMenu();
   }, [selectedRestaurant]);
 

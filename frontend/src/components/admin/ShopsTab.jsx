@@ -17,7 +17,7 @@ import { BASE_URL } from "../../config";
 import { getSocket } from "../../utils/socket";
 import { optimizeImageUrl } from "../../utils/imageOptimizer";
 
-const ShopsTab = ({ restaurants, userInfo, fetchAllData }) => {
+const ShopsTab = ({ restaurants, fetchAllData }) => {
   const [showAddShopModal, setShowAddShopModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
   const [showDummyModal, setShowDummyModal] = useState(false);

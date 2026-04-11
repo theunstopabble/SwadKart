@@ -15,7 +15,7 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 import { BASE_URL } from "../../config";
 
-const CouponsTab = ({ userInfo, fetchAllData }) => {
+const CouponsTab = ({ fetchAllData }) => {
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isEditingCoupon, setIsEditingCoupon] = useState(false);

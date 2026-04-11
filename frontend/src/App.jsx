@@ -70,6 +70,7 @@ function App() {
     if (userInfo) {
       dispatch(validateSession());
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 🔍 Check device capability and lock status on mount
