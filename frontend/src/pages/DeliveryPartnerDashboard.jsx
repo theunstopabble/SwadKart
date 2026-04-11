@@ -40,10 +40,9 @@ const DeliveryPartnerDashboard = () => {
         const data = await res.json();
         const safeData = Array.isArray(data) ? data : data.data || [];
         const sortedTasks = safeData.sort((a, b) => {
-          if (a.isDelivered === b.isDelivered) {
-            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-          }
-          return a.isDelivered ? 1 : -1;
+          // DPD-01 FIX: Active deliveries first, newest-first within each group
+          if (a.isDelivered !== b.isDelivered) return a.isDelivered ? 1 : -1;
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
         });
         setTasks(sortedTasks);
       }

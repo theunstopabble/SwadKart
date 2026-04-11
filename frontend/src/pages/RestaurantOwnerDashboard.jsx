@@ -192,13 +192,18 @@ const RestaurantOwnerDashboard = () => {
   }, [userInfo, isSoundEnabled, fetchData]); // ✅ Added fetchData to the dependency array
 
   const handleToggleStock = async (id) => {
-    const res = await fetch(
-      `${BASEURL}/api/v1/products/${id}/toggle-stock`,
-      getFetchOptions("PATCH"),
-    );
-    if (res.ok) {
-      fetchData();
-      toast.success("Stock status updated");
+    try {
+      const res = await fetch(
+        `${BASEURL}/api/v1/products/${id}/toggle-stock`,
+        getFetchOptions("PATCH"),
+      );
+      if (res.ok) {
+        // ROD-02 FIX: move toast.success INSIDE the if(res.ok) block and add try-catch
+        toast.success("Stock status updated");
+        fetchData();
+      }
+    } catch {
+      toast.error("Network error");
     }
   };
 
@@ -224,45 +229,57 @@ const RestaurantOwnerDashboard = () => {
   };
 
   const handleStatusUpdate = async (orderId, newStatus) => {
-    const res = await fetch(
-      `${BASEURL}/api/v1/orders/${orderId}/status`,
-      getFetchOptions("PUT", { status: newStatus }),
-    );
-    if (res.ok) {
-      toast.success(`Order set to ${newStatus}`);
-      fetchData();
+    try {
+      const res = await fetch(
+        `${BASEURL}/api/v1/orders/${orderId}/status`,
+        getFetchOptions("PUT", { status: newStatus }),
+      );
+      if (res.ok) {
+        toast.success(`Order set to ${newStatus}`);
+        fetchData();
+      } else {
+        // ROD-01 FIX: add try-catch and error toast for non-ok response
+        toast.error("Failed to update status");
+      }
+    } catch {
+      toast.error("Network error");
     }
   };
 
   const handleSubmitItem = async (e) => {
     e.preventDefault();
-    const method = isEditing ? "PUT" : "POST";
-    const url = isEditing
-      ? `${BASEURL}/api/v1/products/${editId}`
-      : `${BASEURL}/api/v1/products`;
+    try {
+      const method = isEditing ? "PUT" : "POST";
+      const url = isEditing
+        ? `${BASEURL}/api/v1/products/${editId}`
+        : `${BASEURL}/api/v1/products`;
 
-    const payload = {
-      ...newItem,
-      price: Number(newItem.price),
-      isVeg: newItem.isVeg === "true",
-      restaurantId: userInfo._id,
-      variants: (newItem.variants || []).map((v) => ({
-        ...v,
-        price: Number(v.price),
-      })),
-      addons: (newItem.addons || []).map((a) => ({
-        ...a,
-        price: Number(a.price),
-      })),
-    };
+      const payload = {
+        ...newItem,
+        price: Number(newItem.price),
+        isVeg: newItem.isVeg === "true",
+        restaurantId: userInfo._id,
+        variants: (newItem.variants || []).map((v) => ({
+          ...v,
+          price: Number(v.price),
+        })),
+        addons: (newItem.addons || []).map((a) => ({
+          ...a,
+          price: Number(a.price),
+        })),
+      };
 
-    const res = await fetch(url, getFetchOptions(method, payload));
-    if (res.ok) {
-      setShowModal(false);
-      fetchData();
-      toast.success("Kitchen Menu Updated!");
-    } else {
-      toast.error("Update failed");
+      const res = await fetch(url, getFetchOptions(method, payload));
+      if (res.ok) {
+        setShowModal(false);
+        fetchData();
+        toast.success("Kitchen Menu Updated!");
+      } else {
+        toast.error("Update failed");
+      }
+    } catch {
+      // ROD-04 FIX: wrap entire fetch in try-catch
+      toast.error("Network error saving item");
     }
   };
 
@@ -347,12 +364,21 @@ const RestaurantOwnerDashboard = () => {
               handleToggleStock={handleToggleStock}
               handleDeleteItem={async (id) => {
                 if (window.confirm("Permanent removal from menu?")) {
-                  await fetch(
-                    `${BASEURL}/api/v1/products/${id}`,
-                    getFetchOptions("DELETE"),
-                  );
-                  fetchData();
-                  toast.success("Item removed");
+                  try {
+                    const res = await fetch(
+                      `${BASEURL}/api/v1/products/${id}`,
+                      getFetchOptions("DELETE"),
+                    );
+                    if (res.ok) {
+                      // ROD-03 FIX: add res.ok check so toast.success only fires on success, add try-catch
+                      fetchData();
+                      toast.success("Dish Erased 🗑️");
+                    } else {
+                      toast.error("Failed to delete dish");
+                    }
+                  } catch {
+                    toast.error("Network error deleting dish");
+                  }
                 }
               }}
               openAddModal={() => {
