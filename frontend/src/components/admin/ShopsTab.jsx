@@ -198,6 +198,18 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
     e.target.src = PLACEHOLDER_IMG;
   };
 
+  // ADMIN-06 FIX: Show loading spinner while restaurant data is still being fetched
+  if (!restaurants || restaurants.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <Loader2 className="animate-spin text-primary" size={36} />
+        <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">
+          Loading merchant data...
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20 font-sans">
       {/* --- HEADER --- */}

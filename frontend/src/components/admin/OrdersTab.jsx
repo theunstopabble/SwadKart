@@ -18,6 +18,9 @@ import { toast } from "react-hot-toast";
 import { BASE_URL } from "../../config";
 
 const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
+  // ADMIN-04 FIX: Normalize orders prop — handle both array and paginated object
+  const safeOrders = Array.isArray(orders) ? orders : (orders?.data || []);
+
   const [selectedPartner, setSelectedPartner] = useState({});
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -105,8 +108,8 @@ const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-900/50">
-            {orders && orders.length > 0 ? (
-              orders.map((o) => (
+            {safeOrders && safeOrders.length > 0 ? (
+              safeOrders.map((o) => (
               <tr
                 key={o._id}
                 className="hover:bg-primary/5 transition-all group"

@@ -18,24 +18,23 @@ const UsersTab = ({ userInfo }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
 
+  // ADMIN-03 FIX: Handle paginated response { data: [], metadata: {} } from getUsers
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/users/admin/all?limit=500`, {
-        credentials: "include",
+      setLoading(true);
+      const res = await fetch(`${BASE_URL}/api/v1/users/adminall`, {
+        credentials: 'include',
       });
-      const response = await res.json();
       if (res.ok) {
-        // Backend returns { data: [...], metadata: {...} }
-        setUsers(
-          Array.isArray(response.data)
-            ? response.data
-            : Array.isArray(response)
-              ? response
-              : [],
-        );
+        const data = await res.json();
+        // Handle both paginated { data: [] } and plain array formats
+        const usersArray = Array.isArray(data) ? data : (data.data || []);
+        setUsers(usersArray);
+      } else {
+        toast.error('Failed to load users');
       }
-    } catch {
-      toast.error("Failed to sync user database");
+    } catch (err) {
+      toast.error('Network error loading users');
     } finally {
       setLoading(false);
     }
@@ -151,7 +150,8 @@ const UsersTab = ({ userInfo }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-900/50">
-              {filteredUsers.map((user) => (
+              {/* ADMIN-03 FIX: Safe array access guard */}
+              {Array.isArray(filteredUsers) && filteredUsers.map((user) => (
                 <tr
                   key={user._id}
                   className="hover:bg-primary/5 transition-all group"

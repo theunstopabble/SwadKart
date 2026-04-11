@@ -33,32 +33,37 @@ const OverviewTab = () => {
           credentials: "include",
         };
 
-        // 1. Fetch Graph Data & Analytics in Parallel for Speed
+        // ADMIN-07 FIX: Handle graph and stats API failures independently + fix field name mismatch
         const [resGraph, resStats] = await Promise.all([
           fetch(`${BASE_URL}/api/v1/orders/sales-stats`, config),
           fetch(`${BASE_URL}/api/v1/orders/analytics`, config),
         ]);
 
-        if (resGraph.ok && resStats.ok) {
+        // Handle graph independently
+        if (resGraph.ok) {
           const graphResult = await resGraph.json();
-          const statsResult = await resStats.json();
-
-          // Format Graph with dynamic sorting if needed
           const safeGraph = Array.isArray(graphResult) ? graphResult : [];
-          const formatted = safeGraph.map((item) => ({
-            day: new Date(item._id).toLocaleDateString("en-IN", {
-              weekday: "short",
-            }),
-            sales: item.sales,
+          const formatted = safeGraph.map(item => ({
+            day: new Date(item._id).toLocaleDateString('en-IN', { weekday: 'short' }),
+            sales: item.sales || 0,
           }));
           setGraphData(formatted);
+        } else {
+          console.warn('Sales graph API failed:', resGraph.status);
+          setGraphData([]);
+        }
 
-          // Set Dashboard Totals
+        // Handle stats independently
+        if (resStats.ok) {
+          const statsResult = await resStats.json();
           setStats({
-            revenue: statsResult.totalSales || 0,
+            revenue: statsResult.totalSales || 0,      // ADMIN-07 FIX: was stats.revenue, backend sends totalSales
             orders: statsResult.totalOrders || 0,
             restaurants: statsResult.totalRestaurants || 0,
+            users: statsResult.totalUsers || 0,
           });
+        } else {
+          console.warn('Dashboard stats API failed:', resStats.status);
         }
       } catch {
         toast.error("Analytics sync failed");

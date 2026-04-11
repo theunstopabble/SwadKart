@@ -265,6 +265,21 @@ export const razorpayWebhook = async (req, res) => {
             };
 
             await order.save();
+            // NEW-07 FIX: Create CouponUsage on webhook payment success to prevent coupon reuse
+            if (order.couponCode) {
+              try {
+                const coupon = await Coupon.findOne({ code: order.couponCode.toUpperCase() });
+                if (coupon) {
+                  const alreadyUsed = await CouponUsage.findOne({ user: order.user, coupon: coupon._id });
+                  if (!alreadyUsed) {
+                    await CouponUsage.create({ user: order.user, coupon: coupon._id, order: order._id });
+                  }
+                }
+              } catch (couponErr) {
+                console.error('Webhook CouponUsage creation failed:', couponErr.message);
+              }
+            }
+
             console.log(`✅ Webhook Success: Order ${orderId} marked as PAID.`);
           }
         }

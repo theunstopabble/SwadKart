@@ -27,19 +27,18 @@ const MyOrders = () => {
     if (!userInfo) {
       navigate("/login");
     } else {
+      // NEW-01 FIX: Handle paginated response from backend { data: [], metadata: {} }
       const fetchOrders = async () => {
         try {
           const res = await fetch(`${BASE_URL}/api/v1/orders/myorders`, {
             credentials: "include",
           });
           const data = await res.json();
-          // Sort by latest first
-          setOrders(
-            data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-          );
-          setLoading(false);
+          const ordersArray = Array.isArray(data) ? data : (data.data || []);
+          setOrders(ordersArray.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         } catch {
           toast.error("Failed to load orders");
+        } finally {
           setLoading(false);
         }
       };

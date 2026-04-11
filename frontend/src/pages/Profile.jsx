@@ -223,12 +223,15 @@ const Profile = () => {
                     className="absolute left-3 top-3 text-gray-500"
                     size={18}
                   />
+                  {/* NEW-06 FIX: Email is read-only — backend blocks email changes */}
                   <input
                     type="email"
-                    className="w-full bg-black border border-gray-700 text-white rounded-lg pl-10 pr-4 py-3 focus:border-primary focus:outline-none"
+                    className="w-full bg-black border border-gray-700 text-gray-500 cursor-not-allowed rounded-lg pl-10 pr-4 py-3 focus:border-gray-600 focus:outline-none"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    readOnly
+                    title="Email cannot be changed. Contact support."
                   />
+                  <p className="text-xs text-gray-600 mt-1 pl-1">⚠️ Email cannot be changed directly.</p>
                 </div>
               </div>
 

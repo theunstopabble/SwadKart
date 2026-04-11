@@ -1,3 +1,5 @@
+// ADMIN-05 FIX: Import Leaflet CSS directly here — map won't render without it
+import 'leaflet/dist/leaflet.css';
 import React, { useEffect, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -78,7 +80,8 @@ const HeatmapTab = ({ userInfo }) => {
         </div>
       </div>
 
-      <div className="flex-1 rounded-2xl overflow-hidden border-2 border-gray-800 relative z-0">
+      {/* ADMIN-05 FIX: Leaflet MapContainer needs explicit pixel height to render */}
+      <div style={{ height: '500px', width: '100%' }} className="rounded-2xl overflow-hidden border-2 border-gray-800 relative z-0">
         <MapContainer
           center={[26.9124, 75.7873]} // Jaipur Coordinates (Default)
           zoom={12}

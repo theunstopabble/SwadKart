@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { X, Plus, Trash2, Layers, Tag } from "lucide-react";
+import { X, Plus, Trash2, Layers, Tag, Loader2 } from "lucide-react";
 import { BASE_URL } from "../../config";
 import MenuHeader from "./MenuHeader";
 import MenuItemCard from "./MenuItemCard";
@@ -136,6 +136,18 @@ const MenuTab = ({ restaurants }) => {
       ...newItem,
       addons: [...newItem.addons, { name: "", price: "" }],
     });
+
+  // ADMIN-06 FIX: Show loading spinner while restaurant data is still being fetched
+  if (!restaurants || restaurants.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <Loader2 className="animate-spin text-primary" size={36} />
+        <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">
+          Loading merchant data...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-in fade-in duration-700 pb-20 px-4 md:px-0">

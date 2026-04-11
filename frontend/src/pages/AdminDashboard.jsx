@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
-import axios from "axios";
 
 import {
   LayoutDashboard,
@@ -33,47 +32,59 @@ const AdminDashboard = () => {
   const [coupons, setCoupons] = useState([]);
 
   // --- FETCH ALL DATA ---
+  // ADMIN-02 FIX: Per-section error isolation + reduced order limit to prevent Render timeout
   const fetchAllData = useCallback(async () => {
     if (!userInfo) return;
+    const fetchOptions = { credentials: 'include' };
 
-    const fetchOptions = {
-      credentials: "include",
-    };
-
+    // 1. Restaurants — isolated
     try {
-      // 1. Fetch Restaurants (Admin needs ALL restaurants, not just verified)
-      const resRest = await fetch(
-        `${BASE_URL}/api/v1/restaurants/admin/all`,
-        fetchOptions,
-      );
+      const resRest = await fetch(`${BASE_URL}/api/v1/restaurants/adminall`, fetchOptions);
       if (resRest.ok) {
         const restResponse = await resRest.json();
-        setRestaurants(Array.isArray(restResponse) ? restResponse : restResponse.data || []);
+        setRestaurants(Array.isArray(restResponse) ? restResponse : (restResponse.data || []));
+      } else {
+        console.warn('Restaurants fetch failed:', resRest.status);
       }
+    } catch (err) {
+      console.error('Restaurants fetch error:', err.message);
+    }
 
-      // 2. Fetch Orders
-      const resOrders = await fetch(`${BASE_URL}/api/v1/orders?limit=1000`, {
-        credentials: "include",
-      });
+    // 2. Orders — isolated, reduced limit to 50
+    try {
+      const resOrders = await fetch(`${BASE_URL}/api/v1/orders?limit=50&page=1`, fetchOptions);
       if (resOrders.ok) {
         const ordersResponse = await resOrders.json();
         setOrders(ordersResponse.data || ordersResponse);
+      } else {
+        console.warn('Orders fetch failed:', resOrders.status);
       }
-
-      // 3. Delivery Partners
-      const resPartners = await fetch(
-        `${BASE_URL}/api/v1/users/delivery-partners`,
-        { credentials: "include" },
-      );
-      if (resPartners.ok) setDeliveryPartners(await resPartners.json());
-
-      // 4. Coupons
-      const resCoupons = await axios.get(`${BASE_URL}/api/v1/coupons`, {
-        withCredentials: true,
-      });
-      setCoupons(resCoupons.data || []);
     } catch (err) {
-      console.error("Dashboard Fetch Error:", err);
+      console.error('Orders fetch error:', err.message);
+    }
+
+    // 3. Delivery Partners — isolated
+    try {
+      const resPartners = await fetch(`${BASE_URL}/api/v1/users/delivery-partners`, fetchOptions);
+      if (resPartners.ok) {
+        setDeliveryPartners(await resPartners.json());
+      } else {
+        console.warn('Partners fetch failed:', resPartners.status);
+      }
+    } catch (err) {
+      console.error('Partners fetch error:', err.message);
+    }
+
+    // 4. Coupons — isolated (was using axios which could throw on non-2xx)
+    try {
+      const resCoupons = await fetch(`${BASE_URL}/api/v1/coupons`, fetchOptions);
+      if (resCoupons.ok) {
+        setCoupons(await resCoupons.json());
+      } else {
+        console.warn('Coupons fetch failed:', resCoupons.status);
+      }
+    } catch (err) {
+      console.error('Coupons fetch error:', err.message);
     }
   }, [userInfo]);
 
