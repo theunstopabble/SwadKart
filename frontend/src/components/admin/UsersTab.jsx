@@ -110,8 +110,8 @@ const UsersTab = ({ userInfo }) => {
           />
           <input
             type="text"
-            placeholder="Search by Identity (Name or Email)...
-            className="w-full bg-black/60 border border-gray-800 rounded-2xl py-4 pl-14 pr-6 text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-700 font-medium"
+            placeholder="Search by Identity (Name or Email)..."
+            className="w-full bg-black/60 border border-gray-800 rounded-2xl py-4 pl-14 pr-6 text-sm text-white focus-visible:ring-1 transition-all outline-none"
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
