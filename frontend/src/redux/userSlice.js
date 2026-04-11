@@ -101,14 +101,18 @@ const userSlice = createSlice({
       })
       .addCase(validateSession.fulfilled, (state, action) => {
         state.loading = false;
-        state.userInfo = action.payload;
-        localStorage.setItem("userInfo", JSON.stringify(action.payload));
+        // Only update userInfo if payload is not null
+        // null payload means network error or Render cold start — keep existing session
+        if (action.payload) {
+          state.userInfo = action.payload;
+          localStorage.setItem("userInfo", JSON.stringify(action.payload));
+        }
+        // If null, silently keep the existing userInfo from localStorage
       })
       .addCase(validateSession.rejected, (state) => {
         state.loading = false;
-        state.userInfo = null;
-        localStorage.removeItem("userInfo");
-        localStorage.removeItem("isBiometricEnabled");
+        // Don't clear userInfo on rejection — only logout() action should do that
+        // validateSession.rejected means the thunk itself threw an error, not a 401
       })
       .addCase(updateUserProfile.pending, (state) => {
         state.loading = true;
