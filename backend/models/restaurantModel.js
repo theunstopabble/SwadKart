@@ -22,7 +22,7 @@ const restaurantSchema = mongoose.Schema(
       required: true,
       default: "https://placehold.co/600x400/png?text=Restaurant",
     },
-    description: { type: String, required: true },
+    description: { type: String, default: "" },
     address: { type: String, required: true },
 
     // ✅ CRITICAL: Link to Owner (User)

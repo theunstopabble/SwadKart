@@ -12,8 +12,12 @@ if (storedUserInfo && storedUserInfo.token) {
   localStorage.setItem("userInfo", JSON.stringify(storedUserInfo));
 }
 
+const userInfoFromStorage = localStorage.getItem("userInfo")
+  ? JSON.parse(localStorage.getItem("userInfo"))
+  : null;
+
 const initialState = {
-  userInfo: storedUserInfo,
+  userInfo: userInfoFromStorage,
   loading: false,
   error: null,
   success: false,
@@ -22,16 +26,23 @@ const initialState = {
 // 👇 1. VALIDATE SESSION (Check if JWT cookie is still valid)
 export const validateSession = createAsyncThunk(
   "user/validateSession",
-  async (_, { rejectWithValue }) => {
+  async (_, { dispatch }) => {
     try {
-      const config = { withCredentials: true };
-      const { data } = await axios.get(
-        `${BASE_URL}/api/v1/users/profile`,
-        config,
-      );
+      const response = await fetch("/api/v1/users/profile", {
+        credentials: "include",
+      });
+      // Only logout on explicit 401 (invalid/expired token)
+      if (response.status === 401) {
+        dispatch(logout());
+        return null;
+      }
+      // For 500, network errors, Render cold start timeouts — keep user logged in
+      if (!response.ok) return null;
+      const data = await response.json();
       return data;
-    } catch (error) {
-      return rejectWithValue(error.response?.status || 500);
+    } catch {
+      // Network error (Render sleeping) — do NOT logout, just silently fail
+      return null;
     }
   },
 );
@@ -72,19 +83,14 @@ const userSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      // 🛡️ SECURITY FIX: Explicitly ensure token is never saved
-      const userData = { ...action.payload };
-      delete userData.token;
-
-      state.userInfo = userData;
-      localStorage.setItem("userInfo", JSON.stringify(userData));
+      state.userInfo = action.payload;
+      localStorage.setItem("userInfo", JSON.stringify(action.payload));
     },
     logout: (state) => {
       state.userInfo = null;
       localStorage.removeItem("userInfo");
-      localStorage.removeItem("isBiometricEnabled");
-      state.success = false;
-      state.error = null;
+      localStorage.removeItem("couponDiscount");
+      localStorage.removeItem("appliedCoupon");
     },
   },
   // 👇 2. EXTRA REDUCERS

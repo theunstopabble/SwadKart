@@ -254,6 +254,7 @@ export const createRestaurantByAdmin = async (req, res, next) => {
         owner: user._id,
         image: user.image,
         address: "Default Address, India",
+        description: "Restaurant managed by SwadKart admin.",
         isVerified: true,
         isActive: true,
       });
@@ -292,6 +293,7 @@ export const createDummyRestaurant = async (req, res, next) => {
         owner: user._id,
         image: user.image,
         address: "Synthetic Street, Cyber City",
+        description: "Synthetic restaurant for demo purposes.",
         isVerified: false,
         isDummy: true,
         isActive: true,
