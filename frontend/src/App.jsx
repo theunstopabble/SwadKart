@@ -311,12 +311,14 @@ function App() {
 
 // 🛡️ ROUTE GUARDS
 const PrivateRoute = () => {
-  const { userInfo } = useSelector((state) => state.user);
+  const { userInfo, loading } = useSelector((state) => state.user);
+  if (loading) return <PageLoader />;
   return userInfo ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const AdminRoute = () => {
-  const { userInfo } = useSelector((state) => state.user);
+  const { userInfo, loading } = useSelector((state) => state.user);
+  if (loading) return <PageLoader />;
   return userInfo && userInfo.role === "admin" ? (
     <Outlet />
   ) : (
@@ -325,7 +327,8 @@ const AdminRoute = () => {
 };
 
 const RestaurantRoute = () => {
-  const { userInfo } = useSelector((state) => state.user);
+  const { userInfo, loading } = useSelector((state) => state.user);
+  if (loading) return <PageLoader />;
   const isAllowed =
     userInfo &&
     (userInfo.role === "restaurant_owner" || userInfo.role === "admin");
@@ -333,7 +336,8 @@ const RestaurantRoute = () => {
 };
 
 const DeliveryRoute = () => {
-  const { userInfo } = useSelector((state) => state.user);
+  const { userInfo, loading } = useSelector((state) => state.user);
+  if (loading) return <PageLoader />;
   const isAllowed =
     userInfo &&
     (userInfo.role === "delivery_partner" || userInfo.role === "admin");

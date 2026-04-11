@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { BASE_URL } from "../config";
-
 // 🛡️ SECURITY FIX: Strip out tokens from old sessions to prevent XSS
 let storedUserInfo = localStorage.getItem("userInfo")
   ? JSON.parse(localStorage.getItem("userInfo"))

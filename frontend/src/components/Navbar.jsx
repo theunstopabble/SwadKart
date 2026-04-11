@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { logout } from "../redux/userSlice";
 import {
   ShoppingCart,
   User,
@@ -26,7 +25,8 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const logoutHandler = () => {
-    dispatch(logout());
+    dispatch({ type: "user/logout" });
+    dispatch({ type: "cart/logout" });
     setIsOpen(false);
     navigate("/login");
   };

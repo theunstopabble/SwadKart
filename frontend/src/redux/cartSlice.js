@@ -125,6 +125,15 @@ const cartSlice = createSlice({
       state.cartItems = [];
       browserStorage.removeItem("cartItems");
     },
+
+    logout: (state) => {
+      state.cartItems = [];
+      state.shippingAddress = null;
+      state.paymentMethod = "";
+      browserStorage.removeItem("cartItems");
+      browserStorage.removeItem("shippingAddress");
+      browserStorage.removeItem("paymentMethod");
+    },
   },
 });
 
@@ -134,6 +143,7 @@ export const {
   saveShippingAddress,
   savePaymentMethod,
   clearCart,
+  logout
 } = cartSlice.actions;
 
 export default cartSlice.reducer;
