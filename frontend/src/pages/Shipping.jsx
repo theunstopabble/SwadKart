@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { saveShippingAddress } from "../redux/cartSlice";
 import CheckoutSteps from "../components/CheckoutSteps";
+import { toast } from "react-hot-toast";
 import { MapPin } from "lucide-react";
 
 // Modular Components

@@ -130,7 +130,7 @@ const RestaurantMenu = () => {
       return;
     }
     // 🔥 NEW: Warn user if switching restaurants
-    if (cartItems.length > 0 && restaurant && cartItems[0].restaurant !== restaurant._id) {
+    if (cartItems.length > 0 && restaurant && cartItems[0].restaurant?.toString() !== restaurant._id?.toString()) {
       const confirmed = window.confirm(
         "Your cart has items from another restaurant. Adding this will clear your current cart. Continue?",
       );

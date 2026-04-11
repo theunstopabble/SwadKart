@@ -81,72 +81,54 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       if (alreadyUsed) throw new Error("Coupon already used by this account");
     }
 
-    if (paymentMethod === "Wallet") {
-      if (user.walletBalance < totalPrice) {
-        throw new Error(
-          `Insufficient Wallet Balance. You only have ₹${user.walletBalance}.`,
-        );
-      }
-
-      // Deduct balance and record transaction
-      user.walletBalance -= totalPrice;
-      user.walletTransactions.push({
-        amount: totalPrice,
-        type: "Debit",
-        description: "Payment for Order",
-        date: Date.now(),
-      });
-      await user.save({ session }); // Save user strictly inside transaction
-
-      orderIsPaid = true;
-      orderPaidAt = Date.now();
-    }
-
-    // 1. Loop through items to strictly verify and decrement stock atomically
-    for (const item of orderItems) {
-      const product = await Product.findById(item.product).session(session);
-
-      if (!product) {
-        throw new Error(`Product not found: ${item.name}`);
-      }
-
-      // Explicit check to prevent negative stock
-      if (product.countInStock < item.qty) {
-        throw new Error(
-          `Out of stock: ${product.name}. Only ${product.countInStock} items left.`,
-        );
-      }
-
-      // Decrement stock strictly using $inc and the transaction session
-      await Product.findByIdAndUpdate(
-        item.product,
-        { $inc: { countInStock: -item.qty } },
-        { session },
-      );
-    }
-    
-    // SERVER-SIDE PRICE RECALCULATION (never trust frontend prices)
+    // 1. Fetch all products ONCE and validate stock
     const dbProducts = [];
     for (const item of orderItems) {
       const product = await Product.findById(item.product).session(session);
+      if (!product) throw new Error(`Product not found: ${item.name}`);
+      if (product.countInStock < item.qty) {
+        throw new Error(`Out of stock: ${product.name}. Only ${product.countInStock} left.`);
+      }
       dbProducts.push(product);
     }
-    
-    const serverItemsPrice = orderItems.reduce((acc, item) => {
-      const dbProduct = dbProducts.find(
-        (p) => p._id.toString() === item.product.toString()
+
+    // Decrement stock atomically
+    for (const item of orderItems) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { countInStock: -item.qty } },
+        { session }
       );
+    }
+
+    // SERVER-SIDE PRICE RECALCULATION (never trust frontend prices)
+    const serverItemsPrice = orderItems.reduce((acc, item) => {
+      const dbProduct = dbProducts.find(p => p._id.toString() === item.product.toString());
       return acc + (dbProduct ? dbProduct.price * item.qty : 0);
     }, 0);
 
     const serverShippingPrice = serverItemsPrice > 500 ? 0 : 40;
     const serverTaxPrice = parseFloat((0.05 * serverItemsPrice).toFixed(2));
     const serverTotalPrice = parseFloat(
-      Math.max(
-        0,
-        serverItemsPrice + serverShippingPrice + serverTaxPrice - (couponDiscount || 0)
-      ).toFixed(2)
+      Math.max(0, serverItemsPrice + serverShippingPrice + serverTaxPrice - (couponDiscount || 0)).toFixed(2)
     );
+
+    // WALLET: Now deduct using serverTotalPrice (not frontend totalPrice)
+    if (paymentMethod === "Wallet") {
+      if (user.walletBalance < serverTotalPrice) {
+        throw new Error(`Insufficient Wallet Balance. You only have ₹${user.walletBalance}.`);
+      }
+      user.walletBalance -= serverTotalPrice;
+      user.walletTransactions.push({
+        amount: serverTotalPrice,
+        type: "Debit",
+        description: "Payment for Order",
+        date: Date.now(),
+      });
+      await user.save({ session });
+      orderIsPaid = true;
+      orderPaidAt = Date.now();
+    }
 
     // 2. Map items and create Order instance
     const order = new Order({

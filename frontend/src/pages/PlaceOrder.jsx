@@ -27,7 +27,7 @@ const PlaceOrder = () => {
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const [countdown, setCountdown] = useState(4);
   const [paymentDetails, setPaymentDetails] = useState({ id: "", date: "" });
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const [, setRazorpayLoaded] = useState(false);
   const timerRef = useRef(null);
   const isMounted = useRef(true);
 
@@ -228,10 +228,10 @@ const PlaceOrder = () => {
 
       // 5. Handle Payment Flow
       if (cart.paymentMethod === "COD") {
-        handleOrderSuccess(
-          dbData._id,
-          "COD-" + dbData._id.slice(-6).toUpperCase()
-        );
+        handleOrderSuccess(dbData._id, "COD-" + dbData._id.slice(-6).toUpperCase());
+      } else if (cart.paymentMethod === "Wallet") {
+        // Wallet handled server-side — order already isPaid=true
+        handleOrderSuccess(dbData._id, "WALLET-" + dbData._id.slice(-6).toUpperCase());
       } else {
         const orderRes = await fetch(
           `${BASE_URL}/api/v1/payment/create`,

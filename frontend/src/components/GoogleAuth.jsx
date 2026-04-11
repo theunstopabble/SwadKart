@@ -76,6 +76,39 @@ const GoogleAuth = () => {
     }
   };
 
+  const handleFinalRegister = async () => {
+    if (!phoneNumber || phoneNumber.length < 10) {
+      return toast.error("Please enter a valid 10-digit phone number");
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/v1/users/google-register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: tempGoogleUser.name,
+          email: tempGoogleUser.email,
+          image: tempGoogleUser.image,
+          phone: phoneNumber,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        dispatch(setCredentials(data));
+        toast.success(`Welcome to SwadKart, ${data.name}! 🎉`);
+        setShowPhoneModal(false);
+        navigate("/");
+      } else {
+        toast.error(data.message || "Registration Failed");
+      }
+    } catch {
+      toast.error("Network Error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       {/* --- The Button (Updated with SVG Icon) --- */}

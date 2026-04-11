@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { savePaymentMethod } from "../redux/cartSlice";
 import CheckoutSteps from "../components/CheckoutSteps";
-import { CreditCard, Banknote, ArrowRight, ShieldCheck } from "lucide-react";
+import { CreditCard, Banknote, ArrowRight, ShieldCheck, Wallet } from "lucide-react";
 
 const Payment = () => {
   const { shippingAddress } = useSelector((state) => state.cart);
@@ -118,6 +118,25 @@ const Payment = () => {
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                   Pay when you receive your food
                 </span>
+              </div>
+            </label>
+
+            {/* Wallet Option */}
+            <label className={`flex items-center gap-5 p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 ${paymentMethod === "Wallet" ? "bg-primary/5 border-primary shadow-lg shadow-primary/10" : "bg-black/50 border-gray-700 hover:border-gray-600"}`}>
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="Wallet"
+                checked={paymentMethod === "Wallet"}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-5 h-5 accent-primary cursor-pointer"
+              />
+              <div className={`p-3 rounded-xl transition-colors ${paymentMethod === "Wallet" ? "bg-primary text-white" : "bg-gray-800 text-gray-500"}`}>
+                <Wallet size={24} />
+              </div>
+              <div className="flex-1">
+                <span className="block font-extrabold uppercase italic tracking-tight text-lg">Swad Wallet</span>
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Use your SwadKart wallet balance</span>
               </div>
             </label>
 
