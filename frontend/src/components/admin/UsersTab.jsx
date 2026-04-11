@@ -22,7 +22,7 @@ const UsersTab = ({ userInfo }) => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASEURL}/api/v1/users/adminall`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/admin/all`, {
         credentials: "include",
       });
       if (res.ok) {
