@@ -123,7 +123,12 @@ router
   .put(protect, authorizeRoles("admin"), updateUserByAdmin)
   .delete(protect, authorizeRoles("admin"), deleteUserByAdmin);
 
-// ⚠️ MUST BE LAST — Dynamic catch-all
-router.get("/:id", getRestaurantById);
+// ROUTE-02 FIX: /admin/all before /:id
+// Note: /admin/all is ALREADY strictly placed on line 91 (before these dynamic logic sets)
+// /:id routes AFTER
+router.route('/:id')
+  .get(protect, authorizeRoles('admin'), getRestaurantById)
+  .put(protect, authorizeRoles('admin'), updateUserByAdmin)
+  .delete(protect, authorizeRoles('admin'), deleteUserByAdmin);
 
 export default router;

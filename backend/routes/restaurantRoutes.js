@@ -101,10 +101,13 @@ router.delete(
   }
 );
 
-// =================================================================
-// 🔵 SINGLE RESTAURANT & REVIEWS
-// =================================================================
+// Reviews
 router.route("/:id/reviews").post(protect, createRestaurantReview);
-router.route("/:id").get(getRestaurantById);
+
+// ROUTE-01 FIX: Specific routes MUST come before /:id param routes
+// router.get('/admin/all', protect, authorizeRoles('admin'), getAllRestaurantsAdmin);
+// Note: /admin/all is ALREADY defined above correctly but /:id was causing issues if not strictly LAST
+// /:id routes AFTER all specific string routes
+router.get('/:id', getRestaurantById);
 
 export default router;
