@@ -193,18 +193,23 @@ export const loginBiometricVerify = async (req, res) => {
 
     const { verified, authenticationInfo } = verification;
 
+    // BUG-05 FIX: Clear challenge after every attempt (one-time use)
+    user.currentChallenge = undefined;
+    await user.save();
+
+    if (!verified) {
+      return res.status(400).json({ verified: false, message: 'Verification failed' });
+    }
+
     if (verified) {
       // Update counter
       authDoc.counter = authenticationInfo.newCounter;
-      user.currentChallenge = "";
       user.markModified("biometricCredentials");
       await user.save();
 
       res
         .status(200)
         .json({ verified: true, message: "Unlocked Successfully!" });
-    } else {
-      res.status(400).json({ verified: false, message: "Verification failed" });
     }
   } catch (error) {
     console.error("Biometric Login Verify Error:", error);

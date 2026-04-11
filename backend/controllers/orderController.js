@@ -56,6 +56,23 @@ export const addOrderItems = asyncHandler(async (req, res) => {
   try {
     const user = await User.findById(req.user._id).session(session);
 
+    // BUG-03 FIX: Server-side restaurant open/close validation
+    const restaurantDoc = await Restaurant.findById(firstRestaurantId).session(session);
+    if (restaurantDoc && restaurantDoc.openingTime && restaurantDoc.closingTime) {
+      const IST_OFFSET = 330;
+      const now = new Date();
+      const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+      const currentMinutes = (utcMinutes + IST_OFFSET) % (24 * 60);
+      const [openH, openM] = restaurantDoc.openingTime.split(':').map(Number);
+      const [closeH, closeM] = restaurantDoc.closingTime.split(':').map(Number);
+      const startMinutes = openH * 60 + openM;
+      const endMinutes = closeH * 60 + closeM;
+      const isOpen = endMinutes > startMinutes
+        ? currentMinutes >= startMinutes && currentMinutes <= endMinutes
+        : currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+      if (!isOpen) throw new Error(`${restaurantDoc.name} is currently closed. Please order during opening hours.`);
+    }
+
     // 💳 WALLET SYSTEM (STEP 2): Check and deduct balance
     let orderIsPaid = false;
     let orderPaidAt = null;
@@ -87,45 +104,66 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       const product = await Product.findById(item.product).session(session);
       if (!product) throw new Error(`Product not found: ${item.name}`);
       if (product.countInStock < item.qty) {
-        throw new Error(`Out of stock: ${product.name}. Only ${product.countInStock} left.`);
+        throw new Error(
+          `Out of stock: ${product.name}. Only ${product.countInStock} left.`,
+        );
       }
       dbProducts.push(product);
     }
 
     // Decrement stock atomically
+    // BUG-06 FIX: Atomic stock decrement with floor guard — prevents negative stock
     for (const item of orderItems) {
-      await Product.findByIdAndUpdate(
-        item.product,
+      const updated = await Product.findOneAndUpdate(
+        { _id: item.product, countInStock: { $gte: item.qty } },
         { $inc: { countInStock: -item.qty } },
-        { session }
+        { session, new: true }
       );
+      if (!updated) {
+        const product = dbProducts.find(p => p._id.toString() === item.product.toString());
+        throw new Error(`"${product?.name || 'A product'}" just went out of stock. Please update your cart.`);
+      }
     }
 
     // SERVER-SIDE PRICE RECALCULATION (never trust frontend prices)
     const serverItemsPrice = orderItems.reduce((acc, item) => {
-      const dbProduct = dbProducts.find(p => p._id.toString() === item.product.toString());
+      const dbProduct = dbProducts.find(
+        (p) => p._id.toString() === item.product.toString(),
+      );
       return acc + (dbProduct ? dbProduct.price * item.qty : 0);
     }, 0);
 
     const serverShippingPrice = serverItemsPrice > 500 ? 0 : 40;
     const serverTaxPrice = parseFloat((0.05 * serverItemsPrice).toFixed(2));
     const serverTotalPrice = parseFloat(
-      Math.max(0, serverItemsPrice + serverShippingPrice + serverTaxPrice - (couponDiscount || 0)).toFixed(2)
+      Math.max(
+        0,
+        serverItemsPrice +
+          serverShippingPrice +
+          serverTaxPrice -
+          (couponDiscount || 0),
+      ).toFixed(2),
     );
 
     // WALLET: Now deduct using serverTotalPrice (not frontend totalPrice)
     if (paymentMethod === "Wallet") {
-      if (user.walletBalance < serverTotalPrice) {
-        throw new Error(`Insufficient Wallet Balance. You only have ₹${user.walletBalance}.`);
-      }
-      user.walletBalance -= serverTotalPrice;
-      user.walletTransactions.push({
-        amount: serverTotalPrice,
-        type: "Debit",
-        description: "Payment for Order",
-        date: Date.now(),
-      });
-      await user.save({ session });
+      // BUG-01 FIX: Atomic wallet deduction using findOneAndUpdate to prevent race condition
+      const buyer = await User.findOneAndUpdate(
+        { _id: req.user._id, walletBalance: { $gte: serverTotalPrice } },
+        {
+          $inc: { walletBalance: -serverTotalPrice },
+          $push: {
+            walletTransactions: {
+              amount: serverTotalPrice,
+              type: 'Debit',
+              description: 'Payment for Order',
+              date: Date.now(),
+            },
+          },
+        },
+        { new: true, session }
+      );
+      if (!buyer) throw new Error('Insufficient Wallet Balance.');
       orderIsPaid = true;
       orderPaidAt = Date.now();
     }
@@ -154,21 +192,11 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     const createdOrder = await order.save({ session });
 
     // 4. Create CouponUsage record to prevent reuse
-    if (couponCode) {
-      const coupon = await Coupon.findOne({
-        code: couponCode.toUpperCase(),
-      }).session(session);
+    // BUG-08 FIX: For Online payment, coupon usage is recorded only after payment is verified
+    if (couponCode && paymentMethod !== 'Online') {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() }).session(session);
       if (coupon) {
-        await CouponUsage.create(
-          [
-            {
-              user: req.user._id,
-              coupon: coupon._id,
-              order: createdOrder._id,
-            },
-          ],
-          { session },
-        );
+        await CouponUsage.create([{ user: req.user._id, coupon: coupon._id, order: createdOrder._id }], { session });
       }
     }
 
@@ -220,7 +248,8 @@ export const getOrderById = async (req, res) => {
     }
 
     // 🛡️ SECURITY FIX: Completely remove OTP if the user is a delivery partner
-    if (req.user && req.user.role === "delivery_partner") {
+    // BUG-04 FIX: Also strip OTP from restaurant owner view
+    if (req.user && (req.user.role === "delivery_partner" || req.user.role === "restaurant_owner")) {
       delete order.deliveryOTP;
     }
     res.json(order);
@@ -240,6 +269,11 @@ export const updateOrderToPaid = async (req, res) => {
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
+    }
+
+    // BUG-09 FIX: Idempotency check — do not overwrite already-paid orders
+    if (order.isPaid) {
+      return res.status(400).json({ message: 'Order is already marked as paid.' });
     }
 
     // 🛡️ SECURITY FIX (SEC-2/BUG-1): Only the order owner or admin can mark as paid
@@ -348,7 +382,7 @@ export const updateOrderStatus = async (req, res) => {
     }
 
     const updatedOrder = await order.save();
-    
+
     // Only mark partner unavailable after order is successfully saved
     if (status === "Ready" && updatedOrder.deliveryPartner) {
       const nearestPartner = await User.findById(updatedOrder.deliveryPartner);
@@ -394,10 +428,18 @@ export const updateOrderStatus = async (req, res) => {
 // ==========================================
 export const getMyOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user._id }).sort({
-      createdAt: -1,
-    });
-    res.json(orders);
+    // BUG-11 FIX: Add pagination to getMyOrders
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const count = await Order.countDocuments({ user: req.user._id });
+    
+    const orders = await Order.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    res.json({ data: orders, metadata: { total: count, page, pages: Math.ceil(count / limit) } });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -425,7 +467,14 @@ export const getMyRestaurantOrders = async (req, res) => {
       .populate("deliveryPartner", "name phone")
       .sort({ createdAt: -1 });
 
-    res.json(orders);
+    // BUG-04 FIX: Strip deliveryOTP from restaurant owner's view
+    const securedOrders = orders.map(order => {
+      const obj = order.toObject ? order.toObject() : order;
+      delete obj.deliveryOTP;
+      return obj;
+    });
+
+    res.json(securedOrders);
   } catch (error) {
     console.error("Error in getMyRestaurantOrders:", error);
     res.status(500).json({ message: error.message });
@@ -522,6 +571,18 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     throw new Error("Order is already cancelled");
   }
 
+  // BUG-02 FIX: Prevent cancellation of delivered orders
+  if (order.orderStatus === 'Delivered') {
+    res.status(400);
+    throw new Error('Delivered orders cannot be cancelled.');
+  }
+
+  // Also block cancellation for orders that are Out for Delivery
+  if (order.orderStatus === 'Out for Delivery') {
+    res.status(400);
+    throw new Error('Order is already out for delivery. Contact support to cancel.');
+  }
+
   // 🛡️ BUG-9 FIX: Use MongoDB transaction for atomic cancel + refund + stock restore
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -562,6 +623,15 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     // 3. Free up exactly the coupon used in this cancelled order
     if (order.couponCode) {
       await CouponUsage.deleteMany({ order: order._id }).session(session);
+    }
+
+    // BUG-12 FIX: Free up delivery partner when order is cancelled
+    if (order.deliveryPartner) {
+      await User.findByIdAndUpdate(
+        order.deliveryPartner,
+        { $set: { isAvailable: true } },
+        { session }
+      );
     }
 
     // 4. Update Order Status

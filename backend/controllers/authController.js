@@ -219,14 +219,25 @@ export const loginUser = async (req, res, next) => {
 // @desc    Forgot Password
 export const forgotPassword = async (req, res, next) => {
   try {
-    // 🛡️ CodeQL FIX: Sanitize email before DB query
+    // BUG-14 FIX: Enforce minimum wait time between forgot password requests
+    // Prevent email bombing/spamming
     const cleanEmail = sanitizeEmail(req.body.email);
     const user = await User.findOne({ email: String(cleanEmail) });
     if (!user) {
       // 🛡️ SECURITY FIX (BUG-11): Generic message prevents user enumeration
       return res.json({ message: "If that email exists, a reset link has been sent." });
     }
-    const resetToken = user.getResetPasswordToken();
+
+    if (user.resetPasswordExpire && user.resetPasswordExpire > Date.now()) {
+      return res.status(429).json({ message: "A reset link was already sent recently. Please check your email or wait." });
+    }
+
+    const resetToken = await user.getResetPasswordToken();
+    // BUG-15 FIX: Validate that token actually got attached before saving
+    if (!user.resetPasswordToken || !user.resetPasswordExpire) {
+       throw new Error('Failed to generate reset token');
+    }
+
     await user.save({ validateBeforeSave: false });
     const resetUrl = `${
       process.env.FRONTEND_URL || "https://swadkart.vercel.app"
@@ -261,7 +272,10 @@ export const resetPassword = async (req, res, next) => {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();
-    res.json({ message: "Password Updated" });
+
+    // BUG-14 FIX: Auto-login user after successful password reset
+    generateToken(res, user._id);
+    res.json({ message: "Password Updated. You are now logged in." });
   } catch (e) {
     next(e);
   }

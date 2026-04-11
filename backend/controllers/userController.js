@@ -28,6 +28,13 @@ export const updateUserProfile = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
     if (user) {
+      // BUG-07 FIX: Email change requires re-registration — block silent email update
+      if (req.body.email && req.body.email !== user.email) {
+        return res.status(400).json({
+          message: 'Email cannot be changed directly. Please contact support or re-register.',
+        });
+      }
+
       user.name = req.body.name || user.name;
       user.email = sanitizeEmail(req.body.email) || user.email;
       if (req.body.phone) {
@@ -416,6 +423,12 @@ export const googleCheck = async (req, res, next) => {
 export const googleRegister = async (req, res, next) => {
   try {
     const { name, email, image, phone: rawPhone } = req.body;
+
+    // BUG-15 FIX: Validate phone number on backend for Google registration
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(String(rawPhone))) {
+      return res.status(400).json({ message: 'Invalid Indian phone number.' });
+    }
 
     const phone = sanitizePhone(rawPhone);
     const phoneExists = await User.findOne({ phone: String(phone) });

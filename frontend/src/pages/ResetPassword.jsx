@@ -28,6 +28,7 @@ const ResetPassword = () => {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
+          credentials: 'include', // BUG-13 FIX
           body: JSON.stringify({ password, confirmPassword }),
         }
       );

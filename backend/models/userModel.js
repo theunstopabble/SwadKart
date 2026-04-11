@@ -141,6 +141,14 @@ userSchema.methods.getResetPasswordToken = function () {
   return resetToken;
 };
 
+// BUG-10 FIX: Cap walletTransactions to last 100 entries to prevent document bloat
+userSchema.pre('save', function (next) {
+  if (this.walletTransactions && this.walletTransactions.length > 100) {
+    this.walletTransactions = this.walletTransactions.slice(-100);
+  }
+  next();
+});
+
 // 🚀 PERFORMANCE FIX (STEP 1): Indexing
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ role: 1 });

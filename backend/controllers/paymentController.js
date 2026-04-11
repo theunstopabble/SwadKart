@@ -123,6 +123,17 @@ export const verifyPayment = async (req, res) => {
         email_address: payment.email || order.user.email,
       };
 
+      // BUG-08 FIX: Create CouponUsage only after successful payment
+      if (order.couponCode) {
+        const coupon = await Coupon.findOne({ code: order.couponCode.toUpperCase() });
+        if (coupon) {
+          const alreadyUsed = await CouponUsage.findOne({ user: order.user._id, coupon: coupon._id });
+          if (!alreadyUsed) {
+            await CouponUsage.create({ user: order.user._id, coupon: coupon._id, order: order._id });
+          }
+        }
+      }
+
       const updatedOrder = await order.save();
 
       // 4. Real-time Socket: Notify Restaurant immediately
