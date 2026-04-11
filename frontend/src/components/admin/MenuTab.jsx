@@ -54,8 +54,8 @@ const MenuTab = ({ restaurants }) => {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line
     fetchMenu();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRestaurant]);
 
   // --- Actions ---

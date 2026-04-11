@@ -106,7 +106,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
         const err = await res.json();
         toast.error(err.message || "Delete failed");
       }
-    } catch (error) {
+    } catch {
       toast.error("Destruction sequence failed");
     }
   };
@@ -129,7 +129,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
         const err = await res.json();
         toast.error(err.message || "Failed to create shop");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error");
     }
   };
@@ -155,7 +155,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
         const errData = await res.json();
         toast.error(errData.message || "Update sequence failed");
       }
-    } catch (error) {
+    } catch {
       toast.error("Update failed: Server unreachable");
     }
   };
@@ -180,7 +180,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
       } else {
         toast.error("Failed to create dummy");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to create dummy");
     }
   };

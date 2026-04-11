@@ -104,8 +104,8 @@ const DeliveryPartnerDashboard = () => {
         );
         fetchMyDeliveries();
       } else {
-        const error = await res.json();
-        toast.error(error.message || "Action Failed");
+        const err = await res.json();
+        toast.error(err.message || "Action Failed");
       }
     } catch {
       toast.error("Transmission Error");
@@ -136,7 +136,7 @@ const DeliveryPartnerDashboard = () => {
       } else {
         toast.error(data.message || "OTP Invalid");
       }
-    } catch (error) {
+    } catch {
       toast.error("Handshake Failed");
     }
   };
