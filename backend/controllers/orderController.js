@@ -86,27 +86,6 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     let orderIsPaid = false;
     let orderPaidAt = null;
 
-    // 0. 🎟️ STRICT COUPON VALIDATION BEFORE ORDER PROCESSING
-    if (couponCode) {
-      const coupon = await Coupon.findOne({
-        code: couponCode.toUpperCase(),
-      }).session(session);
-      if (!coupon) throw new Error("Invalid Coupon Code");
-      if (!coupon.isActive) throw new Error("Coupon is no longer active");
-      if (new Date() > new Date(coupon.expirationDate))
-        throw new Error("Coupon has expired");
-      if (itemsPrice < coupon.minOrderValue)
-        throw new Error(
-          `Minimum order for this coupon is ₹${coupon.minOrderValue}`,
-        );
-
-      const alreadyUsed = await CouponUsage.findOne({
-        user: req.user._id,
-        coupon: coupon._id,
-      }).session(session);
-      if (alreadyUsed) throw new Error("Coupon already used by this account");
-    }
-
     // 1. Fetch all products ONCE and validate stock
     const dbProducts = [];
     for (const item of orderItems) {
@@ -146,6 +125,36 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       return acc + (dbProduct ? dbProduct.price * item.qty : 0);
     }, 0);
 
+    // 0. 🎟️ STRICT COUPON VALIDATION & MATH BEFORE ORDER PROCESSING
+    let serverCouponDiscount = 0;
+    if (couponCode) {
+      const coupon = await Coupon.findOne({
+        code: couponCode.toUpperCase(),
+      }).session(session);
+      
+      if (!coupon) throw new Error("Invalid Coupon Code");
+      if (!coupon.isActive) throw new Error("Coupon is no longer active");
+      if (new Date() > new Date(coupon.expirationDate))
+        throw new Error("Coupon has expired");
+      if (serverItemsPrice < coupon.minOrderValue) // Validate against SERVER price
+        throw new Error(
+          `Minimum order for this coupon is ₹${coupon.minOrderValue}`,
+        );
+
+      const alreadyUsed = await CouponUsage.findOne({
+        user: req.user._id,
+        coupon: coupon._id,
+      }).session(session);
+      if (alreadyUsed) throw new Error("Coupon already used by this account");
+
+      // SECURE CALCULATION: Recalculate discount entirely on the backend
+      serverCouponDiscount = (serverItemsPrice * coupon.discountPercentage) / 100;
+      if (coupon.maxDiscountAmount > 0 && serverCouponDiscount > coupon.maxDiscountAmount) {
+        serverCouponDiscount = coupon.maxDiscountAmount;
+      }
+      serverCouponDiscount = Number(serverCouponDiscount.toFixed(2));
+    }
+
     const serverShippingPrice = serverItemsPrice > 500 ? 0 : 40;
     const serverTaxPrice = parseFloat((0.05 * serverItemsPrice).toFixed(2));
     const serverTotalPrice = parseFloat(
@@ -154,9 +163,11 @@ export const addOrderItems = asyncHandler(async (req, res) => {
         serverItemsPrice +
           serverShippingPrice +
           serverTaxPrice -
-          (couponDiscount || 0),
+          serverCouponDiscount, // Use SERVER calculated discount
       ).toFixed(2),
     );
+
+    // Remove the old serverShippingPrice logic here since it's now integrated above
 
     // WALLET: Now deduct using serverTotalPrice (not frontend totalPrice)
     if (paymentMethod === "Wallet") {
@@ -196,7 +207,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       shippingPrice: serverShippingPrice,
       totalPrice: serverTotalPrice,
       couponCode,
-      couponDiscount,
+      couponDiscount: serverCouponDiscount, // 👈 Strict mathematical calculation used here
       isPaid: orderIsPaid, // 👈 Set from wallet logic
       paidAt: orderPaidAt, // 👈 Set from wallet logic
     });
