@@ -5,7 +5,7 @@ import sendEmail from "../utils/sendEmail.js";
 // @access  Public
 export const contactSupport = async (req, res, next) => {
   try {
-    const { name, subject, message } = req.body;
+    const { name, email, subject, message } = req.body;
 
     // 1. Validation
     if (!name || !subject || !message) {
@@ -13,8 +13,7 @@ export const contactSupport = async (req, res, next) => {
       throw new Error("Please provide name, subject and message.");
     }
 
-    // 2. Admin को ईमेल नोटिफिकेशन भेजना
-    // process.env.SMTP_MAIL वही ईमेल है जो आपने Render/Local में सेट किया है
+    // 2. Send admin notification with user's reply-to email
     const adminEmail = process.env.SMTP_MAIL;
 
     if (adminEmail) {
@@ -25,6 +24,7 @@ export const contactSupport = async (req, res, next) => {
           <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 25px; border-radius: 10px; background-color: #fdfdfd;">
             <h2 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px;">New Support Inquiry</h2>
             <p><strong>From:</strong> ${name}</p>
+            <p><strong>Email:</strong> <a href="mailto:${email || "N/A"}">${email || "Not provided"}</a></p>
             <p><strong>Subject:</strong> ${subject}</p>
             <div style="background: #fff; padding: 15px; border: 1px solid #eee; border-radius: 5px; margin-top: 10px;">
               <p style="white-space: pre-wrap;">${message}</p>

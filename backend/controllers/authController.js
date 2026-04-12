@@ -129,49 +129,27 @@ export const verifyEmailAPI = async (req, res, next) => {
       user.otpExpires = undefined;
       await user.save();
 
-      // ===============================================
-      // 🎉 SUCCESS NOTIFICATIONS (User + Admin)
-      // ===============================================
+      // 🎉 SUCCESS: Send Welcome Email to User
+      // NOTE: Admin alert is handled automatically by userModel.js post-save hook
       try {
-        // 1. User ko Welcome Email
         await sendEmail({
           email: user.email,
           subject: "Welcome to the SwadKart Family! 🍕",
           html: getWelcomeTemplate(user.name),
         });
-
-        // 2. Admin ko Notification Email
-        if (process.env.SMTP_MAIL) {
-          await sendEmail({
-            email: process.env.SMTP_MAIL,
-            subject: `🚀 New User Verified: ${user.name}`,
-            html: `
-               <h2>New Registration Alert</h2>
-               <p><strong>Name:</strong> ${user.name}</p>
-               <p><strong>Email:</strong> ${user.email}</p>
-               <p><strong>Phone:</strong> ${user.phone}</p>
-               <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-             `,
-          });
-          console.log("Admin Notification Sent!");
-        }
       } catch (emailError) {
         console.error(
-          "⚠️ Notification Logic Failed (Silent):",
+          "⚠️ Welcome email failed (Silent):",
           emailError.message,
         );
       }
 
       generateToken(res, user._id); // Sets Secure HttpOnly Cookie
 
-      // 🛡️ SECURITY FIX: `token` removed from JSON response
-      return res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
-      });
+      // Return full user data (sans password) to prevent Redux data wipe
+      const safeUser = user.toObject();
+      delete safeUser.password;
+      return res.json(safeUser);
     } else {
       res.status(400);
       throw new Error("❌ Invalid or Expired OTP");
@@ -197,16 +175,10 @@ export const loginUser = async (req, res, next) => {
 
       generateToken(res, user._id); // Sets Secure HttpOnly Cookie
 
-      // 🛡️ SECURITY FIX: `token` removed from JSON response
-      return res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        image: user.image,
-        isVerified: user.isVerified,
-      });
+      // Return full user data (sans password) to prevent Redux data wipe
+      const safeUser = user.toObject();
+      delete safeUser.password;
+      return res.json(safeUser);
     } else {
       res.status(401);
       throw new Error("Invalid email or password");
