@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, Clock, Star, ArrowRight, Loader2 } from "lucide-react";
 import { BASEURL } from "../config";
+import { getSocket } from "../utils/socket.js";
 
 // Lazy-load VoiceSearch: non-critical, only needed on user interaction
 const VoiceSearch = lazy(() => import("../components/VoiceSearch"));
@@ -236,6 +237,4 @@ const Home = () => {
 
 export default Home;
 
-// Adjust path if your socket.js is located elsewhere
-const getSocket = () =>
-  import("../utils/socket.js").then(({ getSocket }) => getSocket());
+
