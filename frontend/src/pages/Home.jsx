@@ -42,17 +42,14 @@ const Home = () => {
     }
   };
 
-  // 2. Real-time Updates via Socket.io (Lazy-loaded to reduce initial bundle)
+  // 2. Real-time Updates via Socket.io (Uses shared singleton for correct URL)
   useEffect(() => {
     fetchRestaurants();
 
-    // Dynamic import: Socket.IO is loaded only when needed (~100KB saved from initial bundle)
-    import("socket.io-client").then(({ default: io }) => {
-      const socket = io(BASEURL, {
-        autoConnect: true,
-        transports: ["websocket"],
-        withCredentials: true,
-      });
+    // Use the shared socket singleton which connects to VITE_SOCKET_URL (direct Render)
+    // instead of BASEURL (which can be empty on Vercel serverless)
+    import("../utils/socket").then(({ getSocket, disconnectSocket }) => {
+      const socket = getSocket();
       socketRef.current = socket;
 
       socket.on("restaurantUpdated", (updatedShop) => {
@@ -73,7 +70,10 @@ const Home = () => {
     });
 
     return () => {
-      if (socketRef.current) socketRef.current.disconnect();
+      if (socketRef.current) {
+        socketRef.current.off("restaurantUpdated");
+        // Do NOT disconnect — shared singleton
+      }
     };
   }, []);
 

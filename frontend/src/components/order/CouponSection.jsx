@@ -80,9 +80,9 @@ const CouponSection = ({
                   <p className="text-[9px] text-gray-500 font-bold mt-0.5">
                     {c.discountPercentage}% Off up to ₹{c.maxDiscountAmount}
                   </p>
-                  {c.minOrderAmount > 0 && (
+                  {c.minOrderValue > 0 && (
                     <p className="text-[8px] text-gray-600 mt-0.5">
-                      Min Order: ₹{c.minOrderAmount}
+                      Min Order: ₹{c.minOrderValue}
                     </p>
                   )}
                 </div>

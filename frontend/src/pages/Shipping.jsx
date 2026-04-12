@@ -111,8 +111,8 @@ const Shipping = () => {
     // 🛡️ Extra Check: Validation before dispatch
     if (formData.phone.length < 10) return alert("Invalid Phone Number");
     if (!formData.state) {
-      // If state is still empty, try to set a fallback or alert
-      formData.state = "Rajasthan"; // Default fallback to match your local operations
+      // If state is still empty, set a fallback for local operations
+      setFormData((prev) => ({ ...prev, state: "Rajasthan" }));
     }
 
     dispatch(
