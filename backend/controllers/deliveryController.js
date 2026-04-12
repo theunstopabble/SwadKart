@@ -201,6 +201,11 @@ export const updateOrderToDelivered = async (req, res) => {
 
     const updatedOrder = await order.save();
 
+    // 🛸 FIX: Free up delivery partner for the next order
+    await User.findByIdAndUpdate(req.user._id, {
+      isAvailable: true,
+    });
+
     // 🔔 Notify Everyone
     if (req.io) {
       req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
