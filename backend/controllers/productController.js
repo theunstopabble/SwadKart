@@ -184,10 +184,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
           .json({ message: "Not authorized to update this product" });
       }
 
-      // Update fields
-      product.name = req.body.name || product.name;
-      product.price = req.body.price || product.price;
-      product.description = req.body.description || product.description;
+      // Update fields — use !== undefined to allow falsy values like 0 or ""
+      product.name = req.body.name !== undefined ? req.body.name : product.name;
+      product.price = req.body.price !== undefined ? req.body.price : product.price;
+      product.description = req.body.description !== undefined ? req.body.description : product.description;
       product.image = req.body.image || product.image;
       product.category = req.body.category || product.category;
       product.countInStock =

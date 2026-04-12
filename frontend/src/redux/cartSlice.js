@@ -124,6 +124,9 @@ const cartSlice = createSlice({
     clearCart: (state) => {
       state.cartItems = [];
       browserStorage.removeItem("cartItems");
+      // Also clear stale coupon state to prevent wrong discounts on next order
+      browserStorage.removeItem("couponDiscount");
+      browserStorage.removeItem("appliedCoupon");
     },
 
     logout: (state) => {

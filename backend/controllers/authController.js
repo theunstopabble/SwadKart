@@ -252,3 +252,17 @@ export const resetPassword = async (req, res, next) => {
     next(e);
   }
 };
+
+// @desc    Logout user — clear HttpOnly cookie
+// @route   POST /api/v1/users/logout
+// @access  Public
+export const logoutUser = (req, res) => {
+  const isProduction = process.env.NODE_ENV === "production";
+  res.cookie("jwt", "", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    expires: new Date(0), // Expire immediately
+  });
+  res.status(200).json({ message: "Logged out successfully" });
+};

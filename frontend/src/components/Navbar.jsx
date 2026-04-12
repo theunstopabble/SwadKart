@@ -12,6 +12,7 @@ import {
   Truck,
   Package,
 } from "lucide-react";
+import { BASEURL } from "../config";
 
 // 👇 Import PWA Button
 import InstallPWA from "./InstallPWA";
@@ -24,7 +25,16 @@ const Navbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const logoutHandler = () => {
+  const logoutHandler = async () => {
+    try {
+      // Clear server-side HttpOnly cookie
+      await fetch(`${BASEURL}/api/v1/users/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Proceed with frontend logout even if server call fails
+    }
     dispatch({ type: "user/logout" });
     dispatch({ type: "cart/logout" });
     setIsOpen(false);

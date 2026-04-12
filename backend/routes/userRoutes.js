@@ -6,6 +6,7 @@ import {
   registerUser,
   verifyEmailAPI,
   loginUser,
+  logoutUser,
   forgotPassword,
   resetPassword,
 } from "../controllers/authController.js";
@@ -44,6 +45,7 @@ const router = express.Router();
 router.post("/register", registerUser);
 router.post("/verify-email", verifyEmailAPI);
 router.post("/login", loginUser);
+router.post("/logout", logoutUser);
 router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
 router.post("/contact-support", contactSupport);

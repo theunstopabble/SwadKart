@@ -477,22 +477,6 @@ export const updateOrderStatus = async (req, res) => {
 
     order.orderStatus = status;
 
-    if (status === "Delivered") {
-      order.isDelivered = true;
-      order.deliveredAt = Date.now();
-      if (order.paymentMethod === "COD") {
-        order.isPaid = true;
-        order.paidAt = Date.now();
-      }
-
-      // Free up the delivery partner
-      if (order.deliveryPartner) {
-        await User.findByIdAndUpdate(order.deliveryPartner, {
-          isAvailable: true,
-        });
-      }
-    }
-
     // 🛰️ GEOSPATIAL AI: Auto-Assign Nearest Delivery Partner
     if (
       status === "Ready" &&
