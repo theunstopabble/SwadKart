@@ -398,6 +398,15 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
                 }
                 required
               />
+              <input
+                type="text"
+                placeholder="Shop Image URL (optional)"
+                className="w-full bg-black border border-gray-800 p-5 rounded-2xl text-white font-bold outline-none focus:border-primary"
+                value={newShop.image}
+                onChange={(e) =>
+                  setNewShop({ ...newShop, image: e.target.value })
+                }
+              />
               <button
                 type="submit"
                 className="w-full bg-primary font-black py-5 rounded-[1.5rem] uppercase text-xs tracking-[0.3em] shadow-2xl shadow-primary/30 active:scale-95"

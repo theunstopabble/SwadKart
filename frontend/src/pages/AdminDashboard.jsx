@@ -40,7 +40,7 @@ const AdminDashboard = () => {
     // 1. Restaurants — isolated
     try {
       const resRest = await fetch(
-        `${BASEURL}/api/v1/restaurants/adminall`,
+        `${BASEURL}/api/v1/restaurants/admin/all`,
         fetchOptions,
       );
       if (resRest.ok) {

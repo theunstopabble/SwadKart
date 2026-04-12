@@ -123,12 +123,7 @@ router
   .put(protect, authorizeRoles("admin"), updateUserByAdmin)
   .delete(protect, authorizeRoles("admin"), deleteUserByAdmin);
 
-// ROUTE-02 FIX: /admin/all before /:id
-// Note: /admin/all is ALREADY strictly placed on line 91 (before these dynamic logic sets)
-// /:id routes AFTER
-router.route('/:id')
-  .get(protect, authorizeRoles('admin'), getRestaurantById)
-  .put(protect, authorizeRoles('admin'), updateUserByAdmin)
-  .delete(protect, authorizeRoles('admin'), deleteUserByAdmin);
+// ARCH-01 FIX: Removed duplicate /:id routes — use /admin/user/:id for admin ops
+// The GET /:id route was misleadingly named getRestaurantById but fetched Users
 
 export default router;

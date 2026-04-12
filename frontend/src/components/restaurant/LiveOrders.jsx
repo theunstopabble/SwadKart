@@ -110,6 +110,10 @@ const LiveOrders = ({
                           </div>
                         )}
                     </div>
+                    {/* Price column */}
+                    <span className="text-xs font-bold text-primary whitespace-nowrap">
+                      ₹{item.price} × {item.qty} = ₹{item.price * item.qty}
+                    </span>
                   </div>
                 ))}
               </div>

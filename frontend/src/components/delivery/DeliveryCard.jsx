@@ -6,9 +6,10 @@ import {
   ArrowRight,
   Clock,
   CheckCircle,
+  Navigation,
 } from "lucide-react";
 
-const DeliveryCard = ({ order, onAction, onVerify, otpValue, setOtpValue }) => {
+const DeliveryCard = ({ order, onAction }) => {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-[2rem] p-6 hover:border-primary/50 transition-all shadow-xl group relative overflow-hidden">
       {/* Background Pulse for Active Orders */}
@@ -82,9 +83,9 @@ const DeliveryCard = ({ order, onAction, onVerify, otpValue, setOtpValue }) => {
           </div>
         </div>
 
-        {/* ⚡ ACTION ZONE */}
+        {/* ⚡ ACTION ZONE — Only Accept/Reject for Assigned status */}
+        {/* OTP verification is handled by the parent OTPSection component */}
         {order.deliveryStatus === "Assigned" ? (
-          // SCENARIO 1: Driver needs to Accept/Reject
           <div className="flex gap-2">
             <button
               onClick={() => onAction(order._id, "reject")}
@@ -100,27 +101,15 @@ const DeliveryCard = ({ order, onAction, onVerify, otpValue, setOtpValue }) => {
             </button>
           </div>
         ) : (
-          // SCENARIO 2: Driver Accepted -> Enter OTP to Deliver
-          <div className="space-y-3 bg-black/40 p-4 rounded-2xl border border-gray-800">
-            <p className="text-[10px] text-primary font-black uppercase tracking-widest text-center animate-pulse">
-              ● Arrived at Location
+          // Status: Accepted / Out for Delivery — OTP overlay appears on top from parent
+          <div className="space-y-3 bg-green-500/5 p-4 rounded-2xl border border-green-500/20">
+            <p className="text-[10px] text-green-400 font-black uppercase tracking-widest text-center flex items-center justify-center gap-2">
+              <Navigation size={14} className="animate-pulse" /> En Route to
+              Destination
             </p>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                placeholder="Enter 4-Digit OTP"
-                className="flex-1 bg-black border border-gray-700 text-white text-center rounded-xl p-3 font-black tracking-[0.3em] outline-none focus:border-primary"
-                value={otpValue}
-                onChange={(e) => setOtpValue(e.target.value)}
-                maxLength={4}
-              />
-              <button
-                onClick={() => onVerify(order._id)}
-                className="bg-green-600 hover:bg-green-500 text-white px-4 rounded-xl flex items-center justify-center transition-all shadow-lg shadow-green-600/20"
-              >
-                <CheckCircle size={20} />
-              </button>
-            </div>
+            <p className="text-[9px] text-gray-500 font-bold text-center uppercase tracking-widest">
+              Collect OTP from customer upon arrival
+            </p>
           </div>
         )}
       </div>

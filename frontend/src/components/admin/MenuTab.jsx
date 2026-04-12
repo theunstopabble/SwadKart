@@ -60,25 +60,37 @@ const MenuTab = ({ restaurants }) => {
 
   // --- Actions ---
   const handleAdminToggleStock = async (id) => {
-    const res = await fetch(
-      `${BASEURL}/api/v1/products/${id}/toggle-stock`,
-      getFetchOptions("PATCH"),
-    );
-    if (res.ok) {
-      fetchMenu();
-      toast.success("Status Toggled");
+    try {
+      const res = await fetch(
+        `${BASEURL}/api/v1/products/${id}/toggle-stock`,
+        getFetchOptions("PATCH"),
+      );
+      if (res.ok) {
+        fetchMenu();
+        toast.success("Status Toggled");
+      } else {
+        toast.error("Failed to toggle stock status");
+      }
+    } catch {
+      toast.error("Network error toggling stock");
     }
   };
 
   const handleDeleteItem = async (id) => {
     if (!window.confirm("Destroy this menu item?")) return;
-    const res = await fetch(
-      `${BASEURL}/api/v1/products/${id}`,
-      getFetchOptions("DELETE"),
-    );
-    if (res.ok) {
-      fetchMenu();
-      toast.success("Item Deleted");
+    try {
+      const res = await fetch(
+        `${BASEURL}/api/v1/products/${id}`,
+        getFetchOptions("DELETE"),
+      );
+      if (res.ok) {
+        fetchMenu();
+        toast.success("Item Deleted");
+      } else {
+        toast.error("Failed to delete item");
+      }
+    } catch {
+      toast.error("Network error deleting item");
     }
   };
 
@@ -91,17 +103,18 @@ const MenuTab = ({ restaurants }) => {
       ? `${BASEURL}/api/v1/products/${editItemId}`
       : `${BASEURL}/api/v1/products`;
 
-    // ✅ FIX 2: Backend ko "Owner ID" chahiye.
-    // 'selectedRestaurant' mein Owner ki ID hai, wahi bhej rahe hain.
+    // Backend expects the Owner User ID as 'restaurantId' for product creation
+    // Priority: populated owner._id > raw owner ObjectId > restaurant _id as last resort
+    const ownerId = selectedRestaurantObj?.owner?._id
+      || selectedRestaurantObj?.owner
+      || selectedRestaurant;
+
     const payload = {
       ...newItem,
       image: optimizeImageUrl(newItem.image), // Compress image URL before DB save
       price: Number(newItem.price),
       isVeg: newItem.isVeg === "true",
-      restaurantId:
-        selectedRestaurantObj?.owner?._id ||
-        selectedRestaurantObj?.owner ||
-        selectedRestaurant,
+      restaurantId: ownerId,
       variants: newItem.variants.map((v) => ({ ...v, price: Number(v.price) })),
       addons: newItem.addons.map((a) => ({ ...a, price: Number(a.price) })),
     };
