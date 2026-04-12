@@ -72,27 +72,23 @@ export const getProductById = async (req, res) => {
 // @desc    Fetch products by Restaurant ID
 // FIX: Handle both Restaurant ID and Owner User ID
 export const getProductsByRestaurant = asyncHandler(async (req, res) => {
-  let restaurantId = req.params.id;
-  const cacheKey = `menu_rest_${restaurantId}`;
-
+  const inputId = req.params.id;
+  let restaurant = await import("../models/restaurantModel.js").then((m) =>
+    m.default.findById(inputId)
+  );
+  if (!restaurant) {
+    restaurant = await import("../models/restaurantModel.js").then((m) =>
+      m.default.findOne({ owner: inputId })
+    );
+  }
+  if (!restaurant) return res.status(200).json([]);
+  const actualRestaurantId = restaurant._id.toString();
+  const cacheKey = `menu_rest_${actualRestaurantId}`;
   let products = await getCache(cacheKey);
-
   if (!products) {
-    // Try direct Restaurant ID first
-    let restaurant = await import("../models/restaurantModel.js").then(m => m.default.findById(restaurantId));
-
-    // If not found, try as Owner User ID
-    if (!restaurant) {
-      restaurant = await import("../models/restaurantModel.js").then(m => m.default.findOne({ owner: restaurantId }));
-      if (restaurant) {
-        restaurantId = restaurant._id.toString();
-      }
-    }
-
-    products = await Product.find({ restaurant: restaurantId });
+    products = await Product.find({ restaurant: actualRestaurantId });
     await setCache(cacheKey, products, 3600);
   }
-
   res.status(200).json(products);
 });
 
