@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-hot-toast";
 import { Fingerprint, LogOut, Lock, Loader } from "lucide-react"; // Icons
+import axios from "axios";
 
 // ⚡ Lazy Load Pages for Performance
 const Home = lazy(() => import("./pages/Home"));
@@ -163,8 +164,16 @@ function App() {
   };
 
   // 🚪 HANDLER: Emergency Logout (If user gets stuck or max attempts reached)
-  const handleEmergencyLogout = () => {
-    localStorage.removeItem("isBiometricEnabled");
+  const handleEmergencyLogout = async () => {
+    try {
+      await axios.post(
+        `${BASEURL}/api/v1/users/logout`,
+        {},
+        { withCredentials: true },
+      );
+    } catch (error) {
+      console.error("Server logout failed during emergency logout", error);
+    }
     dispatch(logout());
     setIsLocked(false);
     setUnlockAttempts(0);

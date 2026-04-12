@@ -48,24 +48,22 @@ const Home = () => {
 
     // Use the shared socket singleton which connects to VITE_SOCKET_URL (direct Render)
     // instead of BASEURL (which can be empty on Vercel serverless)
-    import("../utils/socket").then(({ getSocket, disconnectSocket }) => {
-      const socket = getSocket();
-      socketRef.current = socket;
+    const socket = getSocket();
+    socketRef.current = socket;
 
-      socket.on("restaurantUpdated", (updatedShop) => {
-        setRestaurants((prevShops) => {
-          let updatedList = prevShops.map((shop) =>
-            shop._id === updatedShop._id ? updatedShop : shop,
-          );
+    socket.on("restaurantUpdated", (updatedShop) => {
+      setRestaurants((prevShops) => {
+        let updatedList = prevShops.map((shop) =>
+          shop._id === updatedShop._id ? updatedShop : shop,
+        );
 
-          // If new restaurant added via admin panel
-          const exists = prevShops.find((s) => s._id === updatedShop._id);
-          if (!exists) updatedList.push(updatedShop);
+        // If new restaurant added via admin panel
+        const exists = prevShops.find((s) => s._id === updatedShop._id);
+        if (!exists) updatedList.push(updatedShop);
 
-          return [...updatedList].sort(
-            (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0),
-          );
-        });
+        return [...updatedList].sort(
+          (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0),
+        );
       });
     });
 
@@ -237,3 +235,7 @@ const Home = () => {
 };
 
 export default Home;
+
+// Adjust path if your socket.js is located elsewhere
+const getSocket = () =>
+  import("../socket").then(({ getSocket }) => getSocket());

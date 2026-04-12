@@ -26,7 +26,7 @@ const Shipping = () => {
     phone: shippingAddress?.phone || "",
   });
   const [addressType, setAddressType] = useState(
-    shippingAddress?.addressType || "Home"
+    shippingAddress?.addressType || "Home",
   );
   const [mapCenter, setMapCenter] = useState([
     shippingAddress?.lat || 26.9124,
@@ -40,7 +40,7 @@ const Shipping = () => {
   const fetchAddressFromCoords = async (lat, lng) => {
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
       );
       const data = await res.json();
       if (data && data.address) {
@@ -73,7 +73,7 @@ const Shipping = () => {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&countrycodes=in`,
-        { headers: { "User-Agent": "SwadKart/1.0" } }
+        { headers: { "User-Agent": "SwadKart/1.0" } },
       );
       const data = await res.json();
       if (data && data.length > 0) {
@@ -101,28 +101,27 @@ const Shipping = () => {
         toast.error("Location permission denied");
         setLoadingLocation(false);
       },
-      { enableHighAccuracy: true }
+      { enableHighAccuracy: true },
     );
   };
 
   const submitHandler = (e) => {
     e.preventDefault();
 
-    // 🛡️ Extra Check: Validation before dispatch
-    if (formData.phone.length < 10) return alert("Invalid Phone Number");
-    if (!formData.state) {
-      // If state is still empty, set a fallback for local operations
-      setFormData((prev) => ({ ...prev, state: "Rajasthan" }));
-    }
+    const updatedFormData = {
+      ...formData,
+      state: formData.state || "Rajasthan",
+    };
+    setFormData(updatedFormData);
 
     dispatch(
       saveShippingAddress({
-        ...formData,
+        ...updatedFormData,
         country: "India",
         addressType,
         lat: mapCenter[0],
         lng: mapCenter[1],
-      })
+      }),
     );
     navigate("/payment");
   };
