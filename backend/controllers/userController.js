@@ -43,17 +43,16 @@ export const updateUserProfile = async (req, res, next) => {
       if (req.body.password) {
         user.password = req.body.password;
       }
+      if (req.body.description !== undefined) {
+        user.description = req.body.description;
+      }
       const updatedUser = await user.save();
       generateToken(res, updatedUser._id); // Refreshes HttpOnly cookie
 
-      return res.json({
-        _id: updatedUser._id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        isAdmin: updatedUser.isAdmin,
-        // 🛡️ SECURITY FIX: Token removed from JSON body
-      });
+      const safeData = updatedUser.toObject();
+      delete safeData.password;
+
+      return res.json(safeData);
     } else {
       res.status(404);
       throw new Error("User not found");
