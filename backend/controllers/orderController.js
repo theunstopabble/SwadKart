@@ -122,7 +122,37 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       const dbProduct = dbProducts.find(
         (p) => p._id.toString() === item.product.toString(),
       );
-      return acc + (dbProduct ? dbProduct.price * item.qty : 0);
+      if (!dbProduct) return acc;
+
+      let itemTotal = dbProduct.price;
+
+      // 🛡️ Map Variant
+      if (item.selectedVariant && item.selectedVariant.name) {
+        const dbVariant = dbProduct.variants.find(
+          (v) => v.name === item.selectedVariant.name,
+        );
+        if (dbVariant) {
+          itemTotal = dbVariant.price;
+          item.selectedVariant.price = dbVariant.price; // Sync DB truth
+        }
+      }
+
+      // 🛡️ Map Addons
+      if (item.selectedAddons && Array.isArray(item.selectedAddons)) {
+        item.selectedAddons = item.selectedAddons.map((addon) => {
+          const dbAddon = dbProduct.addons.find((a) => a.name === addon.name);
+          if (dbAddon) {
+            itemTotal += dbAddon.price;
+            return { name: dbAddon.name, price: dbAddon.price };
+          }
+          return addon;
+        });
+      }
+
+      // Overwrite base item price with calculated secure total
+      item.price = itemTotal;
+
+      return acc + itemTotal * item.qty;
     }, 0);
 
     // 0. 🎟️ STRICT COUPON VALIDATION & MATH BEFORE ORDER PROCESSING
@@ -131,12 +161,13 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       const coupon = await Coupon.findOne({
         code: couponCode.toUpperCase(),
       }).session(session);
-      
+
       if (!coupon) throw new Error("Invalid Coupon Code");
       if (!coupon.isActive) throw new Error("Coupon is no longer active");
       if (new Date() > new Date(coupon.expirationDate))
         throw new Error("Coupon has expired");
-      if (serverItemsPrice < coupon.minOrderValue) // Validate against SERVER price
+      if (serverItemsPrice < coupon.minOrderValue)
+        // Validate against SERVER price
         throw new Error(
           `Minimum order for this coupon is ₹${coupon.minOrderValue}`,
         );
@@ -148,8 +179,12 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       if (alreadyUsed) throw new Error("Coupon already used by this account");
 
       // SECURE CALCULATION: Recalculate discount entirely on the backend
-      serverCouponDiscount = (serverItemsPrice * coupon.discountPercentage) / 100;
-      if (coupon.maxDiscountAmount > 0 && serverCouponDiscount > coupon.maxDiscountAmount) {
+      serverCouponDiscount =
+        (serverItemsPrice * coupon.discountPercentage) / 100;
+      if (
+        coupon.maxDiscountAmount > 0 &&
+        serverCouponDiscount > coupon.maxDiscountAmount
+      ) {
         serverCouponDiscount = coupon.maxDiscountAmount;
       }
       serverCouponDiscount = Number(serverCouponDiscount.toFixed(2));
@@ -659,16 +694,16 @@ export const cancelOrder = asyncHandler(async (req, res) => {
           $push: {
             walletTransactions: {
               amount: order.totalPrice,
-              type: 'Credit',
+              type: "Credit",
               description: `Refund for Cancelled Order ${order.id}`,
               date: Date.now(),
             },
           },
         },
-        { new: true, session }
+        { new: true, session },
       );
-      if (!refundedBuyer) throw new Error('User not found for refund.');
-      order.refundStatus = 'Processed';
+      if (!refundedBuyer) throw new Error("User not found for refund.");
+      order.refundStatus = "Processed";
       console.log(`Wallet Refund Processed: ${order.totalPrice} credited`);
     }
 
