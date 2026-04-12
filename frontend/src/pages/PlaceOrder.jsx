@@ -252,7 +252,6 @@ const PlaceOrder = () => {
           },
           credentials: "include",
           body: JSON.stringify({
-            amount: Number(totalPrice),
             orderId: dbData._id,
           }),
         });
@@ -277,6 +276,16 @@ const PlaceOrder = () => {
             contact: cart.shippingAddress.phone,
           },
           theme: { color: "#ef4444" },
+          modal: {
+            ondismiss: () => {
+              // User closed Razorpay modal without completing payment
+              if (isMounted.current) setIsProcessing(false);
+              toast.error(
+                "Payment cancelled. You can retry from My Orders.",
+                { icon: "⚠️", duration: 4000 },
+              );
+            },
+          },
         };
         const rzp = new window.Razorpay(options);
         rzp.open();

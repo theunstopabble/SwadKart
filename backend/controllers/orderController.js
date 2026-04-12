@@ -8,6 +8,12 @@ import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
 import Razorpay from "razorpay";
 import { sendPush } from "../utils/pushNotification.js";
+import sendEmail from "../utils/sendEmail.js";
+import {
+  getOrderConfirmationTemplate,
+  getAdminOrderAlertTemplate,
+  getRestaurantOrderAlertTemplate,
+} from "../utils/emailTemplates.js";
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
 // ==========================================
@@ -267,6 +273,65 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     // 5. Commit the transaction if everything is successful
     await session.commitTransaction();
     session.endSession();
+
+    // 6. NON-BLOCKING: Email & Socket notifications for COD/Wallet orders
+    // Online orders get notified inside paymentController.verifyPayment instead
+    if (paymentMethod !== "Online") {
+      try {
+        // Populate user data for email template
+        const populatedOrder = await Order.findById(createdOrder._id)
+          .populate("user", "name email")
+          .lean();
+
+        if (populatedOrder) {
+          // 📧 Customer: Order Confirmation
+          sendEmail({
+            email: populatedOrder.user.email,
+            subject: `SwadKart: Order Confirmed! ✅ #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
+            html: getOrderConfirmationTemplate(
+              populatedOrder,
+              paymentMethod === "Wallet",
+            ),
+          });
+
+          // 📧 Admin: New Order Alert
+          User.findOne({ role: "admin" }).then((admin) => {
+            if (admin) {
+              sendEmail({
+                email: admin.email,
+                subject: `🔔 New ${paymentMethod} Order #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
+                html: getAdminOrderAlertTemplate(populatedOrder),
+              });
+            }
+          });
+
+          // 📧 Restaurant: Kitchen Alert
+          const restaurantId = createdOrder.orderItems[0]?.restaurant;
+          if (restaurantId) {
+            Restaurant.findById(restaurantId)
+              .populate("owner")
+              .then((restro) => {
+                if (restro?.owner?.email && !restro.owner.email.includes("@dummy")) {
+                  sendEmail({
+                    email: restro.owner.email,
+                    subject: `🔔 New Order for ${restro.name}`,
+                    html: getRestaurantOrderAlertTemplate(populatedOrder, restro.name),
+                  });
+                }
+                // 🔔 Socket: Real-time notification to restaurant dashboard
+                if (req.io && restro?.owner) {
+                  req.io
+                    .to(restro.owner._id.toString())
+                    .emit("newOrderReceived", populatedOrder);
+                }
+              });
+          }
+        }
+      } catch (emailErr) {
+        // Non-blocking: log but don't fail the order
+        console.error("📧 Post-order notification error (non-blocking):", emailErr.message);
+      }
+    }
 
     res.status(201).json(createdOrder);
   } catch (error) {
