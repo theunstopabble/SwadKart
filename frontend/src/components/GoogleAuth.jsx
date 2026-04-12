@@ -52,6 +52,7 @@ const GoogleAuth = () => {
       const res = await fetch(`${BASEURL}/api/v1/users/google-check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email: user.email }),
       });
 

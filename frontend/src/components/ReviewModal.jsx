@@ -85,7 +85,6 @@ const ReviewModal = ({ isOpen, onClose, orderItems }) => {
 
   if (!isOpen) return null;
   if (!orderItems || orderItems.length === 0) return null;
-  if (!orderItems || orderItems.length === 0) return null;
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[9999] flex items-center justify-center p-4">

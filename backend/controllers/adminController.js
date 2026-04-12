@@ -83,7 +83,7 @@ export const getDashboardStats = async (req, res) => {
 
     res.json({
       totalOrders: statsData[0].totalOrders[0]?.count || 0,
-      totalSales: Number(statsData[0].totalSales[0]?.total.toFixed(2)) || 0,
+      totalSales: Number((statsData[0].totalSales[0]?.total || 0).toFixed(2)),
       breakdown,
       recentOrders,
       totalRestaurants,

@@ -450,16 +450,10 @@ export const googleRegister = async (req, res, next) => {
     if (user) {
       generateToken(res, user._id); // Sets HttpOnly Cookie
 
-      return res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        isVerified: user.isVerified,
-        image: user.image,
-        // 🛡️ SECURITY FIX: Token removed from JSON body
-      });
+      // Return full user data (sans password) to prevent Redux data wipe
+      const safeUser = user.toObject();
+      delete safeUser.password;
+      return res.status(201).json(safeUser);
     }
   } catch (error) {
     next(error);
