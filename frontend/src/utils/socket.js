@@ -1,9 +1,5 @@
 import { io } from "socket.io-client";
 
-// SOCKET-01 FIX: Socket.io MUST always connect directly to Render.
-// Vercel is serverless — persistent WebSocket connections CANNOT go
-// through Vercel proxy. VITE_API_URL is intentionally empty for REST
-// API cookie fix, but Socket.io needs a dedicated direct URL.
 const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL || "https://swadkart-5wtf.onrender.com";
 
