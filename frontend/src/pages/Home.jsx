@@ -238,4 +238,4 @@ export default Home;
 
 // Adjust path if your socket.js is located elsewhere
 const getSocket = () =>
-  import("../socket").then(({ getSocket }) => getSocket());
+  import("../utils/socket").then(({ getSocket }) => getSocket());
