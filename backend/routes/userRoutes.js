@@ -17,11 +17,9 @@ import {
   updateBiometricStatus,
   getBiometricStatus,
   getAllRestaurantsPublic,
-  getRestaurantById,
   getDeliveryPartners,
   // 👇 IMPORTANT: Is function ko import kiya taaki Admin ko SAARA data mile
   getUsers,
-  getAllRestaurants, // Ye abhi bhi chahiye specific kaam ke liye
   createRestaurantByAdmin,
   createDummyRestaurant,
   seedDatabase,

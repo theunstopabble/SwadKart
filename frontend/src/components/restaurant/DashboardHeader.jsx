@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { ChefHat, Bell, BellOff, Clock, Save, Settings } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { useSelector } from "react-redux";
 import { BASEURL } from "../../config";
 
 const DashboardHeader = ({
@@ -10,7 +9,6 @@ const DashboardHeader = ({
   activeTab,
   setActiveTab,
 }) => {
-  const { userInfo } = useSelector((state) => state.user);
   const [showSettings, setShowSettings] = useState(false);
 
   // Default timings (You can fetch these from backend on load if needed)

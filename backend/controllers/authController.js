@@ -23,9 +23,16 @@ export const registerUser = async (req, res, next) => {
     const email = sanitizeEmail(rawEmail);
     const phone = sanitizePhone(rawPhone);
 
+    // --- Scenario A: Check Phone Duplicity FIRST (prevents hijacking) ---
+    const phoneExists = await User.findOne({ phone: String(phone) });
+    if (phoneExists) {
+      res.status(400);
+      throw new Error("Phone number already used.");
+    }
+
     const userExists = await User.findOne({ email: String(email) });
 
-    // --- Scenario A: User Exists but Not Verified (Resend OTP) ---
+    // --- Scenario B: User Exists but Not Verified (Resend OTP) ---
     if (userExists) {
       if (userExists.isVerified) {
         res.status(400);
@@ -36,7 +43,7 @@ export const registerUser = async (req, res, next) => {
         userExists.otp = otp;
         userExists.otpExpires = Date.now() + 10 * 60 * 1000;
         userExists.name = name;
-        userExists.phone = phone; // Using raw phone input
+        userExists.phone = phone; // Using sanitized phone input
         userExists.password = password;
 
         await userExists.save();
@@ -58,13 +65,6 @@ export const registerUser = async (req, res, next) => {
           throw new Error("Email sending failed. Please try again.");
         }
       }
-    }
-
-    // --- Scenario B: Check Phone Duplicity ---
-    const phoneExists = await User.findOne({ phone: String(phone) });
-    if (phoneExists) {
-      res.status(400);
-      throw new Error("Phone number already used.");
     }
 
     // 🛡️ SECURITY FIX: Use cryptographically secure OTP generation
@@ -204,7 +204,7 @@ export const forgotPassword = async (req, res, next) => {
       return res.status(429).json({ message: "A reset link was already sent recently. Please check your email or wait." });
     }
 
-    const resetToken = await user.getResetPasswordToken();
+    const resetToken = user.getResetPasswordToken();
     // BUG-15 FIX: Validate that token actually got attached before saving
     if (!user.resetPasswordToken || !user.resetPasswordExpire) {
        throw new Error('Failed to generate reset token');

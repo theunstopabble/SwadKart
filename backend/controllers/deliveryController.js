@@ -234,12 +234,12 @@ export const triggerSOS = async (req, res) => {
 
     const savedEmergency = await emergency.save();
 
-    // 🔔 Notify Admin via Socket
+    // 🔔 Notify Admin via Socket (Privacy Hardened)
     if (req.io) {
       req.io.emit("emergencyAlert", {
         message: `🆘 EMERGENCY! Driver ${req.user.name} needs help!`,
+        driverId: req.user._id,
         driverName: req.user.name,
-        phone: req.user.phone, // Ensure phone is in user model
         location: { lat, lng },
         time: new Date(),
       });

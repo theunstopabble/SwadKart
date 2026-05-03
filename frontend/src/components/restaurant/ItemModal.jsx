@@ -10,8 +10,6 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASEURL } from "../../config";
-import { useSelector } from "react-redux";
-
 const ItemModal = ({
   showModal,
   setShowModal,
@@ -20,7 +18,6 @@ const ItemModal = ({
   setNewItem,
   handleSubmitItem,
 }) => {
-  const { userInfo } = useSelector((state) => state.user);
   const [uploading, setUploading] = useState(false);
   const [imageMode, setImageMode] = useState("url"); // 'url' or 'upload'
 

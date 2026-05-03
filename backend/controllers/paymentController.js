@@ -16,12 +16,16 @@ import { sanitizeObjectId } from "../utils/sanitize.js";
 
 dotenv.config();
 
-// Initialize Razorpay Instance
+// Singleton Razorpay Instance
+let razorpayInstance = null;
 const getRazorpayInstance = () => {
-  return new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-  });
+  if (!razorpayInstance) {
+    razorpayInstance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  }
+  return razorpayInstance;
 };
 
 // @desc    Get Razorpay Key for Frontend
@@ -120,11 +124,11 @@ export const verifyPayment = async (req, res) => {
         id: payment.id,
         status: payment.status,
         update_time: payment.created_at,
-        email_address: payment.email || order.user.email,
+        email_address: payment.email || (order.user && order.user.email) || "",
       };
 
       // BUG-08 FIX: Create CouponUsage only after successful payment
-      if (order.couponCode) {
+      if (order.couponCode && order.user && order.user._id) {
         const coupon = await Coupon.findOne({ code: order.couponCode.toUpperCase() });
         if (coupon) {
           const alreadyUsed = await CouponUsage.findOne({ user: order.user._id, coupon: coupon._id });
@@ -150,39 +154,38 @@ export const verifyPayment = async (req, res) => {
 
       // 5. Email Dispatch (Non-blocking)
       try {
-        sendEmail({
-          email: order.user.email,
-          subject: `SwadKart: Payment Received! ✅ Order #${order._id.toString().slice(-6)}`,
+        if (order.user && order.user.email) {
+          await sendEmail({
+            email: order.user.email,
+            subject: `SwadKart: Payment Received! ✅ Order #${order._id.toString().slice(-6)}`,
           html: getOrderConfirmationTemplate(updatedOrder, true),
         });
 
-        User.findOne({ role: "admin" }).then((admin) => {
-          if (admin)
-            sendEmail({
-              email: admin.email,
-              subject: `💰 Revenue Alert: Order #${order._id.toString().slice(-6)}`,
-              html: getAdminOrderAlertTemplate(updatedOrder),
-            });
-        });
+        const admin = await User.findOne({ role: "admin" });
+        if (admin) {
+          await sendEmail({
+            email: admin.email,
+            subject: `💰 Revenue Alert: Order #${order._id.toString().slice(-6)}`,
+            html: getAdminOrderAlertTemplate(updatedOrder),
+          });
+        }
 
         const restaurantId = order.orderItems[0].restaurant;
-        Restaurant.findById(restaurantId)
-          .populate("owner")
-          .then((restro) => {
-            if (
-              restro?.owner?.email &&
-              !restro.owner.email.includes("@dummy")
-            ) {
-              sendEmail({
-                email: restro.owner.email,
-                subject: `💰 New Paid Order for ${restro.name}`,
-                html: getRestaurantOrderAlertTemplate(
-                  updatedOrder,
-                  restro.name,
-                ),
-              });
-            }
+        const restro = await Restaurant.findById(restaurantId).populate("owner");
+        if (
+          restro?.owner?.email &&
+          !restro.owner.email.includes("@dummy")
+        ) {
+          await sendEmail({
+            email: restro.owner.email,
+            subject: `💰 New Paid Order for ${restro.name}`,
+            html: getRestaurantOrderAlertTemplate(
+              updatedOrder,
+              restro.name,
+            ),
           });
+        }
+        }
       } catch (err) {
         console.error("Alert System Delay:", err.message);
       }

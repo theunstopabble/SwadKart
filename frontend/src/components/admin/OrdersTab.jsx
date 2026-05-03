@@ -17,7 +17,7 @@ import {
 import { toast } from "react-hot-toast";
 import { BASEURL } from "../../config";
 
-const OrdersTab = ({ orders, deliveryPartners, userInfo, fetchAllData }) => {
+const OrdersTab = ({ orders, deliveryPartners, fetchAllData }) => {
   // ADMIN-04 FIX: Normalize orders prop — handle both array and paginated object
   const safeOrders = Array.isArray(orders) ? orders : orders?.data || [];
 

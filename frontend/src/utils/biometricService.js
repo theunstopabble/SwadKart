@@ -108,12 +108,7 @@ export const authenticateBiometric = async () => {
     const resp = await axios.get(`${API_URL}/login/start`, config);
 
     // 2. Trigger Scan
-    let asseResp;
-    try {
-      asseResp = await startAuthentication({ optionsJSON: resp.data });
-    } catch (error) {
-      throw error;
-    }
+    const asseResp = await startAuthentication({ optionsJSON: resp.data });
 
     // 3. Verify
     const verificationResp = await axios.post(

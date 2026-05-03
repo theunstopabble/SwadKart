@@ -184,7 +184,7 @@ export const updateUserByAdmin = async (req, res, next) => {
       const updatedUser = await user.save();
 
       if (req.io) {
-        req.io.emit("restaurantUpdated", updatedUser);
+        req.io.to(updatedUser._id.toString()).emit("userUpdated", updatedUser);
       }
 
       return res.json(updatedUser);
@@ -234,8 +234,6 @@ export const getAllRestaurantsPublic = async (req, res, next) => {
     next(error);
   }
 };
-
-export const getAllRestaurants = getAllRestaurantsPublic;
 
 export const createRestaurantByAdmin = async (req, res, next) => {
   try {
@@ -307,25 +305,6 @@ export const createDummyRestaurant = async (req, res, next) => {
     }
 
     return res.status(201).json(user);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getRestaurantById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(400);
-      throw new Error("Invalid ID format");
-    }
-
-    const user = await User.findById(id).select("-password");
-    if (user) return res.json(user);
-    else {
-      res.status(404);
-      throw new Error("Restaurant not found");
-    }
   } catch (error) {
     next(error);
   }
@@ -407,7 +386,7 @@ export const googleCheck = async (req, res, next) => {
       generateToken(res, user._id); // Sets HttpOnly Cookie
 
       // 🛡️ SECURITY FIX: Sanitize user object, strictly remove password and omit token
-      const userSafeData = { ...user._doc };
+      const userSafeData = user.toObject();
       delete userSafeData.password;
 
       return res.json({ exists: true, user: userSafeData });

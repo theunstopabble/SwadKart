@@ -160,7 +160,6 @@ const RestaurantOwnerDashboard = () => {
     if (userInfo) {
       const socket = getSocket();
       socketRef.current = socket;
-      socket.emit("joinOrder", userInfo._id);
 
       socket.on("newOrderReceived", (newOrder) => {
         if (isSoundEnabled && audioPlayer.current) {

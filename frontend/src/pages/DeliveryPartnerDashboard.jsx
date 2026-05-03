@@ -60,8 +60,6 @@ const DeliveryPartnerDashboard = () => {
 
     const socket = getSocket();
 
-    socket.emit("joinOrder", userInfo._id);
-
     socket.on("orderAssigned", () => {
       toast.success("🚀 NEW MISSION ASSIGNED!", {
         duration: 5000,

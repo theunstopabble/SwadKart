@@ -2,10 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Star, X, CheckCircle, ChevronRight } from "lucide-react";
 import { BASEURL } from "../config";
 import { toast } from "react-hot-toast";
-import { useSelector } from "react-redux";
 
 const ReviewModal = ({ isOpen, onClose, orderItems }) => {
-  const { userInfo } = useSelector((state) => state.user);
 
   // --- States ---
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -65,7 +63,7 @@ const ReviewModal = ({ isOpen, onClose, orderItems }) => {
           toast.error(data.message || "Failed to submit");
         }
       }
-    } catch (err) {
+    } catch {
       toast.error("Network error while submitting review");
     } finally {
       setIsSubmitting(false);

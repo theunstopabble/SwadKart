@@ -42,10 +42,13 @@ export const validateSession = createAsyncThunk(
       if (res.status === 401) {
         // SESSION-01 FIX: ONLY logout on 401 — token genuinely expired or invalid
         dispatch(logout());
+        return null;
       }
-      // 5xx errors (Render sleeping/bad gateway) → DO NOT logout
-      // Cookie is still valid; server is just temporarily unavailable
-
+      // 5xx errors -> DO NOT logout
+      if (res.ok) {
+        return await res.json();
+      }
+      return null;
     } catch (error) {
       // SESSION-01 FIX: Network error / AbortError (timeout) → DO NOT logout
       // Render cold start can take 30-50s; user shouldn't lose their session
@@ -53,6 +56,7 @@ export const validateSession = createAsyncThunk(
         console.warn('SESSION CHECK: Network unavailable, keeping session alive.', error.message);
       }
       // Intentionally NO dispatch(logout()) here
+      return null;
     }
   }
 );

@@ -17,8 +17,7 @@ cloudinary.config({
 
 // 2. Storage Setup (FIXED)
 const storage = new CloudinaryStorage({
-  // 👇 MAGIC LINE: Isse 'uploader' wala error jayega
-  cloudinary: { v2: cloudinary },
+  cloudinary: cloudinary,
 
   params: {
     folder: "swadkart_products",

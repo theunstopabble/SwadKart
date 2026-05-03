@@ -113,7 +113,6 @@ function App() {
     let socket = null;
     if (userInfo) {
       socket = getSocket();
-      socket.emit("joinOrder", userInfo._id);
       socket.on("orderUpdated", (order) => {
         import("./components/notificationHelper").then(
           ({ sendNotification }) => {

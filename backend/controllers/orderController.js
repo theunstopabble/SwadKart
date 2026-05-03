@@ -37,7 +37,6 @@ export const addOrderItems = asyncHandler(async (req, res) => {
   if (orderItems && orderItems.length === 0) {
     res.status(400);
     throw new Error("No order items found");
-    return;
   }
 
   // ==========================================
@@ -51,7 +50,6 @@ export const addOrderItems = asyncHandler(async (req, res) => {
   if (hasMultipleRestaurants) {
     res.status(400);
     throw new Error("Items must be from a single restaurant");
-    return;
   }
   // ==========================================
 
@@ -283,9 +281,9 @@ export const addOrderItems = asyncHandler(async (req, res) => {
           .populate("user", "name email")
           .lean();
 
-        if (populatedOrder) {
+        if (populatedOrder && populatedOrder.user && populatedOrder.user.email) {
           // 📧 Customer: Order Confirmation
-          sendEmail({
+          await sendEmail({
             email: populatedOrder.user.email,
             subject: `SwadKart: Order Confirmed! ✅ #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
             html: getOrderConfirmationTemplate(
@@ -295,36 +293,32 @@ export const addOrderItems = asyncHandler(async (req, res) => {
           });
 
           // 📧 Admin: New Order Alert
-          User.findOne({ role: "admin" }).then((admin) => {
-            if (admin) {
-              sendEmail({
-                email: admin.email,
-                subject: `🔔 New ${paymentMethod} Order #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
-                html: getAdminOrderAlertTemplate(populatedOrder),
-              });
-            }
-          });
+          const admin = await User.findOne({ role: "admin" });
+          if (admin) {
+            await sendEmail({
+              email: admin.email,
+              subject: `🔔 New ${paymentMethod} Order #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
+              html: getAdminOrderAlertTemplate(populatedOrder),
+            });
+          }
 
           // 📧 Restaurant: Kitchen Alert
           const restaurantId = createdOrder.orderItems[0]?.restaurant;
           if (restaurantId) {
-            Restaurant.findById(restaurantId)
-              .populate("owner")
-              .then((restro) => {
-                if (restro?.owner?.email && !restro.owner.email.includes("@dummy")) {
-                  sendEmail({
-                    email: restro.owner.email,
-                    subject: `🔔 New Order for ${restro.name}`,
-                    html: getRestaurantOrderAlertTemplate(populatedOrder, restro.name),
-                  });
-                }
-                // 🔔 Socket: Real-time notification to restaurant dashboard
-                if (req.io && restro?.owner) {
-                  req.io
-                    .to(restro.owner._id.toString())
-                    .emit("newOrderReceived", populatedOrder);
-                }
+            const restro = await Restaurant.findById(restaurantId).populate("owner");
+            if (restro?.owner?.email && !restro.owner.email.includes("@dummy")) {
+              await sendEmail({
+                email: restro.owner.email,
+                subject: `🔔 New Order for ${restro.name}`,
+                html: getRestaurantOrderAlertTemplate(populatedOrder, restro.name),
               });
+            }
+            // 🔔 Socket: Real-time notification to restaurant dashboard
+            if (req.io && restro?.owner) {
+              req.io
+                .to(restro.owner._id.toString())
+                .emit("newOrderReceived", populatedOrder);
+            }
           }
         }
       } catch (emailErr) {
@@ -363,8 +357,8 @@ export const getOrderById = async (req, res) => {
     }
 
     // 🛡️ SECURITY FIX (SEC-2): Authorization check — only order owner, admin, restaurant owner, or assigned delivery partner can view
-    const isOwner = order.user._id.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin";
+    const isOwner = order.user && order.user._id?.toString() === req.user._id.toString();
     const isRestaurantOwner = req.user.role === "restaurant_owner";
     // NEW-05 FIX: Use _id instead of .id since .lean() strips Mongoose virtuals
     const isAssignedDriver =
@@ -541,7 +535,9 @@ export const updateOrderStatus = async (req, res) => {
 
     // 🔔 Notify User & Delivery Partner via Socket.io
     if (req.io) {
-      req.io.to(order.user._id.toString()).emit("orderUpdated", updatedOrder);
+      if (order.user && order.user._id) {
+        req.io.to(order.user._id.toString()).emit("orderUpdated", updatedOrder);
+      }
 
       // Tell specifically assigned partner securely
       if (status === "Ready" && updatedOrder.deliveryPartner) {

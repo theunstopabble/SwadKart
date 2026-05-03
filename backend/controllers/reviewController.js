@@ -55,7 +55,7 @@ export const createProductReview = async (req, res) => {
       comment,
       user: req.user._id,
       // Optional: Agar profile pic handle kar rahe ho to yahan add kar sakte ho
-      avatar: req.user.avatar || "",
+      avatar: req.user.image || "",
     };
 
     // ✅ 4. UPDATE PRODUCT DATA

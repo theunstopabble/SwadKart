@@ -161,7 +161,7 @@ app.use(cookieParser());
 // 🛡️ WEBHOOK FIX: Skip JSON parsing for Razorpay webhook
 // ==========================================
 app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
-app.use(express.json({ limit: "10kb" }));
+app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // ==========================================
@@ -169,6 +169,7 @@ app.use(express.urlencoded({ extended: true }));
 // ==========================================
 const safeMongoSanitize = (req, res, next) => {
   const sanitize = (obj) => {
+    if (Buffer.isBuffer(obj)) return; // 🛡️ Preserve raw binary bodies (webhooks)
     if (obj instanceof Object) {
       for (const key in obj) {
         if (/^\$/.test(key) || key.includes(".")) {

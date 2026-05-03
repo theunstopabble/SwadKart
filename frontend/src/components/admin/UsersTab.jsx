@@ -33,7 +33,7 @@ const UsersTab = ({ userInfo }) => {
       } else {
         toast.error("Failed to load users");
       }
-    } catch (err) {
+    } catch {
       toast.error("Network error loading users");
     } finally {
       setLoading(false);

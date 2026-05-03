@@ -45,7 +45,7 @@ const getRestaurants = async (req, res) => {
     // ✨ Compute 'isOpenNow' dynamically
     const updatedRestaurants = restaurants.map((rest) => {
       const isOpen = checkIsOpen(rest.openingTime, rest.closingTime);
-      return { ...rest._doc, isOpenNow: isOpen };
+      return { ...rest.toObject(), isOpenNow: isOpen };
     });
 
     res.json(updatedRestaurants);
@@ -88,7 +88,7 @@ const getRestaurantById = async (req, res) => {
         restaurant.openingTime,
         restaurant.closingTime
       );
-      res.json({ ...restaurant._doc, isOpenNow: isOpen });
+      res.json({ ...restaurant.toObject(), isOpenNow: isOpen });
     } else {
       res.status(404).json({ message: "Restaurant not found" });
     }
@@ -152,7 +152,7 @@ const getOwnerRestaurant = async (req, res) => {
     const restaurant = await Restaurant.findOne({ owner: req.user._id });
     if (restaurant) {
       const isOpen = checkIsOpen(restaurant.openingTime, restaurant.closingTime);
-      res.json({ ...restaurant._doc, isOpenNow: isOpen });
+      res.json({ ...restaurant.toObject(), isOpenNow: isOpen });
     } else {
       res.status(404).json({ message: "No restaurant found for this owner" });
     }

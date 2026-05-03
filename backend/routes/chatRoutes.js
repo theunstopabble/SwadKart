@@ -1,6 +1,7 @@
 import express from "express";
 import { chatWithGenie } from "../controllers/chatController.js";
 import rateLimit from "express-rate-limit";
+import { optionalAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -11,6 +12,6 @@ const chatLimiter = rateLimit({
   message: { reply: "Arre boss! Thoda slow lo. 1 minute baad try karna. ⏳" },
 });
 
-router.post("/", chatLimiter, chatWithGenie);
+router.post("/", chatLimiter, optionalAuth, chatWithGenie);
 
 export default router;

@@ -13,7 +13,8 @@ router.get("/key", protect, getRazorpayKey);
 router.post("/create", protect, createRazorpayOrder);
 router.post("/verify", protect, verifyPayment);
 
-// 🛡️ SECURITY FIX (SEC-4): Use express.raw() for webhook to preserve raw body for HMAC verification
-router.post("/webhook", express.raw({ type: "application/json" }), razorpayWebhook);
+// 🛡️ SECURITY FIX (SEC-4): Raw body parsing is handled globally in server.js
+// Do NOT add express.raw() here — it would consume the stream twice.
+router.post("/webhook", razorpayWebhook);
 
 export default router;

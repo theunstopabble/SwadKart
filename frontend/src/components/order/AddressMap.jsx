@@ -33,7 +33,6 @@ function ChangeView({ center }) {
 
 const AddressMap = ({
   mapCenter,
-  setMapCenter,
   onMapClick,
   searchQuery,
   setSearchQuery,
