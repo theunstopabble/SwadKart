@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import compression from "compression";
@@ -13,6 +14,7 @@ import jwt from "jsonwebtoken";
 import cookie from "cookie";
 
 import connectDB from "./config/db.js";
+import cacheClient from "./config/redis.js";
 
 // 🚀 PERFORMANCE FIX (STEP 3): Initialize Background Workers
 import "./workers/emailWorker.js";
@@ -236,6 +238,11 @@ app.use(
   cors({
     origin: (origin, callback) => {
       // 🛡️ SECURITY FIX (SEC-7): Use exact allowedOrigins, no wildcards
+      // In production, require a valid Origin header (blocks curl/Postman/script abuse)
+      const isProduction = process.env.NODE_ENV === "production";
+      if (!origin && isProduction) {
+        return callback(new Error("CORS Protocol Violation: Missing Origin"), false);
+      }
       const isAllowed = !origin || allowedOrigins.includes(origin);
 
       if (isAllowed) {
@@ -267,10 +274,35 @@ const authLimiter = rateLimit({
 });
 app.use("/api/v1/users/verify-email", authLimiter);
 app.use("/api/v1/users/login", authLimiter);
+app.use("/api/v1/users/register", authLimiter);
 app.use("/api/v1/users/password/forgot", authLimiter);
 
 app.get("/ping", (req, res) => {
   res.status(200).send("Pong");
+});
+
+// 🏥 Health Check Endpoint (for uptime monitoring & load balancers)
+app.get("/health", async (req, res) => {
+  const mongoReady = mongoose.connection.readyState === 1;
+  let redisReady = true;
+  try {
+    // cacheClient may be a Proxy to redisClient or inMemory fallback
+    if (cacheClient.ping) {
+      await cacheClient.ping();
+    }
+  } catch {
+    redisReady = false;
+  }
+
+  const status = mongoReady && redisReady ? 200 : 503;
+  res.status(status).json({
+    status: status === 200 ? "healthy" : "degraded",
+    services: {
+      mongo: mongoReady ? "connected" : "disconnected",
+      redis: redisReady ? "connected" : "disconnected",
+    },
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // --- 🛣️ API Routes ---

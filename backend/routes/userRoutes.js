@@ -32,6 +32,7 @@ import {
 
 // Middleware Import
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { validate } from "../middleware/validationMiddleware.js";
 
 const router = express.Router();
 
@@ -40,13 +41,13 @@ const router = express.Router();
 // =================================================================
 
 // Standard Auth
-router.post("/register", registerUser);
+router.post("/register", validate("register"), registerUser);
 router.post("/verify-email", verifyEmailAPI);
-router.post("/login", loginUser);
+router.post("/login", validate("login"), loginUser);
 router.post("/logout", logoutUser);
-router.post("/password/forgot", forgotPassword);
+router.post("/password/forgot", validate("forgotPassword"), forgotPassword);
 router.put("/password/reset/:token", resetPassword);
-router.post("/contact-support", contactSupport);
+router.post("/contact-support", validate("contactSupport"), contactSupport);
 
 // Google Authentication
 router.post("/google-check", googleCheck);

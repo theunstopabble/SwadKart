@@ -1,0 +1,18 @@
+# Environment variables
+.env
+
+# Firebase Service Account (contains real private keys - must NEVER be committed)
+config/firebase-service-account.json
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+
+# Coverage
+coverage/
