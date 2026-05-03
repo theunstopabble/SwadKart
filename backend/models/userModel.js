@@ -151,7 +151,7 @@ userSchema.pre('save', function (next) {
 });
 
 // 🚀 PERFORMANCE FIX (STEP 1): Indexing
-userSchema.index({ email: 1 }, { unique: true });
+// Email index is auto-created by unique: true in schema definition above
 userSchema.index({ role: 1 });
 
 // 🛰️ GEOSPATIAL FIX (STEP 1): 2dsphere index for location queries
