@@ -288,7 +288,9 @@ const Footer = () => {
             />
             by
             <a
-              href="#"
+              href="https://gautam-kr.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-white font-bold group-hover:text-primary transition-colors"
             >
               Gautam Kumar
