@@ -238,11 +238,7 @@ app.use(
   cors({
     origin: (origin, callback) => {
       // 🛡️ SECURITY FIX (SEC-7): Use exact allowedOrigins, no wildcards
-      // In production, require a valid Origin header (blocks curl/Postman/script abuse)
-      const isProduction = process.env.NODE_ENV === "production";
-      if (!origin && isProduction) {
-        return callback(new Error("CORS Protocol Violation: Missing Origin"), false);
-      }
+      // Allow same-origin & proxied requests without Origin (browsers omit it for same-origin)
       const isAllowed = !origin || allowedOrigins.includes(origin);
 
       if (isAllowed) {
