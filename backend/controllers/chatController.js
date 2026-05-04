@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import pdfParse from "pdf-parse/lib/pdf-parse.js";
+import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 import Product from "../models/productModel.js";
 import Order from "../models/orderModel.js";
