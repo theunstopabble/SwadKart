@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticateToken } from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import { adminOnly } from "../middleware/roleMiddleware.js";
 import {
   getRestaurantEarnings,
@@ -10,9 +10,9 @@ import {
 
 const router = express.Router();
 
-router.get("/restaurant/:id", authenticateToken, getRestaurantEarnings);
-router.post("/restaurant/:id/request", authenticateToken, requestPayout);
-router.get("/admin/all", authenticateToken, adminOnly, getAllPayouts);
-router.patch("/admin/:id/pay", authenticateToken, adminOnly, markPayoutPaid);
+router.get("/restaurant/:id", protect, getRestaurantEarnings);
+router.post("/restaurant/:id/request", protect, requestPayout);
+router.get("/admin/all", protect, adminOnly, getAllPayouts);
+router.patch("/admin/:id/pay", protect, adminOnly, markPayoutPaid);
 
 export default router;

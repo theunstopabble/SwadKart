@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticateToken } from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import {
   refreshRestaurantScore,
   getRestaurantPerformance,
@@ -10,6 +10,6 @@ const router = express.Router();
 
 router.get("/leaderboard", getLeaderboard);
 router.get("/restaurant/:id/performance", getRestaurantPerformance);
-router.post("/restaurant/:id/refresh", authenticateToken, refreshRestaurantScore);
+router.post("/restaurant/:id/refresh", protect, refreshRestaurantScore);
 
 export default router;
