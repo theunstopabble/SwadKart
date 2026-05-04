@@ -52,7 +52,7 @@ const groupOrderSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-groupOrderSchema.index({ inviteCode: 1 });
+// inviteCode already has index: true + unique: true in schema field definition
 groupOrderSchema.index({ host: 1, status: 1 });
 
 const GroupOrder = mongoose.model("GroupOrder", groupOrderSchema);

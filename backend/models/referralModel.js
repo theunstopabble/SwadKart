@@ -12,7 +12,6 @@ const referralSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: "User",
-      index: true,
     },
     referralCode: { type: String, required: true, index: true },
     status: {
