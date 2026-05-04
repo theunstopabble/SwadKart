@@ -1,4 +1,4 @@
-import { ArrowRight, ReceiptText } from "lucide-react";
+import { ArrowRight, ReceiptText, HandHeart } from "lucide-react";
 
 const OrderSummary = ({
   itemsPrice,
@@ -9,6 +9,8 @@ const OrderSummary = ({
   totalPrice,
   isProcessing,
   placeOrderHandler,
+  tipAmount,
+  onTipChange,
 }) => (
   <div className="w-full lg:min-w-[380px]">
     <div className="bg-gray-900 p-8 rounded-2xl border border-gray-800 sticky top-24 shadow-2xl transition-all hover:border-gray-700 overflow-hidden relative">
@@ -61,6 +63,40 @@ const OrderSummary = ({
           >
             {shippingPrice === 0 ? "FREE" : `₹${shippingPrice}`}
           </span>
+        </div>
+
+        {/* 💸 Tip Input */}
+        <div className="flex items-center justify-between bg-gray-800/40 rounded-xl p-3 border border-gray-700/30">
+          <div className="flex items-center gap-2">
+            <HandHeart size={16} className="text-amber-500" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              Tip Rider
+            </span>
+          </div>
+          <div className="flex gap-1">
+            {[20, 40, 60].map((amt) => (
+              <button
+                key={amt}
+                onClick={() => onTipChange && onTipChange(amt)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${
+                  Number(tipAmount) === amt
+                    ? "bg-amber-500 text-black"
+                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                }`}
+              >
+                ₹{amt}
+              </button>
+            ))}
+            <input
+              type="number"
+              min={0}
+              max={500}
+              placeholder="Custom"
+              value={tipAmount > 0 ? tipAmount : ""}
+              onChange={(e) => onTipChange && onTipChange(Math.max(0, Math.min(500, Number(e.target.value))))}
+              className="w-16 px-2 py-1 rounded-lg bg-gray-700 text-white text-[10px] font-bold text-center focus:outline-none focus:ring-1 focus:ring-amber-500 border-none"
+            />
+          </div>
         </div>
 
         {couponDiscount > 0 && (

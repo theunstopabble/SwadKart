@@ -11,7 +11,11 @@ import {
   TrendingUp,
   TrendingDown,
   Fingerprint,
-  AlertTriangle, // For unsupported device warning
+  AlertTriangle,
+  Coins,
+  Gift,
+  Copy,
+  Users,
 } from "lucide-react";
 import { setCredentials, updateUserProfile } from "../redux/userSlice";
 import { registerBiometric } from "../utils/biometricService";
@@ -456,6 +460,82 @@ const Profile = () => {
                     No transactions yet.
                   </p>
                 )}
+              </div>
+            </div>
+
+            {/* 🪙 SWADCOINS LOYALTY */}
+            <div className="bg-gradient-to-br from-amber-900 to-gray-900 border border-amber-700/30 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group mt-6">
+              <div className="absolute -right-10 -top-10 w-32 h-32 bg-amber-500/20 rounded-full blur-3xl group-hover:bg-amber-500/30 transition-all"></div>
+              <div className="flex justify-between items-start mb-4 relative z-10">
+                <div>
+                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] mb-1">
+                    SwadCoins
+                  </p>
+                  <h3 className="text-4xl font-black text-white italic tracking-tighter">
+                    {userInfo?.swadCoins || 0}
+                  </h3>
+                  <p className="text-[9px] text-amber-400 mt-1">
+                    100 coins = ₹10 off your next order
+                  </p>
+                </div>
+                <div className="p-3 bg-gray-800 rounded-2xl text-amber-500 border border-amber-700/30">
+                  <Coins size={24} />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="bg-gray-800/50 rounded-xl p-3 flex-1 text-center">
+                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Earn Rate</p>
+                  <p className="text-sm font-black text-white">₹10 = 1 coin</p>
+                </div>
+                <div className="bg-gray-800/50 rounded-xl p-3 flex-1 text-center">
+                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">First Order</p>
+                  <p className="text-sm font-black text-amber-400">+500 coins</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 🔗 REFERRAL PROGRAM */}
+            <div className="bg-gradient-to-br from-blue-900 to-gray-900 border border-blue-700/30 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group mt-6">
+              <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl group-hover:bg-blue-500/30 transition-all"></div>
+              <div className="flex items-center gap-3 mb-4 relative z-10">
+                <div className="p-2 bg-blue-500/20 rounded-xl text-blue-400">
+                  <Gift size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight">Refer & Earn</h3>
+                  <p className="text-[9px] text-gray-400">Share your code. Both get rewards.</p>
+                </div>
+              </div>
+              <div className="bg-gray-800/80 rounded-2xl p-4 border border-blue-700/20 flex items-center justify-between relative z-10">
+                <div>
+                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Your Code</p>
+                  <p className="text-xl font-black text-white font-mono tracking-wider">
+                    {userInfo?.referralCode || "—"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (userInfo?.referralCode) {
+                      navigator.clipboard.writeText(userInfo.referralCode);
+                    }
+                  }}
+                  className="p-2 bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors text-white"
+                  title="Copy code"
+                >
+                  <Copy size={18} />
+                </button>
+              </div>
+              <div className="flex gap-3 mt-4 relative z-10">
+                <div className="flex-1 bg-gray-800/50 rounded-xl p-3 text-center">
+                  <Users size={16} className="mx-auto text-blue-400 mb-1" />
+                  <p className="text-lg font-black text-white">{userInfo?.referralStats?.totalReferrals || 0}</p>
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest">Invited</p>
+                </div>
+                <div className="flex-1 bg-gray-800/50 rounded-xl p-3 text-center">
+                  <Coins size={16} className="mx-auto text-amber-400 mb-1" />
+                  <p className="text-lg font-black text-white">{userInfo?.referralStats?.totalEarnings || 0}</p>
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest">Earned</p>
+                </div>
               </div>
             </div>
           </div>

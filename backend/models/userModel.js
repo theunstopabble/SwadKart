@@ -75,6 +75,15 @@ const userSchema = mongoose.Schema(
 
     // 🔔 FCM PUSH NOTIFICATIONS
     fcmToken: { type: String },
+
+    // 🪙 SWADCOINS LOYALTY SYSTEM
+    swadCoins: { type: Number, default: 0, min: 0 },
+
+    // 🔗 REFERRAL SYSTEM
+    referralCode: { type: String, unique: true, sparse: true, uppercase: true },
+    pendingReferralCode: { type: String, uppercase: true },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    referralRewardClaimed: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
@@ -93,6 +102,9 @@ userSchema.pre("save", async function () {
     if (this.isModified("password")) {
       const salt = await bcrypt.genSalt(10);
       this.password = await bcrypt.hash(this.password, salt);
+    }
+    if (!this.referralCode && this.role === "user") {
+      this.referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     }
   } catch (error) {
     throw new Error(error);

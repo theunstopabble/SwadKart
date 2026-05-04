@@ -82,6 +82,10 @@ const orderSchema = mongoose.Schema(
     couponCode: { type: String, default: "" },
     couponDiscount: { type: Number, required: true, default: 0.0 },
     totalPrice: { type: Number, required: true, default: 0.0 },
+    // 💸 TIP & SURGE PRICING
+    tipAmount: { type: Number, default: 0.0, min: 0 },
+    deliveryFee: { type: Number, default: 0.0, min: 0 },
+    surgePrice: { type: Number, default: 0.0, min: 0 },
 
     // =================================================
     // ✅ 6. PAYMENT STATUS

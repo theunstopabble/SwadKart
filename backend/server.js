@@ -32,6 +32,8 @@ import chatRoutes from "./routes/chatRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import restaurantRoutes from "./routes/restaurantRoutes.js";
 import biometricRoutes from "./routes/biometricRoutes.js";
+import loyaltyRoutes from "./routes/loyaltyRoutes.js";
+import referralRoutes from "./routes/referralRoutes.js";
 
 dotenv.config();
 connectDB(); // 🗄️ Database Connection
@@ -311,6 +313,8 @@ app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/restaurants", restaurantRoutes);
 app.use("/api/v1/biometric", biometricRoutes);
+app.use("/api/v1/loyalty", loyaltyRoutes);
+app.use("/api/v1/referral", referralRoutes);
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

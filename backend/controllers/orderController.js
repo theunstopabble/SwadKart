@@ -14,6 +14,7 @@ import {
   getAdminOrderAlertTemplate,
   getRestaurantOrderAlertTemplate,
 } from "../utils/emailTemplates.js";
+import { awardCoinsToUser } from "./loyaltyController.js";
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
 // ==========================================
@@ -32,6 +33,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     totalPrice,
     couponCode,
     couponDiscount,
+    tipAmount,
   } = req.body;
 
   if (orderItems && orderItems.length === 0) {
@@ -196,12 +198,19 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 
     const serverShippingPrice = serverItemsPrice > 500 ? 0 : 40;
     const serverTaxPrice = parseFloat((0.05 * serverItemsPrice).toFixed(2));
+    // 💸 TIP & SURGE PRICING
+    const serverTipAmount = Math.max(0, Number(tipAmount) || 0);
+    const serverDeliveryFee = serverShippingPrice; // Base delivery fee
+    const serverSurgePrice = 0; // Placeholder for future FEAT-1 surge engine
     const serverTotalPrice = parseFloat(
       Math.max(
         0,
         serverItemsPrice +
           serverShippingPrice +
-          serverTaxPrice -
+          serverTaxPrice +
+          serverTipAmount +
+          serverDeliveryFee +
+          serverSurgePrice -
           serverCouponDiscount, // Use SERVER calculated discount
       ).toFixed(2),
     );
@@ -246,9 +255,12 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       shippingPrice: serverShippingPrice,
       totalPrice: serverTotalPrice,
       couponCode,
-      couponDiscount: serverCouponDiscount, // 👈 Strict mathematical calculation used here
-      isPaid: orderIsPaid, // 👈 Set from wallet logic
-      paidAt: orderPaidAt, // 👈 Set from wallet logic
+      couponDiscount: serverCouponDiscount,
+      tipAmount: serverTipAmount,
+      deliveryFee: serverDeliveryFee,
+      surgePrice: serverSurgePrice,
+      isPaid: orderIsPaid,
+      paidAt: orderPaidAt,
     });
 
     // 3. Save order using the same transaction session
@@ -272,7 +284,34 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    // 6. NON-BLOCKING: Email & Socket notifications for COD/Wallet orders
+    // 6. NON-BLOCKING: SwadCoins Loyalty Award (1 coin per ₹10 spent)
+    try {
+      const earnedCoins = Math.floor(serverItemsPrice / 10);
+      if (earnedCoins > 0) {
+        await awardCoinsToUser(
+          req.user._id,
+          earnedCoins,
+          "Earn",
+          `Earned ${earnedCoins} SwadCoins for order #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
+          createdOrder._id,
+        );
+      }
+      // First order bonus
+      const orderCount = await Order.countDocuments({ user: req.user._id });
+      if (orderCount === 1) {
+        await awardCoinsToUser(
+          req.user._id,
+          500,
+          "Bonus",
+          "🎉 First Order Bonus: 500 SwadCoins",
+          createdOrder._id,
+        );
+      }
+    } catch (coinErr) {
+      console.error("🪙 Loyalty award error (non-blocking):", coinErr.message);
+    }
+
+    // 7. NON-BLOCKING: Email & Socket notifications for COD/Wallet orders
     // Online orders get notified inside paymentController.verifyPayment instead
     if (paymentMethod !== "Online") {
       try {

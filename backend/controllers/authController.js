@@ -8,11 +8,12 @@ import {
   getResetPasswordTemplate,
   getWelcomeTemplate,
 } from "../utils/emailTemplates.js";
+import { applyReferralOnRegister } from "../controllers/referralController.js";
 
 // @desc    Register user (Sends OTP via Email Only)
 export const registerUser = async (req, res, next) => {
   try {
-    const { name, email: rawEmail, password, phone: rawPhone, role } = req.body;
+    const { name, email: rawEmail, password, phone: rawPhone, role, referralCode } = req.body;
 
     if (!name || !rawEmail || !password || !rawPhone) {
       res.status(400);
@@ -81,6 +82,7 @@ export const registerUser = async (req, res, next) => {
       isVerified: false,
       otp,
       otpExpires: Date.now() + 10 * 60 * 1000,
+      pendingReferralCode: referralCode ? referralCode.toUpperCase() : undefined,
     });
 
     if (user) {
@@ -145,6 +147,17 @@ export const verifyEmailAPI = async (req, res, next) => {
       }
 
       generateToken(res, user._id); // Sets Secure HttpOnly Cookie
+
+      // 🪙 NON-BLOCKING: Process referral code if pending
+      try {
+        if (user.pendingReferralCode) {
+          await applyReferralOnRegister(user._id, user.pendingReferralCode);
+          user.pendingReferralCode = undefined;
+          await user.save();
+        }
+      } catch (refErr) {
+        console.error("🔗 Referral processing error (non-blocking):", refErr.message);
+      }
 
       // Return full user data (sans password) to prevent Redux data wipe
       const safeUser = user.toObject();

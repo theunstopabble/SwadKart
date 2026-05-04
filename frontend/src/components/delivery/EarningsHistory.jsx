@@ -5,11 +5,9 @@ const EarningsHistory = ({ tasks }) => {
   // Filter only delivered orders
   const safeTasks = Array.isArray(tasks) ? tasks : [];
   const completedTasks = safeTasks.filter((t) => t.isDelivered);
-  // Calculate estimated earnings (delivery commission ~ 15% of order value)
-  // TODO: Replace with actual deliveryFee field when backend adds it
-  const COMMISSION_RATE = 0.15;
+  // Calculate real earnings using backend deliveryFee + tipAmount fields
   const totalEarnings = completedTasks.reduce(
-    (acc, t) => acc + (t.totalPrice * COMMISSION_RATE),
+    (acc, t) => acc + ((t.deliveryFee || 0) + (t.tipAmount || 0)),
     0,
   );
 
@@ -75,7 +73,7 @@ const EarningsHistory = ({ tasks }) => {
                 </div>
                 <div className="text-right">
                   <span className="text-green-400 font-black text-lg">
-                    +₹{(task.totalPrice * 0.15).toFixed(0)}
+                    +₹{((task.deliveryFee || 0) + (task.tipAmount || 0)).toFixed(0)}
                   </span>
                   <p className="text-[8px] text-gray-600 uppercase font-black">
                     Settled

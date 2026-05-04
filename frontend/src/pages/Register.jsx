@@ -11,6 +11,7 @@ import {
   KeyRound,
   RefreshCw,
   ShieldCheck,
+  Gift,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASEURL } from "../config";
@@ -26,6 +27,7 @@ const Register = () => {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
 
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
@@ -66,7 +68,7 @@ const Register = () => {
       const res = await fetch(`${BASEURL}/api/v1/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password }),
+        body: JSON.stringify({ name, email, phone, password, referralCode: referralCode || undefined }),
       });
       const data = await res.json();
 
@@ -175,6 +177,13 @@ const Register = () => {
                   placeholder: "Confirm Password",
                   val: confirmPassword,
                   set: setConfirmPassword,
+                },
+                {
+                  icon: Gift,
+                  type: "text",
+                  placeholder: "Referral Code (Optional)",
+                  val: referralCode,
+                  set: setReferralCode,
                 },
               ].map((field, idx) => (
                 <div key={idx} className="relative group">
