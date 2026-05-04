@@ -355,6 +355,13 @@ app.use(
     immutable: true,
   }),
 );
+// Serve public files (robots.txt, favicon, etc.) at root
+app.use(
+  "/",
+  express.static(path.join(__dirname, "/public"), {
+    maxAge: "1d",
+  }),
+);
 
 app.get("/", (req, res) => {
   res.send("🚀 SwadKart Beast Engine is running...");
