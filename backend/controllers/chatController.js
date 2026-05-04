@@ -1,5 +1,4 @@
 import Groq from "groq-sdk";
-import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 import Product from "../models/productModel.js";
 import Order from "../models/orderModel.js";
@@ -12,6 +11,12 @@ dotenv.config();
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
+
+// Lazy-load pdf-parse to handle CJS/ESM interop
+const getPdfParse = async () => {
+  const mod = await import("pdf-parse");
+  return mod.default || mod;
+};
 
 /**
  * 📎 Extract text from uploaded file buffers
@@ -28,6 +33,7 @@ const extractAttachmentContext = async (files) => {
 
     try {
       if (mimetype === "application/pdf") {
+        const pdfParse = await getPdfParse();
         const data = await pdfParse(buffer);
         text = data.text?.substring(0, 3000) || "";
       } else if (
