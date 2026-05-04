@@ -41,12 +41,15 @@ export const fraudDetection = async (req, res, next) => {
       flags.push("frequent_cancellation_pattern");
     }
 
-    // 4. Coupon abuse: same coupon used across multiple accounts
+    // 4. Coupon abuse: suspicious repeated coupon usage by same user
     if (couponCode) {
-      const couponUsageCount = await CouponUsage.countDocuments({
-        coupon: (await CouponUsage.findOne({ user: userId }).sort({ createdAt: -1 }))?.coupon,
+      const sameUserCouponCount = await CouponUsage.countDocuments({
+        user: userId,
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       });
-      // Simplified — full coupon tracking already in couponUsage
+      if (sameUserCouponCount >= 5) {
+        flags.push("suspicious_coupon_usage");
+      }
     }
 
     // 5. Total price manipulation (frontend total ≠ server recalculation caught later)

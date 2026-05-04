@@ -14,6 +14,10 @@ import {
   Package,
   Bell,
   Globe,
+  Crown,
+  Trophy,
+  Calendar,
+  Shield,
 } from "lucide-react";
 import { BASEURL } from "../config";
 
@@ -381,6 +385,47 @@ const Navbar = () => {
                   onClick={closeMenu}
                 >
                   {t("profile")} ({userInfo.name || "User"})
+                </Link>
+
+                {userInfo.role === "user" && (
+                  <>
+                    <Link
+                      to="/swadpass"
+                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-yellow-400 hover:bg-gray-800"
+                      onClick={closeMenu}
+                    >
+                      <Crown size={18} /> SwadPass
+                    </Link>
+                    <Link
+                      to="/rewards"
+                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-purple-400 hover:bg-gray-800"
+                      onClick={closeMenu}
+                    >
+                      <Trophy size={18} /> Rewards
+                    </Link>
+                    <Link
+                      to="/reservations"
+                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-orange-400 hover:bg-gray-800"
+                      onClick={closeMenu}
+                    >
+                      <Calendar size={18} /> Reservations
+                    </Link>
+                    <Link
+                      to="/group-orders"
+                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-blue-400 hover:bg-gray-800"
+                      onClick={closeMenu}
+                    >
+                      <Users size={18} /> Group Orders
+                    </Link>
+                  </>
+                )}
+
+                <Link
+                  to="/privacy"
+                  className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-400 hover:bg-gray-800"
+                  onClick={closeMenu}
+                >
+                  <Shield size={18} /> Privacy & Data
                 </Link>
 
                 <button

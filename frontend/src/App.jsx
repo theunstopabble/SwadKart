@@ -29,6 +29,11 @@ const DeliveryPartnerDashboard = lazy(
 );
 const InfoPage = lazy(() => import("./pages/InfoPage"));
 const Contact = lazy(() => import("./pages/Contact"));
+const SwadPass = lazy(() => import("./pages/SwadPass"));
+const Gamification = lazy(() => import("./pages/Gamification"));
+const Reservations = lazy(() => import("./pages/Reservations"));
+const GroupOrders = lazy(() => import("./pages/GroupOrders"));
+const GDPRSettings = lazy(() => import("./pages/GDPRSettings"));
 
 // Components
 import Navbar from "./components/Navbar";
@@ -272,12 +277,15 @@ function App() {
                 {/* User Protected Routes */}
                 <Route element={<PrivateRoute />}>
                   <Route path="/shipping" element={<Shipping />} />
-                  <Route path="/payment" element={<Payment />} />
-                  <Route path="/placeorder" element={<PlaceOrder />} />
-                  <Route path="/order/:id" element={<OrderDetails />} />
-                  <Route path="/myorders" element={<MyOrders />} />
-                  <Route path="/subscriptions" element={<MySubscriptions />} />
                   <Route path="/profile" element={<Profile />} />
+                  <Route path="/myorders" element={<MyOrders />} />
+                  <Route path="/order/:id" element={<OrderDetails />} />
+                  <Route path="/subscriptions" element={<MySubscriptions />} />
+                  <Route path="/swadpass" element={<SwadPass />} />
+                  <Route path="/rewards" element={<Gamification />} />
+                  <Route path="/reservations" element={<Reservations />} />
+                  <Route path="/group-orders" element={<GroupOrders />} />
+                  <Route path="/privacy" element={<GDPRSettings />} />
                 </Route>
 
                 {/* Admin Routes */}
