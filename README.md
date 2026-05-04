@@ -51,26 +51,52 @@ Unlike simple clones, SwadKart includes production-grade features like **Real-ti
 ## 🌟 Key Features
 
 ### 🛍️ User Experience
-* **Smart Discovery:** Filter restaurants by delivery time, rating, and cuisine type.
-* **Dynamic Cart:** Real-time price calculation with Redux state management.
-* **Secure Auth:** Hybrid authentication using **JWT** (Email/Password) and **Firebase** (Google Auth).
-* **Order Tracking:** Real-time updates from "Preparing" to "Out for Delivery".
+* **Smart Discovery:** AI-powered restaurant & dish recommendations with natural language search.
+* **Voice Search:** Hands-free restaurant/menu search in English & Hindi using Web Speech API.
+* **Dynamic Cart:** Real-time price calculation with surge pricing, coupons, and SwadPass discounts.
+* **Secure Auth:** Triple authentication — **JWT** (Email/Password), **Firebase** (Google OAuth), **WebAuthn** (Biometric).
+* **Order Tracking:** Live GPS driver tracking from "Preparing" → "Out for Delivery" → "Delivered" via Socket.io.
+* **Smart Reorder:** One-tap reorder from "Frequently Ordered" carousel based on order history.
 
 ### 👑 Admin Command Center
-* **Live Analytics:** Visual charts for Revenue, Orders, and Active Users.
-* **Demand Heatmap:** Interactive map using `Leaflet.js` to visualize high-demand zones.
-* **User Management:** Role-based access control to manage Users, Merchants, and Riders.
-* **Coupon Engine:** Create and manage discount codes dynamically.
+* **Live Analytics:** Revenue, order volume, active users, and restaurant performance trends.
+* **Demand Heatmap:** Interactive `Leaflet.js` map visualizing high-demand zones for strategic decisions.
+* **User Management:** Role-based access control (Admin, Restaurant Owner, Delivery Partner, User).
+* **Coupon Engine:** Create, manage, and track coupon usage with automatic validation.
+* **Fraud Detection:** Non-blocking heuristics engine flags suspicious high-value first orders, repeat addresses, and coupon abuse.
 
 ### 🏪 Restaurant & Delivery
-* **Menu Lab:** Restaurant owners can manage stock, add variants, and toggle availability.
-* **Delivery Dashboard:** dedicated interface for riders to accept/reject orders and verify delivery via **Secure OTP**.
+* **Menu Lab:** Stock management, variant toggling, real-time availability, and AI chatbot-assisted menu discovery.
+* **Delivery Dashboard:** Accept/reject orders, real-time GPS tracking, and **OTP-verified** delivery handoff.
+* **ETA Prediction:** Dynamic delivery time estimation based on distance, traffic, and order queue.
 
-### 🔐 Biometric Security Suite (New v2.0)
-* **One-Tap Login:** Authenticate using your device's native Fingerprint or FaceID sensor (WebAuthn).
-* **Premium App Lock:** Protect your wallet and order history with a banking-grade "Glassmorphism" lock screen.
-* **Smart Hardware Detection:** The UI automatically adapts if the device lacks biometric hardware.
-* **Dynamic Environment:** Securely handles authentication across Localhost and Production.
+### 💎 SwadPass Subscription (Like Swiggy One)
+* **Free Delivery:** Unlimited free delivery on all orders.
+* **Exclusive Discounts:** Additional 10% off every order.
+* **Priority Support:** Fast-track customer service.
+
+### 🎮 Gamification & Loyalty
+* **Order Streaks:** 3-day, 7-day, and 30-day streak badges.
+* **SwadCoins:** Earn coins on every order, redeem for discounts.
+* **Achievement Badges:** First Bite, Week Warrior, Month Master, Explorer, Top 10.
+* **Referral System:** Invite friends and earn rewards when they place their first paid order.
+
+### 🗣️ AI-Powered Features
+* **Groq AI Chatbot:** Natural language restaurant/dish recommendations powered by LLM.
+* **Voice Search:** Speak your craving — "Show me biryani under 200" works instantly.
+
+### 🔐 Biometric Security Suite (v2.0)
+* **One-Tap Login:** Fingerprint or FaceID via WebAuthn — no password needed.
+* **Premium App Lock:** Banking-grade glassmorphism lock screen for wallet & order history.
+* **Smart Hardware Detection:** Gracefully falls back to PIN if biometric hardware unavailable.
+
+### 📊 Enterprise Features
+* **Surge Pricing:** Dynamic delivery fee multiplier based on active orders vs available drivers.
+* **Group Ordering:** Split bills with friends via invite code — equal or item-wise split.
+* **Table Reservations:** Book tables with QR code confirmation and guest management.
+* **GDPR Compliance:** One-click data export (JSON) and account deletion with full anonymization.
+* **Multi-Language:** Full i18n support — English & Hindi with more languages ready to add.
+* **PWA:** Installable app with offline support, push notifications, and service worker caching.
 
 | **Premium Lock Screen** | **Profile Control Center** |
 |:-------------------:|:---------------------:|
@@ -83,19 +109,36 @@ Unlike simple clones, SwadKart includes production-grade features like **Real-ti
 The project follows a clean **MVC (Model-View-Controller)** architecture with a clear separation of concerns.
 
 ### **Frontend (`/frontend`)**
-* **Framework:** React.js (Vite)
-* **State Management:** Redux Toolkit
-* **Styling:** Tailwind CSS + Lucide React Icons
-* **Routing:** React Router DOM
-* **Real-time:** Socket.io-client
+| Layer | Technology |
+|---|---|
+| Framework | React 18 + Vite |
+| State Management | Redux Toolkit + RTK Query ready |
+| Styling | Tailwind CSS + Lucide React Icons |
+| Routing | React Router DOM v6 |
+| Real-time | Socket.io-client |
+| Maps | Leaflet.js + React-Leaflet |
+| Charts | Recharts |
+| AI | Groq SDK (LLM recommendations) |
+| Voice | Web Speech API |
+| Auth | Firebase Auth + WebAuthn |
+| Build | Vite PWA (workbox) |
 
 ### **Backend (`/backend`)**
-* **Runtime:** Node.js
-* **Framework:** Express.js
-* **Database:** MongoDB Atlas (Mongoose ODM)
-* **Authentication:** JWT + Firebase Admin SDK
-* **Real-time:** Socket.io
-* **Email:** Nodemailer (SMTP)
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js 20+ |
+| Framework | Express.js 5 |
+| Database | MongoDB Atlas (Mongoose ODM) |
+| Cache | Redis (Upstash) / In-Memory Fallback |
+| Authentication | JWT (httpOnly cookies) + Firebase Admin SDK + WebAuthn |
+| Real-time | Socket.io with room-based authorization |
+| Payments | Razorpay (test/live mode auto-detect) |
+| Email | Nodemailer + Brevo (Sendinblue) API |
+| Storage | Cloudinary (image uploads) |
+| AI | Groq API (Llama 3) |
+| Validation | Express Validator + Custom NoSQL Sanitizer |
+| Rate Limiting | express-rate-limit (strict on auth endpoints) |
+| Security | Helmet, CORS, CSRF protection, XSS prevention |
 
 ---
 
@@ -123,38 +166,48 @@ npm install
 
 Create a `.env` file in `/backend` and add the following:
 ```env
+# Server
 PORT=8000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_super_secret_key
-JWT_EXPIRE=30d
 NODE_ENV=development
 
+# Database
+MONGO_URI=your_mongodb_connection_string
 
-# Email Service (For OTPs)
+# JWT (MUST be 32+ chars — use: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
+JWT_SECRET=your_super_secure_random_jwt_secret_here_at_least_32_chars
+
+# Frontend URL (CORS)
+FRONTEND_URL=http://localhost:5173
+
+# Email Service (OTP & notifications)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_MAIL=your_email@gmail.com
 SMTP_PASSWORD=your_app_password
+BREVO_API_KEY=your_brevo_api_key
 
-# Frontend URL (For CORS)
-FRONTEND_URL=http://localhost:5173
-
-# Biometric Config (CRITICAL)
-RP_ID=localhost                     # Or your Vercel Domain (e.g., swadkart.vercel.app)
+# Biometric Auth (WebAuthn)
+RP_ID=localhost
 RP_NAME=SwadKart
 
-# Redis (Optional - falls back to in-memory if omitted)
+# Redis Cache (Optional — falls back to in-memory)
 REDIS_URL=your_upstash_or_redis_url
 
-# Payment Gateway
-STRIPE_SECRET_KEY=your_stripe_secret
-RAZORPAY_KEY_ID=your_razorpay_key_id
+# Payment Gateway (Razorpay)
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxxx
 RAZORPAY_KEY_SECRET=your_razorpay_secret
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
 
-# Cloudinary (for image uploads)
+# Cloudinary (Image Uploads)
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
+
+# AI (Groq LLM for recommendations)
+GROQ_API_KEY=gsk_your_groq_api_key
+
+# Firebase Admin SDK (JSON string or path to service account file)
+FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}
 ```
 Start the backend server:
 ```bash
@@ -187,35 +240,71 @@ npm run dev
 ```bash
 SwadKart-pro/
 ├── backend/
-│   ├── config/         # DB & Cloudinary Config
-│   ├── controllers/    # Logic for User, Order, Admin, Delivery
-│   ├── middleware/     # Auth & Error Handling
-│   ├── models/         # Mongoose Schemas (User, Order, Product)
-│   ├── routes/         # API Endpoints
-│   └── utils/          # Email Templates, Token Generators
+│   ├── config/             # DB, Cloudinary, Redis, WebAuthn
+│   ├── controllers/        # 25+ controllers (User, Order, Admin, Delivery, AI, Gamification, GDPR)
+│   ├── middleware/         # Auth, Error, Rate Limit, Fraud Detection, Cache, CSRF
+│   ├── models/             # Mongoose Schemas with compound indexes
+│   ├── routes/             # 25+ API route modules
+│   ├── utils/              # Token generators, email templates, cache helpers
+│   └── public/             # robots.txt, static assets
 │
-└── frontend/
-    ├── src/
-    │   ├── components/ # Reusable UI (Admin Tabs, Maps, Charts)
-    │   ├── pages/      # Main Views (Dashboard, Cart, Login)
-    │   ├── redux/      # Global State (Cart, User Slice)
-    │   └── utils/      # Helpers
+├── frontend/
+│   ├── src/
+│   │   ├── components/     # Reusable UI (Navbar, ChatBot, VoiceSearch, InstallPWA)
+│   │   ├── pages/            # 20+ pages (all user roles + new feature pages)
+│   │   ├── redux/            # Global State (Cart, User, Order slices)
+│   │   ├── utils/            # Firebase config, biometric service, API helpers
+│   │   └── App.jsx           # Router with lazy loading + role guards
+│   └── .github/workflows/    # CI: backend syntax + frontend lint + build test
+│
+└── docs/                     # Microservices roadmap, architecture docs
 ```
-### 🛡️ Security & Performance
+### 🛡️ Security & Performance (Production-Hardened)
 
-* **Session Validation:** Auto-detects expired/missing JWT cookies on app load and gracefully redirects to login
-* **Rate Limiting:** Protects API endpoints from abuse
-* **Data Sanitization:** Prevents NoSQL injection
-* **Secure OTP:** Delivery verification uses crypto-generated 4-digit codes
-* **Lazy Loading:** React components load only when needed for faster performance
-* **Redis Fallback:** Gracefully falls back to in-memory cache if Redis is unavailable (ideal for local dev)
+| Feature | Implementation | Status |
+|---|---|---|
+| **JWT Security** | 32+ char secret validation, httpOnly cookies, `secure` + `sameSite` | ✅ |
+| **CORS** | Strict allowlist — no wildcards, dynamic origin validation | ✅ |
+| **Rate Limiting** | Auth: 10/10min, API: 300/15min, Orders: 20/15min | ✅ |
+| **NoSQL Injection** | Custom `$` and `.` sanitizer + parameter binding | ✅ |
+| **CSRF Protection** | Origin + Referer header validation | ✅ |
+| **XSS Prevention** | Helmet headers + content security policy | ✅ |
+| **Body Parser Limits** | 10MB max to prevent DoS | ✅ |
+| **Fraud Detection** | Non-blocking heuristics on order creation | ✅ |
+| **Graceful Shutdown** | SIGTERM → close HTTP → close MongoDB → exit(0) | ✅ |
+| **Health Checks** | `/` + `/health` endpoints with MongoDB + Redis status | ✅ |
+| **Error Handling** | Centralized middleware: MongoDB, JWT, Cast, Validation errors | ✅ |
+| **Unhandled Rejection** | Logged in production, crash in dev for visibility | ✅ |
+| **Uncaught Exception** | Always crash + restart to avoid corrupted state | ✅ |
+| **MongoDB Pool** | 50 connections prod, `writeConcern: majority`, heartbeat 10s | ✅ |
+| **Query Optimization** | `.lean()` on all read-heavy endpoints (3-5x faster) | ✅ |
+| **Response Caching** | Redis/in-memory cache on public GET endpoints (1-5 min TTL) | ✅ |
+| **Lazy Loading** | All pages lazy-loaded via React Router + Suspense | ✅ |
+| **PWA Caching** | Service worker precaches 80+ assets | ✅ |
 
 ### 🚀 Production Deployment
 
-* **Frontend:** Deployed on Vercel (`frontend/` directory)
-* **Backend:** Deployed on Render
-* **API Proxy:** `frontend/vercel.json` rewrites `/api/*` requests to the Render backend, ensuring cookies are treated as same-origin
-* **Cookie Config:** Production uses `secure: true` + `sameSite: "none"` for cross-origin HTTPS; local uses `secure: false` + `sameSite: "lax"`
+| Component | Platform | URL |
+|---|---|---|
+| **Frontend** | Vercel | `https://swadkart.vercel.app` |
+| **Backend** | Render | `https://swadkart-api.onrender.com` |
+| **Database** | MongoDB Atlas | `mongodb+srv://...` |
+| **Cache** | Upstash Redis | `rediss://...` |
+| **Images** | Cloudinary | `https://res.cloudinary.com/...` |
+| **Payments** | Razorpay | Test keys auto-detected, live ready |
+
+**Architecture:**
+- `frontend/vercel.json` rewrites `/api/*` → Render backend (same-origin cookies)
+- Production cookies: `secure: true` + `sameSite: "none"` (cross-origin HTTPS)
+- Development cookies: `secure: false` + `sameSite: "lax"` (localhost)
+- Environment validation on startup — server **refuses to start** if `JWT_SECRET < 32 chars` or `MONGO_URI` missing
+
+**CI/CD Pipeline:**
+- GitHub Actions runs on every push:
+  1. Backend syntax check (`node --check` on all files)
+  2. Frontend lint (`npx eslint src/`)  
+  3. Frontend build test (`npm run build`)
+- Vercel auto-deploys frontend on green build
 
 ---
 
