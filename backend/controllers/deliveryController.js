@@ -9,6 +9,7 @@ import {
 import { sanitizeObjectId } from "../utils/sanitize.js";
 import Emergency from "../models/emergencyModel.js";
 import { processReferralReward } from "./referralController.js";
+import { createNotification } from "./notificationController.js";
 
 // ============================================================
 // 🛵 1. GET MY ASSIGNED DELIVERIES
@@ -218,6 +219,19 @@ export const updateOrderToDelivered = async (req, res) => {
     if (req.io) {
       req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
       req.io.emit("globalOrderUpdate", updatedOrder);
+    }
+
+    // 🔥 FEAT-20: Push notification to customer (non-blocking)
+    try {
+      createNotification(
+        order.user,
+        "Order Delivered",
+        `Your order #${order._id.toString().slice(-6).toUpperCase()} has been delivered. Enjoy!`,
+        "delivery",
+        { orderId: order._id.toString(), deliveredAt: order.deliveredAt },
+      );
+    } catch (notifErr) {
+      console.error("🔔 Delivery notification error (non-blocking):", notifErr.message);
     }
 
     res.json(updatedOrder);

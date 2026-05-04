@@ -45,6 +45,16 @@ const restaurantSchema = mongoose.Schema(
     // ⏰ Timings
     openingTime: { type: String, default: "09:00" },
     closingTime: { type: String, default: "23:00" },
+
+    // 📊 PERFORMANCE SCORE (FEAT-9)
+    performanceScore: { type: Number, default: 0, min: 0, max: 100 },
+    scoreMetrics: {
+      deliveryTimeScore: { type: Number, default: 0 },
+      ratingScore: { type: Number, default: 0 },
+      volumeScore: { type: Number, default: 0 },
+      cancellationScore: { type: Number, default: 0 },
+      lastCalculatedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true },
 );

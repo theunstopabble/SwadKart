@@ -34,6 +34,10 @@ import restaurantRoutes from "./routes/restaurantRoutes.js";
 import biometricRoutes from "./routes/biometricRoutes.js";
 import loyaltyRoutes from "./routes/loyaltyRoutes.js";
 import referralRoutes from "./routes/referralRoutes.js";
+import inventoryRoutes from "./routes/inventoryRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
+import payoutRoutes from "./routes/payoutRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config();
 connectDB(); // 🗄️ Database Connection
@@ -315,6 +319,10 @@ app.use("/api/v1/restaurants", restaurantRoutes);
 app.use("/api/v1/biometric", biometricRoutes);
 app.use("/api/v1/loyalty", loyaltyRoutes);
 app.use("/api/v1/referral", referralRoutes);
+app.use("/api/v1/inventory", inventoryRoutes);
+app.use("/api/v1/analytics", analyticsRoutes);
+app.use("/api/v1/payouts", payoutRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { Search, MapPin, Clock, Star, ArrowRight, Loader2 } from "lucide-react";
+import { Search, MapPin, Clock, Star, ArrowRight, Loader2, Trophy } from "lucide-react";
 import { BASEURL } from "../config";
 import { getSocket } from "../utils/socket.js";
 
@@ -208,6 +208,12 @@ const Home = () => {
                   >
                     {shop.isOpenNow ? "Open" : "Closed"}
                   </div>
+                  {/* 🏆 Performance Score */}
+                  {shop.performanceScore > 0 && (
+                    <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1 text-amber-400 font-bold text-xs">
+                      <Trophy size={12} /> {shop.performanceScore} Score
+                    </div>
+                  )}
                 </div>
 
                 {/* Details Section */}

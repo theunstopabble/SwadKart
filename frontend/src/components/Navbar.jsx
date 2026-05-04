@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -11,6 +11,7 @@ import {
   ChefHat,
   Truck,
   Package,
+  Bell,
 } from "lucide-react";
 import { BASEURL } from "../config";
 
@@ -19,11 +20,36 @@ import InstallPWA from "./InstallPWA";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { cartItems } = useSelector((state) => state.cart);
   const { userInfo } = useSelector((state) => state.user);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  // 🔔 Fetch notifications
+  useEffect(() => {
+    if (!userInfo) return;
+    const fetchNotifs = async () => {
+      try {
+        const res = await fetch(`${BASEURL}/api/v1/notifications/my`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data.notifications || []);
+          setUnreadCount(data.unreadCount || 0);
+        }
+      } catch {
+        // silently fail
+      }
+    };
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000);
+    return () => clearInterval(interval);
+  }, [userInfo]);
 
   const logoutHandler = async () => {
     try {
@@ -104,6 +130,75 @@ const Navbar = () => {
                     My Orders
                   </Link>
                 )}
+
+                {/* 🔔 Notification Bell */}
+                <div className="relative">
+                  <button
+                    onClick={() => setNotifOpen((p) => !p)}
+                    className="relative text-gray-300 hover:text-primary transition-colors"
+                    aria-label="Notifications"
+                  >
+                    <Bell size={20} />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+                  {notifOpen && (
+                    <div className="absolute right-0 mt-2 w-72 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                      <div className="p-3 border-b border-gray-800 flex justify-between items-center">
+                        <span className="text-xs font-bold text-white uppercase tracking-widest">Notifications</span>
+                        <button
+                          onClick={() => setNotifOpen(false)}
+                          className="text-gray-500 hover:text-white"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <p className="text-xs text-gray-500 text-center py-4">No notifications yet</p>
+                        ) : (
+                          notifications.slice(0, 5).map((n) => (
+                            <div
+                              key={n._id}
+                              className={`px-3 py-2 border-b border-gray-800/50 hover:bg-gray-800 cursor-pointer ${n.read ? "opacity-60" : ""}`}
+                              onClick={() => {
+                                if (n.data?.orderId) navigate(`/order/${n.data.orderId}`);
+                                setNotifOpen(false);
+                              }}
+                            >
+                              <p className="text-[10px] font-bold text-white">{n.title}</p>
+                              <p className="text-[9px] text-gray-400 truncate">{n.body}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      {notifications.length > 0 && (
+                        <div className="p-2 border-t border-gray-800 text-center">
+                          <button
+                            onClick={async () => {
+                              try {
+                                await fetch(`${BASEURL}/api/v1/notifications/read`, {
+                                  method: "PATCH",
+                                  credentials: "include",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ ids: "all" }),
+                                });
+                                setUnreadCount(0);
+                                setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+                              } catch {}
+                            }}
+                            className="text-[9px] font-bold text-primary hover:text-red-400 uppercase tracking-widest"
+                          >
+                            Mark all read
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <Link
                   to="/profile"

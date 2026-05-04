@@ -87,6 +87,16 @@ const orderSchema = mongoose.Schema(
     deliveryFee: { type: Number, default: 0.0, min: 0 },
     surgePrice: { type: Number, default: 0.0, min: 0 },
 
+    // 💼 RESTAURANT COMMISSION (FEAT-2)
+    restaurantCommission: { type: Number, default: 0.0, min: 0 },
+    restaurantPayout: { type: Number, default: 0.0, min: 0 },
+    payoutStatus: {
+      type: String,
+      enum: ["pending", "processing", "paid", "failed"],
+      default: "pending",
+    },
+    paidOutAt: { type: Date, default: null },
+
     // =================================================
     // ✅ 6. PAYMENT STATUS
     // =================================================

@@ -15,6 +15,7 @@ import {
   getRestaurantOrderAlertTemplate,
 } from "../utils/emailTemplates.js";
 import { awardCoinsToUser } from "./loyaltyController.js";
+import { createNotification } from "./notificationController.js";
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
 // ==========================================
@@ -102,6 +103,27 @@ export const addOrderItems = asyncHandler(async (req, res) => {
           `Out of stock: ${product.name}. Only ${product.countInStock} left.`,
         );
       }
+
+      // ⏰ FEAT-7: Availability Schedule Check
+      if (product.scheduleEnabled === true && product.schedule?.days?.length > 0) {
+        const now = new Date();
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const today = dayNames[now.getDay()];
+        if (!product.schedule.days.includes(today)) {
+          throw new Error(`${product.name} is not available today.`);
+        }
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const [startH, startM] = (product.schedule.startTime || "00:00").split(":").map(Number);
+        const [endH, endM] = (product.schedule.endTime || "23:59").split(":").map(Number);
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+        if (currentMinutes < startMinutes || currentMinutes > endMinutes) {
+          throw new Error(
+            `${product.name} is only available from ${product.schedule.startTime} to ${product.schedule.endTime}.`,
+          );
+        }
+      }
+
       dbProducts.push(product);
     }
 
@@ -119,6 +141,14 @@ export const addOrderItems = asyncHandler(async (req, res) => {
         );
         throw new Error(
           `"${product?.name || "A product"}" just went out of stock. Please update your cart.`,
+        );
+      }
+      // 📦 FEAT-14: Smart Inventory Auto-Disable
+      if (updated.countInStock === 0 && updated.autoDisable === true) {
+        await Product.findByIdAndUpdate(
+          item.product,
+          { isAvailable: false },
+          { session },
         );
       }
     }
@@ -202,6 +232,11 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     const serverTipAmount = Math.max(0, Number(tipAmount) || 0);
     const serverDeliveryFee = serverShippingPrice; // Base delivery fee
     const serverSurgePrice = 0; // Placeholder for future FEAT-1 surge engine
+    // 💼 RESTAURANT COMMISSION (FEAT-2) — 15% standard
+    const commissionRate = 0.15;
+    const netItemsValue = Math.max(0, serverItemsPrice - serverCouponDiscount);
+    const serverCommission = parseFloat((netItemsValue * commissionRate).toFixed(2));
+    const serverRestaurantPayout = parseFloat((netItemsValue - serverCommission).toFixed(2));
     const serverTotalPrice = parseFloat(
       Math.max(
         0,
@@ -259,6 +294,9 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       tipAmount: serverTipAmount,
       deliveryFee: serverDeliveryFee,
       surgePrice: serverSurgePrice,
+      restaurantCommission: serverCommission,
+      restaurantPayout: serverRestaurantPayout,
+      payoutStatus: "pending",
       isPaid: orderIsPaid,
       paidAt: orderPaidAt,
     });
@@ -357,6 +395,28 @@ export const addOrderItems = asyncHandler(async (req, res) => {
               req.io
                 .to(restro.owner._id.toString())
                 .emit("newOrderReceived", populatedOrder);
+            }
+
+            // 🔥 FEAT-20: Push Notifications (non-blocking)
+            try {
+              createNotification(
+                req.user._id,
+                "Order Confirmed",
+                `Your order #${createdOrder._id.toString().slice(-6).toUpperCase()} is confirmed!`,
+                "order",
+                { orderId: createdOrder._id.toString(), totalPrice: createdOrder.totalPrice },
+              );
+              if (restro?.owner?._id) {
+                createNotification(
+                  restro.owner._id,
+                  "New Order Received",
+                  `New order worth ₹${createdOrder.totalPrice} from ${populatedOrder.user?.name || "a customer"}`,
+                  "order",
+                  { orderId: createdOrder._id.toString(), totalPrice: createdOrder.totalPrice },
+                );
+              }
+            } catch (notifErr) {
+              console.error("🔔 Push notification error (non-blocking):", notifErr.message);
             }
           }
         }

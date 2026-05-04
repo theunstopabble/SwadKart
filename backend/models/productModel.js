@@ -68,6 +68,21 @@ const productSchema = mongoose.Schema(
     countInStock: { type: Number, required: true, default: 100 },
     orderIndex: { type: Number, default: 0 },
 
+    // 📦 SMART INVENTORY (FEAT-14)
+    autoDisable: { type: Boolean, default: true }, // Auto-disable when stock hits 0
+    lastRestocked: { type: Date, default: null },
+
+    // ⏰ AVAILABILITY SCHEDULING (FEAT-7)
+    scheduleEnabled: { type: Boolean, default: false },
+    schedule: {
+      days: {
+        type: [{ type: String, enum: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }],
+        default: [],
+      },
+      startTime: { type: String, default: "00:00" }, // HH:mm format
+      endTime: { type: String, default: "23:59" },   // HH:mm format
+    },
+
     // =================================================
     // ⭐ 5. REVIEWS & RATINGS
     // =================================================

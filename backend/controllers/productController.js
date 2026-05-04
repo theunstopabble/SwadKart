@@ -190,12 +190,36 @@ export const updateProduct = asyncHandler(async (req, res) => {
       product.description = req.body.description !== undefined ? req.body.description : product.description;
       product.image = req.body.image || product.image;
       product.category = req.body.category || product.category;
+      const previousStock = product.countInStock;
       product.countInStock =
         req.body.countInStock !== undefined
           ? req.body.countInStock
           : product.countInStock;
       product.isVeg =
         req.body.isVeg !== undefined ? req.body.isVeg : product.isVeg;
+
+      // ⏰ FEAT-7: Availability Scheduling
+      if (req.body.scheduleEnabled !== undefined) {
+        product.scheduleEnabled = Boolean(req.body.scheduleEnabled);
+      }
+      if (req.body.schedule) {
+        product.schedule = {
+          days: req.body.schedule.days || product.schedule?.days || [],
+          startTime: req.body.schedule.startTime || product.schedule?.startTime || "00:00",
+          endTime: req.body.schedule.endTime || product.schedule?.endTime || "23:59",
+        };
+      }
+
+      // 📦 FEAT-14: Auto-enable when restocked from 0
+      if (
+        previousStock === 0 &&
+        product.countInStock > 0 &&
+        product.autoDisable === true &&
+        product.isAvailable === false
+      ) {
+        product.isAvailable = true;
+        product.lastRestocked = new Date();
+      }
 
       if (req.body.variants) product.variants = req.body.variants;
       if (req.body.addons) product.addons = req.body.addons;
