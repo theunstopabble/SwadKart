@@ -201,7 +201,9 @@ const Navbar = () => {
                                 });
                                 setUnreadCount(0);
                                 setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-                              } catch {}
+                              } catch {
+                                // no-op
+                              }
                             }}
                             className="text-[9px] font-bold text-primary hover:text-red-400 uppercase tracking-widest"
                           >
