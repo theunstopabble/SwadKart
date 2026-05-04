@@ -21,6 +21,11 @@ const ALLOWED_HOSTS = [
   "img.freepik.com",
   "placehold.co",
   "localhost",
+  "b.zmtcdn.com",
+  "assets.tmecosys.com",
+  "data.thefeedfeed.com",
+  "cdn.pixabay.com",
+  "images.pexels.com",
 ];
 
 const MAX_DIM = 2048;
