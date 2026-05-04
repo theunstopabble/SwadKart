@@ -40,12 +40,12 @@ const checkIsOpen = (openTime, closeTime) => {
 const getRestaurants = async (req, res) => {
   try {
     // Show all restaurants (no filter - debug mode)
-    const restaurants = await Restaurant.find({ isVerified: true }).sort({ createdAt: -1 });
+    const restaurants = await Restaurant.find({ isVerified: true }).sort({ createdAt: -1 }).lean();
 
     // ✨ Compute 'isOpenNow' dynamically
     const updatedRestaurants = restaurants.map((rest) => {
       const isOpen = checkIsOpen(rest.openingTime, rest.closingTime);
-      return { ...rest.toObject(), isOpenNow: isOpen };
+      return { ...rest, isOpenNow: isOpen };
     });
 
     res.json(updatedRestaurants);
@@ -63,8 +63,9 @@ const getAllRestaurantsAdmin = async (req, res) => {
   try {
     // Hamein saare restaurants chahiye (active, pending, dummy sab)
     const restaurants = await Restaurant.find({})
-      .populate("owner", "name email") // Owner ki details bhi le lo
-      .sort({ createdAt: -1 });
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 })
+      .lean();
 
     res.json(restaurants);
   } catch (error) {
@@ -88,7 +89,7 @@ const getRestaurantById = async (req, res) => {
         restaurant.openingTime,
         restaurant.closingTime
       );
-      res.json({ ...restaurant.toObject(), isOpenNow: isOpen });
+      res.json({ ...restaurant, isOpenNow: isOpen });
     } else {
       res.status(404).json({ message: "Restaurant not found" });
     }
@@ -105,7 +106,8 @@ const getTopRestaurants = async (req, res) => {
   try {
     const restaurants = await Restaurant.find({ isVerified: true })
       .sort({ rating: -1 })
-      .limit(3);
+      .limit(3)
+      .lean();
     res.json(restaurants);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -149,10 +151,10 @@ const createRestaurant = async (req, res) => {
 // @route   GET /api/v1/restaurants/mine
 const getOwnerRestaurant = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+    const restaurant = await Restaurant.findOne({ owner: req.user._id }).lean();
     if (restaurant) {
       const isOpen = checkIsOpen(restaurant.openingTime, restaurant.closingTime);
-      res.json({ ...restaurant.toObject(), isOpenNow: isOpen });
+      res.json({ ...restaurant, isOpenNow: isOpen });
     } else {
       res.status(404).json({ message: "No restaurant found for this owner" });
     }

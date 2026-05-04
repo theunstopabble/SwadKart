@@ -708,7 +708,7 @@ export const getMyOrders = async (req, res) => {
 export const getMyRestaurantOrders = async (req, res) => {
   try {
     // 1. Find the restaurant owned by this user
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+    const restaurant = await Restaurant.findOne({ owner: req.user._id }).lean();
 
     if (!restaurant) {
       return res
@@ -722,13 +722,13 @@ export const getMyRestaurantOrders = async (req, res) => {
     })
       .populate("user", "name email")
       .populate("deliveryPartner", "name phone")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     // BUG-04 FIX: Strip deliveryOTP from restaurant owner's view
     const securedOrders = orders.map((order) => {
-      const obj = order.toObject ? order.toObject() : order;
-      delete obj.deliveryOTP;
-      return obj;
+      const { deliveryOTP, ...rest } = order;
+      return rest;
     });
 
     res.json(securedOrders);

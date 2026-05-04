@@ -49,11 +49,53 @@ import reservationRoutes from "./routes/reservationRoutes.js";
 import gdprRoutes from "./routes/gdprRoutes.js";
 
 dotenv.config();
+
+// ============================================================
+// 🔒 PRODUCTION ENVIRONMENT VALIDATION
+// ============================================================
+function validateEnv() {
+  const isProduction = process.env.NODE_ENV === "production";
+  const requiredVars = ["JWT_SECRET", "MONGO_URI"];
+
+  const missing = requiredVars.filter((v) => !process.env[v]);
+  if (missing.length > 0) {
+    console.error("❌ FATAL: Missing required env vars:", missing.join(", "));
+    process.exit(1);
+  }
+
+  // JWT secret strength check (production only)
+  if (isProduction && process.env.JWT_SECRET.length < 32) {
+    console.error("❌ FATAL: JWT_SECRET must be at least 32 characters in production.");
+    console.error("   Run: node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\"");
+    process.exit(1);
+  }
+
+  if (isProduction) {
+    const warnVars = ["RAZORPAY_KEY_ID", "CLOUDINARY_CLOUD_NAME", "BREVO_API_KEY"];
+    warnVars.forEach((v) => {
+      if (!process.env[v]) console.warn("⚠️  Production warning:", v, "is not set");
+    });
+
+    if (process.env.RAZORPAY_KEY_ID?.startsWith("rzp_test_")) {
+      console.warn("⚠️  Production warning: Razorpay TEST key detected. Use LIVE key for production.");
+    }
+
+    if (process.env.FRONTEND_URL?.includes("localhost")) {
+      console.warn("⚠️  Production warning: FRONTEND_URL points to localhost.");
+    }
+  }
+}
+validateEnv();
+
 connectDB(); // 🗄️ Database Connection
 
 const app = express();
 const httpServer = createServer(app);
 app.set("trust proxy", 1);
+
+// --- 📏 Body Parser Limits (prevent DoS) ---
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // --- 🌐 Configuration ---
 // 🛡️ SECURITY FIX (SEC-7): Only allow specific Vercel domains, not any *.vercel.app
@@ -194,8 +236,7 @@ app.use(cookieParser());
 // 🛡️ WEBHOOK FIX: Skip JSON parsing for Razorpay webhook
 // ==========================================
 app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
-app.use(express.json({ limit: "100kb" }));
-app.use(express.urlencoded({ extended: true }));
+// Body parser limits already configured at top of file (10mb)
 
 // ==========================================
 // 🛡️ SECURITY FIX: Safe Custom NoSQL Sanitizer
@@ -286,15 +327,17 @@ app.use(
 // --- 🚦 2. Rate Limiting ---
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: 300,
   message: "Too many requests from this IP, please try again later",
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use("/api", apiLimiter);
 
 // 🛡️ SECURITY FIX (BUG-5): Strict rate limiter for OTP/auth endpoints
 const authLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 5, // Max 5 attempts per window
+  max: 10, // Max 10 attempts per window (generous for legitimate retries)
   message: "Too many attempts. Please try again after 10 minutes.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -303,6 +346,16 @@ app.use("/api/v1/users/verify-email", authLimiter);
 app.use("/api/v1/users/login", authLimiter);
 app.use("/api/v1/users/register", authLimiter);
 app.use("/api/v1/users/password/forgot", authLimiter);
+
+// 🛡️ FEAT-24: Order creation rate limit (prevent spam / fraud)
+const orderLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "Order limit reached. Please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/v1/orders", orderLimiter);
 
 app.get("/ping", (req, res) => {
   res.status(200).send("Pong");
@@ -375,8 +428,16 @@ app.use(
   }),
 );
 
+// --- 🏥 Health Check Endpoint ---
 app.get("/", (req, res) => {
-  res.send("🚀 SwadKart Beast Engine is running...");
+  res.json({
+    status: "ok",
+    service: "SwadKart API",
+    version: "1.0.0",
+    env: process.env.NODE_ENV,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // --- 🚨 Error Handling ---
@@ -386,6 +447,46 @@ app.use(errorHandler);
 // --- 🚀 Server Start ---
 const PORT = process.env.PORT || 8000;
 
-httpServer.listen(PORT, () => {
-  console.log(`🔥 Mainframe firing on Sector ${PORT}`);
+const server = httpServer.listen(PORT, () => {
+  console.log(`🔥 Mainframe firing on Sector ${PORT} [${process.env.NODE_ENV || "development"}]`);
+});
+
+// --- 🛡️ Graceful Shutdown ---
+const gracefulShutdown = (signal) => {
+  console.log(`\n${signal} received. Starting graceful shutdown...`);
+  server.close(() => {
+    console.log("✅ HTTP server closed");
+    mongoose.connection.close(false, () => {
+      console.log("✅ MongoDB connection closed");
+      process.exit(0);
+    });
+  });
+  // Force exit after 10s if graceful shutdown hangs
+  setTimeout(() => {
+    console.error("❌ Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000);
+};
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+// --- 🚨 Unhandled Promise Rejection ---
+process.on("unhandledRejection", (err) => {
+  console.error("💥 UNHANDLED REJECTION:", err.message);
+  console.error(err.stack);
+  // Don't crash in production, but log critical error
+  if (process.env.NODE_ENV === "production") {
+    // In production, log and continue; let monitoring catch it
+    // For critical unhandled rejections, consider crashing to restart clean
+  } else {
+    server.close(() => process.exit(1));
+  }
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("💥 UNCAUGHT EXCEPTION:", err.message);
+  console.error(err.stack);
+  // Always crash on uncaught exceptions to avoid corrupted state
+  server.close(() => process.exit(1));
 });
