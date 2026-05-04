@@ -17,6 +17,7 @@ import { createProductReview } from "../controllers/reviewController.js";
 
 // 👇 Auth Middleware import
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { cacheResponse } from "../middleware/cacheMiddleware.js";
 
 // ============================================================
 // 🚦 ROUTES CONFIGURATION
@@ -25,10 +26,10 @@ import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 // 1️⃣ PUBLIC & GENERAL ROUTES
 router
   .route("/")
-  .get(getProducts)
+  .get(cacheResponse("products:list", 300), getProducts)
   .post(protect, authorizeRoles("admin", "restaurant_owner"), createProduct);
 
-router.route("/restaurant/:id").get(getProductsByRestaurant);
+router.route("/restaurant/:id").get(cacheResponse("products:restaurant", 300), getProductsByRestaurant);
 
 // 2️⃣ REVIEW ROUTE (New Addition)
 // User logged in hona chahiye tabhi review de payega

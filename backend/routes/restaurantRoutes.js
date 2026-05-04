@@ -14,16 +14,17 @@ import {
 import Restaurant from "../models/restaurantModel.js";
 
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { cacheResponse } from "../middleware/cacheMiddleware.js";
 
 // =================================================================
 // 🟢 PUBLIC & GENERAL ROUTES
 // =================================================================
 router
   .route("/")
-  .get(getRestaurants) // Home Page (Verified + Dummy)
+  .get(cacheResponse("restaurants:list", 300), getRestaurants) // Home Page (Verified + Dummy) — 5 min cache
   .post(protect, authorizeRoles("restaurant_owner"), createRestaurant);
 
-router.get("/top", getTopRestaurants); // Top Rated
+router.get("/top", cacheResponse("restaurants:top", 300), getTopRestaurants); // Top Rated — 5 min cache
 
 // =================================================================
 // 🔴 ADMIN ROUTES (Specific routes BEFORE dynamic /:id)

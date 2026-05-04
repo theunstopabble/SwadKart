@@ -1,6 +1,7 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { adminOnly } from "../middleware/roleMiddleware.js";
+import { cacheResponse } from "../middleware/cacheMiddleware.js";
 import {
   refreshRestaurantScore,
   getRestaurantPerformance,
@@ -14,7 +15,7 @@ import {
 
 const router = express.Router();
 
-router.get("/leaderboard", getLeaderboard);
+router.get("/leaderboard", cacheResponse("analytics:leaderboard", 60), getLeaderboard);
 router.get("/restaurant/:id/performance", getRestaurantPerformance);
 router.post("/restaurant/:id/refresh", protect, refreshRestaurantScore);
 
