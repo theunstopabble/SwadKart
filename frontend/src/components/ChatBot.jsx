@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Bot, Sparkles, RefreshCw } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Sparkles, RefreshCw, Paperclip, File, XCircle } from "lucide-react";
 import { useSelector } from "react-redux";
 import { BASEURL } from "../config";
 
@@ -18,9 +18,11 @@ const ChatBot = () => {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [files, setFiles] = useState([]);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // 👈 FIX 1: Inline the scroll logic to remove useEffect dependency lint error
   useEffect(() => {
@@ -33,25 +35,48 @@ const ChatBot = () => {
     }
   }, [isOpen]);
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
+  const handleFileChange = (e) => {
+    const selected = Array.from(e.target.files || []);
+    if (selected.length + files.length > 3) {
+      setMessages((prev) => [
+        ...prev,
+        { text: "Max 3 files allowed, boss! 🚫", sender: "bot" },
+      ]);
+      return;
+    }
+    setFiles((prev) => [...prev, ...selected]);
+  };
 
-    const userMsg = input.trim();
+  const removeFile = (index) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSend = async () => {
+    const trimmedInput = input.trim();
+    if ((!trimmedInput && files.length === 0) || loading) return;
+
+    const userMsg = trimmedInput || "📎 [File attachment]";
     setInput("");
-    setMessages((prev) => [...prev, { text: userMsg, sender: "user" }]);
+    setMessages((prev) => [
+      ...prev,
+      { text: userMsg, sender: "user", files: [...files] },
+    ]);
     setLoading(true);
 
     try {
+      const formData = new FormData();
+      formData.append("message", trimmedInput);
+      files.forEach((f) => formData.append("attachments", f));
+      formData.append("cartItems", JSON.stringify(cartItems));
+
       const res = await fetch(`${BASEURL}/api/v1/chat`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         credentials: "include",
-        body: JSON.stringify({ message: userMsg, cartItems }),
+        body: formData,
       });
 
       const data = await res.json();
+      setFiles([]);
 
       setMessages((prev) => [
         ...prev,
@@ -63,7 +88,8 @@ const ChatBot = () => {
         },
       ]);
     } catch (error) {
-      console.error("ChatBot Error:", error); // 👈 FIX 2: Use the error variable
+      console.error("ChatBot Error:", error);
+      setFiles([]);
       setMessages((prev) => [
         ...prev,
         {
@@ -77,7 +103,10 @@ const ChatBot = () => {
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === "Enter") handleSend();
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   return (
@@ -123,6 +152,20 @@ const ChatBot = () => {
                   }`}
                 >
                   <p className="whitespace-pre-line">{msg.text}</p>
+                  {/* 📎 Attachment pills inside user message */}
+                  {msg.files && msg.files.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {msg.files.map((f, fi) => (
+                        <span
+                          key={fi}
+                          className="inline-flex items-center gap-1 bg-white/20 px-2 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm"
+                        >
+                          <File size={10} />
+                          {f.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -139,23 +182,59 @@ const ChatBot = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 bg-gray-950 border-t border-gray-900 flex gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Ask for food recommendations..."
-              className="flex-1 bg-black border border-gray-800 text-white rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-gray-600 font-medium shadow-inner"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-            />
-            <button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              className="bg-primary hover:bg-red-600 text-white p-3.5 rounded-2xl transition-all disabled:opacity-50 disabled:grayscale shadow-xl shadow-primary/20 active:scale-90 hover:-translate-y-1"
-            >
-              <Send size={20} />
-            </button>
+          <div className="p-4 bg-gray-950 border-t border-gray-900">
+            {/* 📎 Selected file chips */}
+            {files.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {files.map((f, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-lg text-[10px] font-bold"
+                  >
+                    <File size={10} />
+                    {f.name}
+                    <button onClick={() => removeFile(i)} className="ml-1 hover:text-white">
+                      <XCircle size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading || files.length >= 3}
+                className="text-gray-400 hover:text-primary transition-colors p-3 rounded-2xl disabled:opacity-30"
+                title="Attach file (PDF, TXT, DOCX, Image)"
+              >
+                <Paperclip size={20} />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.txt,.docx,.doc,image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Ask for food recommendations..."
+                className="flex-1 bg-black border border-gray-800 text-white rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-gray-600 font-medium shadow-inner"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+              />
+              <button
+                onClick={handleSend}
+                disabled={loading || (!input.trim() && files.length === 0)}
+                className="bg-primary hover:bg-red-600 text-white p-3.5 rounded-2xl transition-all disabled:opacity-50 disabled:grayscale shadow-xl shadow-primary/20 active:scale-90 hover:-translate-y-1"
+              >
+                <Send size={20} />
+              </button>
+            </div>
           </div>
         </div>
       )}
