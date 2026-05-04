@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import { Mic, MicOff } from "lucide-react";
+import { useState } from "react";
+import { Mic, MicOff, Globe } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 const VoiceSearch = ({ setSearchTerm }) => {
   const [isListening, setIsListening] = useState(false);
+  const [lang, setLang] = useState("en-IN"); // en-IN or hi-IN
 
   const startListening = () => {
-    // Check browser support
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -15,13 +15,13 @@ const VoiceSearch = ({ setSearchTerm }) => {
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = "en-IN"; // English (India) for better accent support
+    recognition.lang = lang; // English (India) or Hindi (India)
     recognition.continuous = false;
     recognition.interimResults = false;
 
     recognition.onstart = () => {
       setIsListening(true);
-      toast.success("Listening... Speak now! 🎙️");
+      toast.success(lang === "hi-IN" ? "सुन रहा हूँ... बोलिए! 🎙️" : "Listening... Speak now! 🎙️");
     };
 
     recognition.onend = () => {
@@ -30,7 +30,7 @@ const VoiceSearch = ({ setSearchTerm }) => {
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      setSearchTerm(transcript); // Send text back to Home component
+      setSearchTerm(transcript);
       toast.success(`Search: "${transcript}"`);
     };
 
@@ -44,17 +44,27 @@ const VoiceSearch = ({ setSearchTerm }) => {
   };
 
   return (
-    <button
-      onClick={startListening}
-      className={`p-3 rounded-full transition-all duration-300 flex items-center justify-center ${
-        isListening
-          ? "bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.7)] animate-pulse scale-110"
-          : "bg-gray-800 text-gray-400 hover:text-primary hover:bg-gray-700"
-      }`}
-      title="Voice Search"
-    >
-      {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-    </button>
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => setLang(lang === "en-IN" ? "hi-IN" : "en-IN")}
+        className="p-2 rounded-full text-[10px] font-bold text-gray-400 hover:text-primary transition-colors"
+        title={lang === "en-IN" ? "Switch to Hindi" : "Switch to English"}
+      >
+        <Globe size={14} />
+      </button>
+      <button
+        onClick={startListening}
+        disabled={isListening}
+        className={`p-3 rounded-full transition-all duration-300 flex items-center justify-center ${
+          isListening
+            ? "bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.7)] animate-pulse scale-110"
+            : "bg-gray-800 text-gray-400 hover:text-primary hover:bg-gray-700"
+        }`}
+        title={`Voice Search (${lang === "en-IN" ? "English" : "Hindi"})`}
+      >
+        {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+      </button>
+    </div>
   );
 };
 

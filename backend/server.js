@@ -39,6 +39,8 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import payoutRoutes from "./routes/payoutRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import imageRoutes from "./routes/imageRoutes.js";
+import subscriptionRoutes from "./routes/subscriptionRoutes.js";
+import groupOrderRoutes from "./routes/groupOrderRoutes.js";
 
 dotenv.config();
 connectDB(); // 🗄️ Database Connection
@@ -139,18 +141,34 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("updateLocation", async ({ orderId, lat, lng }) => {
+  // 📍 FEAT-25: Driver Real-time Tracking
+  socket.on("updateLocation", async ({ orderId, lat, lng, heading, speed }) => {
     try {
-      const order = await Order.findById(orderId).select("deliveryPartner").lean();
+      const order = await Order.findById(orderId).select("deliveryPartner user").lean();
       if (!order) return;
       if (!order.deliveryPartner || order.deliveryPartner.toString() !== socket.user.userId) {
         console.warn(`🚫 Unauthorized location update attempt for order ${orderId}`);
         return;
       }
-      io.to(orderId).emit("driverLocationUpdate", { lat, lng });
-      console.log(
-        `📍 Logistics: Driver for ${orderId} shifted to [${lat}, ${lng}]`,
-      );
+
+      const locationData = {
+        lat,
+        lng,
+        heading: heading || 0,
+        speed: speed || 0,
+        updatedAt: new Date(),
+      };
+
+      // Persist to DB (fire-and-forget, don't block socket)
+      Order.updateOne(
+        { _id: orderId },
+        { $set: { driverLocation: locationData } },
+      ).catch((e) => console.error("Driver location DB update failed:", e.message));
+
+      // Broadcast to order room (customer + any admins watching)
+      io.to(orderId).emit("driverLocationUpdate", locationData);
+      // Also emit to user's personal room in case they're not in order room
+      io.to(order.user.toString()).emit("driverLocationUpdate", { orderId, ...locationData });
     } catch (err) {
       console.error("updateLocation error:", err.message);
     }
@@ -325,6 +343,8 @@ app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/payouts", payoutRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/image", imageRoutes);
+app.use("/api/v1/subscriptions", subscriptionRoutes);
+app.use("/api/v1/group-orders", groupOrderRoutes);
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

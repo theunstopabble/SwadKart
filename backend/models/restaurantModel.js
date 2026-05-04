@@ -42,6 +42,11 @@ const restaurantSchema = mongoose.Schema(
     isDummy: { type: Boolean, default: false }, // ✅ Dummy shops ke liye zaroori
     isOpenNow: { type: Boolean, default: true },
 
+    // 🌑 DARK KITCHEN (FEAT-23)
+    isDarkKitchen: { type: Boolean, default: false },
+    virtualBrandName: { type: String, default: "" },
+    cloudKitchenId: { type: String, default: "" }, // Parent kitchen identifier
+
     // ⏰ Timings
     openingTime: { type: String, default: "09:00" },
     closingTime: { type: String, default: "23:00" },

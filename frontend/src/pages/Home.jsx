@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
-import { Search, MapPin, Clock, Star, ArrowRight, Loader2, Trophy } from "lucide-react";
+import { Search, MapPin, Clock, Star, ArrowRight, Loader2, Trophy, Sparkles } from "lucide-react";
 import { BASEURL } from "../config";
 import { getSocket } from "../utils/socket.js";
 
@@ -22,6 +22,7 @@ const Home = () => {
   const [filteredRestaurants, setFilteredRestaurants] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState([]);
   const socketRef = useRef(null);
 
   // 1. Fetch Restaurants
@@ -50,6 +51,16 @@ const Home = () => {
   // 2. Real-time Updates via Socket.io (Uses shared singleton for correct URL)
   useEffect(() => {
     fetchRestaurants();
+
+    // FEAT-26: Fetch AI dish recommendations for logged-in users
+    if (userInfo) {
+      fetch(`${BASEURL}/api/v1/analytics/recommendations?limit=6`, { credentials: "include" })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data?.recommendations) setRecommendations(data.recommendations);
+        })
+        .catch(() => {}); // Silent fail
+    }
 
     // Only connect socket for authenticated users; server rejects anonymous connections
     let socket = null;
@@ -241,6 +252,41 @@ const Home = () => {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+
+        {/* FEAT-26: AI Dish Recommendations */}
+        {recommendations.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-6 flex items-center gap-3">
+              <Sparkles size={24} className="text-primary" />
+              Recommended <span className="text-primary">For You</span>
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {recommendations.map((rec) => (
+                <Link
+                  key={rec.productId}
+                  to={`/restaurant/${rec.restaurant}`}
+                  className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all group"
+                >
+                  <div className="h-32 overflow-hidden">
+                    <img
+                      src={rec.image || `${BASEURL}/api/v1/image/thumbnail?url=${encodeURIComponent("https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300")}&w=300&q=70&fit=cover`}
+                      alt={rec.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-bold truncate">{rec.name}</p>
+                    <p className="text-xs text-green-400 font-bold">{rec.reason}</p>
+                    {rec.price > 0 && (
+                      <p className="text-xs text-gray-400 mt-1">₹{rec.price}</p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </div>

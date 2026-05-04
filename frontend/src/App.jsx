@@ -17,6 +17,7 @@ const OrderDetails = lazy(() => import("./pages/OrderDetails"));
 const MyOrders = lazy(() => import("./pages/MyOrders"));
 const Profile = lazy(() => import("./pages/Profile"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const MySubscriptions = lazy(() => import("./pages/MySubscriptions"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const RestaurantMenu = lazy(() => import("./pages/RestaurantMenu"));
@@ -275,6 +276,7 @@ function App() {
                   <Route path="/placeorder" element={<PlaceOrder />} />
                   <Route path="/order/:id" element={<OrderDetails />} />
                   <Route path="/myorders" element={<MyOrders />} />
+                  <Route path="/subscriptions" element={<MySubscriptions />} />
                   <Route path="/profile" element={<Profile />} />
                 </Route>
 

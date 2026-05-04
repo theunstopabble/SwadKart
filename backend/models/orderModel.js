@@ -148,6 +148,15 @@ const orderSchema = mongoose.Schema(
       },
     ],
 
+    // 📍 DRIVER LOCATION (FEAT-25)
+    driverLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      updatedAt: { type: Date },
+      heading: { type: Number }, // degrees
+      speed: { type: Number }, // km/h
+    },
+
     // =================================================
     // 🔄 8. ORDER LIFECYCLE
     // =================================================
