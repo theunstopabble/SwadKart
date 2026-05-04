@@ -8,7 +8,7 @@ import { getSocket } from "../utils/socket.js";
 
 // Lazy-load VoiceSearch: non-critical, only needed on user interaction
 const VoiceSearch = lazy(() => import("../components/VoiceSearch"));
-
+import OrderAgain from "../components/OrderAgain";
 import { toast } from "react-hot-toast";
 
 // Hero image URL (aggressively optimized for mobile: 600px width, q=60, WebP)
@@ -254,6 +254,9 @@ const Home = () => {
             ))}
           </div>
         )}
+
+        {/* FEAT-6: Smart Reorder / Order Again */}
+        <OrderAgain />
 
         {/* FEAT-26: AI Dish Recommendations */}
         {recommendations.length > 0 && (

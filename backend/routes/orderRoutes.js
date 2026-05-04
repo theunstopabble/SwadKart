@@ -13,6 +13,7 @@ import {
   getMyRestaurantOrders, // 👈 NEW: For Restaurant Dashboard (Fixes 403 Error)
 } from "../controllers/orderController.js";
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { fraudDetection } from "../middleware/fraudDetectionMiddleware.js";
 
 // 2. 👇 Delivery Controller
 import {
@@ -39,7 +40,7 @@ import {
 
 router
   .route("/")
-  .post(protect, addOrderItems) // 🛒 User: Create New Order
+  .post(protect, fraudDetection, addOrderItems) // 🛒 User: Create New Order (with FEAT-24 fraud check)
   .get(protect, authorizeRoles("admin"), getOrders); // 👑 Admin: Get All Orders
 
 // ============================================================

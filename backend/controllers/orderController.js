@@ -228,7 +228,13 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       serverCouponDiscount = Number(serverCouponDiscount.toFixed(2));
     }
 
-    const serverShippingPrice = serverItemsPrice > 500 ? 0 : 40;
+    // 🎟️ SWADPASS FREE DELIVERY (FEAT-3)
+    const hasSwadPass = req.user.hasSwadPass && req.user.swadPassExpiry && new Date(req.user.swadPassExpiry) > new Date();
+
+    let baseShippingPrice = serverItemsPrice > 500 ? 0 : 40;
+    if (hasSwadPass) baseShippingPrice = 0;
+
+    const serverShippingPrice = baseShippingPrice;
     const serverTaxPrice = parseFloat((0.05 * serverItemsPrice).toFixed(2));
     // 💸 TIP & SURGE PRICING (FEAT-1)
     const serverTipAmount = Math.max(0, Number(tipAmount) || 0);

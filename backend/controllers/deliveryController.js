@@ -11,6 +11,7 @@ import Emergency from "../models/emergencyModel.js";
 import { processReferralReward } from "./referralController.js";
 import { createNotification } from "./notificationController.js";
 import { recalculateETA } from "./etaController.js";
+import { updateOrderStreak } from "./gamificationController.js";
 
 // ============================================================
 // 🛵 1. GET MY ASSIGNED DELIVERIES
@@ -208,6 +209,9 @@ export const updateOrderToDelivered = async (req, res) => {
     }
 
     const updatedOrder = await order.save();
+
+    // 🏆 FEAT-7: Update gamification streak (non-blocking)
+    updateOrderStreak(order.user.toString()).catch(() => {});
 
     // 🛸 FIX: Free up delivery partner for the next order
     await User.findByIdAndUpdate(req.user._id, {

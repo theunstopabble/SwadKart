@@ -39,6 +39,7 @@
     "multer-storage-cloudinary": "^2.2.1",
     "nodemailer": "^8.0.4",
     "pdf-parse": "^2.4.5",
+    "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
     "redis": "^5.11.0",
     "sharp": "^0.34.5",

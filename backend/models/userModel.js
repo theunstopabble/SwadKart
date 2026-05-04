@@ -84,6 +84,25 @@ const userSchema = mongoose.Schema(
     pendingReferralCode: { type: String, uppercase: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     referralRewardClaimed: { type: Boolean, default: false },
+
+    // 🎟️ SWADPASS SUBSCRIPTION (FEAT-3)
+    hasSwadPass: { type: Boolean, default: false },
+    swadPassType: { type: String, enum: ["monthly", "yearly"], default: null },
+    swadPassExpiry: { type: Date, default: null },
+    swadPassStartedAt: { type: Date, default: null },
+
+    // 🏆 GAMIFICATION (FEAT-7)
+    orderStreak: { type: Number, default: 0, min: 0 },
+    longestStreak: { type: Number, default: 0, min: 0 },
+    lastOrderDate: { type: Date, default: null },
+    badges: [
+      {
+        name: { type: String },
+        description: { type: String },
+        earnedAt: { type: Date, default: Date.now },
+        icon: { type: String },
+      },
+    ],
   },
   { timestamps: true },
 );

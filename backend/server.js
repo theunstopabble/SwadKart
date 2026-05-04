@@ -42,6 +42,11 @@ import imageRoutes from "./routes/imageRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import groupOrderRoutes from "./routes/groupOrderRoutes.js";
 import surgeRoutes from "./routes/surgeRoutes.js";
+import swadPassRoutes from "./routes/swadPassRoutes.js";
+import reorderRoutes from "./routes/reorderRoutes.js";
+import gamificationRoutes from "./routes/gamificationRoutes.js";
+import reservationRoutes from "./routes/reservationRoutes.js";
+import gdprRoutes from "./routes/gdprRoutes.js";
 
 dotenv.config();
 connectDB(); // 🗄️ Database Connection
@@ -347,6 +352,11 @@ app.use("/api/v1/image", imageRoutes);
 app.use("/api/v1/subscriptions", subscriptionRoutes);
 app.use("/api/v1/group-orders", groupOrderRoutes);
 app.use("/api/v1/surge", surgeRoutes);
+app.use("/api/v1/swadpass", swadPassRoutes);
+app.use("/api/v1/reorder", reorderRoutes);
+app.use("/api/v1/gamification", gamificationRoutes);
+app.use("/api/v1/reservations", reservationRoutes);
+app.use("/api/v1/user/gdpr", gdprRoutes);
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
