@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import "./index.css";
+import "./i18n.js";
 // Leaflet CSS is now imported only in components that use maps (e.g., OrderDetails)
 import { Provider } from "react-redux";
 import store from "./redux/store";

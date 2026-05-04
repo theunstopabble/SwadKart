@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { useTranslation } from "react-i18next";
 import { Search, MapPin, Clock, Star, ArrowRight, Loader2, Trophy } from "lucide-react";
 import { BASEURL } from "../config";
 import { getSocket } from "../utils/socket.js";
@@ -15,6 +16,7 @@ import { toast } from "react-hot-toast";
 const HERO_IMG_URL = "/hero.webp";
 
 const Home = () => {
+  const { t } = useTranslation("common");
   const { userInfo } = useSelector((state) => state.user);
   const [restaurants, setRestaurants] = useState([]);
   const [filteredRestaurants, setFilteredRestaurants] = useState([]);
@@ -121,7 +123,7 @@ const Home = () => {
               {/* Input Field */}
               <input
                 type="text"
-                placeholder="Search for restaurants..."
+                placeholder={t("search")}
                 className="flex-1 bg-transparent px-4 md:px-6 py-2 text-black outline-none font-medium placeholder:text-gray-400 min-w-0 text-sm md:text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -143,7 +145,7 @@ const Home = () => {
                 className="bg-primary hover:bg-red-600 text-white p-3 md:px-6 md:py-3 rounded-full font-bold transition-all flex items-center justify-center gap-2 shrink-0 shadow-md"
               >
                 <Search size={20} />
-                <span className="hidden md:block">Search</span>
+                <span className="hidden md:block">{t("searchBtn")}</span>
               </button>
             </div>
           </div>
@@ -157,8 +159,8 @@ const Home = () => {
           <div className="w-1 h-10 bg-primary rounded-full"></div>
           <h2 className="text-3xl md:text-4xl font-bold">
             {searchTerm
-              ? `Results for "${searchTerm}"`
-              : "Top Restaurants in Jaipur"}
+              ? `${t("resultsFor")} "${searchTerm}"`
+              : t("topRestaurants")}
           </h2>
         </div>
 
@@ -170,7 +172,7 @@ const Home = () => {
         ) : filteredRestaurants.length === 0 ? (
           <div className="text-center py-20 bg-gray-900 rounded-2xl">
             <p className="text-gray-400 text-xl">
-              No results found for your search.
+              {t("noResults")}
             </p>
           </div>
         ) : (
@@ -185,8 +187,9 @@ const Home = () => {
                 <div className="relative h-60 overflow-hidden">
                   <img
                     src={
-                      shop.image ||
-                      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=70&fm=webp&auto=format&fit=crop"
+                      shop.image
+                        ? `${BASEURL}/api/v1/image/thumbnail?url=${encodeURIComponent(shop.image)}&w=400&q=75&fit=cover`
+                        : "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=70&fm=webp&auto=format&fit=crop"
                     }
                     alt={shop.name || "Restaurant image"}
                     loading="lazy"
@@ -198,7 +201,7 @@ const Home = () => {
                   {/* ⭐ Rating Badge */}
                   <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1 text-yellow-400 font-bold text-sm">
                     <Star size={14} fill="currentColor" />{" "}
-                    {shop.rating > 0 ? shop.rating.toFixed(1) : "New"}
+                    {shop.rating > 0 ? shop.rating.toFixed(1) : t("new")}
                   </div>
                   {/* ✅ FIX: Open = green, Closed = red */}
                   <div
@@ -206,12 +209,12 @@ const Home = () => {
                       shop.isOpenNow ? "bg-green-500" : "bg-red-600/90"
                     }`}
                   >
-                    {shop.isOpenNow ? "Open" : "Closed"}
+                    {shop.isOpenNow ? t("open") : t("closed")}
                   </div>
                   {/* 🏆 Performance Score */}
                   {shop.performanceScore > 0 && (
                     <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1 text-amber-400 font-bold text-xs">
-                      <Trophy size={12} /> {shop.performanceScore} Score
+                      <Trophy size={12} /> {shop.performanceScore} {t("score")}
                     </div>
                   )}
                 </div>
@@ -229,10 +232,10 @@ const Home = () => {
                   <div className="border-t border-gray-800 pt-4 flex justify-between items-center text-sm text-gray-500">
                     <div className="flex items-center gap-2">
                       <Clock size={16} />{" "}
-                      {shop.isOpenNow ? "30-40 mins" : "Currently Closed"}
+                      {shop.isOpenNow ? t("deliveryTime") : t("currentlyClosed")}
                     </div>
                     <span className="flex items-center gap-1 text-white font-bold group-hover:translate-x-2 transition-transform">
-                      View Menu <ArrowRight size={16} />
+                      {t("viewMenu")} <ArrowRight size={16} />
                     </span>
                   </div>
                 </div>

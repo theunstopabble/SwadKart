@@ -39,6 +39,7 @@
     "nodemailer": "^8.0.4",
     "razorpay": "^2.9.6",
     "redis": "^5.11.0",
+    "sharp": "^0.34.5",
     "socket.io": "^4.8.3"
   },
   "overrides": {

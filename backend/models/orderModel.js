@@ -138,6 +138,16 @@ const orderSchema = mongoose.Schema(
       default: 0 
     },
 
+    // ⏰ DELIVERY ETA (FEAT-12)
+    estimatedDeliveryAt: { type: Date, default: null },
+    etaUpdates: [
+      {
+        timestamp: { type: Date, default: Date.now },
+        estimatedMinutes: { type: Number },
+        reason: { type: String }, // e.g., "traffic", "preparation_delay", "reroute"
+      },
+    ],
+
     // =================================================
     // 🔄 8. ORDER LIFECYCLE
     // =================================================

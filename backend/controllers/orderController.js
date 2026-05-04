@@ -16,6 +16,7 @@ import {
 } from "../utils/emailTemplates.js";
 import { awardCoinsToUser } from "./loyaltyController.js";
 import { createNotification } from "./notificationController.js";
+import { calculateOrderETA, recalculateETA } from "./etaController.js";
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
 // ==========================================
@@ -300,6 +301,11 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       isPaid: orderIsPaid,
       paidAt: orderPaidAt,
     });
+
+    // ⏰ FEAT-12: Calculate estimated delivery time
+    const { estimatedDeliveryAt, estimatedMinutes } = calculateOrderETA(order);
+    order.estimatedDeliveryAt = estimatedDeliveryAt;
+    order.etaUpdates.push({ estimatedMinutes, reason: "order_placed" });
 
     // 3. Save order using the same transaction session
     const createdOrder = await order.save({ session });
@@ -608,6 +614,13 @@ export const updateOrderStatus = async (req, res) => {
         } else {
           console.log("⚠️ No delivery partner found within 5KM.");
         }
+      }
+
+      // ⏰ FEAT-12: Recalculate ETA when order is Ready and partner assigned
+      if (order.deliveryPartner) {
+        const { estimatedDeliveryAt, estimatedMinutes, reason } = recalculateETA(order, "restaurant_ready");
+        order.estimatedDeliveryAt = estimatedDeliveryAt;
+        order.etaUpdates.push({ estimatedMinutes, reason });
       }
     }
 

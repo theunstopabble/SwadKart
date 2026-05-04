@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { useTranslation } from "react-i18next";
 import {
   ShoppingCart,
   User,
@@ -12,6 +13,7 @@ import {
   Truck,
   Package,
   Bell,
+  Globe,
 } from "lucide-react";
 import { BASEURL } from "../config";
 
@@ -19,8 +21,10 @@ import { BASEURL } from "../config";
 import InstallPWA from "./InstallPWA";
 
 const Navbar = () => {
+  const { t, i18n } = useTranslation("common");
   const [isOpen, setIsOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { cartItems } = useSelector((state) => state.cart);
@@ -28,6 +32,11 @@ const Navbar = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  const changeLanguage = (lng) => {
+    i18n.changeLanguage(lng);
+    setLangOpen(false);
+  };
 
   // 🔔 Fetch notifications
   useEffect(() => {
@@ -90,7 +99,7 @@ const Navbar = () => {
               to="/"
               className="hover:text-primary transition-colors font-medium"
             >
-              Home
+              {t("home")}
             </Link>
 
             {/* 👇 INSTALL APP BUTTON (Desktop Position) */}
@@ -103,7 +112,7 @@ const Navbar = () => {
                     to="/admin/dashboard"
                     className="hover:text-primary transition-colors font-medium text-yellow-400"
                   >
-                    Admin Panel
+                    {t("adminPanel")}
                   </Link>
                 )}
                 {userInfo.role === "restaurant_owner" && (
@@ -111,7 +120,7 @@ const Navbar = () => {
                     to="/restaurant/dashboard"
                     className="hover:text-primary transition-colors font-medium text-green-400"
                   >
-                    Kitchen Dashboard
+                    {t("kitchenDashboard")}
                   </Link>
                 )}
                 {userInfo.role === "delivery_partner" && (
@@ -119,7 +128,7 @@ const Navbar = () => {
                     to="/delivery/dashboard"
                     className="hover:text-primary transition-colors font-medium text-blue-400"
                   >
-                    Delivery Dashboard
+                    {t("deliveryDashboard")}
                   </Link>
                 )}
                 {userInfo.role === "user" && (
@@ -127,7 +136,7 @@ const Navbar = () => {
                     to="/myorders"
                     className="hover:text-primary transition-colors font-medium"
                   >
-                    My Orders
+                    {t("myOrders")}
                   </Link>
                 )}
 
@@ -148,7 +157,7 @@ const Navbar = () => {
                   {notifOpen && (
                     <div className="absolute right-0 mt-2 w-72 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
                       <div className="p-3 border-b border-gray-800 flex justify-between items-center">
-                        <span className="text-xs font-bold text-white uppercase tracking-widest">Notifications</span>
+                        <span className="text-xs font-bold text-white uppercase tracking-widest">{t("notifications")}</span>
                         <button
                           onClick={() => setNotifOpen(false)}
                           className="text-gray-500 hover:text-white"
@@ -158,7 +167,7 @@ const Navbar = () => {
                       </div>
                       <div className="max-h-64 overflow-y-auto">
                         {notifications.length === 0 ? (
-                          <p className="text-xs text-gray-500 text-center py-4">No notifications yet</p>
+                          <p className="text-xs text-gray-500 text-center py-4">{t("noNotifications")}</p>
                         ) : (
                           notifications.slice(0, 5).map((n) => (
                             <div
@@ -192,7 +201,7 @@ const Navbar = () => {
                             }}
                             className="text-[9px] font-bold text-primary hover:text-red-400 uppercase tracking-widest"
                           >
-                            Mark all read
+                            {t("markAllRead")}
                           </button>
                         </div>
                       )}
@@ -213,8 +222,8 @@ const Navbar = () => {
                 <button
                   onClick={logoutHandler}
                   className="text-gray-400 hover:text-red-500 transition-colors"
-                  title="Logout"
-                  aria-label="Logout"
+                  title={t("logout")}
+                  aria-label={t("logout")}
                 >
                   <LogOut size={20} />
                 </button>
@@ -225,21 +234,48 @@ const Navbar = () => {
                   to="/login"
                   className="text-white hover:text-primary font-bold"
                 >
-                  Login
+                  {t("login")}
                 </Link>
                 <Link
                   to="/register"
                   className="bg-primary hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold transition-all text-sm"
                 >
-                  Sign Up
+                  {t("signUp")}
                 </Link>
               </div>
             )}
 
+            {/* 🌐 Language Toggle */}
+            <div className="relative">
+              <button
+                onClick={() => setLangOpen((p) => !p)}
+                className="text-gray-300 hover:text-primary transition-colors"
+                aria-label={t("language")}
+              >
+                <Globe size={20} />
+              </button>
+              {langOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                  <button
+                    onClick={() => changeLanguage("en")}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-800 ${i18n.language === "en" ? "text-primary font-bold" : "text-white"}`}
+                  >
+                    {t("english")}
+                  </button>
+                  <button
+                    onClick={() => changeLanguage("hi")}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-800 ${i18n.language === "hi" ? "text-primary font-bold" : "text-white"}`}
+                  >
+                    {t("hindi")}
+                  </button>
+                </div>
+              )}
+            </div>
+
             <Link
               to="/cart"
               className="relative group"
-              aria-label="Shopping cart"
+              aria-label={t("cart")}
             >
               <ShoppingCart
                 size={24}
@@ -263,7 +299,7 @@ const Navbar = () => {
               to="/cart"
               className="relative"
               onClick={closeMenu}
-              aria-label="Shopping cart"
+              aria-label={t("cart")}
             >
               <ShoppingCart size={22} className="text-gray-300" />
               {cartItems.length > 0 && (
@@ -294,7 +330,7 @@ const Navbar = () => {
               className="block px-3 py-3 rounded-md text-base font-medium hover:bg-gray-800 hover:text-primary"
               onClick={closeMenu}
             >
-              Home
+              {t("home")}
             </Link>
 
             {userInfo ? (
@@ -305,7 +341,7 @@ const Navbar = () => {
                     className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-bold text-yellow-400 hover:bg-gray-800"
                     onClick={closeMenu}
                   >
-                    <LayoutDashboard size={18} /> Admin Panel
+                    <LayoutDashboard size={18} /> {t("adminPanel")}
                   </Link>
                 )}
 
@@ -315,7 +351,7 @@ const Navbar = () => {
                     className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-bold text-green-400 hover:bg-gray-800"
                     onClick={closeMenu}
                   >
-                    <ChefHat size={18} /> Kitchen Dashboard
+                    <ChefHat size={18} /> {t("kitchenDashboard")}
                   </Link>
                 )}
 
@@ -325,7 +361,7 @@ const Navbar = () => {
                     className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-bold text-blue-400 hover:bg-gray-800"
                     onClick={closeMenu}
                   >
-                    <Truck size={18} /> Delivery Dashboard
+                    <Truck size={18} /> {t("deliveryDashboard")}
                   </Link>
                 )}
 
@@ -335,7 +371,7 @@ const Navbar = () => {
                     className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800"
                     onClick={closeMenu}
                   >
-                    <Package size={18} /> My Orders
+                    <Package size={18} /> {t("myOrders")}
                   </Link>
                 )}
 
@@ -344,14 +380,14 @@ const Navbar = () => {
                   className="block px-3 py-3 rounded-md text-base font-medium hover:bg-gray-800 hover:text-primary"
                   onClick={closeMenu}
                 >
-                  Profile ({userInfo.name || "User"})
+                  {t("profile")} ({userInfo.name || "User"})
                 </Link>
 
                 <button
                   onClick={logoutHandler}
                   className="w-full flex items-center gap-2 px-3 py-3 rounded-md text-base font-bold text-red-500 hover:bg-gray-800"
                 >
-                  <LogOut size={18} /> Logout
+                  <LogOut size={18} /> {t("logout")}
                 </button>
               </>
             ) : (
@@ -361,14 +397,14 @@ const Navbar = () => {
                   className="text-center py-2 border border-gray-600 rounded-lg font-bold hover:bg-gray-800 text-white"
                   onClick={closeMenu}
                 >
-                  Login
+                  {t("login")}
                 </Link>
                 <Link
                   to="/register"
                   className="text-center py-2 bg-primary text-white rounded-lg font-bold hover:bg-red-700"
                   onClick={closeMenu}
                 >
-                  Sign Up
+                  {t("signUp")}
                 </Link>
               </div>
             )}

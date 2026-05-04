@@ -10,6 +10,7 @@ import { sanitizeObjectId } from "../utils/sanitize.js";
 import Emergency from "../models/emergencyModel.js";
 import { processReferralReward } from "./referralController.js";
 import { createNotification } from "./notificationController.js";
+import { recalculateETA } from "./etaController.js";
 
 // ============================================================
 // 🛵 1. GET MY ASSIGNED DELIVERIES
@@ -114,6 +115,11 @@ export const updateDeliveryAction = async (req, res) => {
     if (action === "accept") {
       order.deliveryStatus = "Accepted";
       order.orderStatus = "Out for Delivery";
+
+      // ⏰ FEAT-12: Recalculate ETA on driver accept
+      const { estimatedDeliveryAt, estimatedMinutes, reason } = recalculateETA(order, "driver_assigned");
+      order.estimatedDeliveryAt = estimatedDeliveryAt;
+      order.etaUpdates.push({ estimatedMinutes, reason });
 
       // 📧 Notify Customer that driver is on the way
       const user = await User.findById(order.user);

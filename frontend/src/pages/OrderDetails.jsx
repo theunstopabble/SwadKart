@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Wallet,
   Truck,
+  Timer,
 } from "lucide-react";
 import { BASEURL } from "../config";
 import OrderProgress from "../components/order/OrderProgress";
@@ -147,6 +148,15 @@ const OrderDetails = () => {
             <div className="bg-gray-900 border border-gray-800 px-8 py-3 rounded-2xl text-lg font-black italic text-white shadow-xl">
               {order.orderStatus}
             </div>
+            {/* ⏰ FEAT-12: ETA Display */}
+            {order.estimatedDeliveryAt &&
+              order.orderStatus !== "Delivered" &&
+              order.orderStatus !== "Cancelled" && (
+                <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-3 py-1 rounded-full text-primary text-[10px] font-black uppercase tracking-widest">
+                  <Timer size={10} />
+                  ETA: {new Date(order.estimatedDeliveryAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                </div>
+              )}
           </div>
         </div>
 

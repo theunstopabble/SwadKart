@@ -38,6 +38,7 @@ import inventoryRoutes from "./routes/inventoryRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import payoutRoutes from "./routes/payoutRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import imageRoutes from "./routes/imageRoutes.js";
 
 dotenv.config();
 connectDB(); // 🗄️ Database Connection
@@ -323,6 +324,7 @@ app.use("/api/v1/inventory", inventoryRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/payouts", payoutRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/image", imageRoutes);
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
