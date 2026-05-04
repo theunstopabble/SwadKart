@@ -17,6 +17,7 @@ import {
 import { awardCoinsToUser } from "./loyaltyController.js";
 import { createNotification } from "./notificationController.js";
 import { calculateOrderETA, recalculateETA } from "./etaController.js";
+import { calculateSurgeMultiplier } from "./surgePricingController.js";
 // ==========================================
 // 🛒 1. CREATE NEW ORDER
 // ==========================================
@@ -229,10 +230,12 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 
     const serverShippingPrice = serverItemsPrice > 500 ? 0 : 40;
     const serverTaxPrice = parseFloat((0.05 * serverItemsPrice).toFixed(2));
-    // 💸 TIP & SURGE PRICING
+    // 💸 TIP & SURGE PRICING (FEAT-1)
     const serverTipAmount = Math.max(0, Number(tipAmount) || 0);
-    const serverDeliveryFee = serverShippingPrice; // Base delivery fee
-    const serverSurgePrice = 0; // Placeholder for future FEAT-1 surge engine
+    // Calculate dynamic surge multiplier based on active orders vs drivers
+    const { multiplier: surgeMultiplier } = await calculateSurgeMultiplier();
+    const serverDeliveryFee = parseFloat((serverShippingPrice * surgeMultiplier).toFixed(2));
+    const serverSurgePrice = parseFloat((serverShippingPrice * (surgeMultiplier - 1)).toFixed(2));
     // 💼 RESTAURANT COMMISSION (FEAT-2) — 15% standard
     const commissionRate = 0.15;
     const netItemsValue = Math.max(0, serverItemsPrice - serverCouponDiscount);

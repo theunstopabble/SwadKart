@@ -41,6 +41,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import imageRoutes from "./routes/imageRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import groupOrderRoutes from "./routes/groupOrderRoutes.js";
+import surgeRoutes from "./routes/surgeRoutes.js";
 
 dotenv.config();
 connectDB(); // 🗄️ Database Connection
@@ -345,6 +346,7 @@ app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/image", imageRoutes);
 app.use("/api/v1/subscriptions", subscriptionRoutes);
 app.use("/api/v1/group-orders", groupOrderRoutes);
+app.use("/api/v1/surge", surgeRoutes);
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
