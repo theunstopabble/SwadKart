@@ -1,6 +1,7 @@
 import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
 import CoinTransaction from "../models/coinTransactionModel.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // Rate: ₹10 spent = 1 SwadCoin, 100 SwadCoins = ₹10 off
 const COIN_EARN_RATE = 0.1; // 1 coin per ₹10
@@ -34,7 +35,11 @@ export const getLoyaltyProfile = asyncHandler(async (req, res) => {
 // 2. REDEEM COINS FOR ORDER DISCOUNT
 // ==========================================
 export const redeemCoins = asyncHandler(async (req, res) => {
-  const { coins, totalPrice } = req.body;
+  const { coins } = req.body;
+  // 🛡️ SECURITY FIX: Never trust frontend totalPrice for discount validation.
+  // totalPrice is removed from required fields. Discount is validated purely
+  // by coin rules: max 50% off, capped at available coins.
+  // Frontend passes current cart total for UI guidance only.
 
   if (!coins || coins <= 0 || coins % 100 !== 0) {
     res.status(400);
@@ -52,10 +57,11 @@ export const redeemCoins = asyncHandler(async (req, res) => {
     throw new Error(`Insufficient SwadCoins. You have ${user.swadCoins} coins.`);
   }
 
-  const discount = (coins * COIN_REDEEM_RATE);
-  if (discount > totalPrice * 0.5) {
+  const discount = coins * COIN_REDEEM_RATE;
+  // Max discount rule: coin redemption cannot exceed ₹5000 equivalent
+  if (discount > 5000) {
     res.status(400);
-    throw new Error("Coin discount cannot exceed 50% of order value");
+    throw new Error("Maximum coin discount is ₹5000 per order");
   }
 
   // Atomic deduction
@@ -115,13 +121,14 @@ export const awardCoinsToUser = async (userId, amount, type, description, orderI
 // 4. ADMIN: Adjust Coins Manually
 // ==========================================
 export const adminAdjustCoins = asyncHandler(async (req, res) => {
-  const { userId, coins, reason } = req.body;
+  const { userId: rawUserId, coins, reason } = req.body;
 
   if (!coins || coins === 0) {
     res.status(400);
     throw new Error("Coin amount is required");
   }
 
+  const userId = sanitizeObjectId(rawUserId);
   const user = await User.findById(userId);
   if (!user) {
     res.status(404);

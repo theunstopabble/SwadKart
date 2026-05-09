@@ -1,16 +1,19 @@
 import asyncHandler from "express-async-handler";
 import Notification from "../models/notificationModel.js";
 import User from "../models/userModel.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // @desc    Send a notification to a user (and store in DB)
 // @route   POST /api/v1/notifications/send
 // @access  Admin / System
 export const sendNotification = asyncHandler(async (req, res) => {
-  const { userId, title, body, type = "system", data = {} } = req.body;
+  const { userId: rawUserId, title, body, type = "system", data = {} } = req.body;
 
-  if (!userId || !title || !body) {
+  if (!rawUserId || !title || !body) {
     return res.status(400).json({ message: "userId, title, body required" });
   }
+
+  const userId = sanitizeObjectId(rawUserId);
 
   const notification = await Notification.create({
     user: userId,
@@ -84,12 +87,27 @@ export const markRead = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Provide ids array or 'all'" });
   }
 
+  // 🛡️ Sanitize each ObjectId in the array
+  const sanitizedIds = ids
+    .map((id) => {
+      try {
+        return sanitizeObjectId(id);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  if (sanitizedIds.length === 0) {
+    return res.status(400).json({ message: "No valid notification IDs provided" });
+  }
+
   await Notification.updateMany(
-    { _id: { $in: ids }, user: req.user._id },
+    { _id: { $in: sanitizedIds }, user: req.user._id },
     { $set: { read: true } },
   );
 
-  res.json({ message: "Notifications marked as read", count: ids.length });
+  res.json({ message: "Notifications marked as read", count: sanitizedIds.length });
 });
 
 // @desc    Send bulk notification (admin)

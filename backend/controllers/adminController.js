@@ -1,6 +1,7 @@
 import Order from "../models/orderModel.js";
 import User from "../models/userModel.js";
 import Restaurant from "../models/restaurantModel.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // ==========================================
 // 📈 1. GET SALES STATS (For Recharts)
@@ -133,10 +134,20 @@ export const getHeatmapData = async (req, res) => {
 // ==========================================
 export const getAllUsersAdmin = async (req, res) => {
   try {
-    const users = await User.find({})
-      .select("-password")
-      .sort({ createdAt: -1 });
-    res.json(users);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Number(req.query.limit) || 20);
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      User.find({})
+        .select("-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(),
+    ]);
+
+    res.json({ users, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -144,14 +155,21 @@ export const getAllUsersAdmin = async (req, res) => {
 
 export const updateUserRole = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const userId = sanitizeObjectId(req.params.id);
+    const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({ message: "Cannot change your own role" });
     }
 
-    user.role = req.body.role || user.role;
+    const validRoles = ["user", "admin", "delivery_partner", "restaurant_owner"];
+    const newRole = req.body.role;
+    if (!newRole || !validRoles.includes(newRole)) {
+      return res.status(400).json({ message: `Invalid role. Must be one of: ${validRoles.join(", ")}` });
+    }
+
+    user.role = newRole;
     user.isAdmin = user.role === "admin";
 
     const updatedUser = await user.save();
@@ -166,7 +184,8 @@ export const updateUserRole = async (req, res) => {
 // ==========================================
 export const toggleRestaurantApproval = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(req.params.id);
+    const restaurantId = sanitizeObjectId(req.params.id);
+    const restaurant = await Restaurant.findById(restaurantId);
     if (!restaurant)
       return res.status(404).json({ message: "Restaurant not found" });
 
@@ -185,7 +204,8 @@ export const toggleRestaurantApproval = async (req, res) => {
 
 export const deleteUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const userId = sanitizeObjectId(req.params.id);
+    const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
     if (user.role === "admin")
       return res.status(400).json({ message: "Cannot delete Admin" });

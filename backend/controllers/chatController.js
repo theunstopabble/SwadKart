@@ -58,15 +58,23 @@ const extractAttachmentContext = async (files) => {
   return results.join("\n\n");
 };
 
+const MAX_MESSAGE_LENGTH = 2000;
+
 export const chatWithGenie = async (req, res) => {
   try {
-    const { message, cartItems } = req.body; // 👈 Include cartItems from request body
+    const { message, cartItems } = req.body;
     const userId = req.user ? req.user._id : null;
 
-    if (!message) {
+    if (!message || typeof message !== "string") {
       return res
         .status(400)
         .json({ reply: "Kuch boliyega toh hi madat karunga na! 🧞‍♂️" });
+    }
+
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return res.status(400).json({
+        reply: `Arre boss, message bahut lamba hai! Max ${MAX_MESSAGE_LENGTH} characters allowed. 😅`,
+      });
     }
 
     // =================================================
@@ -74,7 +82,7 @@ export const chatWithGenie = async (req, res) => {
     // =================================================
 
     // A. Fetch Live Menu
-    const products = await Product.find({ countInStock: { $gt: 0 } })
+    const products = await Product.find({ countInStock: { $gt: 0 }, isAvailable: { $ne: false } })
       .select("name price category isVeg restaurant")
       .populate("restaurant", "name")
       .limit(30);

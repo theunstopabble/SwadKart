@@ -2,18 +2,20 @@ import asyncHandler from "express-async-handler";
 import Reservation from "../models/reservationModel.js";
 import Restaurant from "../models/restaurantModel.js";
 import QRCode from "qrcode";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // @desc    Create table reservation
 // @route   POST /api/v1/reservations
 // @access  Private
 export const createReservation = asyncHandler(async (req, res) => {
-  const { restaurantId, date, time, guests, specialRequests } = req.body;
+  const { restaurantId: rawRestaurantId, date, time, guests, specialRequests } = req.body;
 
-  if (!restaurantId || !date || !time || !guests) {
+  if (!rawRestaurantId || !date || !time || !guests) {
     res.status(400);
     throw new Error("Please provide restaurantId, date, time, and guests");
   }
 
+  const restaurantId = sanitizeObjectId(rawRestaurantId);
   const restaurant = await Restaurant.findById(restaurantId);
   if (!restaurant) {
     res.status(404);
@@ -110,6 +112,15 @@ export const updateReservationStatus = asyncHandler(async (req, res) => {
     throw new Error("Invalid status");
   }
 
+  // 🛡️ Restaurant owners can only update reservations for their own restaurant
+  if (req.user.role === "restaurant_owner") {
+    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+    if (!restaurant || reservation.restaurant.toString() !== restaurant._id.toString()) {
+      res.status(403);
+      throw new Error("Not authorized to update this reservation");
+    }
+  }
+
   reservation.status = status;
   if (status === "completed") reservation.checkedInAt = new Date();
 
@@ -121,8 +132,19 @@ export const updateReservationStatus = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/reservations/restaurant/:id
 // @access  Admin / Restaurant Owner
 export const getRestaurantReservations = asyncHandler(async (req, res) => {
+  const restaurantId = sanitizeObjectId(req.params.id);
+
+  // 🛡️ Restaurant owners can only view reservations for their own restaurant
+  if (req.user.role === "restaurant_owner") {
+    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+    if (!restaurant || restaurant._id.toString() !== restaurantId.toString()) {
+      res.status(403);
+      throw new Error("Not authorized to view this restaurant's reservations");
+    }
+  }
+
   const reservations = await Reservation.find({
-    restaurant: req.params.id,
+    restaurant: restaurantId,
     status: { $in: ["pending", "confirmed"] },
     date: { $gte: new Date() },
   })

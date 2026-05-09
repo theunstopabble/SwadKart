@@ -123,14 +123,22 @@ export const calculateSplit = asyncHandler(async (req, res) => {
   }
 
   const memberCount = groupOrder.members.length || 1;
-  const equalShareDelivery = groupOrder.deliveryFee / memberCount;
-  const equalShareTax = (groupOrder.totalCartValue * (groupOrder.taxPercent / 100)) / memberCount;
+  const safeTotalValue = groupOrder.totalCartValue || 0;
+  const safeTaxPercent = groupOrder.taxPercent || 0;
+  const safeDeliveryFee = groupOrder.deliveryFee || 0;
+
+  const equalShareDelivery = memberCount > 0 ? safeDeliveryFee / memberCount : 0;
+  const equalShareTax = memberCount > 0 ? (safeTotalValue * (safeTaxPercent / 100)) / memberCount : 0;
 
   const splits = groupOrder.members.map((m) => {
     const myItemsTotal = m.items.reduce((sum, item) => sum + item.price * item.qty, 0);
-    const subtotal = myItemsTotal || groupOrder.totalCartValue / memberCount;
-    const shareDelivery = groupOrder.splitType === "equal" ? equalShareDelivery : (groupOrder.deliveryFee * (subtotal / groupOrder.totalCartValue));
-    const shareTax = groupOrder.splitType === "equal" ? equalShareTax : (subtotal * (groupOrder.taxPercent / 100));
+    const subtotal = myItemsTotal || (memberCount > 0 ? safeTotalValue / memberCount : 0);
+    const shareDelivery = groupOrder.splitType === "equal"
+      ? equalShareDelivery
+      : (safeTotalValue > 0 ? safeDeliveryFee * (subtotal / safeTotalValue) : 0);
+    const shareTax = groupOrder.splitType === "equal"
+      ? equalShareTax
+      : (subtotal * (safeTaxPercent / 100));
     const total = subtotal + shareDelivery + shareTax + (m.tip || 0);
     return { userId: m.user, name: m.name, subtotal, shareDelivery, shareTax, tip: m.tip || 0, total };
   });

@@ -28,7 +28,7 @@ const InfoPage = () => {
         },
         {
           q: "Can I cancel my order?",
-          a: "Yes, within 1 minute of placing it. After that, preparation begins.",
+          a: "Yes, you can cancel while your order status is 'Placed' or 'Preparing'. Once it moves to 'Ready' or 'Out for Delivery', cancellation is no longer available.",
         },
         {
           q: "Do you offer refunds?",
