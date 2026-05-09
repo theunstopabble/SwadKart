@@ -242,8 +242,8 @@ export const deleteUserByAdmin = async (req, res, next) => {
 
 export const getAllRestaurantsPublic = async (req, res, next) => {
   try {
-    const restaurants = await User.find({ role: "restaurant_owner" })
-      .select("-password")
+    const restaurants = await Restaurant.find({ isActive: true })
+      .select("name image description rating numReviews address isOpenNow openingTime closingTime")
       .sort({ orderIndex: 1 });
     return res.json(restaurants);
   } catch (error) {

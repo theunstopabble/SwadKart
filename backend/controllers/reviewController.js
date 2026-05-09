@@ -1,5 +1,6 @@
 import Product from "../models/productModel.js";
 import Order from "../models/orderModel.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // ============================================================
 // ⭐ CREATE PRODUCT REVIEW (Verified Purchase Only)
@@ -11,7 +12,8 @@ export const createProductReview = async (req, res) => {
   const { rating, comment } = req.body;
 
   try {
-    const product = await Product.findById(req.params.id);
+    const productId = sanitizeObjectId(req.params.id);
+    const product = await Product.findById(productId);
 
     if (!product) {
       return res
@@ -25,7 +27,7 @@ export const createProductReview = async (req, res) => {
       user: req.user._id,
       isPaid: true,
       orderStatus: "Delivered",
-      "orderItems.product": req.params.id,
+      "orderItems.product": productId,
     });
 
     if (!hasBought) {

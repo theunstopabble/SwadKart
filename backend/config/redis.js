@@ -24,6 +24,9 @@ const inMemoryClient = {
   },
   on: () => {},
   connect: async () => {},
+  ping: async () => "PONG",
+  isReady: false,
+  isOpen: false,
 };
 
 let cacheClient = inMemoryClient;
@@ -64,7 +67,7 @@ if (process.env.REDIS_URL) {
 
   cacheClient = new Proxy(redisClient, {
     get: (target, prop) => {
-      if (!isProduction && !target.isOpen) {
+      if (!isProduction && (!target.isReady || !target.isOpen)) {
         return inMemoryClient[prop];
       }
       return target[prop];

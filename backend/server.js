@@ -1,5 +1,7 @@
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -49,8 +51,6 @@ import reorderRoutes from "./routes/reorderRoutes.js";
 import gamificationRoutes from "./routes/gamificationRoutes.js";
 import reservationRoutes from "./routes/reservationRoutes.js";
 import gdprRoutes from "./routes/gdprRoutes.js";
-
-dotenv.config();
 
 // ============================================================
 // 🔒 PRODUCTION ENVIRONMENT VALIDATION
@@ -284,15 +284,22 @@ const csrfProtection = (req, res, next) => {
     return next();
   }
 
+  // 🛡️ SECURITY FIX: Allow API clients & mobile apps that send valid Bearer token
+  // without Origin/Referer. CSRF primarily targets cookie-based browser auth.
+  const hasBearerToken =
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer");
+
+  if (hasBearerToken) {
+    return next();
+  }
+
   const origin = req.headers.origin;
   const referer = req.headers.referer;
 
-  const isValidOrigin =
-    origin &&
-    allowedOrigins.includes(origin);
+  const isValidOrigin = origin && allowedOrigins.includes(origin);
   const isValidReferer =
-    referer &&
-    allowedOrigins.some((o) => referer.startsWith(o));
+    referer && allowedOrigins.some((o) => referer.startsWith(o));
 
   if (!isValidOrigin && !isValidReferer) {
     console.error("🚫 CSRF Attack Blocked from:", origin || referer);
@@ -337,12 +344,13 @@ app.use("/api", apiLimiter);
 
 // 🛡️ SECURITY FIX (BUG-5): Strict rate limiter for OTP/auth endpoints
 const authLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 10, // Max 10 attempts per window (generous for legitimate retries)
+  windowMs: 10 * 60 * 1000,
+  max: 10,
   message: "Too many attempts. Please try again after 10 minutes.",
   standardHeaders: true,
   legacyHeaders: false,
 });
+
 app.use("/api/v1/users/verify-email", authLimiter);
 app.use("/api/v1/users/login", authLimiter);
 app.use("/api/v1/users/register", authLimiter);
@@ -374,14 +382,14 @@ app.get("/health", async (req, res) => {
   let redisReady = true;
   try {
     // cacheClient may be a Proxy to redisClient or inMemory fallback
-    if (cacheClient.ping) {
+    if (typeof cacheClient.ping === "function") {
       await cacheClient.ping();
     }
   } catch {
     redisReady = false;
   }
 
-  const status = mongoReady && redisReady ? 200 : 503;
+  const status = mongoReady ? 200 : 503;
   res.status(status).json({
     status: status === 200 ? "healthy" : "degraded",
     services: {
@@ -461,6 +469,12 @@ const server = httpServer.listen(PORT, () => {
 // --- 🛡️ Graceful Shutdown ---
 const gracefulShutdown = (signal) => {
   console.log(`\n${signal} received. Starting graceful shutdown...`);
+
+  // Close Socket.io connections first
+  io.close(() => {
+    console.log("✅ Socket.io server closed");
+  });
+
   server.close(() => {
     console.log("✅ HTTP server closed");
     mongoose.connection.close().then(() => {

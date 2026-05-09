@@ -222,8 +222,11 @@ export const updateOrderToDelivered = async (req, res) => {
     if (order.deliveryOTP !== Number(otp)) {
       order.otpAttempts += 1;
       await order.save();
+      const remaining = 5 - order.otpAttempts;
       return res.status(400).json({
-        message: `❌ Incorrect OTP! ${5 - order.otpAttempts} attempts remaining.`,
+        message: remaining > 0
+          ? `❌ Incorrect OTP! ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+          : "❌ No OTP attempts remaining. Contact support.",
       });
     }
 

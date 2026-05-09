@@ -517,9 +517,7 @@ export const getOrderById = async (req, res) => {
 };
 
 // ==========================================
-// 🚚 4. UPDATE ORDER TO DELIVERED (DEPRECATED - use deliveryController.js with OTP)
-// ==========================================
-
+// 📝 3. MARK ORDER AS PAID (Razorpay callback)
 // ==========================================
 export const updateOrderToPaid = async (req, res) => {
   try {
@@ -568,12 +566,18 @@ export const updateOrderToPaid = async (req, res) => {
 };
 
 // ==========================================
-// 🚚 4. UPDATE ORDER TO DELIVERED (DEPRECATED - use deliveryController.js with OTP)
+// 📝 4. UPDATE ORDER STATUS (Generic with Auto-Assign)
 // ==========================================
+// Valid status transitions map
+const VALID_TRANSITIONS = {
+  Placed: ["Preparing", "Cancelled"],
+  Preparing: ["Ready", "Cancelled"],
+  Ready: ["Out for Delivery"],
+  "Out for Delivery": ["Delivered"],
+  Delivered: [],
+  Cancelled: [],
+};
 
-// ==========================================
-// 🛠️ 5. UPDATE ORDER STATUS (Generic with Auto-Assign)
-// ==========================================
 export const updateOrderStatus = async (req, res) => {
   // NEW-02 FIX: Only admin or restaurant owner can update order status
   const isAdmin = req.user.role === "admin";
@@ -599,6 +603,14 @@ export const updateOrderStatus = async (req, res) => {
       if (!restaurantDoc || orderRestaurantId !== restaurantDoc._id.toString()) {
         return res.status(403).json({ message: "Not authorized to update this order." });
       }
+    }
+
+    // 🛡️ BUG-TRANSITION FIX: Validate status transitions to prevent invalid jumps
+    const currentStatus = order.orderStatus;
+    if (!VALID_TRANSITIONS[currentStatus]?.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid status transition: cannot move from "${currentStatus}" to "${status}".`,
+      });
     }
 
     // NEW-03 FIX: Block 'Delivered' status via this route — use deliveryController OTP flow instead

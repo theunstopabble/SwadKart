@@ -35,8 +35,8 @@ export const sanitizePhone = (phone) => {
   // Strip spaces, dashes, and parentheses which are common in phone formatting
   cleanPhone = cleanPhone.replace(/[\s\-\(\)]/g, "");
   
-  if (!cleanPhone || !/^\+?\d{7,15}$/.test(cleanPhone)) {
-    throw new Error("Invalid phone format");
+  if (!cleanPhone || !/^\d{10}$/.test(cleanPhone)) {
+    throw new Error("Invalid phone format. Must be exactly 10 digits.");
   }
   return cleanPhone;
 };

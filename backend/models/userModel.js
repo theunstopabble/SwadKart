@@ -125,10 +125,25 @@ userSchema.pre("save", async function () {
     if (!this.referralCode && this.role === "user") {
       this.referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     }
+    // BUG-10 FIX: Cap walletTransactions to last 100 entries
+    if (this.walletTransactions && this.walletTransactions.length > 100) {
+      this.walletTransactions = this.walletTransactions.slice(-100);
+    }
   } catch (error) {
     throw new Error(error);
   }
 });
+
+// 🔑 RESET PASSWORD TOKEN GENERATION
+userSchema.methods.getResetPasswordToken = function () {
+  const resetToken = crypto.randomBytes(20).toString("hex");
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+  return resetToken;
+};
 
 // 🔔 ADMIN ALERT HOOK
 userSchema.post("save", function (doc) {
@@ -159,26 +174,6 @@ userSchema.post("save", function (doc) {
       }
     }, 1000);
   }
-});
-
-// 🔑 RESET PASSWORD TOKEN GENERATION
-userSchema.methods.getResetPasswordToken = function () {
-  const resetToken = crypto.randomBytes(20).toString("hex");
-  this.resetPasswordToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
-  return resetToken;
-};
-
-// BUG-10 FIX: Cap walletTransactions to last 100 entries to prevent document bloat
-// REMAINING-BUG-10 FIX: Cap walletTransactions to last 100 entries to prevent document bloat
-userSchema.pre('save', function (next) {
-  if (this.walletTransactions && this.walletTransactions.length > 100) {
-    this.walletTransactions = this.walletTransactions.slice(-100);
-  }
-  next();
 });
 
 // 🚀 PERFORMANCE FIX (STEP 1): Indexing

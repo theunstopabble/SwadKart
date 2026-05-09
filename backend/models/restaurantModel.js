@@ -51,6 +51,19 @@ const restaurantSchema = mongoose.Schema(
     openingTime: { type: String, default: "09:00" },
     closingTime: { type: String, default: "23:00" },
 
+    // 📍 Location (GeoJSON for delivery proximity queries)
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
+      },
+    },
+
     // 📊 PERFORMANCE SCORE (FEAT-9)
     performanceScore: { type: Number, default: 0, min: 0, max: 100 },
     scoreMetrics: {
@@ -68,6 +81,7 @@ const restaurantSchema = mongoose.Schema(
 restaurantSchema.index({ owner: 1 });
 restaurantSchema.index({ isVerified: 1 });
 restaurantSchema.index({ isActive: 1 });
+restaurantSchema.index({ location: "2dsphere" });
 
 const Restaurant = mongoose.model("Restaurant", restaurantSchema);
 export default Restaurant;

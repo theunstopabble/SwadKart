@@ -18,6 +18,7 @@ import {
   Trophy,
   Calendar,
   Shield,
+  Users,
 } from "lucide-react";
 import { BASEURL } from "../config";
 import { disconnectSocket } from "../utils/socket";

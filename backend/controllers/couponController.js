@@ -168,9 +168,6 @@ export const validateCoupon = async (req, res) => {
 // @route   GET /api/v1/coupons/available
 // @access  Private (Needs User Auth to check usage history)
 export const getApplicableCoupons = async (req, res) => {
-  try {
-    const currentDate = new Date();
-    const userId = req.user ? req.user._id : null;
 
     // Fetch all active and valid coupons
     const query = {
