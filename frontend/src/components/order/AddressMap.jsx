@@ -47,13 +47,12 @@ const AddressMap = ({
         const lat = Number(e.latlng.lat);
         const lng = Number(e.latlng.lng);
         if (lat && lng && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
-          onMapClick && onMapClick(lat, lng);
+          onMapClick?.(lat, lng);
         }
       },
     });
     return (
       <Marker position={mapCenter}>
-        {/* Optional: Add Tooltip/Popup if needed */}
       </Marker>
     );
   };
@@ -72,11 +71,11 @@ const AddressMap = ({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSearch && handleSearch(e);
-            }
-          }}
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (handleSearch) handleSearch(e);
+              }
+            }}
         />
         <button
           onClick={handleSearch}

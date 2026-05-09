@@ -156,9 +156,8 @@ const MyOrders = () => {
                       <span className="bg-black/50 text-gray-400 px-3 py-1.5 rounded-lg text-[9px] font-extrabold uppercase tracking-[0.2em] border border-gray-800">
                         ID:{" "}
                         {order._id
-                          ? order._id.substring(order._id.length - 10)
-                          : "N/A"
-                          .toUpperCase()}
+                          ? order._id.substring(order._id.length - 10).toUpperCase()
+                          : "N/A"}
                       </span>
                       <div className="flex items-center gap-2 text-gray-500 text-[10px] font-bold mt-3">
                         <Clock size={14} className="text-primary" />

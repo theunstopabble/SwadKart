@@ -42,7 +42,7 @@ const PlaceOrder = () => {
 
   // --- Calculations ---
   const itemsPrice = cart.cartItems.reduce(
-    (acc, item) => acc + item.price * item.qty,
+    (acc, item) => acc + (item.price ?? 0) * (item.qty ?? 0),
     0,
   );
   const shippingPrice = itemsPrice > 500 ? 0 : 40;
@@ -255,6 +255,7 @@ const PlaceOrder = () => {
         });
         if (!orderRes.ok) throw new Error("Failed to create payment order");
         const { order: razorpayOrder } = await orderRes.json();
+        if (!razorpayOrder?.id) throw new Error("Invalid payment response");
 
         const keyRes = await fetch(`${BASEURL}/api/v1/payment/key`, {
           credentials: "include",
@@ -269,7 +270,7 @@ const PlaceOrder = () => {
           name: "SwadKart Pro",
           description: "Food Delivery Mission",
           order_id: razorpayOrder.id,
-          handler: (res) => verifyPayment(res, dbData._id),
+          handler: (res) => verifyPayment(res, dbData?._id),
           prefill: {
             name: userInfo.name,
             email: userInfo.email,

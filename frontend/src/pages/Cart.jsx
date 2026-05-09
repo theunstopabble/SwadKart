@@ -35,7 +35,7 @@ const Cart = () => {
 
   // --- 3. Calculations ---
   const itemsPrice = cartItems.reduce(
-    (acc, item) => acc + item.price * item.qty,
+    (acc, item) => acc + (item.price ?? 0) * (item.qty ?? 0),
     0,
   );
 

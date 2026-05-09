@@ -327,7 +327,7 @@ const OrdersTab = ({ orders, deliveryPartners, fetchAllData }) => {
                   Grand Total Paid
                 </span>
                 <div className="text-5xl font-black italic text-white tracking-tighter">
-                  ₹{selectedOrder.totalPrice.toLocaleString("en-IN")}
+                  ₹{(selectedOrder.totalPrice ?? 0).toLocaleString("en-IN")}
                 </div>
               </div>
               <div className="bg-primary/5 px-6 py-3 rounded-2xl border border-primary/10 text-primary text-[9px] font-black uppercase tracking-[0.2em] italic">

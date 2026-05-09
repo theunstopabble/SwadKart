@@ -49,10 +49,11 @@ const OrderDetails = () => {
         const res = await fetch(`${BASEURL}/api/v1/orders/${id}`, {
           credentials: "include",
         });
-        const data = await res.json();
         if (res.ok) {
+          const data = await res.json();
           setOrder(data);
         } else {
+          const data = await res.json().catch(() => ({}));
           toast.error(data.message || "Order not found");
         }
       } catch {
@@ -205,8 +206,8 @@ const OrderDetails = () => {
               orderId={order._id}
               restaurantCoords={[26.9124, 75.7873]}
               userCoords={[
-                order.shippingAddress.lat || 26.922,
-                order.shippingAddress.lng || 75.7788,
+                order.shippingAddress?.lat || 26.922,
+                order.shippingAddress?.lng || 75.7788,
               ]}
             />
           </div>
@@ -226,8 +227,7 @@ const OrderDetails = () => {
                 Share this with the logistics pilot only at the time of delivery
               </p>
               <div className="flex justify-center gap-4">
-                {order.deliveryOTP
-                  .toString()
+                {(order.deliveryOTP ?? "").toString()
                   .split("")
                   .map((digit, i) => (
                     <div

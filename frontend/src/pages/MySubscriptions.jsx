@@ -30,10 +30,11 @@ const MySubscriptions = () => {
       })
       .then((data) => {
         setSubs(Array.isArray(data) ? data : []);
-        setLoading(false);
       })
       .catch(() => {
-        toast.error("Failed to load subscriptions");
+        setSubs([]);
+      })
+      .finally(() => {
         setLoading(false);
       });
   }, [userInfo]);

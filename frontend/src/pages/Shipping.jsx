@@ -146,7 +146,6 @@ const Shipping = () => {
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl overflow-hidden relative transition-all hover:border-gray-700">
             <AddressMap
               mapCenter={mapCenter}
-              setMapCenter={setMapCenter}
               onMapClick={(lat, lng) => {
                 setMapCenter([lat, lng]);
                 fetchAddressFromCoords(lat, lng);

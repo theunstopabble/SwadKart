@@ -52,7 +52,7 @@ const SwadPass = () => {
       // Step 2: Open Razorpay checkout
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: orderData.order.amount,
+        amount: orderData?.order?.amount ?? 0,
         currency: "INR",
         name: "SwadKart",
         description: `SwadPass ${selectedPlan} subscription`,

@@ -99,8 +99,8 @@ const Home = () => {
   useEffect(() => {
     const results = restaurants.filter((shop) => {
       return (
-        shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        shop.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        (shop.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (shop.description || "").toLowerCase().includes(searchTerm.toLowerCase())
       );
     });
     setFilteredRestaurants(results);
@@ -171,9 +171,9 @@ const Home = () => {
         <div className="flex items-center gap-4 mb-10">
           <div className="w-1 h-10 bg-primary rounded-full"></div>
           <h2 className="text-3xl md:text-4xl font-bold">
-            {searchTerm
-              ? `${t("resultsFor")} "${searchTerm}"`
-              : t("topRestaurants")}
+            {(searchTerm
+              ? `${t("resultsFor")} "${(searchTerm || "").slice(0, 50)}"`
+              : t("topRestaurants"))}
           </h2>
         </div>
 
@@ -270,7 +270,7 @@ const Home = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {recommendations.map((rec) => (
                 <Link
-                  key={rec.productId}
+                  key={rec.productId || rec._id || Math.random()}
                   to={`/restaurant/${rec.restaurant}`}
                   className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all group"
                 >

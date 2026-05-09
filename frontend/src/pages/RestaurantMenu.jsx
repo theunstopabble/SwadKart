@@ -57,13 +57,13 @@ const RestaurantMenu = () => {
         const restaurantData = await restaurantRes.json();
         const menuData = await menuRes.json();
 
-        setRestaurant(restaurantData.data || restaurantData || null);
+        const rest = restaurantData?.data || restaurantData || null;
+        setRestaurant(rest);
 
-        setMenu(
-          Array.isArray(menuData)
-            ? menuData
-            : menuData.data || menuData.products || [], // 👈 Check for backend pagination object
-        );
+        const menuItems = Array.isArray(menuData)
+          ? menuData
+          : menuData?.data || menuData?.products || [];
+        setMenu(menuItems);
       } catch {
         toast.error("Error loading menu");
       } finally {
@@ -221,12 +221,13 @@ const RestaurantMenu = () => {
                     <div className="relative h-52 overflow-hidden">
                       <img
                         src={item.image || "https://placehold.co/600x400"}
+                        onError={(e) => { e.target.src = "https://placehold.co/600x400/1f2937/white?text=No+Image"; }}
                         className={`w-full h-full object-cover transition-all duration-700 ${
                           item.countInStock === 0
                             ? "grayscale opacity-20"
                             : "group-hover:scale-110"
                         }`}
-                        alt=""
+                        alt={item.name || "Dish"}
                       />
                       {item.countInStock === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
