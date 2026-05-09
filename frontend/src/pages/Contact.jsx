@@ -55,14 +55,6 @@ const Contact = () => {
     } finally {
       setLoading(false);
     }
-
-      const data = await res.json().catch(() => ({ message: "Message sent" }));
-      toast.success(data.message || "Message dispatched successfully!");
-    } catch {
-      toast.error("Network Error: Could not reach the server 🌐");
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
