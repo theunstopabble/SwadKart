@@ -77,15 +77,54 @@ export const chatWithGenie = async (req, res) => {
       });
     }
 
+    // Early exit for anonymous callers — skip DB queries
+    if (!userId) {
+      const products = await Product.find({ countInStock: { $gt: 0 }, isAvailable: { $ne: false } })
+        .select("name price category isVeg restaurant")
+        .populate("restaurant", "name")
+        .limit(20);
+
+      const menuContext = products
+        .map(
+          (p) =>
+            `- ${p.name} (${p.category}) from ${p.restaurant?.name || "SwadKart"}: ₹${p.price} [${p.isVeg ? "Veg" : "Non-Veg"}]`,
+        )
+        .join("\n");
+
+      const systemPrompt = `
+        You are 'SwadKart Genie' 🧞‍♂️, a funny, witty, and helpful food assistant for India.
+        🎯 RULES:
+        1. **Language:** Hinglish (Hindi + English mix). Use slang like "Boss", "Arre", "Bindaas".
+        2. **Food Recs:** ONLY recommend items from [LIVE MENU]. Do not invent dishes.
+        3. **Tone:** Short (max 2-3 sentences), helpful, emojis 🍕🍔.
+        [LIVE MENU]: ${menuContext || "No items available"}
+        `;
+
+      const chatCompletion = await groq.chat.completions.create({
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: message }],
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.7,
+        max_tokens: 400,
+      });
+
+      return res.json({
+        reply: chatCompletion.choices[0]?.message?.content || "Arre boss, signal weak hai! 📵",
+        attachments: (req.files || []).map((f) => ({ name: f.originalname, type: f.mimetype, size: f.size })),
+      });
+    }
+
     // =================================================
     // 1️⃣ DATA GATHERING (Context Creation)
     // =================================================
 
-    // A. Fetch Live Menu
-    const products = await Product.find({ countInStock: { $gt: 0 }, isAvailable: { $ne: false } })
-      .select("name price category isVeg restaurant")
-      .populate("restaurant", "name")
-      .limit(30);
+    const [products, lastOrder, user] = await Promise.all([
+      Product.find({ countInStock: { $gt: 0 }, isAvailable: { $ne: false } })
+        .select("name price category isVeg restaurant")
+        .populate("restaurant", "name")
+        .limit(30),
+      Order.findOne({ user: userId }).sort({ createdAt: -1 }),
+      User.findById(userId).select("walletBalance"),
+    ]);
 
     const menuContext = products
       .map(
@@ -94,24 +133,11 @@ export const chatWithGenie = async (req, res) => {
       )
       .join("\n");
 
-    // B. Fetch Recent Order
-    let orderContext =
-      "User is currently not logged in or has no recent orders.";
-    if (userId) {
-      const lastOrder = await Order.findOne({ user: userId }).sort({
-        createdAt: -1,
-      });
-      if (lastOrder) {
-        orderContext = `Latest Order ID: #${lastOrder._id.toString().slice(-6)}, Status: ${lastOrder.orderStatus}, Items: ${lastOrder.orderItems.map((i) => i.name).join(", ")}, Total: ₹${lastOrder.totalPrice}`;
-      }
-    }
+    const orderContext = lastOrder
+      ? `Latest Order ID: #${lastOrder._id.toString().slice(-6)}, Status: ${lastOrder.orderStatus}, Items: ${lastOrder.orderItems.map((i) => i.name).join(", ")}, Total: ₹${lastOrder.totalPrice}`
+      : "User has no recent orders.";
 
-    // C. Fetch Wallet Balance & Format Cart Items (STEP 2)
-    let walletBalance = 0;
-    if (userId) {
-      const user = await User.findById(userId).select("walletBalance");
-      if (user) walletBalance = user.walletBalance || 0;
-    }
+    const walletBalance = user?.walletBalance || 0;
 
     let cartContext = "User cart is currently empty.";
     if (cartItems && Array.isArray(cartItems) && cartItems.length > 0) {
@@ -120,14 +146,8 @@ export const chatWithGenie = async (req, res) => {
         .join(", ");
     }
 
-    // ⬇️ FEAT-15: Extract text from uploaded attachments (PDF, DOCX, TXT, Image metadata)
     const attachmentContext = await extractAttachmentContext(req.files);
 
-    // =================================================
-    // 2️⃣ BRAIN CONFIGURATION (Groq Llama-3)
-    // =================================================
-
-    // 🧠 System Prompt (Instructions)
     const systemPrompt = `
         You are 'SwadKart Genie' 🧞‍♂️, a funny, witty, and helpful food assistant for India.
 
@@ -135,7 +155,7 @@ export const chatWithGenie = async (req, res) => {
         [USER'S LAST ORDER]: ${orderContext}
         [USER'S WALLET BALANCE]: ₹${walletBalance}
         [USER'S CURRENT CART]: ${cartContext}
-        [LIVE MENU]: 
+        [LIVE MENU]:
         ${menuContext}
         ${attachmentContext ? `[USER ATTACHMENTS]:\n${attachmentContext}` : ""}
 
@@ -149,14 +169,12 @@ export const chatWithGenie = async (req, res) => {
         7. **Attachments:** If user uploaded a PDF/TXT/DOCX with food preferences, dietary restrictions, or a menu, read the content and recommend accordingly. If they uploaded an image, say you can't see images yet but will help based on their message!
         `;
 
-    // 🚀 Call Groq API
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: message },
       ],
       model: "llama-3.3-70b-versatile",
-      // Super fast model
       temperature: 0.7,
       max_tokens: 400,
     });
@@ -165,9 +183,6 @@ export const chatWithGenie = async (req, res) => {
       chatCompletion.choices[0]?.message?.content ||
       "Arre boss, signal weak hai! 📵";
 
-    // =================================================
-    // 3️⃣ SEND RESPONSE
-    // =================================================
     res.json({
       reply: reply.trim(),
       attachments: (req.files || []).map((f) => ({

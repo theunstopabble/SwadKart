@@ -41,7 +41,7 @@ const SOSButton = () => {
           });
 
           if (res.ok) {
-            toast.success("🚨 SOS SENT! Admin notified.", { duration: 5000 });
+            toast.success("SOS SENT! Admin notified.", { duration: 5000 });
             setShowModal(false);
           } else {
             toast.error("SOS Signal Failed");
@@ -52,10 +52,15 @@ const SOSButton = () => {
           setLoading(false);
         }
       },
-      () => {
-        toast.error("GPS Permission Denied");
+      (err) => {
+        if (err.code === err.TIMEOUT) {
+          toast.error("GPS timeout. Try again.");
+        } else {
+          toast.error("GPS Permission Denied");
+        }
         setLoading(false);
       },
+      { timeout: 15000, maximumAge: 30000 }
     );
   };
 

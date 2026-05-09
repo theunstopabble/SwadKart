@@ -31,16 +31,12 @@ const getAxiosConfig = () => {
  */
 export const registerBiometric = async () => {
   try {
-    // 0. PRE-CHECK: Verify device actually supports biometric
-    console.log("🔐 Step 0: Pre-checking device capability...");
-
     if (!window.PublicKeyCredential) {
       throw new Error("This browser doesn't support WebAuthn.");
     }
 
     const isAvailable =
       await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    console.log("🔐 Platform authenticator available:", isAvailable);
 
     if (!isAvailable) {
       throw new Error(
@@ -48,20 +44,19 @@ export const registerBiometric = async () => {
       );
     }
 
-    // 1. Get Challenge from Server (Cookie-based auth)
     const config = getAxiosConfig();
-    console.log("🔐 Step 1: Getting registration options from server...");
-    const resp = await axios.get(`${API_URL}/register/start`, config);
-    console.log("🔐 Step 1 SUCCESS: Got options", resp.data);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const resp = await axios.get(`${API_URL}/register/start`, {
+      ...config,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
 
-    // 2. Trigger Browser/Phone Prompt
     let attResp;
     try {
-      console.log("🔐 Step 2: Triggering fingerprint scan...");
       attResp = await startRegistration({ optionsJSON: resp.data });
-      console.log("🔐 Step 2 SUCCESS: Got attestation response");
     } catch (error) {
-      console.error("🔐 Step 2 FAILED:", error.name, error.message);
       if (error.name === "InvalidStateError") {
         throw new Error("Authenticator already registered.");
       }
@@ -74,22 +69,22 @@ export const registerBiometric = async () => {
       throw new Error(error.message || "Fingerprint scan failed.");
     }
 
-    // 3. Send Result to Server
-    console.log("🔐 Step 3: Verifying with server...");
+    const verificationController = new AbortController();
+    const verifyTimeout = setTimeout(() => verificationController.abort(), 10000);
     const verificationResp = await axios.post(
       `${API_URL}/register/verify`,
       attResp,
-      config,
+      { ...config, signal: verificationController.signal },
     );
+    clearTimeout(verifyTimeout);
 
     if (verificationResp.data.verified) {
-      console.log("🔐 Step 3 SUCCESS: Biometric registered!");
       return true;
     } else {
       throw new Error("Verification failed on server");
     }
   } catch (error) {
-    console.error("🔐 Biometric Register Error:", error);
+    console.error("Biometric Register Error:", error);
     throw error;
   }
 };
@@ -103,19 +98,25 @@ export const registerBiometric = async () => {
  */
 export const authenticateBiometric = async () => {
   try {
-    // 1. Get Challenge (Cookie-based auth)
     const config = getAxiosConfig();
-    const resp = await axios.get(`${API_URL}/login/start`, config);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const resp = await axios.get(`${API_URL}/login/start`, {
+      ...config,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
 
-    // 2. Trigger Scan
     const asseResp = await startAuthentication({ optionsJSON: resp.data });
 
-    // 3. Verify
+    const verifyController = new AbortController();
+    const verifyTimeout = setTimeout(() => verifyController.abort(), 10000);
     const verificationResp = await axios.post(
       `${API_URL}/login/verify`,
       asseResp,
-      config,
+      { ...config, signal: verifyController.signal },
     );
+    clearTimeout(verifyTimeout);
 
     if (verificationResp.data.verified) {
       return true;

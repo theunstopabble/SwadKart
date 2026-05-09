@@ -24,7 +24,7 @@ const DeliveryCard = ({ order, onAction }) => {
             Order ID
           </p>
           <h3 className="text-lg font-black text-white italic tracking-tighter uppercase">
-            #{order._id.slice(-6)}
+            #{order._id ? order._id.slice(-6) : "------"}
           </h3>
         </div>
         <div
@@ -75,9 +75,9 @@ const DeliveryCard = ({ order, onAction }) => {
               Collect / Value
             </p>
             <p className="text-xl font-black text-white italic tracking-tighter">
-              ₹{order.totalPrice}
+              ₹{order.totalPrice || 0}
               <span className="text-[10px] text-gray-500 not-italic ml-2 font-bold bg-gray-800 px-2 py-0.5 rounded">
-                {order.paymentMethod}
+                {order.paymentMethod || "—"}
               </span>
             </p>
           </div>

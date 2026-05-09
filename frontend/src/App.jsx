@@ -105,39 +105,42 @@ function App() {
   }, [userInfo]);
 
   useEffect(() => {
-    // Notification permission is now requested only when user is logged in
-    // Dynamic import to reduce initial bundle (~5KB saved)
-    if (userInfo) {
+    let socket = null;
+    let handleOrderUpdate = null;
+    let cleanupRan = false;
+
+    if (!userInfo) return;
+
+    const setupSocket = async () => {
       import("./components/notificationHelper").then(
         ({ requestNotificationPermission }) => {
           requestNotificationPermission();
         },
       );
-    }
 
-    // ⚡ Dynamic import: Socket.IO is loaded only when user is logged in (~100KB saved from initial bundle)
-    let socket = null;
-    if (userInfo) {
       socket = getSocket();
-      const handleOrderUpdate = (order) => {
+      handleOrderUpdate = (order) => {
         import("./components/notificationHelper").then(
           ({ sendNotification }) => {
             sendNotification(`SwadKart: Order Update! 🛵`, {
-              body: `Your Order #${order._id.slice(-6).toUpperCase()} is now "${order.orderStatus}".`,
+              body: `Your Order #${order._id?.slice(-6).toUpperCase()} is now "${order.orderStatus}".`,
             });
           },
         );
         const audio = new Audio("/notification.mp3");
-        audio.play().catch(() => console.log("Audio alert blocked"));
+        audio.play().catch(() => {});
       };
       socket.on("orderUpdated", handleOrderUpdate);
+    };
 
-      return () => {
-        if (socket) {
-          socket.off("orderUpdated", handleOrderUpdate);
-        }
-      };
-    }
+    setupSocket();
+
+    return () => {
+      cleanupRan = true;
+      if (socket && handleOrderUpdate) {
+        socket.off("orderUpdated", handleOrderUpdate);
+      }
+    };
   }, [userInfo]);
 
   // 🔓 HANDLER: Unlock App (with retry counter)
@@ -337,13 +340,13 @@ function App() {
 // 🛡️ ROUTE GUARDS
 const PrivateRoute = () => {
   const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return <PageLoader />;
+  if (loading) return null;
   return userInfo ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const AdminRoute = () => {
   const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return <PageLoader />;
+  if (loading) return null;
   return userInfo && userInfo.role === "admin" ? (
     <Outlet />
   ) : (
@@ -353,7 +356,7 @@ const AdminRoute = () => {
 
 const RestaurantRoute = () => {
   const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return <PageLoader />;
+  if (loading) return null;
   const isAllowed =
     userInfo &&
     (userInfo.role === "restaurant_owner" || userInfo.role === "admin");
@@ -362,7 +365,7 @@ const RestaurantRoute = () => {
 
 const DeliveryRoute = () => {
   const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return <PageLoader />;
+  if (loading) return null;
   const isAllowed =
     userInfo &&
     (userInfo.role === "delivery_partner" || userInfo.role === "admin");

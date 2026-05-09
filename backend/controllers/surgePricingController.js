@@ -86,7 +86,22 @@ export const updateSurgeConfig = asyncHandler(async (req, res) => {
 
   if (baseDeliveryFee !== undefined) surgeConfig.baseDeliveryFee = Number(baseDeliveryFee);
   if (enabled !== undefined) surgeConfig.enabled = Boolean(enabled);
-  if (thresholds) surgeConfig.thresholds = { ...surgeConfig.thresholds, ...thresholds };
+  if (thresholds) {
+    if (thresholds.activeOrdersThreshold !== undefined) {
+      if (thresholds.activeOrdersThreshold < 0) {
+        res.status(400);
+        throw new Error("activeOrdersThreshold cannot be negative");
+      }
+      surgeConfig.thresholds.activeOrdersThreshold = thresholds.activeOrdersThreshold;
+    }
+    if (thresholds.minDriversRequired !== undefined) {
+      if (thresholds.minDriversRequired < 1) {
+        res.status(400);
+        throw new Error("minDriversRequired must be at least 1");
+      }
+      surgeConfig.thresholds.minDriversRequired = thresholds.minDriversRequired;
+    }
+  }
 
   if (multipliers) {
     if (!Array.isArray(multipliers) || multipliers.length === 0 || !multipliers.every((m) => typeof m === "number" && m > 0)) {

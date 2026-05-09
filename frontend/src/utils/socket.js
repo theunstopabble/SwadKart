@@ -13,6 +13,7 @@ export const getSocket = () => {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
+      timeout: 10000,
     });
 
     socket.on("connect_error", (err) => {
@@ -21,7 +22,6 @@ export const getSocket = () => {
 
     socket.on("disconnect", (reason) => {
       if (reason === "io server disconnect") {
-        // Server force-closed, need to reconnect manually
         socket.connect();
       }
     });

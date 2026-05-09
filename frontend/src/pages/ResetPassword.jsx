@@ -12,9 +12,15 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const submitHandler = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    if (!token) {
+      toast.error("Invalid reset link.");
+      navigate("/password/forgot");
+      return;
+    }
+
+    const submitHandler = async (e) => {
+      e.preventDefault();
+      setLoading(true);
 
     if (password !== confirmPassword) {
       toast.error("❌ Passwords do not match");

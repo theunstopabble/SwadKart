@@ -28,11 +28,15 @@ const GroupOrders = () => {
 
   const fetchOrders = async () => {
     try {
-      const { data } = await axios.get(
+      const res = await axios.get(
         `${BASEURL}/api/v1/group-orders/my`,
         { withCredentials: true }
       );
-      setOrders(Array.isArray(data) ? data : data.data || []);
+      if (res.status === 401 || res.status === 403) {
+        setOrders([]);
+      } else {
+        setOrders(Array.isArray(res.data) ? res.data : res.data?.data || []);
+      }
     } catch {
       setOrders([]);
     } finally {
@@ -219,7 +223,7 @@ const GroupOrders = () => {
                     </span>
                     <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
                       <Clock size={14} />
-                      Expires: {new Date(o.expiresAt).toLocaleTimeString()}
+                      Expires: {o.expiresAt ? new Date(o.expiresAt).toLocaleTimeString() : "—"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

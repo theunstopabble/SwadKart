@@ -63,7 +63,7 @@ const EarningsHistory = ({ tasks }) => {
               >
                 <div>
                   <p className="text-xs font-bold text-white uppercase font-mono group-hover:text-green-400 transition-colors">
-                    #{task._id.slice(-6).toUpperCase()}
+                    #{task._id ? task._id.slice(-6).toUpperCase() : "------"}
                   </p>
                   <p className="text-[10px] text-gray-500 mt-1 uppercase font-bold tracking-tighter">
                     {task.deliveredAt

@@ -31,13 +31,13 @@ const ForgotPassword = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage("✅ Success! Check your inbox for the reset link.");
+        setMessage("Success! Check your inbox for the reset link.");
         setEmail("");
       } else {
-        setError(data.message || "❌ Email not found in our records.");
+        setError(data.message || "Email not found in our records.");
       }
     } catch {
-      setError("❌ System error. Please try again later.");
+      setError("System error. Please try again later.");
     } finally {
       setLoading(false);
     }

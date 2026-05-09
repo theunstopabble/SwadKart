@@ -6,7 +6,8 @@ import { sanitizeObjectId } from "../utils/sanitize.js";
 // @route   GET /api/v1/inventory/low-stock
 // @access  Admin / Restaurant Owner
 export const getLowStockProducts = asyncHandler(async (req, res) => {
-  const threshold = Math.max(0, Number(req.query.threshold) || 5);
+  const rawThreshold = parseInt(req.query.threshold, 10);
+  const threshold = Number.isNaN(rawThreshold) ? 5 : Math.max(0, rawThreshold);
   const restaurantId = req.query.restaurant ? sanitizeObjectId(req.query.restaurant) : null;
 
   const query = { countInStock: { $lte: threshold } };
@@ -40,7 +41,7 @@ export const getLowStockProducts = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/inventory/bulk-restock
 // @access  Admin / Restaurant Owner
 export const bulkRestock = asyncHandler(async (req, res) => {
-  const { items } = req.body; // [{ productId, quantity }]
+  const { items } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ message: "items array required" });
@@ -49,44 +50,55 @@ export const bulkRestock = asyncHandler(async (req, res) => {
   const results = [];
   for (const item of items) {
     const productId = sanitizeObjectId(item.productId);
-    const qty = Math.max(0, Number(item.quantity) || 0);
+    const qty = Math.max(0, Math.round(Number(item.quantity)) || 0);
     if (!productId || qty === 0) continue;
 
-    const product = await Product.findById(productId);
-    if (!product) {
+    const isAdmin = req.user.role === "admin";
+
+    if (!isAdmin) {
+      const product = await Product.findById(productId).select("user");
+      if (!product) {
+        results.push({ productId: item.productId, status: "not_found" });
+        continue;
+      }
+      if (product.user?.toString() !== req.user._id.toString()) {
+        results.push({ productId: item.productId, status: "unauthorized" });
+        continue;
+      }
+    }
+
+    const updated = await Product.findOneAndUpdate(
+      { _id: productId, ...(isAdmin ? {} : { user: req.user._id }) },
+      {
+        $inc: { countInStock: qty },
+        $set: {
+          ...(qty > 0 ? { lastRestocked: new Date() } : {}),
+        },
+      },
+      { new: true },
+    );
+
+    if (!updated) {
       results.push({ productId: item.productId, status: "not_found" });
       continue;
     }
 
-    // Ownership check
-    const isOwner = product.user && product.user.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === "admin";
-    if (!isAdmin && !isOwner) {
-      results.push({ productId: item.productId, status: "unauthorized" });
-      continue;
+    if (updated.countInStock > 0 && updated.autoDisable && !updated.isAvailable) {
+      await Product.findByIdAndUpdate(productId, { isAvailable: true });
+      results.push({
+        productId: item.productId,
+        status: "restocked",
+        newStock: updated.countInStock,
+        autoEnabled: true,
+      });
+    } else {
+      results.push({
+        productId: item.productId,
+        status: "restocked",
+        newStock: updated.countInStock,
+        autoEnabled: false,
+      });
     }
-
-    const previousStock = product.countInStock;
-    product.countInStock += qty;
-
-    // 📦 FEAT-14: Auto-enable when restocked from 0
-    if (
-      previousStock === 0 &&
-      product.countInStock > 0 &&
-      product.autoDisable === true &&
-      product.isAvailable === false
-    ) {
-      product.isAvailable = true;
-      product.lastRestocked = new Date();
-    }
-
-    await product.save();
-    results.push({
-      productId: item.productId,
-      status: "restocked",
-      newStock: product.countInStock,
-      autoEnabled: previousStock === 0 && product.isAvailable,
-    });
   }
 
   res.json({ processed: results.length, results });
@@ -106,7 +118,11 @@ export const toggleAutoDisable = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Not authorized" });
   }
 
-  product.autoDisable = req.body.autoDisable !== undefined ? Boolean(req.body.autoDisable) : !product.autoDisable;
+  const autoDisable = req.body.autoDisable;
+  if (autoDisable !== undefined && typeof autoDisable !== "boolean") {
+    return res.status(400).json({ message: "autoDisable must be a boolean" });
+  }
+  product.autoDisable = autoDisable !== undefined ? autoDisable : !product.autoDisable;
   await product.save();
 
   res.json({

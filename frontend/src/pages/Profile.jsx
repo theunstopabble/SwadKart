@@ -71,17 +71,18 @@ const Profile = () => {
           setIsBiometricSupported(false);
         }
 
-        // 2. Fetch biometric status from server (if logged in)
         if (userInfo) {
-          const { data } = await axios.get(
-            `${BASEURL}/api/v1/users/profile/biometric-status`,
-            { withCredentials: true },
-          );
-          setBioEnabled(data.isBiometricEnabled);
-
-          // Also sync to localStorage for app lock
-          if (data.isBiometricEnabled && data.hasCredentials) {
-            localStorage.setItem("isBiometricEnabled", "true");
+          try {
+            const { data } = await axios.get(
+              `${BASEURL}/api/v1/users/profile/biometric-status`,
+              { withCredentials: true },
+            );
+            setBioEnabled(data.isBiometricEnabled);
+            if (data.isBiometricEnabled && data.hasCredentials) {
+              localStorage.setItem("isBiometricEnabled", "true");
+            }
+          } catch (err) {
+            console.error("Biometric Check Error:", err);
           }
         }
       } catch (err) {
@@ -111,9 +112,8 @@ const Profile = () => {
 
   // 👆 HANDLER: Toggle Biometric (Industry Standard)
   const handleBiometricToggle = async () => {
-    if (bioLoading) return;
+        if (bioLoading) return;
     setBioLoading(true);
-    setLocalMsg(null);
 
     try {
       const config = {

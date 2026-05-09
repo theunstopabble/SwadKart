@@ -56,7 +56,7 @@ export const getRecentOrdersForReorder = asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user._id })
     .sort({ createdAt: -1 })
     .limit(5)
-    .select("orderItems restaurant totalPrice createdAt status")
+    .select("orderItems restaurant totalPrice createdAt orderStatus")
     .populate("restaurant", "name image")
     .lean();
 

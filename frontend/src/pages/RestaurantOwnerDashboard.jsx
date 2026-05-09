@@ -53,7 +53,6 @@ const RestaurantOwnerDashboard = () => {
   const audioPlayer = useRef(null);
   const socketRef = useRef(null);
 
-  // 🛡️ Security Check
   useEffect(() => {
     if (userInfo && userInfo.role !== "restaurant_owner" && userInfo.role !== "admin") {
       toast.error("Access Denied: Restaurant Owners Only");

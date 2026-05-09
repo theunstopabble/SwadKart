@@ -46,6 +46,7 @@ const GoogleAuth = () => {
   // 1. Google Popup Handle
   const handleGoogleClick = async () => {
     try {
+      setLoading(true);
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
@@ -56,7 +57,13 @@ const GoogleAuth = () => {
         body: JSON.stringify({ email: user.email }),
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        toast.error("Server Error");
+        return;
+      }
 
       if (data.exists) {
         dispatch(setCredentials(data.user));
@@ -64,14 +71,16 @@ const GoogleAuth = () => {
         navigate("/");
       } else {
         setTempGoogleUser({
-          name: user.displayName,
-          email: user.email,
-          image: user.photoURL,
+          name: user.displayName || "",
+          email: user.email || "",
+          image: user.photoURL || "",
         });
         setShowPhoneModal(true);
       }
-    } catch {
-      toast.error("Server Error");
+    } catch (err) {
+      if (err.code !== "auth/cancelled-popup-request") {
+        toast.error("Server Error");
+      }
     } finally {
       setLoading(false);
     }

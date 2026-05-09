@@ -35,7 +35,7 @@ const CouponSection = ({
           />
 
           {/* X Button to remove applied coupon */}
-          {discount > 0 && (
+          {discount > 0 && removeHandler && (
             <button
               onClick={removeHandler}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-500 transition-colors"
@@ -47,7 +47,7 @@ const CouponSection = ({
         </div>
 
         {/* Apply Button (Visible only when no discount is applied) */}
-        {discount === 0 && (
+        {discount === 0 && applyHandler && (
           <button
             onClick={() => applyHandler()} // Calls handler with current input value
             disabled={loading || !couponCode.trim()}
@@ -78,9 +78,9 @@ const CouponSection = ({
                     {c.code}
                   </p>
                   <p className="text-[9px] text-gray-500 font-bold mt-0.5">
-                    {c.discountPercentage}% Off up to ₹{c.maxDiscountAmount}
+                    {c.discountPercentage || 0}% Off up to ₹{c.maxDiscountAmount || 0}
                   </p>
-                  {c.minOrderValue > 0 && (
+                  {(c.minOrderValue || 0) > 0 && (
                     <p className="text-[8px] text-gray-600 mt-0.5">
                       Min Order: ₹{c.minOrderValue}
                     </p>

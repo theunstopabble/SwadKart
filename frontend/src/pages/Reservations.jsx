@@ -30,11 +30,15 @@ const Reservations = () => {
 
   const fetchReservations = async () => {
     try {
-      const { data } = await axios.get(
+      const res = await axios.get(
         `${BASEURL}/api/v1/reservations/my`,
         { withCredentials: true }
       );
-      setReservations(Array.isArray(data) ? data : data.data || []);
+      if (res.status === 401 || res.status === 403) {
+        setReservations([]);
+      } else {
+        setReservations(Array.isArray(res.data) ? res.data : res.data?.data || []);
+      }
     } catch {
       setReservations([]);
     } finally {
@@ -231,9 +235,9 @@ const Reservations = () => {
                       <QrCode size={16} className="text-blue-400" />
                     )}
                   </div>
-                  <div className="text-sm text-gray-400 flex items-center gap-4 mt-2">
+                    <div className="text-sm text-gray-400 flex items-center gap-4 mt-2">
                     <span className="flex items-center gap-1">
-                      <Calendar size={14} /> {new Date(r.date).toLocaleDateString()}
+                      <Calendar size={14} /> {r.date ? new Date(r.date).toLocaleDateString() : "—"}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock size={14} /> {r.time}

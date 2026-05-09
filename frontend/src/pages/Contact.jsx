@@ -42,14 +42,22 @@ const Contact = () => {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        toast.success(data.message || "Message dispatched successfully! 🚀");
+        toast.success(data.message || "Message dispatched successfully!");
         setFormData({ name: "", email: "", subject: "", message: "" });
       } else {
-        toast.error(data.message || "Failed to send message ❌");
+        toast.error(data.message || "Failed to send message");
       }
+    } catch {
+      toast.error("Network error: Could not reach the server");
+    } finally {
+      setLoading(false);
+    }
+
+      const data = await res.json().catch(() => ({ message: "Message sent" }));
+      toast.success(data.message || "Message dispatched successfully!");
     } catch {
       toast.error("Network Error: Could not reach the server 🌐");
     } finally {

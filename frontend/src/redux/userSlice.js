@@ -43,8 +43,7 @@ export const validateSession = createAsyncThunk(
 
       clearTimeout(timeoutId);
 
-      if (res.status === 401) {
-        // SESSION-01 FIX: ONLY logout on 401 — token genuinely expired or invalid
+      if (res.status === 401 || res.status === 403) {
         dispatch(logout());
         return null;
       }

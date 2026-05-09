@@ -17,6 +17,7 @@ if (!admin.apps.length) {
 
 export const sendPush = async (fcmToken, title, body, data = {}) => {
   if (!fcmToken) return null;
+  if (!admin.apps.length) return null;
 
   const payload = {
     notification: { title, body },
@@ -29,10 +30,9 @@ export const sendPush = async (fcmToken, title, body, data = {}) => {
 
   try {
     const response = await admin.messaging().send(payload);
-    console.log("✅ Successfully sent push notification:", response);
     return response;
   } catch (error) {
-    console.error("❌ Error sending push notification:", error.message);
+    console.error("❌ Push notification error:", error.message);
     return null;
   }
 };

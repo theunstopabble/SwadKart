@@ -24,7 +24,10 @@ const MySubscriptions = () => {
   useEffect(() => {
     if (!userInfo) return;
     fetch(`${BASEURL}/api/v1/subscriptions/my`, { credentials: "include" })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("fetch failed");
+        return r.json();
+      })
       .then((data) => {
         setSubs(Array.isArray(data) ? data : []);
         setLoading(false);
@@ -45,7 +48,7 @@ const MySubscriptions = () => {
       toast.success(type === "pause" ? "Subscription paused" : type === "resume" ? "Subscription resumed" : "Subscription cancelled");
       const updated = await res.json();
       setSubs((prev) =>
-        prev.map((s) => (s._id === id ? { ...s, status: updated.subscription.status } : s)),
+        prev.map((s) => (s._id === id ? { ...s, status: updated.subscription?.status || s.status } : s)),
       );
     } else {
       toast.error("Action failed");

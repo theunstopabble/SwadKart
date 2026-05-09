@@ -135,24 +135,45 @@ export const adminAdjustCoins = asyncHandler(async (req, res) => {
     throw new Error("User not found");
   }
 
-  if (coins < 0 && user.swadCoins + coins < 0) {
-    res.status(400);
-    throw new Error("Cannot reduce coins below zero");
+  if (coins < 0) {
+    const updated = await User.findOneAndUpdate(
+      { _id: userId, swadCoins: { $gte: Math.abs(coins) } },
+      { $inc: { swadCoins: coins } },
+      { new: true },
+    );
+    if (!updated) {
+      res.status(400);
+      throw new Error("Cannot reduce coins below zero");
+    }
+    await CoinTransaction.create({
+      user: userId,
+      type: "Refund",
+      amount: coins,
+      description: reason || `Admin adjustment by ${req.user.email}`,
+    });
+    return res.json({
+      success: true,
+      message: `Deducted ${Math.abs(coins)} coins`,
+      newBalance: updated.swadCoins,
+    });
   }
 
-  user.swadCoins = Math.max(0, (user.swadCoins || 0) + coins);
-  await user.save();
+  const updated = await User.findOneAndUpdate(
+    { _id: userId },
+    { $inc: { swadCoins: coins } },
+    { new: true },
+  );
 
   await CoinTransaction.create({
     user: userId,
-    type: coins > 0 ? "Bonus" : "Refund",
+    type: "Bonus",
     amount: coins,
     description: reason || `Admin adjustment by ${req.user.email}`,
   });
 
   res.json({
     success: true,
-    message: `${coins > 0 ? "Added" : "Deducted"} ${Math.abs(coins)} coins`,
-    newBalance: user.swadCoins,
+    message: `Added ${coins} coins`,
+    newBalance: updated.swadCoins,
   });
 });

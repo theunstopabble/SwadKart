@@ -20,7 +20,6 @@ const ALLOWED_HOSTS = [
   "images.unsplash.com",
   "img.freepik.com",
   "placehold.co",
-  "localhost",
   "b.zmtcdn.com",
   "assets.tmecosys.com",
   "data.thefeedfeed.com",
@@ -50,9 +49,13 @@ export const generateThumbnail = async (req, res) => {
     return res.status(403).json({ message: "URL not in allowlist" });
   }
 
-  let width = Math.min(parseInt(w, 10) || 300, MAX_DIM);
-  let height = h ? Math.min(parseInt(h, 10), MAX_DIM) : null;
-  let quality = Math.min(parseInt(q, 10) || 80, 100);
+  let width = Math.min(Number.parseInt(w, 10) || 300, MAX_DIM);
+  let height = h ? Math.min(Number.parseInt(h, 10) || 300, MAX_DIM) : null;
+  let quality = Math.min(Number.parseInt(q, 10) || 80, 100);
+
+  if (Number.isNaN(width)) width = 300;
+  if (Number.isNaN(height)) height = null;
+  if (Number.isNaN(quality)) quality = 80;
 
   // Prevent zero/negative
   width = Math.max(1, width);

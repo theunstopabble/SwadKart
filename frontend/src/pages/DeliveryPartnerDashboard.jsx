@@ -54,7 +54,10 @@ const DeliveryPartnerDashboard = () => {
   }, [userInfo]);
 
   useEffect(() => {
-    if (!userInfo) return navigate("/login");
+    if (!userInfo) {
+      navigate("/login");
+      return;
+    }
 
     fetchMyDeliveries();
 

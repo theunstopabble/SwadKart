@@ -74,9 +74,16 @@ const ChatBot = () => {
         credentials: "include",
         body: formData,
       });
-
-      const data = await res.json();
       setFiles([]);
+
+      if (!res.ok) throw new Error("chat failed");
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = { reply: "Genie is out of magic! Please check your internet." };
+      }
 
       setMessages((prev) => [
         ...prev,
