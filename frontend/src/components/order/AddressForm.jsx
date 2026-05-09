@@ -23,7 +23,7 @@ const AddressForm = ({
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6 relative z-10">
+    <form onSubmit={onSubmit || ((e) => e.preventDefault())} className="space-y-6 relative z-10">
       {/* 🏷️ Header Label */}
       <div className="flex items-center gap-2 mb-2">
         <ShieldCheck size={14} className="text-primary" />
@@ -113,10 +113,11 @@ const AddressForm = ({
         <div className="absolute top-1/2 -translate-y-1/2 left-4 text-gray-600 group-focus-within:text-primary transition-colors">
           <MapIcon size={18} />
         </div>
-        <input
+          <input
           name="postalCode"
           type="text"
           inputMode="numeric"
+          minLength={6}
           maxLength={6}
           placeholder="Pincode"
           value={formData.postalCode}

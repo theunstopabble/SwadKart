@@ -35,13 +35,15 @@ const MyOrders = () => {
           const res = await fetch(`${BASEURL}/api/v1/orders/myorders`, {
             credentials: "include",
           });
-          const data = await res.json();
-          const ordersArray = Array.isArray(data) ? data : data.data || [];
-          setOrders(
-            ordersArray.sort(
-              (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-            ),
-          );
+          if (res.ok) {
+            const data = await res.json();
+            const ordersArray = Array.isArray(data) ? data : data.data || [];
+            setOrders(
+              ordersArray.sort(
+                (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+              ),
+            );
+          }
         } catch {
           toast.error("Failed to load orders");
         } finally {
@@ -154,7 +156,8 @@ const MyOrders = () => {
                       <span className="bg-black/50 text-gray-400 px-3 py-1.5 rounded-lg text-[9px] font-extrabold uppercase tracking-[0.2em] border border-gray-800">
                         ID:{" "}
                         {order._id
-                          .substring(order._id.length - 10)
+                          ? order._id.substring(order._id.length - 10)
+                          : "N/A"
                           .toUpperCase()}
                       </span>
                       <div className="flex items-center gap-2 text-gray-500 text-[10px] font-bold mt-3">
@@ -198,28 +201,28 @@ const MyOrders = () => {
 
                   {/* Items List */}
                   <div className="bg-black/50 rounded-xl border border-gray-800 p-6 mb-8 divide-y divide-gray-800/50">
-                    {order.orderItems.map((item, index) => (
+                    {(order.orderItems || []).map((item, index) => (
                       <div
                         key={index}
                         className="py-4 first:pt-0 last:pb-0 flex justify-between items-center group/item"
                       >
                         <div className="flex items-center gap-4">
                           <img
-                            src={item.image}
-                            alt={item.name}
+                            src={item.image || "https://placehold.co/56"}
+                            alt={item.name || "Item"}
                             className="w-14 h-14 rounded-xl object-cover grayscale group-hover/item:grayscale-0 transition-all border border-gray-800"
                           />
                           <div>
                             <p className="text-sm font-extrabold uppercase italic tracking-tight text-gray-200">
-                              {item.name}
+                              {item.name || "Unknown Item"}
                               <span className="text-primary ml-2 lowercase">
-                                x{item.qty}
+                                x{(item.qty ?? 0)}
                               </span>
                             </p>
                             <div className="flex gap-2 mt-1.5">
                               {item.selectedVariant && (
                                 <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest bg-gray-900 px-2 py-0.5 rounded border border-gray-800">
-                                  Size: {item.selectedVariant.name}
+                                  Size: {item.selectedVariant.name || item.selectedVariant}
                                 </span>
                               )}
                               {item.selectedAddons?.length > 0 && (
@@ -231,7 +234,7 @@ const MyOrders = () => {
                           </div>
                         </div>
                         <span className="font-mono text-sm font-extrabold italic tracking-tighter text-white">
-                          ₹{item.price * item.qty}
+                          ₹{((item.price ?? 0) * (item.qty ?? 0)).toFixed(2)}
                         </span>
                       </div>
                     ))}
@@ -295,7 +298,7 @@ const MyOrders = () => {
                     Grand Total
                   </span>
                   <span className="text-2xl font-extrabold italic tracking-tighter text-primary">
-                    ₹{order.totalPrice}
+                    ₹{(order.totalPrice ?? 0).toFixed(2)}
                   </span>
                 </div>
               </div>

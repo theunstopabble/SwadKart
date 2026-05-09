@@ -40,13 +40,16 @@ const ProductCard = ({ product }) => {
     <div className="bg-gray-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-primary/50 transition-all duration-300 transform hover:-translate-y-2 border border-gray-800 group h-full flex flex-col">
       {/* Image Section */}
       <div className="relative h-48 overflow-hidden">
-        <img
-          src={product.image}
-          alt={product.name}
-          className={`w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110 ${
-            product.countInStock === 0 ? "grayscale opacity-50" : ""
-          }`}
-        />
+          <img
+            src={product.image || "/placeholder-food.jpg"}
+            alt={product.name || "Item"}
+            className={`w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110 ${
+              product.countInStock === 0 ? "grayscale opacity-50" : ""
+            }`}
+            onError={(e) => {
+              e.target.src = "/placeholder-food.jpg";
+            }}
+          />
 
         {/* 🚫 SOLD OUT OVERLAY */}
         {product.countInStock === 0 && (

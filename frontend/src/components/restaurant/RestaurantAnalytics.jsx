@@ -26,9 +26,13 @@ const RestaurantAnalytics = () => {
 
         if (!res.ok) throw new Error("Failed to fetch stats");
 
-        const result = await res.json();
+        let result;
+        try {
+          result = await res.json();
+        } catch {
+          throw new Error("Invalid response from server");
+        }
 
-        // 🛡️ Safe Mapping (prevents crash if result is not array)
         const safeResult = Array.isArray(result) ? result : [];
 
         const formatted = safeResult.map((item) => ({

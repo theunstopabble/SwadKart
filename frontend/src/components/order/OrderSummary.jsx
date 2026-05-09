@@ -39,7 +39,7 @@ const OrderSummary = ({
             Items Total
           </span>
           <span className="text-sm font-extrabold text-gray-200 italic">
-            ₹{itemsPrice}
+            ₹{itemsPrice ?? 0}
           </span>
         </div>
 
@@ -48,7 +48,7 @@ const OrderSummary = ({
             Tax Protocol
           </span>
           <span className="text-sm font-extrabold text-gray-200 italic">
-            ₹{taxPrice}
+            ₹{taxPrice ?? 0}
           </span>
         </div>
 
@@ -122,7 +122,7 @@ const OrderSummary = ({
           </span>
         </div>
         <span className="text-4xl font-extrabold text-primary italic tracking-tighter drop-shadow-xl">
-          ₹{totalPrice}
+          ₹{totalPrice ?? 0}
         </span>
       </div>
 

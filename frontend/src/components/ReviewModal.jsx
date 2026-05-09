@@ -52,15 +52,15 @@ const ReviewModal = ({ isOpen, onClose, orderItems }) => {
       const data = await res.json();
 
       if (res.ok) {
-        toast.success(`${currentItem.name} rated! ⭐`);
+        toast.success(`${currentItem?.name || "Item"} rated!`);
         moveToNext();
       } else {
-        // If already reviewed, just move to next item
-        if (data.message.toLowerCase().includes("already")) {
+        const errorMsg = data?.message?.toLowerCase?.() || "";
+        if (errorMsg.includes("already")) {
           toast.error("You already reviewed this item");
           moveToNext();
         } else {
-          toast.error(data.message || "Failed to submit");
+          toast.error(data?.message || "Failed to submit");
         }
       }
     } catch {

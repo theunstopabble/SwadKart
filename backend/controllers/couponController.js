@@ -168,8 +168,10 @@ export const validateCoupon = async (req, res) => {
 // @route   GET /api/v1/coupons/available
 // @access  Private (Needs User Auth to check usage history)
 export const getApplicableCoupons = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const currentDate = new Date();
 
-    // Fetch all active and valid coupons
     const query = {
       isActive: true,
       expirationDate: { $gte: currentDate },
@@ -181,18 +183,15 @@ export const getApplicableCoupons = async (req, res) => {
     let unusedCoupons = allCoupons;
 
     if (userId) {
-      // Find all coupons this user has already used from CouponUsage model
       const usedCouponsDocs = await CouponUsage.find({ user: userId }).select(
         "coupon",
       );
       const usedCouponIds = usedCouponsDocs.map((doc) => doc.coupon.toString());
 
-      // Filter them out
       unusedCoupons = allCoupons.filter(
         (c) => !usedCouponIds.includes(c._id.toString()),
       );
 
-      // Check if user has past paid orders to hide WELCOME coupons
       const orderCount = await Order.countDocuments({
         user: userId,
         isPaid: true,

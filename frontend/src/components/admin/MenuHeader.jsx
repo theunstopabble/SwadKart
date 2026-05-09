@@ -27,7 +27,7 @@ const MenuHeader = ({
           className="flex-1 xl:w-80 bg-black border border-gray-800 rounded-2xl p-4 text-sm font-black uppercase italic tracking-widest text-white focus:border-primary transition-all outline-none"
         >
           <option value="">Select a Restaurant</option>
-          {restaurants.map((r) => (
+          {(restaurants || []).map((r) => (
             <option key={r._id} value={r._id}>
               {r.name}
             </option>

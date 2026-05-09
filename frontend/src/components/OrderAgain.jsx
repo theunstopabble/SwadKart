@@ -13,21 +13,25 @@ const OrderAgain = () => {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     const fetchFrequent = async () => {
       setLoading(true);
       try {
         const res = await fetch(`${BASEURL}/api/v1/reorder/frequent`, {
           credentials: "include",
         });
-        const data = await res.json();
-        if (res.ok) setItems(data.frequentItems || []);
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json().catch(() => ({ frequentItems: [] }));
+          if (!cancelled) setItems(data.frequentItems || []);
+        }
       } catch {
-        // silent fail — non-critical
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchFrequent();
+    return () => { cancelled = true; };
   }, [user]);
 
   const handleReorder = (item) => {

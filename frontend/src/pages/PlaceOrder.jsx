@@ -229,19 +229,18 @@ const PlaceOrder = () => {
       });
 
       const dbData = await res.json();
-      if (!res.ok) throw new Error(dbData.message);
+      if (!res.ok) throw new Error(dbData?.message || "Order creation failed");
 
       // 5. Handle Payment Flow
       if (cart.paymentMethod === "COD") {
         handleOrderSuccess(
           dbData._id,
-          "COD-" + dbData._id.slice(-6).toUpperCase(),
+          "COD-" + (dbData._id?.slice(-6) || "000000").toUpperCase(),
         );
       } else if (cart.paymentMethod === "Wallet") {
-        // Wallet handled server-side — order already isPaid=true
         handleOrderSuccess(
           dbData._id,
-          "WALLET-" + dbData._id.slice(-6).toUpperCase(),
+          "WALLET-" + (dbData._id?.slice(-6) || "000000").toUpperCase(),
         );
       } else {
         const orderRes = await fetch(`${BASEURL}/api/v1/payment/create`, {
@@ -254,11 +253,13 @@ const PlaceOrder = () => {
             orderId: dbData._id,
           }),
         });
+        if (!orderRes.ok) throw new Error("Failed to create payment order");
         const { order: razorpayOrder } = await orderRes.json();
 
         const keyRes = await fetch(`${BASEURL}/api/v1/payment/key`, {
           credentials: "include",
         });
+        if (!keyRes.ok) throw new Error("Failed to fetch payment key");
         const { key } = await keyRes.json();
 
         const options = {
@@ -322,16 +323,16 @@ const PlaceOrder = () => {
           >
             <div className="space-y-1 bg-gray-900/50 p-6 rounded-2xl border border-gray-800 shadow-sm">
               <p className="font-extrabold uppercase text-lg tracking-tight italic text-white">
-                {cart.shippingAddress.fullName}
+                {cart.shippingAddress?.fullName || "N/A"}
               </p>
               <p className="text-sm text-gray-400 font-medium italic leading-relaxed">
-                {cart.shippingAddress.address}, {cart.shippingAddress.city} -{" "}
-                {cart.shippingAddress.postalCode}
+                {cart.shippingAddress?.address || ""}, {cart.shippingAddress?.city || ""} -{" "}
+                {cart.shippingAddress?.postalCode || ""}
               </p>
               <div className="flex items-center gap-3 mt-4">
                 <div className="flex items-center gap-2 bg-green-500/10 text-green-500 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-green-500/20">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>{" "}
-                  Verified: {cart.shippingAddress.phone}
+                  Verified: {cart.shippingAddress?.phone || "N/A"}
                 </div>
               </div>
             </div>

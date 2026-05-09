@@ -96,7 +96,7 @@ const SuccessScreen = ({ countdown, paymentDetails, totalPrice }) => {
           </div>
           <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
             <span>Date</span>
-            <span className="text-gray-700">{paymentDetails.date}</span>
+            <span className="text-gray-700">{paymentDetails?.date || "—"}</span>
           </div>
         </div>
 
@@ -105,9 +105,9 @@ const SuccessScreen = ({ countdown, paymentDetails, totalPrice }) => {
             <span className="text-[10px] font-bold text-gray-400 uppercase">
               Payment ID
             </span>
-            <span className="text-sm font-mono font-medium text-gray-700 truncate w-44">
-              {paymentDetails.id}
-            </span>
+              <span className="text-sm font-mono font-medium text-gray-700 truncate w-44">
+                {paymentDetails?.id || "—"}
+              </span>
           </div>
           <button
             onClick={copyToClipboard}

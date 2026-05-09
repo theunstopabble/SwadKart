@@ -25,14 +25,18 @@ const InstallPWA = () => {
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
 
-    deferredPrompt.prompt();
+    try {
+      const result = await deferredPrompt.prompt();
+      const { outcome } = result?.userChoice || {};
 
-    const { outcome } = await deferredPrompt.userChoice;
-
-    if (outcome === "accepted") {
-      console.log("User accepted the install prompt");
+      if (outcome === "accepted") {
+        console.log("User accepted the install prompt");
+      }
+    } catch {
+      console.warn("PWA install prompt not supported in this browser");
+    } finally {
       setDeferredPrompt(null);
-      setIsVisible(false); // ✅ Install hone ke baad button gayab
+      setIsVisible(false);
     }
   };
 

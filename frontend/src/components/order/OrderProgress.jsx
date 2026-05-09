@@ -7,7 +7,8 @@ import {
 } from "lucide-react";
 
 const OrderProgress = ({ currentStatus, statusSteps }) => {
-  const currentIndex = statusSteps.indexOf(currentStatus);
+  const safeSteps = Array.isArray(statusSteps) ? statusSteps : [];
+  const currentIndex = safeSteps.indexOf(currentStatus);
 
   const getIcon = (index) => {
     const icons = [

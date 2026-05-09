@@ -249,10 +249,12 @@ const Register = () => {
               </div>
               <input
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
                 placeholder="• • • • • •"
                 className="block w-full pl-12 pr-4 py-4 bg-black/50 border border-primary/50 rounded-xl text-center text-white text-2xl font-black tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder-gray-700"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 maxLength={6}
                 autoFocus
               />

@@ -69,7 +69,7 @@ const LiveOrders = ({
               <div className="flex justify-between mb-4 border-b border-gray-800 pb-4">
                 <div>
                   <h3 className="text-xl font-black flex items-center gap-2">
-                    #{order._id.substring(0, 6).toUpperCase()}
+                    #{order._id ? order._id.substring(0, 6).toUpperCase() : "------"}
                   </h3>
                   <div className="mt-3 space-y-2 text-sm">
                     <p className="text-white font-bold flex items-center gap-2">
@@ -86,9 +86,9 @@ const LiveOrders = ({
 
               {/* 📋 ORDER ITEMS */}
               <div className="space-y-3 mb-6 bg-black/40 p-4 rounded-xl border border-gray-800">
-                {order.orderItems.map((item, idx) => (
+                {(order.orderItems || []).map((item, idx) => (
                   <div
-                    key={idx}
+                    key={item._id || item.name || idx}
                     className="flex justify-between items-start text-sm"
                   >
                     <div>
@@ -153,7 +153,7 @@ const LiveOrders = ({
                       }
                     >
                       <option value="">Select Delivery Partner</option>
-                      {deliveryPartners.map((p) => (
+                      {(deliveryPartners || []).map((p) => (
                         <option key={p._id} value={p._id}>
                           {p.name}
                         </option>

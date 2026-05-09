@@ -52,7 +52,7 @@ const ItemModal = ({
         body: formData,
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
         setNewItem({ ...newItem, image: data.image });
@@ -71,17 +71,18 @@ const ItemModal = ({
   const handleAddVariant = () =>
     setNewItem({
       ...newItem,
-      variants: [...newItem.variants, { name: "", price: "" }],
+      variants: [...(newItem.variants || []), { name: "", price: "" }],
     });
 
   const handleRemoveVariant = (index) =>
     setNewItem({
       ...newItem,
-      variants: newItem.variants.filter((_, i) => i !== index),
+      variants: (newItem.variants || []).filter((_, i) => i !== index),
     });
 
   const handleVariantChange = (index, field, value) => {
-    const updated = [...newItem.variants];
+    const updated = [...(newItem.variants || [])];
+    if (index >= updated.length) return;
     updated[index][field] = value;
     setNewItem({ ...newItem, variants: updated });
   };
@@ -89,17 +90,18 @@ const ItemModal = ({
   const handleAddAddon = () =>
     setNewItem({
       ...newItem,
-      addons: [...newItem.addons, { name: "", price: "" }],
+      addons: [...(newItem.addons || []), { name: "", price: "" }],
     });
 
   const handleRemoveAddon = (index) =>
     setNewItem({
       ...newItem,
-      addons: newItem.addons.filter((_, i) => i !== index),
+      addons: (newItem.addons || []).filter((_, i) => i !== index),
     });
 
   const handleAddonChange = (index, field, value) => {
-    const updated = [...newItem.addons];
+    const updated = [...(newItem.addons || [])];
+    if (index >= updated.length) return;
     updated[index][field] = value;
     setNewItem({ ...newItem, addons: updated });
   };

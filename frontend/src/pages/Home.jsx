@@ -235,7 +235,7 @@ const Home = () => {
                 {/* Details Section */}
                 <div className="p-6">
                   <h3 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors">
-                    {shop.name}
+                    {shop.name || "Restaurant"}
                   </h3>
                   <div className="flex items-center gap-2 text-gray-400 text-sm mb-4">
                     <MapPin size={16} className="text-primary" />
@@ -276,7 +276,7 @@ const Home = () => {
                 >
                   <div className="h-32 overflow-hidden">
                     <img
-                      src={rec.image || `${BASEURL}/api/v1/image/thumbnail?url=${encodeURIComponent("https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300")}&w=300&q=70&fit=cover`}
+                      src={rec.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300"}
                       alt={rec.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                       loading="lazy"

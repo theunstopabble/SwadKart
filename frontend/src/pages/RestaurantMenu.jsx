@@ -50,11 +50,14 @@ const RestaurantMenu = () => {
           fetch(`${BASEURL}/api/v1/products/restaurant/${id}`),
         ]);
 
+        if (!restaurantRes.ok || !menuRes.ok) {
+          throw new Error("Failed to load restaurant data");
+        }
+
         const restaurantData = await restaurantRes.json();
         const menuData = await menuRes.json();
 
-        // 👈 FIX: Added `.data` fallback for both Restaurant and Menu Items
-        setRestaurant(restaurantData.data || restaurantData);
+        setRestaurant(restaurantData.data || restaurantData || null);
 
         setMenu(
           Array.isArray(menuData)
@@ -74,6 +77,7 @@ const RestaurantMenu = () => {
   useEffect(() => {
     if (!userInfo) return; // Only connect if logged in
     const socket = getSocket();
+    if (!socket) return;
     const handleProductUpdate = (updated) => {
       setMenu((prev) =>
         prev.map((it) => (it._id === updated._id ? { ...it, ...updated } : it)),
@@ -90,7 +94,7 @@ const RestaurantMenu = () => {
   const categorizedMenu = useMemo(() => {
     let filtered = menu.filter(
       (it) =>
-        it.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        it.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
         (!isVegOnly || it.isVeg) &&
         it.countInStock > 0 &&
         it.isAvailable !== false,
@@ -244,7 +248,7 @@ const RestaurantMenu = () => {
                     <div className="p-6 flex flex-col flex-1 bg-gray-900">
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="text-xl font-extrabold uppercase italic text-white group-hover:text-primary transition-colors leading-none">
-                          {item.name}
+{item.name || "Dish"}
                         </h3>
                         <span className="text-xl font-extrabold text-white italic">
                           ₹{item.price}

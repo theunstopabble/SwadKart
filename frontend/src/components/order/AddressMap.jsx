@@ -44,7 +44,11 @@ const AddressMap = ({
   const LocationMarker = () => {
     useMapEvents({
       click(e) {
-        onMapClick(e.latlng.lat, e.latlng.lng);
+        const lat = Number(e.latlng.lat);
+        const lng = Number(e.latlng.lng);
+        if (lat && lng && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+          onMapClick && onMapClick(lat, lng);
+        }
       },
     });
     return (
@@ -67,7 +71,12 @@ const AddressMap = ({
           className="w-full bg-black/50 text-white pl-12 pr-28 py-4 rounded-xl border border-gray-800 focus:border-primary outline-none transition-all shadow-lg text-[11px] font-bold uppercase tracking-tight placeholder:text-gray-700"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch(e)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSearch && handleSearch(e);
+            }
+          }}
         />
         <button
           onClick={handleSearch}
@@ -92,7 +101,7 @@ const AddressMap = ({
         </div>
 
         <MapContainer
-          center={mapCenter}
+          center={Array.isArray(mapCenter) ? mapCenter : [26.9124, 75.7873]}
           zoom={16}
           scrollWheelZoom={false}
           style={{ height: "100%", width: "100%" }}

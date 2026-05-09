@@ -57,9 +57,9 @@ const Cart = () => {
         const res = await fetch(`${BASEURL}/api/v1/coupons/available`, {
           credentials: "include",
         });
-        const data = await res.json();
         if (res.ok) {
-          setAvailableCoupons(data);
+          const data = await res.json();
+          setAvailableCoupons(Array.isArray(data) ? data : []);
         }
       } catch (error) {
         console.error("Error fetching coupons:", error);
@@ -199,18 +199,18 @@ const Cart = () => {
               >
                 {/* Product Image */}
                 <img
-                  src={item.image}
-                  alt={item.name}
+                  src={item.image || "https://placehold.co/100"}
+                  alt={item.name || "Item"}
                   className="w-24 h-24 object-cover rounded-xl mb-4 sm:mb-0 grayscale group-hover:grayscale-0 transition-all duration-500 border border-gray-800"
                 />
 
                 {/* Product Details */}
                 <div className="sm:ml-6 flex-1 text-center sm:text-left">
                   <span className="text-lg font-bold italic uppercase text-white">
-                    {item.name}
+                    {item.name || "Unknown Item"}
                   </span>
                   <p className="text-primary font-bold text-lg mt-1">
-                    ₹{item.price}
+                    ₹{item.price ?? 0}
                   </p>
 
                   {/* Variants & Addons Display */}

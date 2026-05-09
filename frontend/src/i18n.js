@@ -24,6 +24,14 @@ i18n
       order: ["localStorage", "navigator"],
       caches: ["localStorage"],
     },
+    react: {
+      useSuspense: false,
+    },
+    ns: ["common"],
+    defaultNS: "common",
+  })
+  .catch((err) => {
+    console.warn("i18n initialization failed:", err.message);
   });
 
 export default i18n;

@@ -30,6 +30,7 @@ export const sendNotification = asyncHandler(async (req, res) => {
     if (user?.fcmToken) {
       // Dynamic import to avoid loading firebase-admin if not configured
       const { getMessaging } = await import("firebase-admin/messaging");
+      if (admin.apps.length === 0) throw new Error("Firebase not initialized");
       await getMessaging().send({
         token: user.fcmToken,
         notification: { title, body },

@@ -53,7 +53,7 @@ const MenuManagement = ({
 
               {/* Stock Toggle Button */}
               <button
-                onClick={() => handleToggleStock(item._id)}
+                onClick={() => item._id && handleToggleStock(item._id)}
                 className={`absolute bottom-2 left-2 p-2 rounded-lg flex items-center gap-2 text-[10px] font-black border z-10 transition-all shadow-lg backdrop-blur-sm ${
                   item.countInStock > 0
                     ? "bg-green-500/20 text-green-400 border-green-500/50"
@@ -101,13 +101,13 @@ const MenuManagement = ({
               {/* Action Buttons */}
               <div className="flex gap-2">
                 <button
-                  onClick={() => openEditModal(item)}
+                  onClick={() => item && openEditModal(item)}
                   className="flex-1 bg-gray-800 hover:bg-blue-600 text-gray-300 hover:text-white py-2.5 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all"
                 >
                   <Edit2 size={14} /> Edit
                 </button>
                 <button
-                  onClick={() => handleDeleteItem(item._id)}
+                  onClick={() => item._id && handleDeleteItem(item._id)}
                   className="flex-1 bg-gray-800 hover:bg-red-600 text-gray-300 hover:text-white py-2.5 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all"
                 >
                   <Trash2 size={14} /> Delete

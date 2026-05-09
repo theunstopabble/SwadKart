@@ -34,17 +34,22 @@ const LiveTrackingMap = ({ orderId, restaurantCoords, userCoords }) => {
 
   useEffect(() => {
     const socket = getSocket();
+    if (!socket || !orderId) return;
 
-    // Join order room to listen specifically for this order's driver
     socket.emit("joinOrder", orderId);
 
     const handleDriverLocation = (coords) => {
-      setDriverPos([coords.lat, coords.lng]);
+      const lat = Number(coords?.lat);
+      const lng = Number(coords?.lng);
+      if (lat && lng && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+        setDriverPos([lat, lng]);
+      }
     };
     socket.on("driverLocationUpdate", handleDriverLocation);
 
     return () => {
       socket.off("driverLocationUpdate", handleDriverLocation);
+      socket.emit("leaveOrder", orderId);
     };
   }, [orderId]);
 

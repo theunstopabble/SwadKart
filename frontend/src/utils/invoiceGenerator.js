@@ -30,9 +30,15 @@ export const generateInvoice = (order) => {
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 5, yPos);
+  const createdAtDate = order.createdAt ? new Date(order.createdAt) : new Date();
+  const dateStr = isNaN(createdAtDate.getTime()) ? "Unknown" : createdAtDate.toLocaleDateString();
+  const timeStr = isNaN(createdAtDate.getTime()) ? "" : createdAtDate.toLocaleTimeString();
+  doc.text(`Date: ${dateStr}`, 5, yPos);
   yPos += 5;
-  doc.text(`Time: ${new Date(order.createdAt).toLocaleTimeString()}`, 5, yPos);
+  if (timeStr) {
+    doc.text(`Time: ${timeStr}`, 5, yPos);
+    yPos += 5;
+  }
   yPos += 8;
 
   doc.setFont("helvetica", "bold");
@@ -54,13 +60,13 @@ export const generateInvoice = (order) => {
   const tableColumn = ["Item", "Qty", "Price"];
   const tableRows = [];
 
-  order.orderItems.forEach((item) => {
-    let itemName = item.name;
+  (order.orderItems || []).forEach((item) => {
+    let itemName = item?.name || "Item";
     if (item.selectedVariant) itemName += ` (${item.selectedVariant.name})`;
     if (item.selectedAddons && item.selectedAddons.length > 0)
       itemName += " + Addons";
 
-    const itemData = [itemName, item.qty, `Rs.${item.price}`];
+    const itemData = [itemName, item?.qty || 0, `Rs.${item?.price || 0}`];
     tableRows.push(itemData);
   });
 
@@ -79,22 +85,22 @@ export const generateInvoice = (order) => {
     margin: { left: 5, right: 5 },
   });
 
-  yPos = doc.lastAutoTable.finalY + 5;
+  yPos = doc.lastAutoTable ? doc.lastAutoTable.finalY + 5 : yPos + 5;
 
   doc.line(5, yPos, pageWidth - 5, yPos);
   yPos += 5;
 
   doc.setFontSize(9);
   doc.text("Subtotal:", 5, yPos);
-  doc.text(`Rs.${order.itemsPrice}`, pageWidth - 5, yPos, { align: "right" });
+  doc.text(`Rs.${order.itemsPrice ?? 0}`, pageWidth - 5, yPos, { align: "right" });
   yPos += 5;
 
   doc.text("Tax (5%):", 5, yPos);
-  doc.text(`Rs.${order.taxPrice}`, pageWidth - 5, yPos, { align: "right" });
+  doc.text(`Rs.${order.taxPrice ?? 0}`, pageWidth - 5, yPos, { align: "right" });
   yPos += 5;
 
   doc.text("Delivery:", 5, yPos);
-  doc.text(`Rs.${order.shippingPrice}`, pageWidth - 5, yPos, {
+  doc.text(`Rs.${order.shippingPrice ?? 0}`, pageWidth - 5, yPos, {
     align: "right",
   });
   yPos += 6;
@@ -102,7 +108,7 @@ export const generateInvoice = (order) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("TOTAL:", 5, yPos);
-  doc.text(`Rs.${order.totalPrice}`, pageWidth - 5, yPos, { align: "right" });
+  doc.text(`Rs.${order.totalPrice ?? 0}`, pageWidth - 5, yPos, { align: "right" });
   yPos += 10;
 
   doc.setFontSize(8);

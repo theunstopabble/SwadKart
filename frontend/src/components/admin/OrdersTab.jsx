@@ -226,7 +226,7 @@ const OrdersTab = ({ orders, deliveryPartners, fetchAllData }) => {
                 </h2>
                 <div className="flex items-center gap-4 mt-2">
                   <span className="text-[10px] bg-gray-900 text-gray-500 font-black px-3 py-1 rounded-lg uppercase tracking-widest border border-gray-800">
-                    #{selectedOrder._id.toUpperCase()}
+                    #{selectedOrder._id?.slice(-6).toUpperCase()}
                   </span>
                   <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest flex items-center gap-2">
                     <Calendar size={12} />{" "}

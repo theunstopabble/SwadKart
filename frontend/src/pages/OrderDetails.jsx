@@ -65,7 +65,7 @@ const OrderDetails = () => {
     if (userInfo) {
       fetchOrder();
       const socket = getSocket();
-      socket.emit("joinOrder", id);
+      if (socket) socket.emit("joinOrder", id);
       const handleOrderUpdate = (updatedOrder) => {
         if (updatedOrder._id === id) {
           setOrder(updatedOrder);
@@ -126,7 +126,7 @@ const OrderDetails = () => {
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">
-                #{order._id.slice(-8).toUpperCase()}
+                #{order._id?.slice(-8).toUpperCase()}
               </span>
               {order.isPaid && (
                 <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
@@ -250,17 +250,17 @@ const OrderDetails = () => {
               </h2>
               <div className="bg-black/40 p-6 rounded-3xl border border-gray-900">
                 <p className="font-black text-xl uppercase italic tracking-tight text-white mb-1">
-                  {order.shippingAddress.fullName}
+                  {order.shippingAddress?.fullName || "N/A"}
                 </p>
                 <p className="text-sm text-gray-500 font-medium leading-relaxed italic">
-                  {order.shippingAddress.address}, {order.shippingAddress.city}
+                  {order.shippingAddress?.address || ""}, {order.shippingAddress?.city || ""}
                 </p>
                 <div className="h-[1px] bg-gray-900 my-4"></div>
                 <a
-                  href={`tel:${order.shippingAddress.phone}`}
+                  href={`tel:${order.shippingAddress?.phone || ""}`}
                   className="inline-flex items-center gap-3 bg-primary/10 text-primary px-4 py-2 rounded-xl text-xs font-black hover:bg-primary hover:text-white transition-all"
                 >
-                  <Phone size={14} /> {order.shippingAddress.phone}
+                  <Phone size={14} /> {order.shippingAddress?.phone || "N/A"}
                 </a>
               </div>
             </div>
@@ -314,16 +314,16 @@ const OrderDetails = () => {
               <div className="space-y-5">
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
                   <span>Manifest Value</span>
-                  <span className="text-white">₹{order.itemsPrice}</span>
+                  <span className="text-white">₹{(order.itemsPrice ?? 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
                   <span>Logistics Fee</span>
-                  <span className="text-white">₹{order.shippingPrice}</span>
+                  <span className="text-white">₹{(order.shippingPrice ?? 0).toFixed(2)}</span>
                 </div>
                 {order.couponDiscount > 0 && (
                   <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-green-500">
                     <span>Coupon Credits</span>
-                    <span>- ₹{order.couponDiscount}</span>
+                    <span>- ₹{(order.couponDiscount ?? 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="h-[1px] bg-gray-900 my-2"></div>
@@ -332,7 +332,7 @@ const OrderDetails = () => {
                     Total Settled
                   </span>
                   <span className="text-4xl font-black italic text-white tracking-tighter">
-                    ₹{order.totalPrice}
+                    ₹{(order.totalPrice ?? 0).toFixed(2)}
                   </span>
                 </div>
               </div>

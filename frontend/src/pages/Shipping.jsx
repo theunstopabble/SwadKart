@@ -101,7 +101,7 @@ const Shipping = () => {
         toast.error("Location permission denied");
         setLoadingLocation(false);
       },
-      { enableHighAccuracy: true },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
     );
   };
 
