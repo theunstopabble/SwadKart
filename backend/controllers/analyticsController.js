@@ -24,13 +24,13 @@ export const refreshRestaurantScore = asyncHandler(async (req, res) => {
 
   // Aggregate order metrics for this restaurant
   const metricsAgg = await Order.aggregate([
-    { $match: { restaurant: new mongoose.Types.ObjectId(restaurantId), createdAt: { $gte: thirtyDaysAgo } } },
+    { $match: { "orderItems.restaurant": new mongoose.Types.ObjectId(restaurantId), createdAt: { $gte: thirtyDaysAgo } } },
     {
       $group: {
         _id: null,
         totalOrders: { $sum: 1 },
         deliveredOrders: { $sum: { $cond: [{ $eq: ["$isDelivered", true] }, 1, 0] } },
-        cancelledOrders: { $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] } },
+        cancelledOrders: { $sum: { $cond: [{ $eq: ["$orderStatus", "Cancelled"] }, 1, 0] } },
         avgDeliveryMinutes: { $avg: "$deliveryTimeMinutes" },
         totalRevenue: { $sum: "$itemsPrice" },
       },
@@ -154,9 +154,9 @@ export const getAdminSummary = asyncHandler(async (req, res) => {
     Order.countDocuments({ createdAt: { $gte: weekStart } }),
     Order.countDocuments({ createdAt: { $gte: monthStart } }),
     Order.countDocuments(),
-    Order.countDocuments({ isDelivered: false, status: { $ne: "cancelled" } }),
+    Order.countDocuments({ isDelivered: false, orderStatus: { $ne: "Cancelled" } }),
     Order.countDocuments({ isDelivered: true }),
-    Order.countDocuments({ status: "cancelled" }),
+    Order.countDocuments({ orderStatus: "Cancelled" }),
   ]);
 
   const [totalUsers, newUsersThisMonth, totalRestaurants, activeProducts] = await Promise.all([
@@ -229,12 +229,13 @@ export const getTopRestaurants = asyncHandler(async (req, res) => {
 
   const top = await Order.aggregate([
     { $match: { createdAt: { $gte: startDate }, isPaid: true } },
+    { $unwind: "$orderItems" },
     {
       $group: {
-        _id: "$restaurant",
-        revenue: { $sum: "$totalPrice" },
-        orders: { $sum: 1 },
-        avgOrderValue: { $avg: "$totalPrice" },
+        _id: "$orderItems.restaurant",
+        revenue: { $sum: { $multiply: ["$orderItems.qty", "$orderItems.price"] } },
+        orders: { $sum: "$orderItems.qty" },
+        avgOrderValue: { $avg: { $multiply: ["$orderItems.qty", "$orderItems.price"] } },
       },
     },
     { $sort: { revenue: -1 } },

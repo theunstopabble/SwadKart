@@ -1,5 +1,9 @@
 import User from "../models/userModel.js";
 import Restaurant from "../models/restaurantModel.js";
+import Notification from "../models/notificationModel.js";
+import Order from "../models/orderModel.js";
+import Product from "../models/productModel.js";
+import CouponUsage from "../models/couponUsageModel.js";
 import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import mongoose from "mongoose";
@@ -38,9 +42,19 @@ export const updateUserProfile = async (req, res, next) => {
       user.name = req.body.name || user.name;
       user.email = sanitizeEmail(req.body.email) || user.email;
       if (req.body.phone) {
-        user.phone = sanitizePhone(req.body.phone);
+        const cleanPhone = sanitizePhone(req.body.phone);
+        const phoneRegex = /^[6-9]\d{9}$/;
+        if (!phoneRegex.test(String(cleanPhone))) {
+          res.status(400);
+          throw new Error("Invalid Indian phone number.");
+        }
+        user.phone = cleanPhone;
       }
       if (req.body.password) {
+        if (req.body.password.length < 6) {
+          res.status(400);
+          throw new Error("Password must be at least 6 characters.");
+        }
         user.password = req.body.password;
       }
       if (req.body.description !== undefined) {

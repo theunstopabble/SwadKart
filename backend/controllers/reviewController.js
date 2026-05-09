@@ -67,7 +67,7 @@ export const createProductReview = async (req, res) => {
       (acc, item) => item.rating + acc,
       0
     );
-    product.rating = Number(totalRating / product.reviews.length).toFixed(1);
+    product.rating = Number((totalRating / product.reviews.length).toFixed(1));
 
     await product.save();
 

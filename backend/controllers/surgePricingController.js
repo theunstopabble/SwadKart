@@ -25,12 +25,11 @@ const getCurrentLoad = async () => {
     Order.countDocuments({
       createdAt: { $gte: fifteenMinAgo },
       isDelivered: false,
-      status: { $ne: "cancelled" },
+      orderStatus: { $ne: "Cancelled" },
     }),
     User.countDocuments({
       role: "delivery_partner",
-      isActive: true,
-      lastActiveAt: { $gte: new Date(Date.now() - 30 * 60 * 1000) },
+      isAvailable: true,
     }),
   ]);
 

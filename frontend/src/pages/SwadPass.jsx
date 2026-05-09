@@ -17,6 +17,7 @@ const SwadPass = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("success");
 
   const fetchStatus = async () => {
     try {
@@ -45,9 +46,11 @@ const SwadPass = () => {
         { withCredentials: true }
       );
       setMessage(data.message || "Subscribed successfully!");
+      setMessageType("success");
       fetchStatus();
     } catch (e) {
       setMessage(e.response?.data?.message || "Subscription failed");
+      setMessageType("error");
     } finally {
       setActionLoading(false);
     }
@@ -63,9 +66,11 @@ const SwadPass = () => {
         { withCredentials: true }
       );
       setMessage(data.message || "Cancelled successfully");
+      setMessageType("success");
       fetchStatus();
     } catch (e) {
       setMessage(e.response?.data?.message || "Cancellation failed");
+      setMessageType("error");
     } finally {
       setActionLoading(false);
     }
@@ -90,7 +95,7 @@ const SwadPass = () => {
         {message && (
           <div
             className={`p-4 rounded-lg mb-6 ${
-              message.includes("failed") || message.includes("Cancelled")
+              messageType === "error"
                 ? "bg-red-900/50 text-red-200"
                 : "bg-green-900/50 text-green-200"
             }`}

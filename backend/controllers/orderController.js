@@ -473,11 +473,21 @@ export const getOrderById = async (req, res) => {
     // 🛡️ SECURITY FIX (SEC-2): Authorization check — only order owner, admin, restaurant owner, or assigned delivery partner can view
     const isAdmin = req.user.role === "admin";
     const isOwner = order.user && order.user._id?.toString() === req.user._id.toString();
-    const isRestaurantOwner = req.user.role === "restaurant_owner";
+
     // NEW-05 FIX: Use _id instead of .id since .lean() strips Mongoose virtuals
     const isAssignedDriver =
       order.deliveryPartner &&
       order.deliveryPartner._id?.toString() === req.user._id.toString();
+
+    // BUG-OWNER FIX: Restaurant owner can ONLY view orders from THEIR restaurant
+    let isRestaurantOwner = false;
+    if (req.user.role === "restaurant_owner") {
+      const restaurantDoc = await Restaurant.findOne({ owner: req.user._id }).lean();
+      const orderRestaurantId = order.orderItems[0]?.restaurant?.toString();
+      if (restaurantDoc && orderRestaurantId === restaurantDoc._id.toString()) {
+        isRestaurantOwner = true;
+      }
+    }
 
     if (!isOwner && !isAdmin && !isRestaurantOwner && !isAssignedDriver) {
       return res
@@ -569,6 +579,21 @@ export const updateOrderStatus = async (req, res) => {
 
   const { status } = req.body;
   try {
+    const order = await Order.findById(req.params.id).populate(
+      "user",
+      "fcmToken _id",
+    );
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // BUG-OWNER FIX: Restaurant owner can ONLY update orders from THEIR restaurant
+    if (isRestaurantOwner && !isAdmin) {
+      const restaurantDoc = await Restaurant.findOne({ owner: req.user._id }).lean();
+      const orderRestaurantId = order.orderItems[0]?.restaurant?.toString();
+      if (!restaurantDoc || orderRestaurantId !== restaurantDoc._id.toString()) {
+        return res.status(403).json({ message: "Not authorized to update this order." });
+      }
+    }
+
     // NEW-03 FIX: Block 'Delivered' status via this route — use deliveryController OTP flow instead
     if (status === "Delivered") {
       return res.status(400).json({
@@ -576,12 +601,6 @@ export const updateOrderStatus = async (req, res) => {
           "Use the OTP delivery verification endpoint to mark orders as Delivered.",
       });
     }
-
-    const order = await Order.findById(req.params.id).populate(
-      "user",
-      "fcmToken _id",
-    );
-    if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.orderStatus = status;
 

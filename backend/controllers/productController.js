@@ -73,13 +73,9 @@ export const getProductById = async (req, res) => {
 // FIX: Handle both Restaurant ID and Owner User ID
 export const getProductsByRestaurant = asyncHandler(async (req, res) => {
   const inputId = req.params.id;
-  let restaurant = await import("../models/restaurantModel.js").then((m) =>
-    m.default.findById(inputId).lean()
-  );
+  let restaurant = await Restaurant.findById(inputId).lean();
   if (!restaurant) {
-    restaurant = await import("../models/restaurantModel.js").then((m) =>
-      m.default.findOne({ owner: inputId }).lean()
-    );
+    restaurant = await Restaurant.findOne({ owner: inputId }).lean();
   }
   if (!restaurant) return res.status(200).json([]);
   const actualRestaurantId = restaurant._id.toString();
@@ -151,6 +147,7 @@ export const createProduct = asyncHandler(async (req, res) => {
       user: req.user._id, // Created By (Admin/User)
 
       countInStock: countInStock || 100,
+      isAvailable: true,
       variants: variants || [],
       addons: addons || [],
     });
@@ -283,6 +280,7 @@ export const toggleProductStock = async (req, res) => {
     if (isAdmin || isOwner) {
       const previousStock = product.countInStock;
       product.countInStock = previousStock > 0 ? 0 : 100;
+      product.isAvailable = product.countInStock > 0;
       const updatedProduct = await product.save();
 
       // Clear cache on stock change

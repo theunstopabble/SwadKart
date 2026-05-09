@@ -35,7 +35,7 @@ export const fraudDetection = async (req, res, next) => {
     // 3. Order-then-cancel pattern (3+ cancelled in last 7 days)
     const cancelledOrders = await Order.countDocuments({
       user: userId,
-      status: "cancelled",
+      orderStatus: "Cancelled",
       updatedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
     });
     if (cancelledOrders >= 3) {

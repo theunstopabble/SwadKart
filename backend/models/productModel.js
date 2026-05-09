@@ -69,6 +69,7 @@ const productSchema = mongoose.Schema(
     orderIndex: { type: Number, default: 0 },
 
     // 📦 SMART INVENTORY (FEAT-14)
+    isAvailable: { type: Boolean, default: true },
     autoDisable: { type: Boolean, default: true }, // Auto-disable when stock hits 0
     lastRestocked: { type: Date, default: null },
 

@@ -107,7 +107,13 @@ export const verifyPayment = async (req, res) => {
     }
 
     // 1. Verify payment status directly via Razorpay API for security
-    const payment = await instance.payments.fetch(razorpay_payment_id);
+    let payment;
+    try {
+      payment = await instance.payments.fetch(razorpay_payment_id);
+    } catch (rzpErr) {
+      console.error("Razorpay fetch failed:", rzpErr.message);
+      return res.status(502).json({ success: false, message: "Payment gateway unreachable. Please retry." });
+    }
 
     if (payment.status === "captured" || payment.status === "authorized") {
       const order = await Order.findById(orderId).populate(

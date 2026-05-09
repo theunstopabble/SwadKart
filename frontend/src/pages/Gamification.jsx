@@ -14,7 +14,13 @@ const Gamification = () => {
           `${BASEURL}/api/v1/gamification/stats`,
           { withCredentials: true }
         );
-        setStats(data);
+        // BUG-FIX: Backend returns 'streak' but frontend expects 'currentStreak'
+        setStats({
+          currentStreak: data.streak ?? 0,
+          longestStreak: data.longestStreak ?? 0,
+          totalOrders: data.totalOrders ?? 0,
+          badges: data.badges || [],
+        });
       } catch {
         setStats({
           currentStreak: 0,
@@ -37,22 +43,15 @@ const Gamification = () => {
     );
   }
 
-  const badgeIcons = {
-    first_order: <Star size={20} className="text-yellow-400" />,
-    streak_3: <Flame size={20} className="text-orange-400" />,
-    streak_7: <Flame size={20} className="text-red-400" />,
-    streak_30: <Flame size={20} className="text-purple-400" />,
-    top_10: <Trophy size={20} className="text-amber-400" />,
-    explorer: <Award size={20} className="text-blue-400" />,
-  };
-
-  const badgeNames = {
-    first_order: "First Bite",
-    streak_3: "3-Day Streak",
-    streak_7: "Week Warrior",
-    streak_30: "Month Master",
-    top_10: "Top 10",
-    explorer: "Explorer",
+  // BUG-FIX: Backend returns badge objects {name, description, icon, earnedAt}
+  // not string keys. Map backend icon emoji to Lucide components.
+  const getBadgeIcon = (icon) => {
+    if (icon === "🔥" || icon === "🏆") return <Flame size={20} className="text-orange-400" />;
+    if (icon === "🍔") return <Star size={20} className="text-yellow-400" />;
+    if (icon === "🍕") return <Award size={20} className="text-blue-400" />;
+    if (icon === "🍣") return <Award size={20} className="text-purple-400" />;
+    if (icon === "👑") return <Trophy size={20} className="text-amber-400" />;
+    return <Award size={20} className="text-gray-400" />;
   };
 
   return (
@@ -87,14 +86,14 @@ const Gamification = () => {
           </h2>
           {stats.badges?.length > 0 ? (
             <div className="flex flex-wrap gap-3">
-              {stats.badges.map((badge) => (
+              {stats.badges.map((badge, idx) => (
                 <div
-                  key={badge}
+                  key={idx}
                   className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full border border-gray-700"
                 >
-                  {badgeIcons[badge] || <Award size={18} className="text-gray-400" />}
+                  {getBadgeIcon(badge.icon)}
                   <span className="text-sm font-medium">
-                    {badgeNames[badge] || badge}
+                    {badge.name}
                   </span>
                 </div>
               ))}

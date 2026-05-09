@@ -115,6 +115,13 @@ export const calculateSplit = asyncHandler(async (req, res) => {
     throw new Error("Group order not found");
   }
 
+  const isMember = groupOrder.members.some((m) => m.user?.toString() === req.user._id.toString());
+  const isHost = groupOrder.host.toString() === req.user._id.toString();
+  if (!isMember && !isHost) {
+    res.status(403);
+    throw new Error("Not authorized to view this group order");
+  }
+
   const memberCount = groupOrder.members.length || 1;
   const equalShareDelivery = groupOrder.deliveryFee / memberCount;
   const equalShareTax = (groupOrder.totalCartValue * (groupOrder.taxPercent / 100)) / memberCount;

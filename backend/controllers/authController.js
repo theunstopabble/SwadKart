@@ -24,6 +24,13 @@ export const registerUser = async (req, res, next) => {
     const email = sanitizeEmail(rawEmail);
     const phone = sanitizePhone(rawPhone);
 
+    // BUG-PHONE FIX: Validate phone format on backend (matches frontend)
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(String(phone))) {
+      res.status(400);
+      throw new Error("Invalid Indian phone number.");
+    }
+
     // --- Scenario A: Check Phone Duplicity FIRST (prevents hijacking) ---
     const phoneExists = await User.findOne({ phone: String(phone) });
     if (phoneExists) {
