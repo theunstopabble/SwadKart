@@ -100,12 +100,9 @@ export const updateBiometricStatus = async (req, res, next) => {
     if (!isEnabled) {
       user.biometricCredentials = [];
       user.currentChallenge = "";
-      console.log(`🧹 Cleared biometric credentials for: ${user.email}`);
     }
 
     await user.save();
-
-    console.log(`🔐 Biometric Status Updated: ${user.email} -> ${isEnabled}`);
 
     return res.json({
       success: true,
@@ -153,7 +150,7 @@ export const getUsers = async (req, res, next) => {
   try {
     // 🚀 PERFORMANCE FIX: Extracted Page & Limit
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const skip = (page - 1) * limit;
 
     const count = await User.countDocuments({});

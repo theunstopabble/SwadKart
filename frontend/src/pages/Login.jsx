@@ -57,10 +57,9 @@ const Login = () => {
           // If user has biometric enabled AND has registered credentials
           if (bioRes.data.isBiometricEnabled && bioRes.data.hasCredentials) {
             localStorage.setItem("isBiometricEnabled", "true");
-            console.log("🔐 Biometric auto-restored for returning user");
           }
-        } catch (bioErr) {
-          console.log("Biometric status check skipped:", bioErr.message);
+        } catch {
+          // biometric status check is optional, silently skip
         }
 
         toast.success("Login Successful! Welcome back. 👋");
@@ -68,8 +67,7 @@ const Login = () => {
       } else {
         toast.error(data.message || "Invalid Email or Password");
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error("Network Error. Check your connection.");
     } finally {
       setLoading(false);

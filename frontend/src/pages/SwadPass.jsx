@@ -44,7 +44,7 @@ const SwadPass = () => {
     try {
       // Step 1: Create Razorpay order
       const { data: orderData } = await axios.post(
-        `${BASEURL}/api/v1/payments/razorpay/create-order`,
+        `${BASEURL}/api/v1/payment/create`,
         { amount: selectedPlan === "monthly" ? 199 : 1499 },
         { withCredentials: true }
       );

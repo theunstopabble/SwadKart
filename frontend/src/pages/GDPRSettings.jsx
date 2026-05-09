@@ -21,7 +21,7 @@ const GDPRSettings = () => {
     setMessage("");
     try {
       const { data } = await axios.get(
-        `${BASEURL}/api/v1/gdpr/export`,
+        `${BASEURL}/api/v1/user/gdpr/export`,
         { withCredentials: true }
       );
       const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -51,7 +51,7 @@ const GDPRSettings = () => {
     setDeleting(true);
     setMessage("");
     try {
-      await axios.delete(`${BASEURL}/api/v1/gdpr/delete-account`, {
+      await axios.delete(`${BASEURL}/api/v1/user/gdpr/delete`, {
         withCredentials: true,
       });
       setMessage("Account deletion requested. Logging out...");

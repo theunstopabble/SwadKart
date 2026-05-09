@@ -188,9 +188,6 @@ const PlaceOrder = () => {
 
       // 2. Format Items (CRITICAL: Ensuring Restaurant ID is Passed)
       const formattedItems = cart.cartItems.map((item) => {
-        if (!item.restaurant) {
-          console.warn("⚠️ Warning: Item missing Restaurant ID", item);
-        }
         return {
           name: item.name,
           qty: Number(item.qty),
@@ -297,7 +294,6 @@ const PlaceOrder = () => {
       if (isMounted.current) {
         setIsProcessing(false);
       }
-      console.error(error);
       toast.error(error.message || "Mission Failed: Order error");
     }
   };
