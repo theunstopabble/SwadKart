@@ -40,11 +40,11 @@ Unlike simple clones, SwadKart includes production-grade features like **Real-ti
 
 | **Home Page & Discovery** | **Admin Dashboard & Analytics** |
 |:-------------------------:|:---------------------:|
-| ![Home Page](frontend/assets/screenshot-home.png) | ![Admin Panel](frontend/assets/screenshot-admin.png) |
+| Live at [swadkart.vercel.app](https://swadkart.vercel.app) | Live at [swadkart.vercel.app/admin](https://swadkart.vercel.app/admin) |
 
-| **Dynamic Menu Lab** | **Mobile Responsive** |
+| **Restaurant Menu & Cart** | **Mobile Responsive** |
 |:-------------------:|:---------------------:|
-| ![Menu Page](frontend/assets/screenshot-menu.png) | ![Mobile View](frontend/assets/screenshot-mobile.png) |
+| Live at [swadkart.vercel.app](https://swadkart.vercel.app) | PWA installable on iOS/Android |
 
 ---
 
@@ -100,45 +100,48 @@ Unlike simple clones, SwadKart includes production-grade features like **Real-ti
 
 | **Premium Lock Screen** | **Profile Control Center** |
 |:-------------------:|:---------------------:|
-| <img src="frontend/assets/biometric-lock.png" alt="Lock Screen" width="240"/> | <img src="frontend/assets/biometric-profile.png" alt="Profile" width="240"/> |
+| Biometric App Lock (WebAuthn/Fingerprint/FaceID) | Wallet, SwadCoins, Referral, SwadPass |
 
 ---
 
 ## 🏗️ Architecture & Tech Stack
 
-The project follows a clean **MVC (Model-View-Controller)** architecture with a clear separation of concerns.
+The project follows a clean **MVC (Model-View-Controller)** architecture with a clear separation of concerns. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for full system design.
 
 ### **Frontend (`/frontend`)**
 | Layer | Technology |
 |---|---|
-| Framework | React 18 + Vite |
-| State Management | Redux Toolkit + RTK Query ready |
-| Styling | Tailwind CSS + Lucide React Icons |
-| Routing | React Router DOM v6 |
-| Real-time | Socket.io-client |
-| Maps | Leaflet.js + React-Leaflet |
-| Charts | Recharts |
-| AI | Groq SDK (LLM recommendations) |
-| Voice | Web Speech API |
-| Auth | Firebase Auth + WebAuthn |
-| Build | Vite PWA (workbox) |
+| Framework | React 19 + Vite 7 |
+| State Management | Redux Toolkit 2 |
+| Styling | Tailwind CSS 3 + Lucide React |
+| Routing | React Router 7 |
+| Real-time | Socket.io-client 4 |
+| Maps | Leaflet.js 1.9 |
+| Charts | Recharts 3 |
+| AI | Groq SDK (LLM chatbot + recommendations) |
+| Voice | Web Speech API (en-IN / hi-IN) |
+| Auth | Firebase Auth + Google OAuth + WebAuthn (Biometric) |
+| i18n | i18next (English + Hindi) |
+| Build | Vite PWA (vite-plugin-pwa 0.19) |
+| PDF | jsPDF + jsPDF-autotable |
+| Push | Firebase Cloud Messaging (FCM) |
 
 ### **Backend (`/backend`)**
 | Layer | Technology |
 |---|---|
-| Runtime | Node.js 20+ |
-| Framework | Express.js 5 |
-| Database | MongoDB Atlas (Mongoose ODM) |
-| Cache | Redis (Upstash) / In-Memory Fallback |
-| Authentication | JWT (httpOnly cookies) + Firebase Admin SDK + WebAuthn |
-| Real-time | Socket.io with room-based authorization |
-| Payments | Razorpay (test/live mode auto-detect) |
-| Email | Nodemailer + Brevo (Sendinblue) API |
-| Storage | Cloudinary (image uploads) |
-| AI | Groq API (Llama 3) |
-| Validation | Express Validator + Custom NoSQL Sanitizer |
-| Rate Limiting | express-rate-limit (strict on auth endpoints) |
-| Security | Helmet, CORS, CSRF protection, XSS prevention |
+| Runtime | Node.js 22 + Express 5 |
+| Database | MongoDB Atlas (Mongoose 9 ODM) |
+| Cache | Redis (ioredis) / In-Memory Map Fallback |
+| Auth | JWT (httpOnly cookies) + WebAuthn + Firebase Admin |
+| Real-time | Socket.io 4 with room-based authorization |
+| Payments | Razorpay 2 (UPI/Card/Wallet/COD) |
+| Email | Brevo API + Nodemailer (BullMQ queue) |
+| Storage | Cloudinary (multer + sharp image processing) |
+| AI | Groq SDK (Llama 3 chat + dish recommendations) |
+| Validation | express-validator + Custom NoSQL Sanitizer |
+| Rate Limiting | express-rate-limit (strict on auth/orders) |
+| Security | Helmet 8, CORS, CSRF protection |
+| Job Queue | BullMQ (email worker, Redis-backed) |
 
 ---
 
@@ -223,11 +226,8 @@ npm install
 ```
 Create a `.env` file in `/frontend`:
 ```env
-# Leave empty for local dev (Vite proxy handles routing)
-# Set to your Vercel URL for production builds
-VITE_API_URL=
-
-# Firebase Config (for Google Auth)
+VITE_API_URL=http://localhost:8000/api/v1
+VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
 VITE_FIREBASE_API_KEY=your_firebase_key
 VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your_project_id
@@ -241,24 +241,36 @@ npm run dev
 SwadKart-pro/
 ├── backend/
 │   ├── config/             # DB, Cloudinary, Redis, WebAuthn
-│   ├── controllers/        # 25+ controllers (User, Order, Admin, Delivery, AI, Gamification, GDPR)
+│   ├── controllers/        # 30+ controllers (User, Order, Admin, Delivery, AI, Gamification, GDPR)
 │   ├── middleware/         # Auth, Error, Rate Limit, Fraud Detection, Cache, CSRF
-│   ├── models/             # Mongoose Schemas with compound indexes
-│   ├── routes/             # 25+ API route modules
+│   ├── models/             # 14 Mongoose Schemas with compound indexes
+│   ├── routes/             # 30+ API route modules
 │   ├── utils/              # Token generators, email templates, cache helpers
+│   ├── workers/            # BullMQ email worker
 │   └── public/             # robots.txt, static assets
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── components/     # Reusable UI (Navbar, ChatBot, VoiceSearch, InstallPWA)
-│   │   ├── pages/            # 20+ pages (all user roles + new feature pages)
-│   │   ├── redux/            # Global State (Cart, User, Order slices)
-│   │   ├── utils/            # Firebase config, biometric service, API helpers
-│   │   └── App.jsx           # Router with lazy loading + role guards
-│   └── .github/workflows/    # CI: backend syntax + frontend lint + build test
+│   │   ├── components/     # Reusable UI (Navbar, ChatBot, VoiceSearch, InstallPWA, Admin tabs)
+│   │   ├── pages/          # 20+ pages (all user roles + new feature pages)
+│   │   ├── redux/          # Global State (Cart, User slices with RTK)
+│   │   ├── utils/          # Firebase config, biometric service, socket, invoice generator
+│   │   ├── locales/        # i18n translations (en, hi)
+│   │   └── App.jsx         # Router with lazy loading + biometric lock + role guards
+│   ├── .github/workflows/  # CI: backend syntax + frontend lint + build test
+│   └── public/             # PWA assets (hero.webp, manifest)
 │
-└── docs/                     # Microservices roadmap, architecture docs
+└── docs/                   # 📚 Full project documentation
+    ├── ARCHITECTURE.md     # System design, tech stack, security layers, env vars
+    ├── WORKFLOW.md         # 10 Mermaid diagrams: user journey, admin, driver, edge cases
+    ├── API.md              # Complete endpoint reference (30+ routes, tables)
+    ├── DB_SCHEMA.md        # All 14 collections, ER diagram, MongoDB queries
+    ├── DEPLOYMENT.md        # Vercel + Render + MongoDB + Cloudinary + Razorpay setup
+    ├── TECH_STACK.md       # Layer-by-layer table, dependency tree, browser support
+    └── EDGE_CASES.md       # 20 security/performance edge cases + testing checklist
 ```
+
+📚 **Full documentation available in `/docs` folder.** Run `npm run lint` (frontend) to check code quality before commits.
 ### 🛡️ Security & Performance (Production-Hardened)
 
 | Feature | Implementation | Status |
@@ -287,9 +299,9 @@ SwadKart-pro/
 | Component | Platform | URL |
 |---|---|---|
 | **Frontend** | Vercel | `https://swadkart.vercel.app` |
-| **Backend** | Render | `https://swadkart-api.onrender.com` |
+| **Backend** | Render | `https://swadkart-backend.onrender.com` |
 | **Database** | MongoDB Atlas | `mongodb+srv://...` |
-| **Cache** | Upstash Redis | `rediss://...` |
+| **Cache** | Redis Cloud | `rediss://...` (optional — in-memory fallback) |
 | **Images** | Cloudinary | `https://res.cloudinary.com/...` |
 | **Payments** | Razorpay | Test keys auto-detected, live ready |
 
