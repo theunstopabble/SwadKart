@@ -87,8 +87,23 @@ export const updateSurgeConfig = asyncHandler(async (req, res) => {
   if (baseDeliveryFee !== undefined) surgeConfig.baseDeliveryFee = Number(baseDeliveryFee);
   if (enabled !== undefined) surgeConfig.enabled = Boolean(enabled);
   if (thresholds) surgeConfig.thresholds = { ...surgeConfig.thresholds, ...thresholds };
-  if (multipliers) surgeConfig.multipliers = multipliers;
-  if (maxMultiplier !== undefined) surgeConfig.maxMultiplier = Number(maxMultiplier);
+
+  if (multipliers) {
+    if (!Array.isArray(multipliers) || multipliers.length === 0 || !multipliers.every((m) => typeof m === "number" && m > 0)) {
+      res.status(400);
+      throw new Error("multipliers must be a non-empty array of positive numbers");
+    }
+    surgeConfig.multipliers = multipliers;
+  }
+
+  if (maxMultiplier !== undefined) {
+    const mm = Number(maxMultiplier);
+    if (mm <= 0 || mm > 10) {
+      res.status(400);
+      throw new Error("maxMultiplier must be between 0 and 10");
+    }
+    surgeConfig.maxMultiplier = mm;
+  }
 
   res.json({ message: "Surge config updated", config: surgeConfig });
 });

@@ -5,15 +5,16 @@ import Order from "../models/orderModel.js";
 // @route   GET /api/v1/orders/frequent
 // @access  Private
 export const getFrequentItems = asyncHandler(async (req, res) => {
-  const limit = parseInt(req.query.limit) || 6;
+  const limit = Math.min(parseInt(req.query.limit) || 6, 50);
 
   // Aggregate most ordered products from user's delivered orders
+  // 🛡️ FIX: Removed non-existent 'status' field. Order model uses 'isDelivered' and 'orderStatus'.
   const frequentItems = await Order.aggregate([
     {
       $match: {
         user: req.user._id,
         isDelivered: true,
-        status: "delivered",
+        orderStatus: "Delivered",
       },
     },
     { $unwind: "$orderItems" },

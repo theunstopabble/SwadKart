@@ -49,12 +49,13 @@ export const createProductReview = async (req, res) => {
     }
 
     // ✅ 3. CONSTRUCT REVIEW OBJECT
+    // 🛡️ Clamp rating to valid 1-5 range
+    const clampedRating = Math.max(1, Math.min(5, Number(rating) || 1));
     const review = {
       name: req.user.name,
-      rating: Number(rating),
+      rating: clampedRating,
       comment,
       user: req.user._id,
-      // Optional: Agar profile pic handle kar rahe ho to yahan add kar sakte ho
       avatar: req.user.image || "",
     };
 
@@ -89,6 +90,8 @@ export const createProductReview = async (req, res) => {
 // @desc    Get top rated products (Featured)
 // @route   GET /api/v1/products/top
 export const getTopProducts = async (req, res) => {
-  const products = await Product.find({}).sort({ rating: -1 }).limit(3);
+  const products = await Product.find({ isAvailable: { $ne: false } })
+    .sort({ rating: -1 })
+    .limit(3);
   res.json(products);
 };

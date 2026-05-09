@@ -1,6 +1,7 @@
 import Coupon from "../models/couponModel.js";
-import CouponUsage from "../models/couponUsageModel.js"; // Import new model
+import CouponUsage from "../models/couponUsageModel.js";
 import Order from "../models/orderModel.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // =================================================================
 // 👑 ADMIN ACTIONS
@@ -64,7 +65,8 @@ export const updateCoupon = async (req, res) => {
       maxDiscountAmount,
       isActive,
     } = req.body;
-    const coupon = await Coupon.findById(req.params.id);
+    const couponId = sanitizeObjectId(req.params.id);
+    const coupon = await Coupon.findById(couponId);
 
     if (coupon) {
       coupon.code = code ? code.toUpperCase() : coupon.code;
@@ -90,7 +92,8 @@ export const updateCoupon = async (req, res) => {
 // @access  Private/Admin
 export const deleteCoupon = async (req, res) => {
   try {
-    const coupon = await Coupon.findById(req.params.id);
+    const couponId = sanitizeObjectId(req.params.id);
+    const coupon = await Coupon.findById(couponId);
     if (coupon) {
       await coupon.deleteOne();
       res.json({ message: "Coupon removed successfully" });

@@ -23,8 +23,21 @@ export const refreshRestaurantScore = asyncHandler(async (req, res) => {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   // Aggregate order metrics for this restaurant
+  // 🛡️ FIX: deliveryTimeMinutes field does not exist on Order model.
+  // Compute delivery time from deliveredAt - createdAt on-the-fly.
   const metricsAgg = await Order.aggregate([
     { $match: { "orderItems.restaurant": new mongoose.Types.ObjectId(restaurantId), createdAt: { $gte: thirtyDaysAgo } } },
+    {
+      $addFields: {
+        deliveryTimeMinutes: {
+          $cond: [
+            { $and: ["$deliveredAt", "$createdAt"] },
+            { $divide: [{ $subtract: ["$deliveredAt", "$createdAt"] }, 60000] },
+            null,
+          ],
+        },
+      },
+    },
     {
       $group: {
         _id: null,
@@ -191,7 +204,7 @@ export const getAdminSummary = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/analytics/admin/trends
 // @access  Admin
 export const getDailyTrends = asyncHandler(async (req, res) => {
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
   const trends = await Order.aggregate([
@@ -223,8 +236,8 @@ export const getDailyTrends = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/analytics/admin/top-restaurants
 // @access  Admin
 export const getTopRestaurants = asyncHandler(async (req, res) => {
-  const limit = parseInt(req.query.limit) || 10;
-  const days = parseInt(req.query.days) || 30;
+  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
   const top = await Order.aggregate([
@@ -269,8 +282,8 @@ export const getTopRestaurants = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/analytics/admin/top-products
 // @access  Admin
 export const getTopProducts = asyncHandler(async (req, res) => {
-  const limit = parseInt(req.query.limit) || 10;
-  const days = parseInt(req.query.days) || 30;
+  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
   const top = await Order.aggregate([
@@ -319,7 +332,7 @@ export const getTopProducts = asyncHandler(async (req, res) => {
 // @access  Private
 export const getRecommendations = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const limit = parseInt(req.query.limit) || 8;
+  const limit = Math.min(parseInt(req.query.limit) || 8, 50);
 
   // 1. Fetch user's past ordered products
   const userOrders = await Order.find({ user: userId, isPaid: true })

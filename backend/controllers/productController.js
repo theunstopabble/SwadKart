@@ -2,6 +2,7 @@ import Product from "../models/productModel.js";
 import Restaurant from "../models/restaurantModel.js"; // Required import
 import { getCache, setCache, clearCache } from "../utils/cache.js";
 import asyncHandler from "express-async-handler";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // ============================================================
 // PUBLIC ROUTES
@@ -12,7 +13,7 @@ export const getProducts = async (req, res) => {
   try {
     // 🚀 PERFORMANCE FIX: Pagination variables
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const skip = (page - 1) * limit;
 
     // Search query builder
@@ -58,7 +59,8 @@ export const getProducts = async (req, res) => {
 // @desc    Fetch single product
 export const getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate(
+    const productId = sanitizeObjectId(req.params.id);
+    const product = await Product.findById(productId).populate(
       "restaurant",
       "name",
     );
@@ -72,7 +74,7 @@ export const getProductById = async (req, res) => {
 // @desc    Fetch products by Restaurant ID
 // FIX: Handle both Restaurant ID and Owner User ID
 export const getProductsByRestaurant = asyncHandler(async (req, res) => {
-  const inputId = req.params.id;
+  const inputId = sanitizeObjectId(req.params.id);
   let restaurant = await Restaurant.findById(inputId).lean();
   if (!restaurant) {
     restaurant = await Restaurant.findOne({ owner: inputId }).lean();
@@ -167,7 +169,8 @@ export const createProduct = asyncHandler(async (req, res) => {
 // @desc    Update a product
 export const updateProduct = asyncHandler(async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const productId = sanitizeObjectId(req.params.id);
+    const product = await Product.findById(productId);
 
     if (product) {
       // SECURITY Check
@@ -239,7 +242,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
 // @desc    Delete a product
 export const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const productId = sanitizeObjectId(req.params.id);
+    const product = await Product.findById(productId);
     if (product) {
       const isOwner =
         product.user && product.user.toString() === req.user._id.toString();
@@ -267,7 +271,8 @@ export const deleteProduct = async (req, res) => {
 // @desc    Toggle Product Availability
 export const toggleProductStock = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const productId = sanitizeObjectId(req.params.id);
+    const product = await Product.findById(productId);
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
