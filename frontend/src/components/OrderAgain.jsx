@@ -25,7 +25,9 @@ const OrderAgain = () => {
           const data = await res.json().catch(() => ({ frequentItems: [] }));
           if (!cancelled) setItems(data.frequentItems || []);
         }
-      } catch {
+      } catch (_err) {
+        // silently fail
+        void _err;
       } finally {
         if (!cancelled) setLoading(false);
       }

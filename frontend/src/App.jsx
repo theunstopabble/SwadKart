@@ -105,9 +105,8 @@ function App() {
   }, [userInfo]);
 
   useEffect(() => {
-    let socket = null;
     let handleOrderUpdate = null;
-    let cleanupRan = false;
+    let socket = null;
 
     if (!userInfo) return;
 
@@ -136,7 +135,6 @@ function App() {
     setupSocket();
 
     return () => {
-      cleanupRan = true;
       if (socket && handleOrderUpdate) {
         socket.off("orderUpdated", handleOrderUpdate);
       }
