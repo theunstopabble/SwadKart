@@ -276,6 +276,8 @@ function App() {
                 {/* User Protected Routes */}
                 <Route element={<PrivateRoute />}>
                   <Route path="/shipping" element={<Shipping />} />
+                  <Route path="/payment" element={<Payment />} />
+                  <Route path="/placeorder" element={<PlaceOrder />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/myorders" element={<MyOrders />} />
                   <Route path="/order/:id" element={<OrderDetails />} />
