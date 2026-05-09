@@ -8,8 +8,6 @@ dotenv.config();
 
 // 1. Get Origin from Environment Variable (Must be set in .env)
 // Example: 'http://localhost:5173' or 'https://your-tunnel-url.devtunnels.ms'
-// 1. Get Origin from Environment Variable (Must be set in .env)
-// Example: 'http://localhost:5173' or 'https://your-tunnel-url.devtunnels.ms'
 const origin = process.env.FRONTEND_URL || "http://localhost:5173";
 
 // 2. Derive RP ID (Relying Party ID)

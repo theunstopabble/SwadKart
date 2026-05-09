@@ -117,6 +117,11 @@ export const verifyPayment = async (req, res) => {
 
       if (!order) return res.status(404).json({ message: "Order not found" });
 
+      // 🛡️ IDEMPOTENCY: Already paid? Return without side effects (no duplicate emails/sockets)
+      if (order.isPaid) {
+        return res.status(200).json({ success: true, message: "Payment already verified", order });
+      }
+
       // 2. Mark as Paid
       order.isPaid = true;
       order.paidAt = Date.now();
@@ -154,13 +159,16 @@ export const verifyPayment = async (req, res) => {
 
       // 5. Email Dispatch (Non-blocking)
       try {
+        // User confirmation email (optional — user may not have email on file)
         if (order.user && order.user.email) {
           await sendEmail({
             email: order.user.email,
             subject: `SwadKart: Payment Received! ✅ Order #${order._id.toString().slice(-6)}`,
-          html: getOrderConfirmationTemplate(updatedOrder, true),
-        });
+            html: getOrderConfirmationTemplate(updatedOrder, true),
+          });
+        }
 
+        // Admin revenue alert (always send if admin exists)
         const admin = await User.findOne({ role: "admin" });
         if (admin) {
           await sendEmail({
@@ -170,6 +178,7 @@ export const verifyPayment = async (req, res) => {
           });
         }
 
+        // Restaurant owner alert (always send if valid email exists)
         const restaurantId = order.orderItems[0].restaurant;
         const restro = await Restaurant.findById(restaurantId).populate("owner");
         if (
@@ -184,7 +193,6 @@ export const verifyPayment = async (req, res) => {
               restro.name,
             ),
           });
-        }
         }
       } catch (err) {
         console.error("Alert System Delay:", err.message);
@@ -220,6 +228,10 @@ export const verifyPayment = async (req, res) => {
 export const razorpayWebhook = async (req, res) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.error("❌ RAZORPAY_WEBHOOK_SECRET is not set");
+      return res.status(500).json({ error: "Webhook misconfigured" });
+    }
     const signature = req.headers["x-razorpay-signature"];
 
     // 🛡️ SECURITY FIX (SEC-4): Use raw body for HMAC verification
@@ -291,7 +303,7 @@ export const razorpayWebhook = async (req, res) => {
       res.status(200).json({ status: "ok" });
     } else {
       console.warn("🚨 Invalid Razorpay Webhook Signature!");
-      res.status(400).json({ error: "Invalid signature" });
+      return res.status(400).json({ error: "Invalid signature" });
     }
   } catch (error) {
     console.error("Webhook Error:", error.message);

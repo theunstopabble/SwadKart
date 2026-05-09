@@ -154,10 +154,6 @@ export const loginBiometricVerify = async (req, res) => {
     const credentialIDBuffer = Buffer.from(body.id, 'base64url'); // Decode from request
     const publicKeyBuffer = authDoc.credentialPublicKey; // From DB
 
-    // 🛠️ FINAL SAFETY NET: Add BOTH 'id' and 'credentialID' properties
-    // Some library versions verify against 'id', others 'credentialID'
-    const minimalBuffer = new Uint8Array([...credentialIDBuffer]);
-    
     // 🛠️ SOURCE CODE VERIFIED FIX (v13.2.2)
     // The library expects 'credential' option (not 'authenticator')
     // AND the object must have 'id' and 'publicKey' properties explicitly.
@@ -201,16 +197,17 @@ export const loginBiometricVerify = async (req, res) => {
       return res.status(400).json({ verified: false, message: 'Verification failed' });
     }
 
-    if (verified) {
-      // Update counter
-      authDoc.counter = authenticationInfo.newCounter;
-      user.markModified("biometricCredentials");
-      await user.save();
-
-      res
-        .status(200)
-        .json({ verified: true, message: "Unlocked Successfully!" });
+    // 🛠️ SAFETY: Ensure authenticationInfo exists before updating counter
+    if (!authenticationInfo) {
+      return res.status(500).json({ verified: false, message: 'Authentication info missing from verification' });
     }
+
+    // Update counter
+    authDoc.counter = authenticationInfo.newCounter;
+    user.markModified("biometricCredentials");
+    await user.save();
+
+    res.status(200).json({ verified: true, message: "Unlocked Successfully!" });
   } catch (error) {
     console.error("Biometric Login Verify Error:", error);
     res.status(500).json({ message: error.message });
