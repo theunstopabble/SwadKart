@@ -39,13 +39,14 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
   // --- 🔌 Socket Listener ---
   useEffect(() => {
     const socket = getSocket();
-    socket.on("shopStatusUpdated", () => {
+    const handleShopStatusUpdate = () => {
       console.log("Socket Signal Received: Updating List...");
       if (fetchAllData) fetchAllData();
-    });
+    };
+    socket.on("shopStatusUpdated", handleShopStatusUpdate);
 
     return () => {
-      socket.off("shopStatusUpdated");
+      socket.off("shopStatusUpdated", handleShopStatusUpdate);
     };
   }, [fetchAllData]);
 

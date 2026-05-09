@@ -74,13 +74,14 @@ const RestaurantMenu = () => {
   useEffect(() => {
     if (!userInfo) return; // Only connect if logged in
     const socket = getSocket();
-    socket.on("productUpdated", (updated) => {
+    const handleProductUpdate = (updated) => {
       setMenu((prev) =>
         prev.map((it) => (it._id === updated._id ? { ...it, ...updated } : it)),
       );
-    });
+    };
+    socket.on("productUpdated", handleProductUpdate);
     return () => {
-      socket.off("productUpdated");
+      socket.off("productUpdated", handleProductUpdate);
       // Do NOT call socket.disconnect() — shared singleton
     };
   }, [userInfo]);

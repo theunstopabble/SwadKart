@@ -58,6 +58,9 @@ const Register = () => {
     if (password !== confirmPassword) {
       return toast.error("❌ Passwords do not match");
     }
+    if (password.length < 6) {
+      return toast.error("🔐 Password must be at least 6 characters");
+    }
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phoneRegex.test(phone)) {
       return toast.error("📞 Invalid Phone Number!");

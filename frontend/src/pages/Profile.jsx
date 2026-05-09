@@ -173,6 +173,10 @@ const Profile = () => {
       setLocalMsg("Passwords do not match ❌");
       return;
     }
+    if (password && password.length < 6) {
+      setLocalMsg("Password must be at least 6 characters 🔐");
+      return;
+    }
 
     dispatch(updateUserProfile({ name, email, password, description }));
   };

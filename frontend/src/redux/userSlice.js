@@ -2,18 +2,22 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { BASEURL } from "../config";
 // 🛡️ SECURITY FIX: Strip out tokens from old sessions to prevent XSS
-let storedUserInfo = localStorage.getItem("userInfo")
-  ? JSON.parse(localStorage.getItem("userInfo"))
-  : null;
+const safeParse = (raw) => {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+let storedUserInfo = safeParse(localStorage.getItem("userInfo"));
 
 if (storedUserInfo && storedUserInfo.token) {
   delete storedUserInfo.token;
   localStorage.setItem("userInfo", JSON.stringify(storedUserInfo));
 }
 
-const userInfoFromStorage = localStorage.getItem("userInfo")
-  ? JSON.parse(localStorage.getItem("userInfo"))
-  : null;
+const userInfoFromStorage = safeParse(localStorage.getItem("userInfo"));
 
 const initialState = {
   userInfo: userInfoFromStorage,
@@ -105,6 +109,7 @@ const userSlice = createSlice({
       localStorage.removeItem("userInfo");
       localStorage.removeItem("couponDiscount");
       localStorage.removeItem("appliedCoupon");
+      localStorage.removeItem("isBiometricEnabled");
     },
   },
   // 👇 2. EXTRA REDUCERS

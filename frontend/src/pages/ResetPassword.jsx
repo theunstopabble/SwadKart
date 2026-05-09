@@ -21,6 +21,11 @@ const ResetPassword = () => {
       setLoading(false);
       return;
     }
+    if (password.length < 6) {
+      toast.error("🔐 Password must be at least 6 characters");
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch(

@@ -31,11 +31,10 @@ const OrderAgain = () => {
   }, [user]);
 
   const handleReorder = (item) => {
-    // Navigate to product detail page for now
-    if (item.product) {
-      navigate(`/product/${item.product}`);
+    if (item.restaurant) {
+      navigate(`/restaurant/${item.restaurant}`);
     } else {
-      toast("Product no longer available");
+      toast("Restaurant no longer available");
     }
   };
 

@@ -57,7 +57,7 @@ const CartItem = ({ item }) => {
           </button>
         </div>
         <button
-          onClick={() => dispatch(removeFromCart(item._id))}
+          onClick={() => dispatch(removeFromCart(item.cartUniqueId))}
           className="bg-red-500/10 p-2.5 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-500/5"
         >
           <Trash2 size={18} />

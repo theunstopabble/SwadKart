@@ -38,13 +38,14 @@ const LiveTrackingMap = ({ orderId, restaurantCoords, userCoords }) => {
     // Join order room to listen specifically for this order's driver
     socket.emit("joinOrder", orderId);
 
-    socket.on("driverLocationUpdate", (coords) => {
+    const handleDriverLocation = (coords) => {
       console.log("📍 Live Position Received:", coords);
       setDriverPos([coords.lat, coords.lng]);
-    });
+    };
+    socket.on("driverLocationUpdate", handleDriverLocation);
 
     return () => {
-      socket.off("driverLocationUpdate");
+      socket.off("driverLocationUpdate", handleDriverLocation);
     };
   }, [orderId]);
 

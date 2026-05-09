@@ -66,16 +66,17 @@ const OrderDetails = () => {
       fetchOrder();
       const socket = getSocket();
       socket.emit("joinOrder", id);
-      socket.on("orderUpdated", (updatedOrder) => {
+      const handleOrderUpdate = (updatedOrder) => {
         if (updatedOrder._id === id) {
           setOrder(updatedOrder);
           toast.success(`Protocol Update: ${updatedOrder.orderStatus}`, {
             icon: "🛵",
           });
         }
-      });
+      };
+      socket.on("orderUpdated", handleOrderUpdate);
       return () => {
-        socket.off("orderUpdated");
+        socket.off("orderUpdated", handleOrderUpdate);
       };
     }
   }, [id, userInfo]);

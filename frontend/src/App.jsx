@@ -119,7 +119,7 @@ function App() {
     let socket = null;
     if (userInfo) {
       socket = getSocket();
-      socket.on("orderUpdated", (order) => {
+      const handleOrderUpdate = (order) => {
         import("./components/notificationHelper").then(
           ({ sendNotification }) => {
             sendNotification(`SwadKart: Order Update! 🛵`, {
@@ -129,16 +129,15 @@ function App() {
         );
         const audio = new Audio("/notification.mp3");
         audio.play().catch(() => console.log("Audio alert blocked"));
-      });
-    }
+      };
+      socket.on("orderUpdated", handleOrderUpdate);
 
-    return () => {
-      if (socket) {
-        socket.off("orderUpdated");
-        // DO NOT call disconnectSocket() here.
-        // The singleton should only be disconnected on logout.
-      }
-    };
+      return () => {
+        if (socket) {
+          socket.off("orderUpdated", handleOrderUpdate);
+        }
+      };
+    }
   }, [userInfo]);
 
   // 🔓 HANDLER: Unlock App (with retry counter)

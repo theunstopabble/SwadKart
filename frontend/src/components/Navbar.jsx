@@ -20,6 +20,7 @@ import {
   Shield,
 } from "lucide-react";
 import { BASEURL } from "../config";
+import { disconnectSocket } from "../utils/socket";
 
 // 👇 Import PWA Button
 import InstallPWA from "./InstallPWA";
@@ -76,6 +77,7 @@ const Navbar = () => {
     }
     dispatch({ type: "user/logout" });
     dispatch({ type: "cart/logout" });
+    disconnectSocket();
     setIsOpen(false);
     navigate("/login");
   };

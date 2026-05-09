@@ -31,7 +31,7 @@ const GroupOrders = () => {
         `${BASEURL}/api/v1/group-orders/my`,
         { withCredentials: true }
       );
-      setOrders(data);
+      setOrders(Array.isArray(data) ? data : data.data || []);
     } catch {
       setOrders([]);
     } finally {
@@ -78,7 +78,7 @@ const GroupOrders = () => {
       );
       fetchOrders();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to join");
+      toast.error(err.response?.data?.message || "Failed to join");
     }
   };
 

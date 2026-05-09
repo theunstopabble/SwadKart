@@ -27,6 +27,7 @@ const PlaceOrder = () => {
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const [countdown, setCountdown] = useState(4);
   const [paymentDetails, setPaymentDetails] = useState({ id: "", date: "" });
+  const [tipAmount, setTipAmount] = useState(0);
   const [, setRazorpayLoaded] = useState(false);
   const timerRef = useRef(null);
   const isMounted = useRef(true);
@@ -64,7 +65,7 @@ const PlaceOrder = () => {
   // Calculate Total
   const totalPrice = Math.max(
     0,
-    itemsPrice + shippingPrice + taxPrice - couponDiscount,
+    itemsPrice + shippingPrice + taxPrice + tipAmount - couponDiscount,
   ).toFixed(2);
 
   // --- Redirect if missing data or not logged in ---
@@ -226,6 +227,7 @@ const PlaceOrder = () => {
           totalPrice: Number(totalPrice),
           couponCode: appliedCouponCode,
           couponDiscount,
+          tipAmount,
         }),
       });
 
@@ -408,6 +410,8 @@ const PlaceOrder = () => {
               totalPrice={totalPrice}
               isProcessing={isProcessing}
               placeOrderHandler={placeOrderHandler}
+              tipAmount={tipAmount}
+              onTipChange={setTipAmount}
             />
           </div>
         </div>

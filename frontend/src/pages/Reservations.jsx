@@ -33,7 +33,7 @@ const Reservations = () => {
         `${BASEURL}/api/v1/reservations/my`,
         { withCredentials: true }
       );
-      setReservations(data);
+      setReservations(Array.isArray(data) ? data : data.data || []);
     } catch {
       setReservations([]);
     } finally {
@@ -76,7 +76,7 @@ const Reservations = () => {
       );
       fetchReservations();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to cancel");
+      toast.error(err.response?.data?.message || "Failed to cancel");
     }
   };
 

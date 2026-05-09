@@ -12,13 +12,14 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { BASEURL } from "../config";
-import { addToCart } from "../redux/cartSlice";
+import { addToCart, clearCart } from "../redux/cartSlice";
 import { toast } from "react-hot-toast";
 
 const MyOrders = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { userInfo } = useSelector((state) => state.user);
+  const { cartItems } = useSelector((state) => state.cart);
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,19 @@ const MyOrders = () => {
 
   const handleReorder = (order) => {
     try {
+      const orderRestaurantId = order.orderItems[0]?.restaurant;
+      if (
+        cartItems.length > 0 &&
+        orderRestaurantId &&
+        cartItems[0].restaurant?.toString() !== orderRestaurantId?.toString()
+      ) {
+        const confirmed = window.confirm(
+          "Your cart has items from another restaurant. Reordering will clear your current cart. Continue?",
+        );
+        if (!confirmed) return;
+        dispatch(clearCart());
+      }
+
       order.orderItems.forEach((item) => {
         dispatch(
           addToCart({

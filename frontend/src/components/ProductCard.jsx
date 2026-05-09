@@ -1,20 +1,39 @@
 import React from "react";
 import { Plus } from "lucide-react";
-import { useDispatch } from "react-redux";
-import { addToCart } from "../redux/cartSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { addToCart, clearCart } from "../redux/cartSlice";
 import { toast } from "react-hot-toast";
 import Rating from "./Rating"; // 👈 Rating component import kiya
 
 const ProductCard = ({ product }) => {
   const dispatch = useDispatch();
+  const { cartItems } = useSelector((state) => state.cart);
 
   const handleAddToCart = () => {
-    if (product.countInStock > 0) {
-      dispatch(addToCart({ ...product, qty: 1 }));
-      toast.success(`${product.name} added to cart! 🛒`);
-    } else {
+    if (product.countInStock === 0) {
       toast.error("Item is currently out of stock");
+      return;
     }
+
+    const productRestaurantId =
+      typeof product.restaurant === "object"
+        ? product.restaurant?._id
+        : product.restaurant;
+
+    if (
+      cartItems.length > 0 &&
+      productRestaurantId &&
+      cartItems[0].restaurant?.toString() !== productRestaurantId?.toString()
+    ) {
+      const confirmed = window.confirm(
+        "Your cart has items from another restaurant. Adding this will clear your current cart. Continue?",
+      );
+      if (!confirmed) return;
+      dispatch(clearCart());
+    }
+
+    dispatch(addToCart({ ...product, qty: 1 }));
+    toast.success(`${product.name} added to cart! 🛒`);
   };
 
   return (

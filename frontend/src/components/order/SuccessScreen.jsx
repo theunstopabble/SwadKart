@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { Check, Copy } from "lucide-react";
+import { toast } from "react-hot-toast";
 import confetti from "canvas-confetti"; // 👈 Import Confetti
 
 const SuccessScreen = ({ countdown, paymentDetails, totalPrice }) => {
@@ -37,7 +38,7 @@ const SuccessScreen = ({ countdown, paymentDetails, totalPrice }) => {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(paymentDetails.id);
-    alert("Payment ID Copied!");
+    toast.success("Payment ID Copied!");
   };
 
   return (

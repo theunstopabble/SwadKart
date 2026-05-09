@@ -11,19 +11,17 @@ import {
 import { TrendingUp, IndianRupee, Loader2 } from "lucide-react";
 import { BASEURL } from "../../config";
 
-const RestaurantAnalytics = ({ token }) => {
+const RestaurantAnalytics = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (!token) return;
-
       try {
         setLoading(true);
         // ✅ Correct Backend Route
         const res = await fetch(`${BASEURL}/api/v1/orders/sales-stats`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
         });
 
         if (!res.ok) throw new Error("Failed to fetch stats");
@@ -50,7 +48,7 @@ const RestaurantAnalytics = ({ token }) => {
     };
 
     fetchStats();
-  }, [token]);
+  }, []);
 
   // 🔄 Loading State
   if (loading) {

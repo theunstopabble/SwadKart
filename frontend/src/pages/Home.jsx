@@ -64,11 +64,12 @@ const Home = () => {
 
     // Only connect socket for authenticated users; server rejects anonymous connections
     let socket = null;
+    let handleRestaurantUpdate;
     if (userInfo) {
       socket = getSocket();
       socketRef.current = socket;
 
-      socket.on("restaurantUpdated", (updatedShop) => {
+      handleRestaurantUpdate = (updatedShop) => {
         setRestaurants((prevShops) => {
           let updatedList = prevShops.map((shop) =>
             shop._id === updatedShop._id ? updatedShop : shop,
@@ -82,12 +83,13 @@ const Home = () => {
             (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0),
           );
         });
-      });
+      };
+      socket.on("restaurantUpdated", handleRestaurantUpdate);
     }
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.off("restaurantUpdated");
+      if (socketRef.current && handleRestaurantUpdate) {
+        socketRef.current.off("restaurantUpdated", handleRestaurantUpdate);
         // Do NOT disconnect — shared singleton
       }
     };

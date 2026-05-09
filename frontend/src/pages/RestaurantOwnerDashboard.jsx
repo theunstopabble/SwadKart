@@ -55,7 +55,7 @@ const RestaurantOwnerDashboard = () => {
 
   // 🛡️ Security Check
   useEffect(() => {
-    if (userInfo && userInfo.role !== "restaurant_owner") {
+    if (userInfo && userInfo.role !== "restaurant_owner" && userInfo.role !== "admin") {
       toast.error("Access Denied: Restaurant Owners Only");
       navigate("/");
     }
@@ -161,7 +161,7 @@ const RestaurantOwnerDashboard = () => {
       const socket = getSocket();
       socketRef.current = socket;
 
-      socket.on("newOrderReceived", (newOrder) => {
+      const handleNewOrder = (newOrder) => {
         if (isSoundEnabled && audioPlayer.current) {
           audioPlayer.current
             .play()
@@ -181,10 +181,11 @@ const RestaurantOwnerDashboard = () => {
           },
         );
         fetchData();
-      });
+      };
+      socket.on("newOrderReceived", handleNewOrder);
 
       return () => {
-        socket.off("newOrderReceived");
+        socket.off("newOrderReceived", handleNewOrder);
         // socket.disconnect() removed due to singleton pattern
       };
     }

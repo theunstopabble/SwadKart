@@ -60,7 +60,7 @@ const DeliveryPartnerDashboard = () => {
 
     const socket = getSocket();
 
-    socket.on("orderAssigned", () => {
+    const handleOrderAssigned = () => {
       toast.success("🚀 NEW MISSION ASSIGNED!", {
         duration: 5000,
         icon: "🛵",
@@ -72,10 +72,11 @@ const DeliveryPartnerDashboard = () => {
         },
       });
       fetchMyDeliveries();
-    });
+    };
+    socket.on("orderAssigned", handleOrderAssigned);
 
     return () => {
-      socket.off("orderAssigned");
+      socket.off("orderAssigned", handleOrderAssigned);
       // Intentionally not calling disconnectSocket here since it's a shared singleton
     };
   }, [userInfo, navigate, fetchMyDeliveries]);

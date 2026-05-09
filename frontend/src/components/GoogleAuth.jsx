@@ -78,8 +78,9 @@ const GoogleAuth = () => {
   };
 
   const handleFinalRegister = async () => {
-    if (!phoneNumber || phoneNumber.length < 10) {
-      return toast.error("Please enter a valid 10-digit phone number");
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      return toast.error("Please enter a valid 10-digit Indian phone number");
     }
     setLoading(true);
     try {

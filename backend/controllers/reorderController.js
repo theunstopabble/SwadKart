@@ -21,6 +21,7 @@ export const getFrequentItems = asyncHandler(async (req, res) => {
       $group: {
         _id: "$orderItems.product",
         productId: { $first: "$orderItems.product" },
+        restaurant: { $first: "$orderItems.restaurant" },
         name: { $first: "$orderItems.name" },
         image: { $first: "$orderItems.image" },
         price: { $last: "$orderItems.price" },
@@ -34,6 +35,7 @@ export const getFrequentItems = asyncHandler(async (req, res) => {
       $project: {
         _id: 0,
         product: "$productId",
+        restaurant: 1,
         name: 1,
         image: 1,
         price: 1,
