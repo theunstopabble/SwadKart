@@ -208,6 +208,11 @@ export const deleteUserByAdmin = async (req, res, next) => {
 
       // Also delete the associated restaurant profile if it exists
       await Restaurant.findOneAndDelete({ owner: user._id });
+      // 🛡️ GDPR FIX: Cascade delete related user data
+      await Order.deleteMany({ user: user._id });
+      await Product.deleteMany({ user: user._id });
+      await Notification.deleteMany({ user: user._id });
+      await CouponUsage.deleteMany({ user: user._id });
       await user.deleteOne();
 
       return res.json({ message: "User identity and associated data removed" });
@@ -400,7 +405,8 @@ export const googleCheck = async (req, res, next) => {
 
 export const googleRegister = async (req, res, next) => {
   try {
-    const { name, email, image, phone: rawPhone } = req.body;
+    const { name, email: rawEmail, image, phone: rawPhone } = req.body;
+    const email = sanitizeEmail(rawEmail);
 
     // BUG-15 FIX: Validate phone number on backend for Google registration
     const phoneRegex = /^[6-9]\d{9}$/;
@@ -419,7 +425,7 @@ export const googleRegister = async (req, res, next) => {
 
     const user = await User.create({
       name,
-      email,
+      email: String(email),
       phone,
       image,
       password: crypto.randomBytes(32).toString("hex"), // 🛡️ SECURITY FIX (BUG-8): Cryptographically secure dummy password

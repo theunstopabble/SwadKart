@@ -89,7 +89,7 @@ const getRestaurantById = async (req, res) => {
         restaurant.openingTime,
         restaurant.closingTime
       );
-      res.json({ ...restaurant, isOpenNow: isOpen });
+      res.json({ ...restaurant.toObject(), isOpenNow: isOpen });
     } else {
       res.status(404).json({ message: "Restaurant not found" });
     }

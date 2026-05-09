@@ -110,9 +110,14 @@ export const loginBiometricStart = async (req, res) => {
 
     console.log("🔓 Login Start Request for:", user.email);
 
+    const auths = user.biometricCredentials || [];
+    if (auths.length === 0) {
+      return res.status(400).json({ message: "No biometric credentials found. Please register first." });
+    }
+
     const options = await generateAuthenticationOptions({
       rpID: webAuthnConfig.rpID,
-      allowCredentials: user.biometricCredentials.map((cred) => ({
+      allowCredentials: auths.map((cred) => ({
         id: cred.credentialID,
         type: "public-key",
         transports: cred.transports,

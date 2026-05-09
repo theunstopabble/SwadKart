@@ -414,7 +414,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 
             // 🔥 FEAT-20: Push Notifications (non-blocking)
             try {
-              createNotification(
+              await createNotification(
                 req.user._id,
                 "Order Confirmed",
                 `Your order #${createdOrder._id.toString().slice(-6).toUpperCase()} is confirmed!`,
@@ -422,7 +422,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
                 { orderId: createdOrder._id.toString(), totalPrice: createdOrder.totalPrice },
               );
               if (restro?.owner?._id) {
-                createNotification(
+                await createNotification(
                   restro.owner._id,
                   "New Order Received",
                   `New order worth ₹${createdOrder.totalPrice} from ${populatedOrder.user?.name || "a customer"}`,

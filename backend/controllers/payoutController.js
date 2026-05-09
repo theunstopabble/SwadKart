@@ -23,9 +23,9 @@ export const getRestaurantEarnings = asyncHandler(async (req, res) => {
   const summary = await Order.aggregate([
     {
       $match: {
-        restaurant: restaurant._id,
+        "orderItems.restaurant": restaurant._id,
         isPaid: true,
-        status: { $nin: ["cancelled", "refunded"] },
+        orderStatus: { $nin: ["Cancelled"] },
       },
     },
     {
@@ -44,9 +44,10 @@ export const getRestaurantEarnings = asyncHandler(async (req, res) => {
   const processing = summary.find((s) => s._id === "processing") || { count: 0, totalPayout: 0, totalCommission: 0 };
 
   const recentOrders = await Order.find({
-    restaurant: restaurant._id,
+    "orderItems.restaurant": restaurant._id,
     payoutStatus: "pending",
     isPaid: true,
+    orderStatus: { $ne: "Cancelled" },
   })
     .select("_id itemsPrice restaurantCommission restaurantPayout createdAt")
     .sort({ createdAt: -1 })
@@ -83,10 +84,10 @@ export const requestPayout = asyncHandler(async (req, res) => {
 
   // Find pending orders eligible for payout (paid orders only)
   const pendingOrders = await Order.find({
-    restaurant: restaurant._id,
+    "orderItems.restaurant": restaurant._id,
     payoutStatus: "pending",
     isPaid: true,
-    status: { $nin: ["cancelled", "refunded"] },
+    orderStatus: { $ne: "Cancelled" },
   }).select("_id restaurantPayout createdAt");
 
   if (pendingOrders.length === 0) {

@@ -17,7 +17,7 @@ const OrderAgain = () => {
       setLoading(true);
       try {
         const res = await fetch(`${BASEURL}/api/v1/reorder/frequent`, {
-          headers: { Authorization: `Bearer ${user.token}` },
+          credentials: "include",
         });
         const data = await res.json();
         if (res.ok) setItems(data.frequentItems || []);

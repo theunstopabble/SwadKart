@@ -20,14 +20,15 @@ export const fraudDetection = async (req, res, next) => {
       flags.push("high_value_first_order");
     }
 
-    // 2. Multiple accounts with same address (last 30 days)
-    if (shippingAddress?.address) {
-      const addressMatch = await User.countDocuments({
+    // 2. Multiple accounts with same phone prefix (last 30 days) — proxy for duplicate accounts
+    if (shippingAddress?.phone) {
+      const phonePrefix = String(shippingAddress.phone).slice(0, 6);
+      const phoneMatch = await User.countDocuments({
         _id: { $ne: userId },
-        "shippingAddress.address": { $regex: shippingAddress.address.slice(0, 20), $options: "i" },
+        phone: { $regex: "^" + phonePrefix },
       });
-      if (addressMatch >= 3) {
-        flags.push("multiple_accounts_same_address");
+      if (phoneMatch >= 3) {
+        flags.push("multiple_accounts_same_phone_prefix");
       }
     }
 
