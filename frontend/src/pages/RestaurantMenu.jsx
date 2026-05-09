@@ -91,7 +91,9 @@ const RestaurantMenu = () => {
     let filtered = menu.filter(
       (it) =>
         it.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (!isVegOnly || it.isVeg),
+        (!isVegOnly || it.isVeg) &&
+        it.countInStock > 0 &&
+        it.isAvailable !== false,
     );
     const groups = {};
     filtered.forEach((it) => {
@@ -116,7 +118,10 @@ const RestaurantMenu = () => {
   }, [selectedVariant, selectedAddons, selectedItem]);
 
   const handleAddToCartClick = (item) => {
-    if (item.countInStock === 0) return;
+    if (item.countInStock === 0 || item.isAvailable === false) {
+      toast.error("This item is currently unavailable");
+      return;
+    }
 
     // 🔥 NEW: Block cart if restaurant is closed
     if (!restaurant?.isOpenNow) {

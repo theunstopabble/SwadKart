@@ -95,11 +95,16 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     let orderIsPaid = false;
     let orderPaidAt = null;
 
-    // 1. Fetch all products ONCE and validate stock
+    // 1. Fetch all products ONCE and validate stock & availability
     const dbProducts = [];
     for (const item of orderItems) {
       const product = await Product.findById(item.product).session(session);
       if (!product) throw new Error(`Product not found: ${item.name}`);
+      if (product.isAvailable === false) {
+        throw new Error(
+          `${product.name} is currently unavailable.`,
+        );
+      }
       if (product.countInStock < item.qty) {
         throw new Error(
           `Out of stock: ${product.name}. Only ${product.countInStock} left.`,
@@ -247,15 +252,15 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     const netItemsValue = Math.max(0, serverItemsPrice - serverCouponDiscount);
     const serverCommission = parseFloat((netItemsValue * commissionRate).toFixed(2));
     const serverRestaurantPayout = parseFloat((netItemsValue - serverCommission).toFixed(2));
+    // 🛡️ CRITICAL FIX: serverDeliveryFee already includes base shipping + surge.
+    // Do NOT add serverShippingPrice and serverSurgePrice again — that triple-charges delivery.
     const serverTotalPrice = parseFloat(
       Math.max(
         0,
         serverItemsPrice +
-          serverShippingPrice +
           serverTaxPrice +
           serverTipAmount +
-          serverDeliveryFee +
-          serverSurgePrice -
+          serverDeliveryFee -
           serverCouponDiscount, // Use SERVER calculated discount
       ).toFixed(2),
     );

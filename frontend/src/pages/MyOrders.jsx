@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronRight,
+  XCircle,
 } from "lucide-react";
 import { BASEURL } from "../config";
 import { addToCart, clearCart } from "../redux/cartSlice";
@@ -255,6 +256,36 @@ const MyOrders = () => {
                       />
                       Re-Order
                     </button>
+
+                    {/* 🛡️ Cancel Order Button */}
+                    {(order.orderStatus === "Placed" || order.orderStatus === "Preparing") && (
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm("Are you sure you want to cancel this order?")) return;
+                          try {
+                            const res = await fetch(`${BASEURL}/api/v1/orders/${order._id}/cancel`, {
+                              method: "PUT",
+                              credentials: "include",
+                            });
+                            const data = await res.json();
+                            if (res.ok) {
+                              setOrders((prev) =>
+                                prev.map((o) => (o._id === order._id ? data : o)),
+                              );
+                              toast.success("Order cancelled successfully");
+                            } else {
+                              toast.error(data.message || "Cannot cancel order");
+                            }
+                          } catch {
+                            toast.error("Cancel request failed");
+                          }
+                        }}
+                        className="px-6 py-4 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 hover:border-red-500 rounded-xl text-[10px] font-extrabold uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                      >
+                        <XCircle size={16} />
+                        Cancel
+                      </button>
+                    )}
                   </div>
                 </div>
 

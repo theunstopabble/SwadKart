@@ -149,6 +149,32 @@ const OrderDetails = () => {
             <div className="bg-gray-900 border border-gray-800 px-8 py-3 rounded-2xl text-lg font-black italic text-white shadow-xl">
               {order.orderStatus}
             </div>
+            {/* 🛡️ Cancel Order Button */}
+            {(order.orderStatus === "Placed" || order.orderStatus === "Preparing") && (
+              <button
+                onClick={async () => {
+                  if (!window.confirm("Are you sure you want to cancel this order?")) return;
+                  try {
+                    const res = await fetch(`${BASEURL}/api/v1/orders/${order._id}/cancel`, {
+                      method: "PUT",
+                      credentials: "include",
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setOrder(data);
+                      toast.success("Order cancelled successfully");
+                    } else {
+                      toast.error(data.message || "Cannot cancel order");
+                    }
+                  } catch {
+                    toast.error("Cancel request failed");
+                  }
+                }}
+                className="mt-2 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 hover:border-red-500 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Cancel Order
+              </button>
+            )}
             {/* ⏰ FEAT-12: ETA Display */}
             {order.estimatedDeliveryAt &&
               order.orderStatus !== "Delivered" &&

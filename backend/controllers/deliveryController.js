@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import Order from "../models/orderModel.js";
 import User from "../models/userModel.js";
+import Restaurant from "../models/restaurantModel.js";
 import sendEmail from "../utils/sendEmail.js";
 import {
   getDeliveryRequestTemplate,
@@ -52,13 +53,43 @@ export const assignDeliveryPartner = async (req, res) => {
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
+    // 🛡️ Restaurant owner can only assign for their own restaurant's orders
+    if (req.user.role === "restaurant_owner") {
+      const restaurant = await Restaurant.findOne({ owner: req.user._id });
+      if (!restaurant) {
+        return res.status(404).json({ message: "Restaurant not found" });
+      }
+      const orderHasRestaurantItem = order.orderItems.some(
+        (item) => item.restaurant?.toString() === restaurant._id.toString(),
+      );
+      if (!orderHasRestaurantItem) {
+        return res.status(403).json({ message: "Not authorized to assign partner for this order" });
+      }
+    }
+
+    // Cannot assign to delivered or cancelled orders
+    if (order.orderStatus === "Delivered" || order.orderStatus === "Cancelled") {
+      return res.status(400).json({ message: `Cannot assign partner to a ${order.orderStatus.toLowerCase()} order` });
+    }
+
     const partner = await User.findById(deliveryPartnerId);
     if (!partner)
       return res.status(404).json({ message: "Delivery partner not found" });
 
+    // 🛡️ Verify partner is actually a delivery_partner role and is available
+    if (partner.role !== "delivery_partner") {
+      return res.status(400).json({ message: "Selected user is not a delivery partner" });
+    }
+    if (partner.isAvailable === false) {
+      return res.status(400).json({ message: "Delivery partner is currently unavailable" });
+    }
+
     order.deliveryPartner = deliveryPartnerId;
     order.deliveryStatus = "Assigned";
     order.orderStatus = "Ready";
+
+    // Mark partner as unavailable while they have this order
+    await User.findByIdAndUpdate(deliveryPartnerId, { isAvailable: false });
 
     // OTP logic (Already generated in orderController, but safe to check/refresh here)
     if (!order.deliveryOTP) {
@@ -144,6 +175,8 @@ export const updateDeliveryAction = async (req, res) => {
       order.deliveryStatus = "Rejected";
       order.deliveryPartner = null;
       order.orderStatus = "Ready";
+      // Free up the driver for new assignments
+      await User.findByIdAndUpdate(req.user._id, { isAvailable: true });
     }
 
     const updatedOrder = await order.save();

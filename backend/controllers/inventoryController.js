@@ -10,7 +10,19 @@ export const getLowStockProducts = asyncHandler(async (req, res) => {
   const restaurantId = req.query.restaurant ? sanitizeObjectId(req.query.restaurant) : null;
 
   const query = { countInStock: { $lte: threshold } };
-  if (restaurantId) query.restaurant = restaurantId;
+
+  // 🛡️ Restaurant owners can only see their own restaurant's inventory
+  if (req.user.role === "restaurant_owner") {
+    const Restaurant = (await import("../models/restaurantModel.js")).default;
+    const restaurant = await Restaurant.findOne({ owner: req.user._id }).select("_id").lean();
+    if (restaurant) {
+      query.restaurant = restaurant._id;
+    } else {
+      return res.json({ threshold, total: 0, products: [] });
+    }
+  } else if (restaurantId) {
+    query.restaurant = restaurantId;
+  }
 
   const products = await Product.find(query)
     .populate("restaurant", "name")

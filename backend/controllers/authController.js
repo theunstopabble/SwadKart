@@ -260,6 +260,10 @@ export const resetPassword = async (req, res, next) => {
       res.status(400);
       throw new Error("Invalid Token");
     }
+    if (!req.body.password || req.body.password.length < 6) {
+      res.status(400);
+      throw new Error("Password must be at least 6 characters");
+    }
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
