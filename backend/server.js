@@ -17,7 +17,9 @@ import connectDB from "./config/db.js";
 import cacheClient from "./config/redis.js";
 
 // 🚀 PERFORMANCE FIX (STEP 3): Initialize Background Workers
-import "./workers/emailWorker.js";
+import("./workers/emailWorker.js").catch((err) => {
+  console.error("⚠️ Email worker failed to load:", err.message);
+});
 
 // Error Middlewares
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
@@ -94,6 +96,9 @@ const httpServer = createServer(app);
 app.set("trust proxy", 1);
 
 // --- 📏 Body Parser Limits (prevent DoS) ---
+// 🛡️ Razorpay webhook needs RAW body (must be BEFORE express.json())
+app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
@@ -232,10 +237,6 @@ app.use(helmet());
 app.use(compression());
 app.use(cookieParser());
 
-// ==========================================
-// 🛡️ WEBHOOK FIX: Skip JSON parsing for Razorpay webhook
-// ==========================================
-app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
 // Body parser limits already configured at top of file (10mb)
 
 // ==========================================
@@ -355,7 +356,13 @@ const orderLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use("/api/v1/orders", orderLimiter);
+// Only apply order limit to POST (order creation), not GET/PUT/DELETE
+app.use("/api/v1/orders", (req, res, next) => {
+  if (req.method === "POST") {
+    return orderLimiter(req, res, next);
+  }
+  next();
+});
 
 app.get("/ping", (req, res) => {
   res.status(200).send("Pong");
@@ -456,8 +463,8 @@ const gracefulShutdown = (signal) => {
   console.log(`\n${signal} received. Starting graceful shutdown...`);
   server.close(() => {
     console.log("✅ HTTP server closed");
-    mongoose.connection.close(false, () => {
-      console.log("✅ MongoDB connection closed");
+    mongoose.connection.close().then(() => {
+      console.log("🔌 MongoDB connection closed.");
       process.exit(0);
     });
   });
@@ -475,13 +482,8 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("unhandledRejection", (err) => {
   console.error("💥 UNHANDLED REJECTION:", err.message);
   console.error(err.stack);
-  // Don't crash in production, but log critical error
-  if (process.env.NODE_ENV === "production") {
-    // In production, log and continue; let monitoring catch it
-    // For critical unhandled rejections, consider crashing to restart clean
-  } else {
-    server.close(() => process.exit(1));
-  }
+  // Always crash + restart to avoid corrupted state
+  server.close(() => process.exit(1));
 });
 
 process.on("uncaughtException", (err) => {
