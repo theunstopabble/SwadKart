@@ -40,7 +40,7 @@ const MySubscriptions = () => {
   }, [userInfo]);
 
   const action = async (id, type) => {
-    const res = await fetch(`${BASEURL}/api/v1/subscriptions/${id}/${type}`, {
+    const res = await fetch(`${BASEURL}/api/v1/subscriptions/${id}/${type === "pause" ? "pause" : type === "resume" ? "resume" : "cancel"}`, {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

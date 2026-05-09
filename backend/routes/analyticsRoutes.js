@@ -26,6 +26,6 @@ router.get("/admin/top-restaurants", protect, adminOnly, getTopRestaurants);
 router.get("/admin/top-products", protect, adminOnly, getTopProducts);
 
 // FEAT-26: AI Dish Recommendations
-router.get("/recommendations", protect, getRecommendations);
+router.get("/recommendations", protect, adminOnly, getRecommendations);
 
 export default router;

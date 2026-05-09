@@ -152,11 +152,17 @@ const PlaceOrder = () => {
           orderId: dbOrderId,
         }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || "Security Alert: Payment verification failed!");
+        if (isMounted.current) setIsProcessing(false);
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         handleOrderSuccess(dbOrderId, response.razorpay_payment_id);
       } else {
-        toast.error("Security Alert: Payment verification failed!");
+        toast.error(data?.message || "Security Alert: Payment verification failed!");
         if (isMounted.current) setIsProcessing(false);
       }
     } catch {
@@ -227,9 +233,13 @@ const PlaceOrder = () => {
           tipAmount,
         }),
       });
-
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || "Order creation failed");
+        setIsProcessing(false);
+        return;
+      }
       const dbData = await res.json();
-      if (!res.ok) throw new Error(dbData?.message || "Order creation failed");
 
       // 5. Handle Payment Flow
       if (cart.paymentMethod === "COD") {
@@ -253,14 +263,24 @@ const PlaceOrder = () => {
             orderId: dbData._id,
           }),
         });
-        if (!orderRes.ok) throw new Error("Failed to create payment order");
+        if (!orderRes.ok) {
+          const err = await orderRes.json().catch(() => ({}));
+          toast.error(err.message || "Failed to create payment order");
+          setIsProcessing(false);
+          return;
+        }
         const { order: razorpayOrder } = await orderRes.json();
         if (!razorpayOrder?.id) throw new Error("Invalid payment response");
 
         const keyRes = await fetch(`${BASEURL}/api/v1/payment/key`, {
           credentials: "include",
         });
-        if (!keyRes.ok) throw new Error("Failed to fetch payment key");
+        if (!keyRes.ok) {
+          const err = await keyRes.json().catch(() => ({}));
+          toast.error(err.message || "Failed to fetch payment key");
+          setIsProcessing(false);
+          return;
+        }
         const { key } = await keyRes.json();
 
         const options = {

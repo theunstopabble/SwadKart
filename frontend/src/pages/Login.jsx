@@ -41,32 +41,30 @@ const Login = () => {
         body: JSON.stringify({ email, password }),
       });
 
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Login failed" }));
+        toast.error(err.message || "Invalid Email or Password");
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
 
-      if (res.ok) {
-        dispatch(setCredentials(data));
+      dispatch(setCredentials(data));
 
-        // 🔐 AUTO-RESTORE BIOMETRIC (Industry Standard)
-        // After login, check if user had biometric enabled
-        try {
-          const bioRes = await axios.get(
-            `${BASEURL}/api/v1/users/profile/biometric-status`,
-            { withCredentials: true },
-          );
-
-          // If user has biometric enabled AND has registered credentials
-          if (bioRes.data.isBiometricEnabled && bioRes.data.hasCredentials) {
-            localStorage.setItem("isBiometricEnabled", "true");
-          }
-        } catch {
-          // biometric status check is optional, silently skip
+      try {
+        const bioRes = await axios.get(
+          `${BASEURL}/api/v1/users/profile/biometric-status`,
+          { withCredentials: true },
+        );
+        if (bioRes.data?.isBiometricEnabled && bioRes.data?.hasCredentials) {
+          localStorage.setItem("isBiometricEnabled", "true");
         }
-
-        toast.success("Login Successful! Welcome back. 👋");
-        navigate("/");
-      } else {
-        toast.error(data.message || "Invalid Email or Password");
+      } catch (_err) {
+        void _err;
       }
+
+      toast.success("Login Successful! Welcome back. 👋");
+      navigate("/");
     } catch {
       toast.error("Network Error. Check your connection.");
     } finally {

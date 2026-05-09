@@ -75,14 +75,15 @@ const Register = () => {
       });
       const data = await res.json();
 
-      if (res.ok) {
-        setOtpSent(true);
-        setTimer(30);
-        setOtp("");
-        toast.success(data.message || "OTP sent successfully! 📧");
-      } else {
+      if (!res.ok) {
         toast.error(data.message || "Registration Failed");
+        setIsLoading(false);
+        return;
       }
+      setOtpSent(true);
+      setTimer(30);
+      setOtp("");
+      toast.success(data.message || "OTP sent successfully! 📧");
     } catch {
       toast.error("Server Error. Please try again.");
     } finally {
@@ -103,13 +104,14 @@ const Register = () => {
         body: JSON.stringify({ email, otp }),
       });
       const data = await res.json();
-      if (res.ok) {
-        toast.success("🎉 Welcome to SwadKart!");
-        dispatch(setCredentials(data));
-        navigate("/");
-      } else {
+      if (!res.ok) {
         toast.error(data.message || "Invalid OTP");
+        setIsLoading(false);
+        return;
       }
+      toast.success("🎉 Welcome to SwadKart!");
+      dispatch(setCredentials(data));
+      navigate("/");
     } catch {
       toast.error("Verification failed.");
     } finally {
@@ -182,7 +184,7 @@ const Register = () => {
                   set: setConfirmPassword,
                 },
                 {
-                  icon: Gift,
+                  icon: Lock,
                   type: "text",
                   placeholder: "Referral Code (Optional)",
                   val: referralCode,

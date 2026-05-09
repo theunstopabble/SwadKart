@@ -122,7 +122,7 @@ export const chatWithGenie = async (req, res) => {
         .select("name price category isVeg restaurant")
         .populate("restaurant", "name")
         .limit(30),
-      Order.findOne({ user: userId }).sort({ createdAt: -1 }),
+      Order.findOne({ user: userId, isPaid: true }).sort({ paidAt: -1 }),
       User.findById(userId).select("walletBalance"),
     ]);
 

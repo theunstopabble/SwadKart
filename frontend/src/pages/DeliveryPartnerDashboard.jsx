@@ -100,13 +100,14 @@ const DeliveryPartnerDashboard = () => {
       );
 
       if (res.ok) {
+        await res.json().catch(() => ({}));
         toast.success(
           `Mission ${action === "accept" ? "Locked In" : "Declined"}`,
         );
         fetchMyDeliveries();
       } else {
-        const err = await res.json();
-        toast.error(err.message || "Action Failed");
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.message || "Action Failed");
       }
     } catch {
       toast.error("Transmission Error");
@@ -128,14 +129,14 @@ const DeliveryPartnerDashboard = () => {
         body: JSON.stringify({ otp: Number(otp) }),
       });
 
-      const data = await res.json();
-
       if (res.ok) {
-        toast.success("Target Reached: Order Delivered! 🏁");
+        const data = await res.json();
+        toast.success(data?.message || "Target Reached: Order Delivered!");
         setOtpInputs((prev) => ({ ...prev, [id]: "" }));
         fetchMyDeliveries();
       } else {
-        toast.error(data.message || "OTP Invalid");
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.message || "OTP Invalid");
       }
     } catch {
       toast.error("Handshake Failed");

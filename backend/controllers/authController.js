@@ -123,7 +123,6 @@ export const registerUser = async (req, res, next) => {
 export const verifyEmailAPI = async (req, res, next) => {
   try {
     const { email: rawEmail, otp } = req.body;
-    // 🛡️ CodeQL FIX: Sanitize email before DB query
     const email = sanitizeEmail(rawEmail);
     const user = await User.findOne({ email: String(email) });
 
@@ -132,48 +131,46 @@ export const verifyEmailAPI = async (req, res, next) => {
       throw new Error("User not found");
     }
 
-    if (user.otp === otp && user.otpExpires > Date.now()) {
-      user.isVerified = true;
-      user.otp = undefined;
-      user.otpExpires = undefined;
-      await user.save();
-
-      // 🎉 SUCCESS: Send Welcome Email to User
-      // NOTE: Admin alert is handled automatically by userModel.js post-save hook
-      try {
-        await sendEmail({
-          email: user.email,
-          subject: "Welcome to the SwadKart Family! 🍕",
-          html: getWelcomeTemplate(user.name),
-        });
-      } catch (emailError) {
-        console.error(
-          "⚠️ Welcome email failed (Silent):",
-          emailError.message,
-        );
-      }
-
-      generateToken(res, user._id); // Sets Secure HttpOnly Cookie
-
-      // 🪙 NON-BLOCKING: Process referral code if pending
-      try {
-        if (user.pendingReferralCode) {
-          await applyReferralOnRegister(user._id, user.pendingReferralCode);
-          user.pendingReferralCode = undefined;
-          await user.save();
-        }
-      } catch (refErr) {
-        console.error("🔗 Referral processing error (non-blocking):", refErr.message);
-      }
-
-      // Return full user data (sans password) to prevent Redux data wipe
-      const safeUser = user.toObject();
-      delete safeUser.password;
-      return res.json(safeUser);
-    } else {
+    if (user.otpExpires && user.otpExpires < Date.now()) {
       res.status(400);
-      throw new Error("❌ Invalid or Expired OTP");
+      throw new Error("OTP has expired. Please request a new one.");
     }
+
+    if (user.otp !== otp) {
+      res.status(400);
+      throw new Error("Invalid OTP.");
+    }
+
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Welcome to the SwadKart Family! 🍕",
+        html: getWelcomeTemplate(user.name),
+      });
+    } catch (emailError) {
+      console.error("⚠️ Welcome email failed (Silent):", emailError.message);
+    }
+
+    generateToken(res, user._id);
+
+    try {
+      if (user.pendingReferralCode) {
+        await applyReferralOnRegister(user._id, user.pendingReferralCode);
+        user.pendingReferralCode = undefined;
+        await user.save();
+      }
+    } catch (refErr) {
+      console.error("🔗 Referral processing error (non-blocking):", refErr.message);
+    }
+
+    const safeUser = user.toObject();
+    delete safeUser.password;
+    return res.json(safeUser);
   } catch (error) {
     next(error);
   }

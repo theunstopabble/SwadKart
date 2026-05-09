@@ -147,16 +147,14 @@ export const validateCoupon = async (req, res) => {
     }
 
     let discountAmount = (orderAmount * coupon.discountPercentage) / 100;
-    if (
-      coupon.maxDiscountAmount > 0 &&
-      discountAmount > coupon.maxDiscountAmount
-    ) {
+    if (coupon.maxDiscountAmount > 0 && discountAmount > coupon.maxDiscountAmount) {
       discountAmount = coupon.maxDiscountAmount;
     }
+    discountAmount = Number(discountAmount.toFixed(2));
 
     res.json({
       code: coupon.code,
-      discountAmount: Math.round(discountAmount),
+      discountAmount,
       message: "Coupon Applied Successfully! 🎉",
     });
   } catch (error) {
@@ -164,9 +162,6 @@ export const validateCoupon = async (req, res) => {
   }
 };
 
-// @desc    Get Available Coupons (Smart List)
-// @route   GET /api/v1/coupons/available
-// @access  Private (Needs User Auth to check usage history)
 export const getApplicableCoupons = async (req, res) => {
   try {
     const userId = req.user?._id;

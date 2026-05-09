@@ -419,19 +419,22 @@ export const googleRegister = async (req, res, next) => {
     const { name, email: rawEmail, image, phone: rawPhone } = req.body;
     const email = sanitizeEmail(rawEmail);
 
-    // BUG-15 FIX: Validate phone number on backend for Google registration
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phoneRegex.test(String(rawPhone))) {
-      return res.status(400).json({ message: 'Invalid Indian phone number.' });
+      return res.status(400).json({ message: "Invalid Indian phone number." });
     }
 
     const phone = sanitizePhone(rawPhone);
     const phoneExists = await User.findOne({ phone: String(phone) });
     if (phoneExists) {
       res.status(400);
-      throw new Error(
-        "Phone number is already associated with another account",
-      );
+      throw new Error("Phone number is already associated with another account");
+    }
+
+    const emailExists = await User.findOne({ email: String(email) });
+    if (emailExists) {
+      res.status(400);
+      throw new Error("Email is already registered. Please login instead.");
     }
 
     const user = await User.create({
@@ -439,14 +442,12 @@ export const googleRegister = async (req, res, next) => {
       email: String(email),
       phone,
       image,
-      password: crypto.randomBytes(32).toString("hex"), // 🛡️ SECURITY FIX (BUG-8): Cryptographically secure dummy password
+      password: crypto.randomBytes(32).toString("hex"),
       isVerified: true,
     });
 
     if (user) {
-      generateToken(res, user._id); // Sets HttpOnly Cookie
-
-      // Return full user data (sans password) to prevent Redux data wipe
+      generateToken(res, user._id);
       const safeUser = user.toObject();
       delete safeUser.password;
       return res.status(201).json(safeUser);

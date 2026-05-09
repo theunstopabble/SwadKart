@@ -104,14 +104,15 @@ const GoogleAuth = () => {
           phone: phoneNumber,
         }),
       });
-      const data = await res.json();
       if (res.ok) {
+        const data = await res.json();
         dispatch(setCredentials(data));
         toast.success(`Welcome to SwadKart, ${data.name}! 🎉`);
         setShowPhoneModal(false);
         navigate("/");
       } else {
-        toast.error(data.message || "Registration Failed");
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.message || "Registration Failed");
       }
     } catch {
       toast.error("Network Error. Please try again.");

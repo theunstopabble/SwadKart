@@ -98,9 +98,13 @@ export const addToGroupCart = asyncHandler(async (req, res) => {
     throw new Error("Not a member of this group order");
   }
 
-  groupOrder.cart.push({ product: productId, name, price, qty: qty || 1, addedBy: req.user._id });
-  groupOrder.totalCartValue = groupOrder.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  await groupOrder.save();
+groupOrder.cart.push({ product: productId, name, price, qty: qty || 1, addedBy: req.user._id });
+    groupOrder.totalCartValue = groupOrder.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const member = groupOrder.members.find((m) => m.user?.toString() === req.user._id.toString());
+    if (member) {
+      member.items.push({ product: productId, name, price, qty: qty || 1 });
+    }
+    await groupOrder.save();
 
   res.json(groupOrder);
 });

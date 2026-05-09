@@ -54,13 +54,15 @@ const Cart = () => {
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
-        const res = await fetch(`${BASEURL}/api/v1/coupons/available`, {
-          credentials: "include",
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setAvailableCoupons(Array.isArray(data) ? data : []);
-        }
+      const res = await fetch(`${BASEURL}/api/v1/coupons/available`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        console.error("Error fetching coupons: non-200 response");
+        return;
+      }
+      const data = await res.json();
+      setAvailableCoupons(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error fetching coupons:", error);
       }
@@ -113,19 +115,25 @@ const Cart = () => {
         withCredentials: true,
       };
 
-      const { data } = await axios.post(
+      const { data, status } = await axios.post(
         `${BASEURL}/api/v1/coupons/validate`,
         { code: codeToApply, orderAmount: itemsPrice },
         config,
       );
 
+      if (status !== 200) {
+        toast.error(data?.message || "Invalid or Expired Coupon");
+        removeCouponHandler();
+        setLoading(false);
+        return;
+      }
+
       setAppliedCoupon(codeToApply);
       setDiscount(data.discountAmount || 0);
       localStorage.setItem("appliedCoupon", codeToApply);
       localStorage.setItem("couponDiscount", String(data.discountAmount || 0));
-      toast.success(data.message || "Coupon Applied Successfully! 🎉");
+      toast.success(data.message || "Coupon Applied Successfully!");
     } catch (error) {
-      // ✅ FIX: Agar session/token expire ho isliye 401 aaye
       if (error.response?.status === 401) {
         toast.error("Session expired! Please log out and log in again.");
       } else {
@@ -201,6 +209,9 @@ const Cart = () => {
                 <img
                   src={item.image || "https://placehold.co/100"}
                   alt={item.name || "Item"}
+                  onError={(e) => {
+                    e.target.src = "https://placehold.co/100";
+                  }}
                   className="w-24 h-24 object-cover rounded-xl mb-4 sm:mb-0 grayscale group-hover:grayscale-0 transition-all duration-500 border border-gray-800"
                 />
 

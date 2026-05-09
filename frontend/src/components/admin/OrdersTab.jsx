@@ -248,7 +248,8 @@ const OrdersTab = ({ orders, deliveryPartners, fetchAllData }) => {
                       className="flex items-center gap-4 p-4 bg-black rounded-[1.5rem] border border-gray-900 hover:border-gray-800 transition-colors"
                     >
                       <img
-                        src={item.image}
+                        src={item.image || "https://placehold.co/64"}
+                        onError={(e) => { e.target.src = "https://placehold.co/64"; }}
                         className="w-16 h-16 rounded-2xl object-cover grayscale hover:grayscale-0 transition-all"
                         alt=""
                       />

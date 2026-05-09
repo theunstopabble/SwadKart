@@ -269,14 +269,15 @@ const MyOrders = () => {
                               method: "PUT",
                               credentials: "include",
                             });
-                            const data = await res.json();
                             if (res.ok) {
+                              const data = await res.json();
                               setOrders((prev) =>
                                 prev.map((o) => (o._id === order._id ? data : o)),
                               );
                               toast.success("Order cancelled successfully");
                             } else {
-                              toast.error(data.message || "Cannot cancel order");
+                              const err = await res.json().catch(() => ({}));
+                              toast.error(err?.message || "Cannot cancel order");
                             }
                           } catch {
                             toast.error("Cancel request failed");

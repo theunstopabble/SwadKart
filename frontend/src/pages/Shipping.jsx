@@ -42,6 +42,10 @@ const Shipping = () => {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
       );
+      if (!res.ok) {
+        console.error("Geocoding Error: non-200 response");
+        return;
+      }
       const data = await res.json();
       if (data && data.address) {
         // 🛠️ FIX: Ensure State is captured correctly from API
@@ -75,6 +79,10 @@ const Shipping = () => {
         `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&countrycodes=in`,
         { headers: { "User-Agent": "SwadKart/1.0" } },
       );
+      if (!res.ok) {
+        console.error("Search Error: non-200 response");
+        return;
+      }
       const data = await res.json();
       if (data && data.length > 0) {
         const newPos = [parseFloat(data[0].lat), parseFloat(data[0].lon)];

@@ -39,16 +39,20 @@ const checkIsOpen = (openTime, closeTime) => {
 // @route   GET /api/v1/restaurants
 const getRestaurants = async (req, res) => {
   try {
-    // Show all restaurants (no filter - debug mode)
-    const restaurants = await Restaurant.find({ isVerified: true }).sort({ createdAt: -1 }).lean();
-
-    // ✨ Compute 'isOpenNow' dynamically
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+    const total = await Restaurant.countDocuments({ isVerified: true });
+    const restaurants = await Restaurant.find({ isVerified: true })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
     const updatedRestaurants = restaurants.map((rest) => {
       const isOpen = checkIsOpen(rest.openingTime, rest.closingTime);
       return { ...rest, isOpenNow: isOpen };
     });
-
-    res.json(updatedRestaurants);
+    res.json({ restaurants: updatedRestaurants, total, page, limit, pages: Math.ceil(total / limit) });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -124,7 +128,9 @@ const createRestaurant = async (req, res) => {
     const name = sanitizeString(rawName);
     const { address, image, description } = req.body;
 
-    const restaurantExists = await Restaurant.findOne({ name: String(name) });
+    const restaurantExists = await Restaurant.findOne({
+      name: { $regex: `^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+    });
     if (restaurantExists) {
       return res.status(400).json({ message: "Restaurant name already taken" });
     }

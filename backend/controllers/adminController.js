@@ -108,7 +108,7 @@ export const getHeatmapData = async (req, res) => {
     // 🛡️ PRIVACY FIX: restaurant_owner can only see their own restaurant's orders
     if (req.user && req.user.role === "restaurant_owner") {
       const restaurants = await Restaurant.find({ owner: req.user._id }).select("_id");
-      const restaurantIds = restaurants.map((r) => r._id.toString());
+      const restaurantIds = restaurants.map((r) => r._id);
       filter["orderItems.restaurant"] = { $in: restaurantIds };
     }
 
@@ -214,7 +214,7 @@ export const deleteUser = async (req, res) => {
       { user: user._id },
       { $set: { deletedUserName: user.name, user: null } }
     );
-    await Restaurant.findOneAndDelete({ owner: user._id });
+    await Restaurant.deleteMany({ owner: user._id });
     await user.deleteOne();
     res.json({ message: "User deleted" });
   } catch (error) {

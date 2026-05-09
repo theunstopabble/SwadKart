@@ -49,18 +49,18 @@ const ReviewModal = ({ isOpen, onClose, orderItems }) => {
         },
       );
 
-      const data = await res.json();
-
       if (res.ok) {
+        await res.json().catch(() => ({}));
         toast.success(`${currentItem?.name || "Item"} rated!`);
         moveToNext();
       } else {
-        const errorMsg = data?.message?.toLowerCase?.() || "";
+        const err = await res.json().catch(() => ({}));
+        const errorMsg = err?.message?.toLowerCase?.() || "";
         if (errorMsg.includes("already")) {
           toast.error("You already reviewed this item");
           moveToNext();
         } else {
-          toast.error(data?.message || "Failed to submit");
+          toast.error(err?.message || "Failed to submit");
         }
       }
     } catch {
@@ -113,6 +113,9 @@ const ReviewModal = ({ isOpen, onClose, orderItems }) => {
                 src={currentItem?.image}
                 alt={currentItem?.name}
                 className="w-16 h-16 rounded-2xl object-cover border border-gray-700 shadow-lg"
+                onError={(e) => {
+                  e.target.src = "https://placehold.co/100";
+                }}
               />
               <h3 className="font-bold text-white text-lg leading-tight uppercase truncate">
                 {currentItem?.name}

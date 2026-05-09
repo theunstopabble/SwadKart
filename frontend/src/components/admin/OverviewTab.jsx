@@ -200,7 +200,7 @@ const OverviewTab = () => {
                 <div key={i} className="flex items-center justify-between bg-gray-900 p-3 rounded-xl">
                   <div className="flex items-center gap-3">
                     <span className="text-primary font-black text-sm w-6">{i + 1}</span>
-                    <img src={r.image || "https://placehold.co/40"} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                    <img src={r.image || "https://placehold.co/40"} alt="" onError={(e) => { e.target.src = "https://placehold.co/40"; }} className="w-8 h-8 rounded-lg object-cover" />
                     <span className="text-white font-bold text-sm">{r.name}</span>
                   </div>
                   <span className="text-green-400 font-bold text-xs">₹{Math.round(r.revenue).toLocaleString()}</span>
@@ -223,7 +223,7 @@ const OverviewTab = () => {
                 <div key={i} className="flex items-center justify-between bg-gray-900 p-3 rounded-xl">
                   <div className="flex items-center gap-3">
                     <span className="text-primary font-black text-sm w-6">{i + 1}</span>
-                    <img src={p.image || "https://placehold.co/40"} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                    <img src={p.image || "https://placehold.co/40"} alt="" onError={(e) => { e.target.src = "https://placehold.co/40"; }} className="w-8 h-8 rounded-lg object-cover" />
                     <span className="text-white font-bold text-sm">{p.name}</span>
                   </div>
                   <span className="text-green-400 font-bold text-xs">{p.qtySold} sold</span>

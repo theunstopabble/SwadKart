@@ -8,7 +8,14 @@ import mongoose from "mongoose";
 // Validates and returns a clean string. Rejects objects/arrays (NoSQL injection vectors).
 export const sanitizeString = (input) => {
   if (typeof input !== "string") return "";
-  return input.trim();
+  const sanitized = input.trim();
+  const dangerousPatterns = ['$where', '$function', '$accumulator', '$expr', '$jsonSchema', '$text', '$meta', '$mod', '$regex', '$exists', '$type', '$nin', '$in'];
+  for (const pattern of dangerousPatterns) {
+    if (sanitized.startsWith(pattern) || sanitized.includes(pattern)) {
+      return "";
+    }
+  }
+  return sanitized;
 };
 
 // Validates MongoDB ObjectId format. Rejects injection payloads.

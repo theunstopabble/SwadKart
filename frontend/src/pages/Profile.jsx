@@ -331,6 +331,9 @@ const Profile = () => {
                   <img
                     src={userInfo.image}
                     alt="Profile"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (

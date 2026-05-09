@@ -171,11 +171,13 @@ export const updateDeliveryAction = async (req, res) => {
         }
       }
     } else {
-      // Reject logic: Set back to Ready so it can be reassigned
+      if (order.orderStatus === "Preparing" || order.orderStatus === "Placed") {
+        order.orderStatus = "Placed";
+      } else {
+        order.orderStatus = "Ready";
+      }
       order.deliveryStatus = "Rejected";
       order.deliveryPartner = null;
-      order.orderStatus = "Ready";
-      // Free up the driver for new assignments
       await User.findByIdAndUpdate(req.user._id, { isAvailable: true });
     }
 

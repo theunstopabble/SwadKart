@@ -217,10 +217,12 @@ const RestaurantOwnerDashboard = () => {
       );
 
       if (res.ok) {
+        const data = await res.json();
+        toast.success(data?.message || "Pilot Assigned");
         fetchData();
-        toast.success("Pilot Assigned 🛵");
       } else {
-        toast.error("Assignment failed");
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.message || "Assignment failed");
       }
     } catch {
       toast.error("Network error");
@@ -234,11 +236,12 @@ const RestaurantOwnerDashboard = () => {
         getFetchOptions("PUT", { status: newStatus }),
       );
       if (res.ok) {
-        toast.success(`Order set to ${newStatus}`);
+        const data = await res.json();
+        toast.success(data?.message || `Order set to ${newStatus}`);
         fetchData();
       } else {
-        // ROD-01 FIX: add try-catch and error toast for non-ok response
-        toast.error("Failed to update status");
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.message || "Failed to update status");
       }
     } catch {
       toast.error("Network error");
@@ -270,11 +273,13 @@ const RestaurantOwnerDashboard = () => {
 
       const res = await fetch(url, getFetchOptions(method, payload));
       if (res.ok) {
+        const data = await res.json();
+        toast.success(data?.message || "Item added successfully");
         setShowModal(false);
         fetchData();
-        toast.success("Kitchen Menu Updated!");
       } else {
-        toast.error("Update failed");
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.message || "Update failed");
       }
     } catch {
       // ROD-04 FIX: wrap entire fetch in try-catch
@@ -369,12 +374,13 @@ const RestaurantOwnerDashboard = () => {
                       getFetchOptions("DELETE"),
                     );
                     if (res.ok) {
-                      // ROD-03 FIX: add res.ok check so toast.success only fires on success, add try-catch
-                      fetchData();
-                      toast.success("Dish Erased 🗑️");
-                    } else {
-                      toast.error("Failed to delete dish");
-                    }
+                        const data = await res.json();
+                        toast.success(data?.message || "Dish Erased");
+                        fetchData();
+                      } else {
+                        const err = await res.json().catch(() => ({}));
+                        toast.error(err?.message || "Failed to delete dish");
+                      }
                   } catch {
                     toast.error("Network error deleting dish");
                   }

@@ -28,9 +28,9 @@ export const sendNotification = asyncHandler(async (req, res) => {
   try {
     const user = await User.findById(userId).select("fcmToken").lean();
     if (user?.fcmToken) {
-      // Dynamic import to avoid loading firebase-admin if not configured
       const { getMessaging } = await import("firebase-admin/messaging");
-      if (admin.apps.length === 0) throw new Error("Firebase not initialized");
+      const { default: admin } = await import("firebase-admin");
+      if (!admin.apps.length) throw new Error("Firebase not initialized");
       await getMessaging().send({
         token: user.fcmToken,
         notification: { title, body },
@@ -140,6 +140,8 @@ export const sendBulkNotification = asyncHandler(async (req, res) => {
     if (user.fcmToken) {
       try {
         const { getMessaging } = await import("firebase-admin/messaging");
+        const { default: admin } = await import("firebase-admin");
+        if (!admin.apps.length) throw new Error("Firebase not initialized");
         await getMessaging().send({
           token: user.fcmToken,
           notification: { title, body },
@@ -180,6 +182,8 @@ export const createNotification = async (userId, title, body, type, data = {}) =
     if (user?.fcmToken) {
       try {
         const { getMessaging } = await import("firebase-admin/messaging");
+        const { default: admin } = await import("firebase-admin");
+        if (!admin.apps.length) throw new Error("Firebase not initialized");
         await getMessaging().send({
           token: user.fcmToken,
           notification: { title, body },

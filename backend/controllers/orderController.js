@@ -239,15 +239,12 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 
     let baseShippingPrice = serverItemsPrice > 500 ? 0 : 40;
     if (hasSwadPass) baseShippingPrice = 0;
-
-    const serverShippingPrice = baseShippingPrice;
-    const serverTaxPrice = parseFloat((0.05 * serverItemsPrice).toFixed(2));
-    // 💸 TIP & SURGE PRICING (FEAT-1)
-    const serverTipAmount = Math.max(0, Number(tipAmount) || 0);
-    // Calculate dynamic surge multiplier based on active orders vs drivers
     const { multiplier: surgeMultiplier } = await calculateSurgeMultiplier();
-    const serverDeliveryFee = parseFloat((serverShippingPrice * surgeMultiplier).toFixed(2));
-    const serverSurgePrice = parseFloat((serverShippingPrice * (surgeMultiplier - 1)).toFixed(2));
+    let serverDeliveryFee = baseShippingPrice;
+    if (surgeMultiplier > 1 && baseShippingPrice > 0) {
+      serverDeliveryFee = parseFloat((baseShippingPrice * surgeMultiplier).toFixed(2));
+    }
+    const serverSurgePrice = baseShippingPrice > 0 ? parseFloat((baseShippingPrice * (surgeMultiplier - 1)).toFixed(2)) : 0;
     // 💼 RESTAURANT COMMISSION (FEAT-2) — 15% standard
     const commissionRate = 0.15;
     const netItemsValue = Math.max(0, serverItemsPrice - serverCouponDiscount);
@@ -536,7 +533,7 @@ export const updateOrderToPaid = async (req, res) => {
     }
 
     // 🛡️ SECURITY FIX (SEC-2/BUG-1): Only the order owner or admin can mark as paid
-    const isOwner = order.user.toString() === req.user._id.toString();
+    const isOwner = order.user ? order.user.toString() === req.user._id.toString() : false;
     const isAdmin = req.user.role === "admin";
     if (!isOwner && !isAdmin) {
       return res

@@ -88,9 +88,8 @@ const Home = () => {
     }
 
     return () => {
-      if (socketRef.current && handleRestaurantUpdate) {
-        socketRef.current.off("restaurantUpdated", handleRestaurantUpdate);
-        // Do NOT disconnect — shared singleton
+      if (socket && handleRestaurantUpdate) {
+        socket.off("restaurantUpdated", handleRestaurantUpdate);
       }
     };
   }, [userInfo]);
@@ -106,6 +105,11 @@ const Home = () => {
     setFilteredRestaurants(results);
   }, [searchTerm, restaurants]);
 
+  // 4. Hero image fallback for broken URLs
+  const handleHeroError = (e) => {
+    e.target.style.display = "none";
+  };
+
   return (
     <div className="bg-black min-h-screen text-white pt-20">
       {/* ================= HERO SECTION ================= */}
@@ -116,9 +120,7 @@ const Home = () => {
           alt="Delicious food spread"
           fetchPriority="high"
           decoding="async"
-          width={480}
-          height={300}
-          sizes="100vw"
+          onError={handleHeroError}
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent flex flex-col justify-center items-center text-center px-4">
@@ -206,6 +208,9 @@ const Home = () => {
                     }
                     alt={shop.name || "Restaurant image"}
                     loading="lazy"
+                    onError={(e) => {
+                      e.target.src = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=70&fm=webp";
+                    }}
                     width={400}
                     height={267}
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -268,9 +273,9 @@ const Home = () => {
               Recommended <span className="text-primary">For You</span>
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {recommendations.map((rec) => (
+              {recommendations.map((rec, idx) => (
                 <Link
-                  key={rec.productId || rec._id || Math.random()}
+                  key={rec._id?.toString() || rec.productId?.toString() || idx}
                   to={`/restaurant/${rec.restaurant}`}
                   className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all group"
                 >

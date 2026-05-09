@@ -74,9 +74,8 @@ const Reservations = () => {
   const handleCancel = async (id) => {
     if (!window.confirm("Cancel this reservation?")) return;
     try {
-      await axios.put(
-        `${BASEURL}/api/v1/reservations/${id}/cancel`,
-        {},
+      await axios.delete(
+        `${BASEURL}/api/v1/reservations/${id}`,
         { withCredentials: true }
       );
       fetchReservations();
