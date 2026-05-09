@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { BASEURL } from "../config";
+import { toast } from "react-hot-toast";
 import {
   Users,
   Plus,
@@ -83,9 +84,16 @@ const GroupOrders = () => {
   };
 
   const copyCode = (code) => {
-    navigator.clipboard.writeText(code);
-    setCopied(code);
-    setTimeout(() => setCopied(""), 2000);
+    const done = () => { setCopied(code); setTimeout(() => setCopied(""), 2000); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(code).then(done).catch(() => toast.error("Copy failed"));
+    } else {
+      try {
+        const el = document.createElement("textarea");
+        el.value = code; document.body.appendChild(el); el.select();
+        document.execCommand("copy"); document.body.removeChild(el); done();
+      } catch { toast.error("Copy not supported"); }
+    }
   };
 
   if (loading) {

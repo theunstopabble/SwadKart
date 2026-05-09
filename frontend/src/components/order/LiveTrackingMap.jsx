@@ -39,7 +39,6 @@ const LiveTrackingMap = ({ orderId, restaurantCoords, userCoords }) => {
     socket.emit("joinOrder", orderId);
 
     const handleDriverLocation = (coords) => {
-      console.log("📍 Live Position Received:", coords);
       setDriverPos([coords.lat, coords.lng]);
     };
     socket.on("driverLocationUpdate", handleDriverLocation);

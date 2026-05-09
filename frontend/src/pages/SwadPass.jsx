@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { BASEURL } from "../config";
+import { toast } from "react-hot-toast";
 import {
   Crown,
   Check,
@@ -18,6 +19,7 @@ const SwadPass = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
+  const [selectedPlan, setSelectedPlan] = useState("monthly");
 
   const fetchStatus = async () => {
     try {
@@ -40,18 +42,53 @@ const SwadPass = () => {
     setActionLoading(true);
     setMessage("");
     try {
-      const { data } = await axios.post(
-        `${BASEURL}/api/v1/swadpass/subscribe`,
-        {},
+      // Step 1: Create Razorpay order
+      const { data: orderData } = await axios.post(
+        `${BASEURL}/api/v1/payments/razorpay/create-order`,
+        { amount: selectedPlan === "monthly" ? 199 : 1499 },
         { withCredentials: true }
       );
-      setMessage(data.message || "Subscribed successfully!");
-      setMessageType("success");
-      fetchStatus();
+
+      // Step 2: Open Razorpay checkout
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: orderData.order.amount,
+        currency: "INR",
+        name: "SwadKart",
+        description: `SwadPass ${selectedPlan} subscription`,
+        order_id: orderData.order.id,
+        handler: async (response) => {
+          try {
+            // Step 3: Verify payment and activate SwadPass
+            const { data } = await axios.post(
+              `${BASEURL}/api/v1/swadpass/subscribe`,
+              {
+                type: selectedPlan,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              },
+              { withCredentials: true }
+            );
+            setMessage(data.message || "SwadPass activated!");
+            setMessageType("success");
+            toast.success("SwadPass activated! 🎉");
+            fetchStatus();
+          } catch (e) {
+            setMessage(e.response?.data?.message || "Activation failed");
+            setMessageType("error");
+          }
+        },
+        prefill: {},
+        theme: { color: "#ff4757" },
+        modal: { ondismiss: () => setActionLoading(false) },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (e) {
       setMessage(e.response?.data?.message || "Subscription failed");
       setMessageType("error");
-    } finally {
       setActionLoading(false);
     }
   };
@@ -60,9 +97,8 @@ const SwadPass = () => {
     setActionLoading(true);
     setMessage("");
     try {
-      const { data } = await axios.post(
+      const { data } = await axios.delete(
         `${BASEURL}/api/v1/swadpass/cancel`,
-        {},
         { withCredentials: true }
       );
       setMessage(data.message || "Cancelled successfully");
@@ -130,14 +166,14 @@ const SwadPass = () => {
         </div>
 
         <div className="bg-gray-900 rounded-xl p-8 border border-gray-800 text-center">
-          {status?.active ? (
+          {status?.isActive ? (
             <>
               <div className="flex items-center justify-center gap-2 text-green-400 mb-4">
                 <Check size={24} />
                 <span className="text-xl font-semibold">Active Subscription</span>
               </div>
               <p className="text-gray-400 mb-2">
-                Valid until: {new Date(status.expiresAt).toLocaleDateString()}
+                Valid until: {new Date(status.expiry).toLocaleDateString()}
               </p>
               <button
                 onClick={handleCancel}
@@ -158,10 +194,25 @@ const SwadPass = () => {
                 ₹{status?.plan?.price || 199}
                 <span className="text-sm text-gray-400 font-normal">/month</span>
               </p>
+              <div className="flex justify-center gap-3 mb-4">
+                {["monthly", "yearly"].map((plan) => (
+                  <button
+                    key={plan}
+                    onClick={() => setSelectedPlan(plan)}
+                    className={`px-4 py-2 rounded-lg font-semibold text-sm border transition ${
+                      selectedPlan === plan
+                        ? "bg-orange-500 border-orange-500 text-white"
+                        : "bg-gray-800 border-gray-700 text-gray-300 hover:border-orange-400"
+                    }`}
+                  >
+                    {plan === "monthly" ? "Monthly ₹199" : "Yearly ₹1499"}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={handleSubscribe}
                 disabled={actionLoading}
-                className="mt-6 px-8 py-3 bg-orange-500 hover:bg-orange-600 rounded-lg font-medium transition flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
+                className="mt-2 px-8 py-3 bg-orange-500 hover:bg-orange-600 rounded-lg font-medium transition flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
               >
                 {actionLoading ? <Loader className="animate-spin" size={18} /> : <Crown size={18} />}
                 Subscribe Now

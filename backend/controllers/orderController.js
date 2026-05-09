@@ -1,11 +1,12 @@
 import Order from "../models/orderModel.js";
 import Product from "../models/productModel.js";
 import Restaurant from "../models/restaurantModel.js";
-import User from "../models/userModel.js"; // 👈 YEH LINE ADD KAREIN
+import User from "../models/userModel.js";
 import Coupon from "../models/couponModel.js";
 import CouponUsage from "../models/couponUsageModel.js";
 import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 import Razorpay from "razorpay";
 import { sendPush } from "../utils/pushNotification.js";
 import sendEmail from "../utils/sendEmail.js";
@@ -522,7 +523,8 @@ export const getOrderById = async (req, res) => {
 // ==========================================
 export const updateOrderToPaid = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const orderId = sanitizeObjectId(req.params.id);
+    const order = await Order.findById(orderId);
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });

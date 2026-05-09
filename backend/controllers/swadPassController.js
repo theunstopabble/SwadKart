@@ -1,4 +1,5 @@
 import asyncHandler from "express-async-handler";
+import crypto from "crypto";
 import User from "../models/userModel.js";
 
 const SWADPASS_PRICES = {
@@ -40,15 +41,32 @@ export const getSwadPassStatus = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Subscribe to SwadPass (simulate payment — integrate with Razorpay in production)
+// @desc    Subscribe to SwadPass (requires verified Razorpay payment)
 // @route   POST /api/v1/swadpass/subscribe
 // @access  Private
 export const subscribeSwadPass = asyncHandler(async (req, res) => {
-  const { type } = req.body;
+  const { type, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
   if (!["monthly", "yearly"].includes(type)) {
     res.status(400);
     throw new Error("Invalid subscription type. Choose 'monthly' or 'yearly'.");
+  }
+
+  // 🛡️ SECURITY: Verify Razorpay payment signature before activating SwadPass
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    res.status(400);
+    throw new Error("Payment verification required. Please complete payment first.");
+  }
+
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "")
+    .update(body)
+    .digest("hex");
+
+  if (expectedSignature !== razorpay_signature) {
+    res.status(400);
+    throw new Error("Payment verification failed. Invalid signature.");
   }
 
   const now = new Date();

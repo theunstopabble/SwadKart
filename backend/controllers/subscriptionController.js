@@ -175,21 +175,22 @@ export const cancelSubscription = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/subscriptions
 // @access  Admin
 export const getAllSubscriptions = asyncHandler(async (req, res) => {
-  const { status, planType, page = 1, limit = 20 } = req.query;
+  const { status, planType, page = 1 } = req.query;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
   const filter = {};
   if (status) filter.status = status;
   if (planType) filter.planType = planType;
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const skip = (parseInt(page) - 1) * limit;
   const [subscriptions, total] = await Promise.all([
     Subscription.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limit)
       .populate("user", "name email")
       .populate("restaurant", "name"),
     Subscription.countDocuments(filter),
   ]);
 
-  res.json({ subscriptions, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+  res.json({ subscriptions, total, page: parseInt(page), pages: Math.ceil(total / limit) });
 });

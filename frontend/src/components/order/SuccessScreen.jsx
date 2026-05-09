@@ -37,8 +37,25 @@ const SuccessScreen = ({ countdown, paymentDetails, totalPrice }) => {
   }, []);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(paymentDetails.id);
-    toast.success("Payment ID Copied!");
+    if (!paymentDetails?.id) return;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(paymentDetails.id)
+        .then(() => toast.success("Payment ID Copied!"))
+        .catch(() => toast.error("Copy failed"));
+    } else {
+      // Fallback for non-HTTPS or older browsers
+      try {
+        const el = document.createElement("textarea");
+        el.value = paymentDetails.id;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+        toast.success("Payment ID Copied!");
+      } catch {
+        toast.error("Copy not supported on this browser");
+      }
+    }
   };
 
   return (

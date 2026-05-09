@@ -67,7 +67,6 @@ const Profile = () => {
           const available =
             await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
           setIsBiometricSupported(available);
-          console.log("🔐 Biometric Supported:", available);
         } else {
           setIsBiometricSupported(false);
         }

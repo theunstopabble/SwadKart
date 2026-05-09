@@ -40,7 +40,6 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
   useEffect(() => {
     const socket = getSocket();
     const handleShopStatusUpdate = () => {
-      console.log("Socket Signal Received: Updating List...");
       if (fetchAllData) fetchAllData();
     };
     socket.on("shopStatusUpdated", handleShopStatusUpdate);
