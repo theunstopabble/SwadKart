@@ -300,7 +300,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       paymentMethod,
       itemsPrice: serverItemsPrice,
       taxPrice: serverTaxPrice,
-      shippingPrice: serverShippingPrice,
+      shippingPrice: serverDeliveryFee,
       totalPrice: serverTotalPrice,
       couponCode,
       couponDiscount: serverCouponDiscount,
