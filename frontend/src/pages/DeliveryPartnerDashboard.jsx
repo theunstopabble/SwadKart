@@ -10,6 +10,7 @@ import {
   ListChecks,
   Loader2,
   Signal,
+  Calculator,
 } from "lucide-react";
 import { BASEURL } from "../config";
 
@@ -18,6 +19,7 @@ import DeliveryCard from "../components/delivery/DeliveryCard";
 import EarningsHistory from "../components/delivery/EarningsHistory";
 import SOSButton from "../components/delivery/SOSButton";
 import OTPSection from "../components/delivery/OTPSection";
+import DriverEarningsCalculator from "../components/delivery/DriverEarningsCalculator";
 
 const DeliveryPartnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -199,6 +201,12 @@ const DeliveryPartnerDashboard = () => {
               icon: DollarSign,
               activeBg: "bg-green-600",
             },
+            {
+              id: "calculator",
+              label: "Calculator",
+              icon: Calculator,
+              activeBg: "bg-yellow-600",
+            },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -266,20 +274,27 @@ const DeliveryPartnerDashboard = () => {
                               />
                             </div>
                           )}
-                        </div>
+</div>
                       </div>
                     ))}
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === "earnings" ? (
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
               <EarningsHistory tasks={tasks} />
             </div>
+          ) : (
+            <DriverEarningsCalculator />
           )}
         </div>
+
+        {activeTab === "tasks" && (
+          <div className="absolute bottom-6 right-6">
+            <SOSButton />
+          </div>
+        )}
       </div>
-      {/* 🔴 SOS Button */}
       <SOSButton />
     </div>
   );

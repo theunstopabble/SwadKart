@@ -80,10 +80,23 @@ erDiagram
         Date lastRestocked
         Boolean scheduleEnabled
         Object schedule
+        Array ingredients "Enterprise Cost Tracking"
+        Number foodCostPercentage "Target food cost % (default: 30)"
+        Number preparationCost "Labor cost per unit (default: 0)"
+        Number packagingCost "Packaging cost per unit (default: 5)"
+        Number marginTarget "Target margin % (default: 25)"
+        Date lastCostUpdated
         Array reviews
         Number rating
         Number numReviews
         Date createdAt
+    }
+
+    Ingredient {
+        string name
+        Number quantity
+        string unit "kg, g, ml, L, piece, etc."
+        Number unitCost "Cost per unit in INR"
     }
 
     Order {

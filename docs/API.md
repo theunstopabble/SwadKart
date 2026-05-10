@@ -1020,6 +1020,583 @@ POST /api/v1/upload
 
 ---
 
+## 🧮 Enterprise Calculator Routes
+
+### 🍖 Food Cost Calculator (`/cost-calculator`)
+
+#### Get Item Cost Analysis
+```
+GET /api/v1/cost-calculator/item/:productId
+```
+**Auth:** `restaurant_owner`, `admin`
+**Response:**
+```json
+{
+  "productId": "...",
+  "productName": "Margherita Pizza",
+  "ingredientCost": 85.50,
+  "preparationCost": 15.00,
+  "packagingCost": 5.00,
+  "totalCost": 105.50,
+  "foodCostPercentage": 30,
+  "targetMargin": 25,
+  "suggestedPrice": 175.00,
+  "currentPrice": 149,
+  "profitAtCurrentPrice": 43.50,
+  "profitMarginAtCurrent": 29.19
+}
+```
+
+#### Update Item Cost Data
+```
+PUT /api/v1/cost-calculator/item/:productId
+```
+**Auth:** `restaurant_owner`, `admin`
+**Request:**
+```json
+{
+  "ingredients": [
+    { "name": "Mozzarella", "quantity": 200, "unit": "g", "unitCost": 2.5 },
+    { "name": "Tomato Sauce", "quantity": 100, "unit": "ml", "unitCost": 0.8 }
+  ],
+  "foodCostPercentage": 28,
+  "preparationCost": 15,
+  "packagingCost": 5,
+  "marginTarget": 30
+}
+```
+
+#### Get Menu Cost Analysis
+```
+GET /api/v1/cost-calculator/menu?restaurantId=...
+```
+**Auth:** `restaurant_owner`, `admin`
+**Response:**
+```json
+{
+  "analysis": [{ "productId": "...", "name": "...", "status": "healthy", ... }],
+  "summary": { "total": 25, "healthy": 18, "low": 3, "underpriced": 2, "overpriced": 2 }
+}
+```
+**Status values:** `healthy`, `low`, `underpriced`, `overpriced`
+
+#### Batch Cost Calculator
+```
+POST /api/v1/cost-calculator/batch
+```
+**Auth:** `restaurant_owner`, `admin`
+**Request:**
+```json
+{
+  "items": [
+    { "productId": "...", "qty": 2 },
+    { "productId": "...", "qty": 1 }
+  ]
+}
+```
+**Response:**
+```json
+{
+  "items": [...],
+  "totalIngredientCost": 450.00,
+  "totalPreparationCost": 45.00,
+  "totalPackagingCost": 15.00,
+  "grandTotalCost": 510.00
+}
+```
+
+---
+
+### 💰 Pricing & Commission Calculator (`/pricing-calculator`)
+
+#### Calculate Commission for Order
+```
+GET /api/v1/pricing-calculator/commission/:orderId
+```
+**Auth:** `admin`, `restaurant_owner`
+**Response:**
+```json
+{
+  "orderId": "...",
+  "platformFeeRate": 15,
+  "platformCommission": 37.50,
+  "restaurantPayout": 212.50,
+  "deliveryFeeCover": 40,
+  "surgeRevenue": 0,
+  "tipAmount": 20
+}
+```
+
+#### Get Commission Breakdown (All Restaurants)
+```
+GET /api/v1/pricing-calculator/commission-breakdown?restaurantId=...&startDate=...&endDate=...
+```
+**Auth:** `admin`
+**Response:**
+```json
+[
+  {
+    "restaurantName": "Pizza Palace",
+    "totalOrders": 150,
+    "grossRevenue": 45000,
+    "platformCommission": 6750,
+    "restaurantPayout": 38250
+  }
+]
+```
+
+#### Calculate Pricing Tiers
+```
+POST /api/v1/pricing-calculator/pricing-tiers
+```
+**Auth:** `restaurant_owner`, `admin`
+**Request:**
+```json
+{ "basePrice": 199, "costPrice": 80, "surgeMultiplier": 1.5 }
+```
+**Response:**
+```json
+{
+  "basePrice": 199,
+  "costPrice": 80,
+  "currentProfit": 119,
+  "currentMargin": 59.80,
+  "recommendedPrice": 106.67,
+  "tiers": [
+    { "name": "Minimum (Cost + 10%)", "price": 88, "margin": 9.09 },
+    { "name": "Standard (25% margin)", "price": 106.67, "margin": 25 },
+    { "name": "Premium (35% margin)", "price": 123.08, "margin": 35 },
+    { "name": "With Surge (1.5x)", "price": 298.50, "margin": 73.20 }
+  ]
+}
+```
+
+#### Get Market Pricing Analysis
+```
+GET /api/v1/pricing-calculator/market-pricing?restaurantId=...&category=...
+```
+**Auth:** `admin`, `restaurant_owner`
+**Response:**
+```json
+{
+  "categoryAverages": [
+    { "category": "Pizza", "count": 25, "average": 185, "median": 175, "min": 99, "max": 450 }
+  ],
+  "priceDistribution": {
+    "₹0-100": 12, "₹101-200": 35, "₹201-300": 28, "₹301-500": 15, "₹500+": 5
+  }
+}
+```
+
+---
+
+### 🚀 Delivery Fee Calculator (`/delivery-calculator`)
+
+#### Calculate Delivery Fee
+```
+POST /api/v1/delivery-calculator/fee
+```
+**Auth:** `user`, `admin`
+**Request:**
+```json
+{
+  "distanceKm": 3.5,
+  "isSurgeActive": true,
+  "hasSwadPass": false,
+  "orderSubtotal": 250,
+  "baseFee": 40
+}
+```
+**Response:**
+```json
+{
+  "distanceKm": 3.5,
+  "baseFee": 40,
+  "distanceSurcharge": 28,
+  "surgeMultiplier": 1.3,
+  "surgeAmount": 22.40,
+  "totalDeliveryFee": 90.40,
+  "freeDelivery": false,
+  "freeDeliveryThreshold": 500
+}
+```
+
+#### Calculate Route Fee
+```
+POST /api/v1/delivery-calculator/route
+```
+**Auth:** `delivery_partner`, `admin`
+**Request:**
+```json
+{
+  "pickupLat": 28.6139,
+  "pickupLng": 77.2090,
+  "dropLat": 28.6304,
+  "dropLng": 77.2177,
+  "vehicleType": "scooter"
+}
+```
+**Response:**
+```json
+{
+  "distanceKm": 3.21,
+  "estimatedTravelMinutes": 7,
+  "feeBreakdown": { "baseFee": 15, "distanceFee": 16.05, "timeFee": 7 },
+  "totalFee": 38.05,
+  "estimatedArrival": "2026-05-10T...",
+  "etaMinutes": 12
+}
+```
+**Vehicle types:** `bicycle`, `scooter`, `bike`
+
+#### Get Delivery Earnings Projection
+```
+GET /api/v1/delivery-calculator/earnings?driverId=...
+```
+**Auth:** `delivery_partner`, `admin`
+**Response:**
+```json
+{
+  "totalRecentOrders": 87,
+  "avgDeliveryFee": 35.50,
+  "avgDistanceKm": 4.2,
+  "ordersPerDay": 2.9,
+  "weeklyProjection": 738.15,
+  "monthProjection": 3092.43
+}
+```
+
+---
+
+### 🪙 Loyalty & Reward Calculator (`/rewards-calculator`)
+
+#### Get Loyalty Tiers
+```
+GET /api/v1/rewards-calculator/tiers
+```
+**Auth:** Public
+**Response:**
+```json
+[
+  { "name": "Bronze", "minCoins": 0, "maxCoins": 500, "redeemRate": 0.08, "bonusEarning": 1 },
+  { "name": "Silver", "minCoins": 500, "maxCoins": 2000, "redeemRate": 0.09, "bonusEarning": 1.5 },
+  { "name": "Gold", "minCoins": 2000, "maxCoins": 5000, "redeemRate": 0.10, "bonusEarning": 2 },
+  { "name": "Platinum", "minCoins": 5000, "maxCoins": null, "redeemRate": 0.12, "bonusEarning": 3 }
+]
+```
+
+#### Calculate Coin Earnings
+```
+POST /api/v1/rewards-calculator/earn
+```
+**Auth:** Protected
+**Request:**
+```json
+{ "orderAmount": 350, "userId": "..." }
+```
+**Response:**
+```json
+{
+  "orderAmount": 350,
+  "baseCoins": 35,
+  "earningRate": 1.5,
+  "earnedCoins": 52,
+  "tierName": "Silver",
+  "coinsValueRupees": 5.20,
+  "message": "🎉 You've earned 52 coins (1.5x multiplier for Silver tier)!"
+}
+```
+
+#### Calculate Coin Redemption
+```
+POST /api/v1/rewards-calculator/redeem
+```
+**Auth:** Protected
+**Request:**
+```json
+{ "coins": 500, "orderAmount": 350 }
+```
+**Response:**
+```json
+{
+  "coinsRedeemed": 500,
+  "coinsValueRupees": 50,
+  "orderAmount": 350,
+  "discountPercent": 14.29,
+  "finalOrderAmount": 300,
+  "platformFee": 45,
+  "restaurantPayout": 255,
+  "coinsRemainingAfter": 4500
+}
+```
+**Constraints:** Coins must be multiple of 100. Max 50% discount per order.
+
+#### Get Referral Reward Info
+```
+GET /api/v1/rewards-calculator/referral?referrerCode=SWAD123
+```
+**Response:**
+```json
+{
+  "referrerName": "Rahul",
+  "referrerTier": "Gold",
+  "referrerRewardCoins": 400,
+  "referrerRewardValue": 40,
+  "refereeRewardCoins": 100,
+  "refereeRewardValue": 10,
+  "referrerBonusMultiplier": 2
+}
+```
+
+#### Get Reward Breakdown
+```
+GET /api/v1/rewards-calculator/breakdown
+```
+**Auth:** Protected
+**Response:**
+```json
+{
+  "currentCoins": 2450,
+  "referralCode": "SWAD123",
+  "totalCoinsEarned": 3500,
+  "totalCoinsRedeemed": 1050,
+  "totalOrderValue": 35000,
+  "recentSpent30Days": 8500,
+  "projectedMonthlyCoins": 850,
+  "coinTransactions": [...]
+}
+```
+
+---
+
+### 📊 Analytics & Revenue Forecast (`/analytics-forecast`)
+
+#### Revenue Projection
+```
+GET /api/v1/analytics-forecast/revenue-projection?days=30
+```
+**Auth:** `admin`, `restaurant_owner`
+**Response:**
+```json
+{
+  "period": "30 days",
+  "totalRevenue": 125000,
+  "totalOrders": 650,
+  "avgOrderValue": 192.31,
+  "avgDailyRevenue": 4166.67,
+  "weeklyProjection": 29166.69,
+  "monthlyProjection": 125000.10,
+  "projected7Days": [
+    { "date": "2026-05-11", "projectedRevenue": 4500, "confidence": "high" },
+    ...
+  ]
+}
+```
+**Confidence levels:** `high` (3 days), `medium` (5 days), `low` (7 days)
+
+#### Order Volume Forecast
+```
+GET /api/v1/analytics-forecast/order-forecast?days=30
+```
+**Auth:** `admin`, `restaurant_owner`
+**Response:**
+```json
+{
+  "hourlyVolume": [{ "hour": 12, "orders": 45, "avgValue": 210 }],
+  "dayVolume": [{ "day": "Mon", "orders": 85, "revenue": 17000 }],
+  "peakHours": [12, 13, 19, 20, 21],
+  "offPeakHours": [3, 4, 5, 6],
+  "avgDailyOrders": 21.67,
+  "projectedNext7Days": 152,
+  "projectedNext30Days": 650
+}
+```
+
+#### Demand Analytics
+```
+GET /api/v1/analytics-forecast/demand?days=30
+```
+**Auth:** `admin`, `restaurant_owner`
+**Response:**
+```json
+{
+  "period": "30 days",
+  "topProducts": [
+    { "rank": 1, "productId": "...", "name": "Margherita", "quantitySold": 320, "revenue": 47680 }
+  ],
+  "categoryDemand": [{ "category": "Pizza", "quantitySold": 1200, "revenue": 216000 }],
+  "summary": { "totalProducts": 45, "fastMoving": 12, "slowMoving": 8 }
+}
+```
+
+#### Profit & Loss Projection
+```
+GET /api/v1/analytics-forecast/profit-loss?days=30
+```
+**Auth:** `admin`
+**Response:**
+```json
+{
+  "grossRevenue": 125000,
+  "totalRevenue": 118500,
+  "deliveryFeesCollected": 18200,
+  "tipsCollected": 6500,
+  "discountsGiven": 8500,
+  "platformCommission": 19500,
+  "restaurantPayouts": 110500,
+  "netPlatformRevenue": 30200,
+  "netMarginPercent": 25.49
+}
+```
+
+---
+
+### 📦 Inventory Forecasting (`/inventory-forecast`)
+
+#### Get Inventory Forecast
+```
+GET /api/v1/inventory-forecast/forecast?restaurantId=...&days=7
+```
+**Auth:** `restaurant_owner`, `admin`
+**Response:**
+```json
+{
+  "forecasts": [
+    {
+      "productId": "...",
+      "name": "Paneer Tikka",
+      "currentStock": 8,
+      "avgDailyDemand": 4.5,
+      "daysUntilStockout": 1,
+      "restockUrgent": true,
+      "suggestedReorderQty": 55,
+      "status": "critical"
+    }
+  ],
+  "summary": { "totalProducts": 45, "outOfStock": 2, "critical": 5, "low": 8, "healthy": 30 }
+}
+```
+**Status values:** `healthy`, `low`, `critical`, `out_of_stock`
+
+#### Get Reorder Recommendations
+```
+GET /api/v1/inventory-forecast/reorder?restaurantId=...&threshold=5
+```
+**Auth:** `restaurant_owner`, `admin`
+**Response:**
+```json
+{
+  "recommendations": [
+    {
+      "productId": "...",
+      "name": "Tandoori Roti",
+      "currentStock": 15,
+      "dailyDemand": 3.2,
+      "daysLeft": 4,
+      "suggestedReorderQty": 45,
+      "lastRestocked": "2026-05-01"
+    }
+  ],
+  "total": 8,
+  "thresholdDays": 5
+}
+```
+
+#### Waste Analysis
+```
+GET /api/v1/inventory-forecast/waste?restaurantId=...&days=30
+```
+**Auth:** `restaurant_owner`, `admin`
+**Response:**
+```json
+{
+  "period": "30 days",
+  "wasteByCategory": [
+    { "category": "Salads", "estimatedWastePercent": 8.5, "products": 5 }
+  ],
+  "avgWasteRate": 3.2
+}
+```
+
+---
+
+### 💵 Driver Earnings Calculator (`/driver-earnings`)
+
+#### Calculate Earnings
+```
+POST /api/v1/driver-earnings/calculate
+```
+**Auth:** `delivery_partner`, `admin`
+**Request:**
+```json
+{
+  "distanceKm": 5.5,
+  "orderValue": 450,
+  "isPeakHour": true,
+  "isSurgeActive": false,
+  "vehicleType": "scooter"
+}
+```
+**Response:**
+```json
+{
+  "vehicleType": "scooter",
+  "breakdown": {
+    "base": 15,
+    "distancePay": 27.50,
+    "tipShare": 22.50,
+    "surgeBonus": 0,
+    "peakHourBonus": 20,
+    "promotionBonus": 0,
+    "subtotal": 85
+  },
+  "platformCut": 8.50,
+  "grossEarnings": 85,
+  "netEarnings": 76.50,
+  "effectiveRatePerKm": 13.91
+}
+```
+
+#### Get Payout History
+```
+GET /api/v1/driver-earnings/payout-history
+```
+**Auth:** `delivery_partner`, `admin`
+**Response:**
+```json
+{
+  "driverId": "...",
+  "last30Days": {
+    "daysWorked": 24,
+    "totalDeliveries": 68,
+    "totalEarnings": 2450,
+    "avgEarningsPerDay": 102.08
+  }
+}
+```
+
+#### Get Incentives
+```
+GET /api/v1/driver-earnings/incentives
+```
+**Auth:** `delivery_partner`, `admin`
+**Response:**
+```json
+{
+  "last30Days": { "deliveries": 68, "totalEarnings": 2450 },
+  "incentiveTiers": [
+    { "deliveries": 30, "bonus": 500, "achieved": true },
+    { "deliveries": 50, "bonus": 1000, "achieved": true },
+    { "deliveries": 100, "bonus": 2500, "achieved": false }
+  ],
+  "nextMilestone": { "deliveries": 100, "bonus": 2500, "remaining": 32 },
+  "weeklyTarget": { "deliveries": 25, "bonus": 750 },
+  "weeklyProgress": 22
+}
+```
+
+---
+
 ## Health Check
 
 ```

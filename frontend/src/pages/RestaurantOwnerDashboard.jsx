@@ -7,6 +7,7 @@ import {
   BellOff,
   LayoutDashboard,
   Utensils,
+  Calculator,
 } from "lucide-react";
 import { BASEURL } from "../config";
 import { toast } from "react-hot-toast";
@@ -17,6 +18,12 @@ import AnalyticsSection from "../components/restaurant/AnalyticsSection";
 import LiveOrders from "../components/restaurant/LiveOrders";
 import MenuManagement from "../components/restaurant/MenuManagement";
 import ItemModal from "../components/restaurant/ItemModal";
+import CostCalculator from "../components/restaurant/CostCalculator";
+import PricingCalculator from "../components/restaurant/PricingCalculator";
+import DeliveryCalculator from "../components/restaurant/DeliveryCalculator";
+import RewardCalculator from "../components/restaurant/RewardCalculator";
+import AnalyticsForecast from "../components/restaurant/AnalyticsForecast";
+import InventoryForecast from "../components/restaurant/InventoryForecast";
 
 const RestaurantOwnerDashboard = () => {
   const { userInfo } = useSelector((state) => state.user);
@@ -35,6 +42,7 @@ const RestaurantOwnerDashboard = () => {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [activeCalcTab, setActiveCalcTab] = useState("cost");
 
   // Partner Selection State
   const [selectedPartner, setSelectedPartner] = useState({});
@@ -325,6 +333,7 @@ const RestaurantOwnerDashboard = () => {
           {[
             { id: "overview", label: "Analytics", icon: LayoutDashboard },
             { id: "menu", label: "Menu Lab", icon: Utensils },
+            { id: "calculators", label: "Calculators", icon: Calculator },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -338,7 +347,7 @@ const RestaurantOwnerDashboard = () => {
               <tab.icon size={18} /> {tab.label}
             </button>
           ))}
-        </div>
+</div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32">
@@ -346,6 +355,39 @@ const RestaurantOwnerDashboard = () => {
             <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px] mt-6 animate-pulse">
               Heating up the stoves...
             </p>
+          </div>
+        ) : activeTab === "calculators" ? (
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
+            <div className="flex bg-gray-900/50 p-1.5 rounded-2xl mb-8 border border-gray-800 shadow-inner max-w-2xl">
+              {[
+                { id: "cost", label: "Cost" },
+                { id: "pricing", label: "Pricing" },
+                { id: "delivery", label: "Delivery" },
+                { id: "rewards", label: "Rewards" },
+                { id: "forecast", label: "Forecast" },
+                { id: "inventory", label: "Inventory" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveCalcTab(tab.id)}
+                  className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-[9px] uppercase tracking-wider transition-all duration-300 ${
+                    activeCalcTab === tab.id
+                      ? "bg-primary text-white shadow-lg shadow-primary/20"
+                      : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="mb-6">
+              {activeCalcTab === "cost" && <CostCalculator />}
+              {activeCalcTab === "pricing" && <PricingCalculator />}
+              {activeCalcTab === "delivery" && <DeliveryCalculator />}
+              {activeCalcTab === "rewards" && <RewardCalculator />}
+              {activeCalcTab === "forecast" && <AnalyticsForecast />}
+              {activeCalcTab === "inventory" && <InventoryForecast />}
+            </div>
           </div>
         ) : activeTab === "overview" ? (
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 space-y-12">
@@ -362,18 +404,19 @@ const RestaurantOwnerDashboard = () => {
             </div>
           </div>
         ) : (
-          <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
-            <MenuManagement
-              menuItems={menuItems}
-              handleToggleStock={handleToggleStock}
-              handleDeleteItem={async (id) => {
-                if (window.confirm("Permanent removal from menu?")) {
-                  try {
-                    const res = await fetch(
-                      `${BASEURL}/api/v1/products/${id}`,
-                      getFetchOptions("DELETE"),
-                    );
-                    if (res.ok) {
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
+              <MenuManagement
+                menuItems={menuItems}
+                handleToggleStock={handleToggleStock}
+                handleDeleteItem={async (id) => {
+                  if (window.confirm("Permanent removal from menu?")) {
+                    try {
+                      const res = await fetch(
+                        `${BASEURL}/api/v1/products/${id}`,
+                        getFetchOptions("DELETE"),
+                      );
+                      if (res.ok) {
                         const data = await res.json();
                         toast.success(data?.message || "Dish Erased");
                         fetchData();
@@ -381,49 +424,50 @@ const RestaurantOwnerDashboard = () => {
                         const err = await res.json().catch(() => ({}));
                         toast.error(err?.message || "Failed to delete dish");
                       }
-                  } catch {
-                    toast.error("Network error deleting dish");
+                    } catch {
+                      toast.error("Network error deleting dish");
+                    }
                   }
-                }
-              }}
-              openAddModal={() => {
-                setIsEditing(false);
-                setNewItem({
-                  name: "",
-                  price: "",
-                  description: "",
-                  category: "",
-                  image: "",
-                  isVeg: "true",
-                  variants: [],
-                  addons: [],
-                });
-                setShowModal(true);
-              }}
-              openEditModal={(item) => {
-                setIsEditing(true);
-                setEditId(item._id);
-                setNewItem({
-                  ...item,
-                  isVeg: item.isVeg ? "true" : "false",
-                  variants: item.variants || [],
-                  addons: item.addons || [],
-                });
-                setShowModal(true);
-              }}
-            />
+                }}
+                openAddModal={() => {
+                  setIsEditing(false);
+                  setNewItem({
+                    name: "",
+                    price: "",
+                    description: "",
+                    category: "",
+                    image: "",
+                    isVeg: "true",
+                    variants: [],
+                    addons: [],
+                  });
+                  setShowModal(true);
+                }}
+                openEditModal={(item) => {
+                  setIsEditing(true);
+                  setEditId(item._id);
+                  setNewItem({
+                    ...item,
+                    isVeg: item.isVeg ? "true" : "false",
+                    variants: item.variants || [],
+                    addons: item.addons || [],
+                  });
+                  setShowModal(true);
+                }}
+              />
+            </div>
           </div>
         )}
-      </div>
 
-      <ItemModal
-        showModal={showModal}
-        setShowModal={setShowModal}
-        isEditing={isEditing}
-        newItem={newItem}
-        setNewItem={setNewItem}
-        handleSubmitItem={handleSubmitItem}
-      />
+        <ItemModal
+          showModal={showModal}
+          setShowModal={setShowModal}
+          isEditing={isEditing}
+          newItem={newItem}
+          setNewItem={setNewItem}
+          handleSubmitItem={handleSubmitItem}
+        />
+      </div>
     </div>
   );
 };

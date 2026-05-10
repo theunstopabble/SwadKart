@@ -68,6 +68,21 @@ const productSchema = mongoose.Schema(
     countInStock: { type: Number, required: true, default: 100 },
     orderIndex: { type: Number, default: 0 },
 
+    // 📊 COST & PROFIT CALCULATOR (Enterprise)
+    ingredients: [
+      {
+        name: { type: String, required: true },
+        quantity: { type: Number, required: true },
+        unit: { type: String, required: true }, // kg, g, ml, L, piece, etc.
+        unitCost: { type: Number, required: true }, // cost per unit in INR
+      },
+    ],
+    foodCostPercentage: { type: Number, default: 30 }, // target food cost %
+    preparationCost: { type: Number, default: 0 }, // labor cost per unit
+    packagingCost: { type: Number, default: 5 }, // packaging cost per unit
+    marginTarget: { type: Number, default: 25 }, // target margin %
+    lastCostUpdated: { type: Date, default: null },
+
     // 📦 SMART INVENTORY (FEAT-14)
     isAvailable: { type: Boolean, default: true },
     autoDisable: { type: Boolean, default: true }, // Auto-disable when stock hits 0
