@@ -290,8 +290,9 @@ const Footer = () => {
             <a
               href="https://gautam-kr.vercel.app"
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener"
               className="text-white font-bold group-hover:text-primary transition-colors"
+              title="Gautam Kumar - Full Stack Developer Portfolio"
             >
               Gautam Kumar
             </a>
