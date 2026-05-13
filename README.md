@@ -322,10 +322,12 @@ SwadKart-pro/
 
 ## 📞 Contact & Support
 
-<div align="left">
-  <p><strong>Author:</strong> Gautam Kumar</p>
-  <p><strong>Institution:</strong> Jagannath University, Jaipur, Rajasthan, India</p>
+<p align="center">
+  <strong>Author:</strong> <a href="https://gautam-kr.vercel.app/" target="_blank">Gautam Kumar</a><br />
+  <strong>Institution:</strong> Jagannath University, Jaipur, Rajasthan, India
+</p>
 
+<p align="center">
   <a href="https://linkedin.com/in/gautamkr62" target="_blank">
     <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" />
   </a>
@@ -335,10 +337,7 @@ SwadKart-pro/
   <a href="https://x.com/_unstopabble" target="_blank">
     <img src="https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" alt="Twitter" />
   </a>
-  
-</div>
-
-<br />
+</p>
 
 > **Note:** If you are interested in collaborating on this project or have any queries, feel free to reach out via any of the platforms above. 🚀
 
