@@ -37,10 +37,10 @@ if (process.env.REDIS_URL) {
     url: process.env.REDIS_URL,
     socket: {
       reconnectStrategy: (retries) => {
-        if (retries > 3) return false;
-        return Math.min(retries * 1000, 5000);
+        if (retries > 10) return false; // Give up after 10 retries
+        return Math.min(retries * 2000, 30000); // Max 30s between retries
       },
-      connectTimeout: 5000,
+      connectTimeout: 10000,
     },
   });
 
@@ -67,7 +67,8 @@ if (process.env.REDIS_URL) {
 
   cacheClient = new Proxy(redisClient, {
     get: (target, prop) => {
-      if (!isProduction && (!target.isReady || !target.isOpen)) {
+      // Fallback to in-memory if Redis is not ready (both dev AND production)
+      if (!target.isReady || !target.isOpen) {
         return inMemoryClient[prop];
       }
       return target[prop];
