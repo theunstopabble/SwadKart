@@ -208,14 +208,14 @@ const ChatBot = () => {
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading || files.length >= 3}
-                className="text-gray-400 hover:text-primary transition-colors p-3 rounded-2xl disabled:opacity-30"
+                className="text-gray-400 hover:text-primary transition-colors p-2 sm:p-3 rounded-2xl disabled:opacity-30 shrink-0"
                 title="Attach file (PDF, TXT, DOCX, Image)"
               >
-                <Paperclip size={20} />
+                <Paperclip size={18} />
               </button>
               <input
                 ref={fileInputRef}
@@ -229,7 +229,7 @@ const ChatBot = () => {
                 ref={inputRef}
                 type="text"
                 placeholder="Ask for food recommendations..."
-                className="flex-1 bg-black border border-gray-800 text-white rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-gray-600 font-medium shadow-inner"
+                className="flex-1 min-w-0 bg-black border border-gray-800 text-white rounded-2xl px-3 sm:px-5 py-3 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-gray-600 font-medium shadow-inner"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
@@ -237,9 +237,9 @@ const ChatBot = () => {
               <button
                 onClick={handleSend}
                 disabled={loading || (!input.trim() && files.length === 0)}
-                className="bg-primary hover:bg-red-600 text-white p-3.5 rounded-2xl transition-all disabled:opacity-50 disabled:grayscale shadow-xl shadow-primary/20 active:scale-90 hover:-translate-y-1"
+                className="bg-primary hover:bg-red-600 text-white p-3 sm:p-3.5 rounded-2xl transition-all disabled:opacity-50 disabled:grayscale shadow-xl shadow-primary/20 active:scale-90 hover:-translate-y-1 shrink-0"
               >
-                <Send size={20} />
+                <Send size={18} />
               </button>
             </div>
           </div>
