@@ -85,7 +85,7 @@ export function parseEventLine(line) {
   let parsed;
   try {
     parsed = JSON.parse(content);
-  } catch (e) {
+  } catch (_e) {
     console.warn(`[SSE] Non-JSON event data, id: "unknown"`);
     return { ok: false, reason: "Event data is not valid JSON" };
   }

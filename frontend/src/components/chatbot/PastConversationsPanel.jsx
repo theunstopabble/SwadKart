@@ -61,7 +61,7 @@ const PastConversationsPanel = ({ isAuthenticated, onSelectConversation, isVisib
 
   useEffect(() => {
     if (isVisible && isAuthenticated) {
-      fetchConversations();
+      queueMicrotask(() => fetchConversations());
     }
   }, [isVisible, isAuthenticated]);
 

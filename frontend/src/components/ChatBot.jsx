@@ -34,7 +34,7 @@ const ChatBot = () => {
   // Hooks
   const { sessionId, startNewChat } = useChatSession();
   const { sendMessage, isStreaming, streamedText, resetStream } = useChatStream();
-  const { layout, widgetStyle, isMaximized, isLandscape, toggleMaximize } = useResponsiveWidget();
+  const { widgetStyle, isMaximized, isLandscape, toggleMaximize } = useResponsiveWidget();
   const {
     isListening,
     transcript,

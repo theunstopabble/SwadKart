@@ -36,7 +36,7 @@ const QuickActionChips = ({ lastAssistantMessage, sessionId, onChipClick, disabl
   useEffect(() => {
     // Show default starters when no messages yet (only the welcome message)
     if (messageCount <= 1) {
-      setChips(DEFAULT_STARTERS);
+      queueMicrotask(() => setChips(DEFAULT_STARTERS));
       return;
     }
 

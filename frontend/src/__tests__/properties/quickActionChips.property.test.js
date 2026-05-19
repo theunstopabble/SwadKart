@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
-import { arbValidChips, arbInvalidChips } from "../generators/chat.js";
+import { arbValidChips } from "../generators/chat.js";
 
 /**
  * Property tests for quick-action chips validation logic.
