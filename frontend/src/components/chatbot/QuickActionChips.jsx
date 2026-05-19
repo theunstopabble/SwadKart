@@ -49,6 +49,7 @@ const QuickActionChips = ({ lastAssistantMessage, sessionId, onChipClick, disabl
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetch(`${BASEURL}/api/v1/chat/suggestions`, {
       method: "POST",
