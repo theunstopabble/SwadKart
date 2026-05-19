@@ -269,6 +269,37 @@ RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
 
 ---
 
+## Step 7.5: Chatbot Text Index Migration
+
+The chatbot action tools require a text index on the `products` collection for the retrieval service. Run this migration **once** after deploying the chatbot tools update:
+
+```bash
+cd backend
+npm run migrate:chatbot
+```
+
+This runs `utils/migrateChatbotIndexes.js` which creates:
+- Compound text index on `products.name`, `products.description`, `products.category`
+- Unique compound index on `couponusages` (user + coupon)
+
+**When to run:**
+- After first deployment with chatbot action tools
+- Safe to re-run (idempotent — skips if indexes already exist)
+
+**Verify:**
+```bash
+# Check indexes were created
+node -e "
+  import mongoose from 'mongoose';
+  await mongoose.connect(process.env.MONGO_URI);
+  const indexes = await mongoose.connection.db.collection('products').indexes();
+  console.log(indexes.filter(i => i.key._fts));
+  process.exit(0);
+"
+```
+
+---
+
 ## Step 8: CI/CD (GitHub Actions)
 
 The repo includes `.github/workflows/ci.yml`:
@@ -333,6 +364,7 @@ jobs:
 - [ ] Backup/rotate MongoDB Atlas cluster
 - [ ] Monitor logs in Render dashboard
 - [ ] Set up error tracking (Sentry optional)
+- [ ] Run `npm run migrate:chatbot` for text index creation
 
 ### Security Checklist
 

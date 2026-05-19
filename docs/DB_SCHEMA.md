@@ -735,6 +735,56 @@ db.notifications.createIndex({ user: 1 })
 
 ---
 
+### 🤖 Coupon Usage Tracking (`couponusages`) — Chatbot Tools
+
+Used by the chatbot `list_coupons` tool to track per-user coupon application via the AI assistant.
+
+```javascript
+{
+  _id: ObjectId,
+  user: ObjectId,         // ref: User
+  coupon: ObjectId,       // ref: Coupon
+  appliedAt: Date,        // when the coupon was applied via chatbot
+  orderId: ObjectId,      // ref: Order (if order was placed)
+  source: String,         // "chatbot" | "web" | "api"
+
+  createdAt: Date
+}
+
+// Indexes
+db.couponusages.createIndex({ user: 1, coupon: 1 }, { unique: true })
+db.couponusages.createIndex({ user: 1, createdAt: -1 })
+```
+
+---
+
+### 🛒 Cart (for Reorder Tool)
+
+The `reorder_last` chatbot tool reads the user's most recent delivered order and reconstructs a cart. No separate `carts` collection is needed — the tool queries:
+
+```javascript
+// Reorder tool query pattern
+db.orders.findOne(
+  { user: ObjectId("userId"), orderStatus: "Delivered" },
+  { orderItems: 1, totalPrice: 1 }
+).sort({ createdAt: -1 })
+```
+
+The tool then validates item availability against the `products` collection before presenting the reorder preview.
+
+---
+
+### 📝 Chatbot Text Indexes
+
+The FAQ tool uses an in-memory static map (no collection). However, the chatbot pipeline uses a text index on products for retrieval:
+
+```javascript
+// Created by: npm run migrate:chatbot
+db.products.createIndex({ name: "text", description: "text", category: "text" })
+```
+
+---
+
 ## Common MongoDB Queries
 
 ### Find restaurants within 10km

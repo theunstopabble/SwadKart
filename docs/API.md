@@ -906,6 +906,8 @@ PATCH /api/v1/payouts/admin/:id/pay
 ```
 POST /api/v1/chat
 ```
+**Headers:** `Authorization: Bearer <token>` (optional — enables auth-required tools)
+
 **Request Body:**
 ```json
 {
@@ -914,6 +916,221 @@ POST /api/v1/chat
 }
 ```
 **Request Options:** `multipart/form-data` with up to 3 attachments (5MB each)
+
+**Response:** `200 OK`
+```json
+{
+  "reply": "Here are some great burger options...",
+  "intent": "recommendation",
+  "language": "en",
+  "toolsUsed": []
+}
+```
+
+### Chat with AI Genie (Streaming)
+```
+POST /api/v1/chat/stream
+```
+Same request body as above. Returns Server-Sent Events (SSE).
+
+---
+
+## 🤖 Chatbot Action Tools (Function Calling)
+
+The AI Genie uses **Groq function-calling** to execute actions on behalf of the user during a conversation. Tools are conditionally included based on authentication status via the **Tool Registry**.
+
+### Tool Registry Behavior
+
+| Auth Status | Available Tools |
+|-------------|----------------|
+| Unauthenticated | `faq_support` |
+| Authenticated | `faq_support`, `get_order_status`, `cancel_order`, `list_coupons`, `get_delivery_eta`, `reorder_last` |
+
+### Multi-Tool Pipeline
+
+The chat pipeline supports **multiple sequential tool calls** in a single conversation turn. The LLM may invoke one tool, receive its result, then invoke another before generating the final response.
+
+```
+User message → LLM → tool_call(A) → execute(A) → LLM → tool_call(B) → execute(B) → LLM → final text
+```
+
+### Tool Response Format
+
+All tools return a consistent structure:
+
+**Success:**
+```json
+{ "success": true, "data": { ... } }
+```
+
+**Failure:**
+```json
+{ "success": false, "reason": "error_code", "message": "Human-readable explanation" }
+```
+
+---
+
+### `get_order_status` — Get Order Status
+
+**Auth:** Required
+
+**Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| orderId | string | ✅ | MongoDB ObjectId of the order |
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "664a...",
+    "status": "Preparing",
+    "placedAt": "2026-05-10T12:00:00Z",
+    "estimatedDelivery": "2026-05-10T12:45:00Z",
+    "items": [{ "name": "Veg Burger", "qty": 2 }]
+  }
+}
+```
+
+**Error Codes:** `not_found`, `unauthorized`
+
+---
+
+### `cancel_order` — Cancel Order
+
+**Auth:** Required
+
+**Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| orderId | string | ✅ | MongoDB ObjectId of the order |
+
+**Business Rules:**
+- Order must be within **5-minute cancellation window** from placement
+- Order must be in `Placed` status
+- Uses atomic `findOneAndUpdate` to prevent race conditions
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "664a...",
+    "previousStatus": "Placed",
+    "newStatus": "Cancelled",
+    "refundInitiated": true
+  }
+}
+```
+
+**Error Codes:** `not_found`, `unauthorized`, `window_expired`, `already_cancelled`, `not_cancellable`
+
+---
+
+### `list_coupons` — List/Apply Coupons
+
+**Auth:** Required
+
+**Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| action | string | ✅ | `"list"` or `"apply"` |
+| couponCode | string | ❌ | Required when action is `"apply"` |
+| orderValue | number | ❌ | Cart value for validation |
+
+**Success Response (list):**
+```json
+{
+  "success": true,
+  "data": {
+    "coupons": [
+      { "code": "FESTIVE50", "discount": 50, "minOrder": 200, "maxDiscount": 100, "expiresAt": "..." }
+    ]
+  }
+}
+```
+
+**Error Codes:** `no_coupons`, `invalid_coupon`, `min_order_not_met`, `already_used`
+
+---
+
+### `get_delivery_eta` — Get Delivery ETA
+
+**Auth:** Required
+
+**Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| orderId | string | ✅ | MongoDB ObjectId of the order |
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "664a...",
+    "estimatedMinutes": 25,
+    "status": "Out for Delivery",
+    "driverName": "Rahul",
+    "lastUpdated": "2026-05-10T12:30:00Z"
+  }
+}
+```
+
+**Error Codes:** `not_found`, `unauthorized`, `no_eta_available`
+
+---
+
+### `faq_support` — FAQ Instant Answers
+
+**Auth:** Not required
+
+**Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| topic | string (enum) | ✅ | One of: `helpline`, `refund_policy`, `delivery_areas`, `payment_methods`, `order_issues`, `account_help` |
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "topic": "refund_policy",
+    "answer": "Refunds are processed within 5-7 business days for prepaid orders..."
+  }
+}
+```
+
+**Error Codes:** `invalid_topic`
+
+**Performance:** Synchronous, no DB calls, sub-100ms response time.
+
+---
+
+### `reorder_last` — Repeat Last Order
+
+**Auth:** Required
+
+**Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| confirm | boolean | ❌ | If true, places the order. If false/omitted, returns preview. |
+
+**Success Response (preview):**
+```json
+{
+  "success": true,
+  "data": {
+    "preview": true,
+    "items": [{ "name": "Paneer Tikka", "qty": 1, "price": 220 }],
+    "estimatedTotal": 270,
+    "restaurant": "Spice Garden"
+  }
+}
+```
+
+**Error Codes:** `no_previous_order`, `items_unavailable`, `restaurant_closed`
 
 ---
 

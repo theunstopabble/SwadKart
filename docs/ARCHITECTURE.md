@@ -301,6 +301,105 @@ Controller (async)
 └────────────────────────────────────────────────────────────────┘
 ```
 
+## Chatbot Action Tools Architecture
+
+### Tool Registry & Multi-Tool Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     CHATBOT ACTION TOOLS PIPELINE                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  POST /api/v1/chat                                                          │
+│       │                                                                      │
+│       ▼                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                      CHAT PIPELINE ORCHESTRATOR                       │   │
+│  │                                                                      │   │
+│  │  1. Load conversation history                                        │   │
+│  │  2. Detect language (sync, pure)                                     │   │
+│  │  3. Classify intent + Analyze sentiment (parallel)                   │   │
+│  │  4. Retrieve products (if needed)                                    │   │
+│  │  5. Build prompt with token budget                                   │   │
+│  │  6. Build tools from registry (auth-conditional)  ◄─── NEW          │   │
+│  │  7. Multi-tool loop (sequential tool_calls)       ◄─── NEW          │   │
+│  │  8. Stream response (SSE events)                                     │   │
+│  │  9. Persist messages                                                 │   │
+│  │ 10. Escalation flag logic                                            │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│       │                                                                      │
+│       ▼                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                         TOOL REGISTRY                                 │   │
+│  │                                                                      │   │
+│  │  buildToolRegistry({ userId })                                       │   │
+│  │       │                                                              │   │
+│  │       ├── PUBLIC_TOOLS (always included)                             │   │
+│  │       │     └── faq_support (no auth, no DB, sub-100ms)             │   │
+│  │       │                                                              │   │
+│  │       └── AUTH_TOOLS (only if userId is truthy)                      │   │
+│  │             ├── place_order                                          │   │
+│  │             ├── get_order_status                                     │   │
+│  │             ├── cancel_order                                         │   │
+│  │             ├── list_coupons                                         │   │
+│  │             ├── get_delivery_eta                                     │   │
+│  │             └── reorder_last                                         │   │
+│  │                                                                      │   │
+│  │  getToolExecutor(functionName) → execute function                    │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│       │                                                                      │
+│       ▼                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                      MULTI-TOOL LOOP                                  │   │
+│  │                                                                      │   │
+│  │  while (response.has_tool_calls) {                                   │   │
+│  │    for each tool_call:                                               │   │
+│  │      executor = getToolExecutor(name)                                │   │
+│  │      result = await executor(args, { userId })                       │   │
+│  │    re-call Groq LLM with accumulated results                        │   │
+│  │  }                                                                   │   │
+│  │  return final text response                                          │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                      TOOL EXECUTION PATTERN                           │   │
+│  │                                                                      │   │
+│  │  Gate Pattern (per tool):                                            │   │
+│  │    1. Auth gate     → reject if userId missing                       │   │
+│  │    2. Existence gate → reject if resource not found                  │   │
+│  │    3. Business rules → reject if constraints violated                │   │
+│  │    4. Operation     → execute with timeout                           │   │
+│  │                                                                      │   │
+│  │  Timeouts:                                                           │   │
+│  │    • Read operations: 3s                                             │   │
+│  │    • Write operations: 5s                                            │   │
+│  │                                                                      │   │
+│  │  Atomicity:                                                          │   │
+│  │    • Writes use findOneAndUpdate (atomic)                            │   │
+│  │    • Transactions for multi-document writes                          │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Tool File Structure
+
+```
+backend/services/chat/
+├── chatPipeline.js          # Orchestrator (multi-tool loop)
+├── tools/
+│   ├── toolRegistry.js      # Centralized registry (auth-conditional)
+│   ├── orderStatusTool.js   # get_order_status (auth, read, 3s timeout)
+│   ├── orderCancelTool.js   # cancel_order (auth, write, 5s timeout, 5-min window)
+│   ├── couponTool.js        # list_coupons (auth, read/write, 3s/5s timeout)
+│   ├── deliveryEtaTool.js   # get_delivery_eta (auth, read, 3s timeout)
+│   ├── faqTool.js           # faq_support (no auth, sync, sub-100ms)
+│   └── reorderTool.js       # reorder_last (auth, write, 5s timeout)
+└── orderPlacementTool.js    # place_order (existing)
+```
+
+---
+
 ## Environment Variables Reference
 
 | Variable | Purpose | Where |

@@ -626,6 +626,168 @@ order.otpAttempts = 0;
 
 ---
 
+## 🤖 Chatbot Action Tools Edge Cases
+
+### 21. Tool Timeout Handling
+
+**Scenario:** Database is slow; a chatbot tool call exceeds its timeout (3s read / 5s write).
+
+**Defense:**
+```javascript
+// Each tool wraps its DB operation with AbortSignal timeout
+const result = await Order.findOne({ _id: orderId, user: userId })
+  .lean()
+  .maxTimeMS(3000); // MongoDB server-side timeout
+
+// Pipeline-level timeout wrapper
+const executeWithTimeout = (executor, args, timeoutMs) =>
+  Promise.race([
+    executor(args),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("tool_timeout")), timeoutMs)
+    ),
+  ]);
+```
+
+**Result:** On timeout, tool returns `{ success: false, reason: "timeout", message: "..." }`. The LLM receives the error and responds gracefully to the user.
+
+---
+
+### 22. Auth Gate — Unauthenticated User Requests Auth Tool
+
+**Scenario:** Guest user asks "Cancel my order" — the `cancel_order` tool requires auth but user has no JWT.
+
+**Defense:**
+```javascript
+// toolRegistry.js — buildToolRegistry({ userId: null })
+// Auth tools are NOT included in the schema sent to Groq
+// LLM cannot call tools it doesn't know about
+
+// Double-check in executor (defense in depth):
+export function execute({ orderId }, { userId }) {
+  if (!userId) {
+    return { success: false, reason: "auth_required", message: "Please log in to cancel orders." };
+  }
+  // ...
+}
+```
+
+**Result:** LLM never sees auth-required tools for unauthenticated users. Even if somehow invoked, the executor rejects immediately.
+
+---
+
+### 23. Order Cancel — 5-Minute Window Race Condition
+
+**Scenario:** User asks to cancel at 4:59 into the 5-minute window. By the time the DB write executes, the window has expired.
+
+**Defense:**
+```javascript
+// orderCancelTool.js — Atomic check-and-update
+const order = await Order.findOneAndUpdate(
+  {
+    _id: orderId,
+    user: userId,
+    orderStatus: "Placed",
+    createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) } // within 5 min
+  },
+  { $set: { orderStatus: "Cancelled", cancelledAt: new Date() } },
+  { new: true }
+);
+
+if (!order) {
+  return { success: false, reason: "window_expired", message: "..." };
+}
+```
+
+**Result:** The time check is part of the atomic query filter. No TOCTOU race — if the window expires between check and write, `findOneAndUpdate` returns null.
+
+---
+
+### 24. Multi-Tool Loop — Infinite Loop Prevention
+
+**Scenario:** LLM keeps calling tools in a loop without producing a final text response.
+
+**Defense:**
+```javascript
+// chatPipeline.js — Multi-tool loop cap
+const MAX_TOOL_ROUNDS = 5;
+let rounds = 0;
+
+while (response.tool_calls && rounds < MAX_TOOL_ROUNDS) {
+  // execute tools, re-call LLM
+  rounds++;
+}
+
+if (rounds >= MAX_TOOL_ROUNDS) {
+  // Force final response without tools
+  // Append system message: "Provide a final answer now."
+}
+```
+
+**Result:** Pipeline never loops more than 5 rounds. Worst case: user gets a partial answer after 5 tool executions.
+
+---
+
+### 25. Reorder Tool — Items No Longer Available
+
+**Scenario:** User says "Reorder my last meal" but one item is now out of stock or the restaurant is closed.
+
+**Defense:**
+```javascript
+// reorderTool.js
+const lastOrder = await Order.findOne({ user: userId, orderStatus: "Delivered" })
+  .sort({ createdAt: -1 }).lean();
+
+// Validate each item still exists and is in stock
+const validItems = [];
+const unavailable = [];
+
+for (const item of lastOrder.orderItems) {
+  const product = await Product.findById(item.product).lean();
+  if (!product || !product.isAvailable || product.countInStock < item.qty) {
+    unavailable.push(item.name);
+  } else {
+    validItems.push(item);
+  }
+}
+
+if (unavailable.length > 0) {
+  return {
+    success: false,
+    reason: "items_unavailable",
+    message: `These items are no longer available: ${unavailable.join(", ")}`,
+    data: { availableItems: validItems }
+  };
+}
+```
+
+**Result:** User is informed which items are unavailable. Partial reorder is possible with available items.
+
+---
+
+### 26. FAQ Tool — Invalid Topic Fuzzy Match
+
+**Scenario:** User asks about "refunds" but the enum expects `refund_policy`.
+
+**Defense:**
+```javascript
+// The LLM maps natural language to the enum value via the tool schema description.
+// If LLM sends an invalid topic, the tool returns a helpful error:
+if (!Object.hasOwn(FAQ_DATA, topic)) {
+  return {
+    success: false,
+    reason: "invalid_topic",
+    message: "Topic not recognized. Please try: helpline, refund_policy, delivery_areas, payment_methods, order_issues, or account_help."
+  };
+}
+// LLM receives this error and can retry with the correct enum value
+// or paraphrase the answer for the user.
+```
+
+**Result:** Sub-100ms response even on invalid input. No DB call, no crash.
+
+---
+
 ## 🧪 Testing Checklist
 
 | Test Case | Expected Behavior |
@@ -643,3 +805,11 @@ order.otpAttempts = 0;
 | Verify Razorpay webhook with wrong signature | 400 Bad Request |
 | Request data export | JSON file with all user data |
 | Request account deletion | Account anonymized (not deleted) |
+| Chatbot: cancel order after 5-min window | `window_expired` error, order unchanged |
+| Chatbot: auth tool called without login | Tool not in schema; executor returns `auth_required` |
+| Chatbot: tool exceeds 3s timeout | `timeout` error returned, LLM responds gracefully |
+| Chatbot: reorder with out-of-stock items | `items_unavailable` with list of missing items |
+| Chatbot: FAQ with invalid topic | `invalid_topic` error, sub-100ms, no DB call |
+| Chatbot: multi-tool loop exceeds 5 rounds | Loop capped, forced final response |
+| Chatbot: cancel already-cancelled order | `already_cancelled` error |
+| Chatbot: get ETA for another user's order | `unauthorized` error |

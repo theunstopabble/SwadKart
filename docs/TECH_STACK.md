@@ -57,7 +57,7 @@
 | **Cloudinary** | 2.x | Media CDN | Image upload, transformation, optimization, CDN delivery |
 | **Sharp** | 0.34 | Image Processing | Thumbnail generation, resize, format conversion |
 | **Firebase Admin** | 13.x | Push Notifications | Server-side FCM, topic subscriptions |
-| **Groq SDK** | 0.37 | AI/Chatbot | SwadKart Genie AI chat, dish recommendations |
+| **Groq SDK** | 0.37 | AI/Chatbot | SwadKart Genie AI chat, dish recommendations, function-calling tools |
 | **Brevo (Sendinblue)** | — | Transactional Email | Order confirmations, OTPs, marketing |
 | **Nodemailer** | 8.x | Email | Fallback email delivery, templated emails |
 | **multer** | 2.x | File Upload | Multipart form handling, Cloudinary storage |
@@ -77,6 +77,7 @@
 |-----------|---------|----------|
 | **express-validator** | Input validation | Schema-based request validation |
 | **deep-email-validator** | Email validation | MX record check, typo detection |
+| **fast-check** | Property-based testing | Chatbot tool correctness properties (14 properties) |
 | **morgan** | HTTP logging | Request/response logging |
 | **nodemon** | Dev reload | Auto-restart on code changes |
 | **dotenv** | Env management | Environment variable handling |
@@ -244,6 +245,13 @@
 - ✅ Lower cost
 - ✅ Good enough for chat/Recommendations
 - ✅ Easy integration with Python-free backend
+- ✅ Native function-calling support (tool_calls) for chatbot action tools
+
+### fast-check for Property Testing
+- ✅ Generates thousands of random inputs to find edge cases
+- ✅ Shrinks failing examples to minimal reproducible cases
+- ✅ 14 properties covering all chatbot tool invariants
+- ✅ Catches boundary conditions (timeout, auth gates, atomicity)
 
 ---
 
@@ -304,7 +312,8 @@ backend/
 ├── deep-email-validator 0.1.x
 ├── morgan 1.x
 ├── @simplewebauthn/server 13.x
-└── mammoth 1.x (optional)
+├── mammoth 1.x (optional)
+└── fast-check 3.x (dev — property-based testing)
 ```
 
 ---

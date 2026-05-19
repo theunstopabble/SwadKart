@@ -483,3 +483,131 @@ Driver enters: distanceKm, orderValue, isPeakHour, isSurgeActive, vehicleType
 | `POST /driver-earnings/calculate` | calculateDriverEarnings | delivery_partner, admin |
 | `GET /driver-earnings/payout-history` | getDriverPayoutHistory | delivery_partner, admin |
 | `GET /driver-earnings/incentives` | getDriverIncentives | delivery_partner, admin |
+
+---
+
+## 🤖 Chatbot Action Tool Development Workflow
+
+### Adding a New Chatbot Tool
+
+```
+1. Create tool file: backend/services/chat/tools/<toolName>Tool.js
+       ↓
+2. Export toolSchema (Groq function-calling format)
+       ↓
+3. Export execute(params, { userId }) function
+       ↓
+4. Register in toolRegistry.js (PUBLIC_TOOLS or AUTH_TOOLS)
+       ↓
+5. Write unit test: backend/tests/unit/<toolName>Tool.test.js
+       ↓
+6. Write property test: backend/tests/properties/chatbot-tools.property.test.js
+       ↓
+7. Run: npm test -- --grep "toolName"
+       ↓
+8. Test via chat endpoint: POST /api/v1/chat with natural language trigger
+```
+
+### Tool File Template
+
+```javascript
+// backend/services/chat/tools/myNewTool.js
+
+export const toolSchema = {
+  type: "function",
+  function: {
+    name: "my_tool_name",
+    description: "What this tool does (LLM reads this to decide when to call it)",
+    parameters: {
+      type: "object",
+      properties: {
+        param1: { type: "string", description: "..." },
+      },
+      required: ["param1"],
+    },
+  },
+};
+
+export async function execute({ param1 }, { userId }) {
+  // 1. Auth gate
+  if (!userId) {
+    return { success: false, reason: "auth_required", message: "Please log in." };
+  }
+
+  // 2. Existence gate
+  const resource = await Model.findOne({ _id: param1, user: userId }).lean().maxTimeMS(3000);
+  if (!resource) {
+    return { success: false, reason: "not_found", message: "Resource not found." };
+  }
+
+  // 3. Business rules gate
+  if (/* constraint violated */) {
+    return { success: false, reason: "business_rule", message: "..." };
+  }
+
+  // 4. Operation
+  return { success: true, data: { /* result */ } };
+}
+```
+
+### Multi-Tool Pipeline Flow
+
+```mermaid
+flowchart TD
+    A["User: 'Cancel my last order and show me coupons'"] --> B["chatPipeline.js"]
+    B --> C["Build tool schemas from registry"]
+    C --> D["Call Groq LLM with tools"]
+    D --> E{LLM returns tool_calls?}
+
+    E -->|Yes| F["Execute tool: cancel_order"]
+    F --> G["Append tool result to messages"]
+    G --> H["Re-call Groq LLM"]
+    H --> I{More tool_calls?}
+
+    I -->|Yes| J["Execute tool: list_coupons"]
+    J --> K["Append tool result to messages"]
+    K --> L["Re-call Groq LLM"]
+    L --> M{More tool_calls?}
+
+    M -->|No| N["LLM generates final text"]
+    E -->|No| N
+    I -->|No| N
+
+    N --> O["Stream response to user via SSE"]
+    O --> P["Persist messages to conversation history"]
+```
+
+### Property-Based Testing Workflow
+
+```
+1. Define invariant (e.g., "FAQ tool always returns in < 100ms for any valid topic")
+       ↓
+2. Write fast-check property:
+   fc.assert(fc.property(
+     fc.constantFrom(...validTopics),
+     (topic) => {
+       const start = Date.now();
+       const result = execute({ topic });
+       return result.success === true && (Date.now() - start) < 100;
+     }
+   ))
+       ↓
+3. Run: npm test -- --grep "property"
+       ↓
+4. fast-check generates 100+ random inputs per property
+       ↓
+5. On failure: fast-check shrinks to minimal failing example
+       ↓
+6. Fix bug, re-run until all 14 properties pass
+```
+
+### Tool Testing Checklist
+
+| Tool | Auth | Timeout | Atomicity | Properties |
+|------|------|---------|-----------|------------|
+| `faq_support` | ❌ | N/A (sync) | N/A | topic enum, sub-100ms, no side effects |
+| `get_order_status` | ✅ | 3s | N/A (read) | ownership check, not_found handling |
+| `cancel_order` | ✅ | 5s | findOneAndUpdate | 5-min window, status transitions, idempotent |
+| `list_coupons` | ✅ | 3s/5s | atomic push | already_used, min_order, expiry |
+| `get_delivery_eta` | ✅ | 3s | N/A (read) | ownership check, no_eta states |
+| `reorder_last` | ✅ | 5s | transaction | item availability, restaurant open |

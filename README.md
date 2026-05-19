@@ -91,6 +91,7 @@
 - **Secure Auth** — Triple authentication: JWT + Firebase Google OAuth + WebAuthn Biometric
 - **Live Order Tracking** — GPS driver tracking from "Preparing" → "Out for Delivery" → "Delivered"
 - **Smart Reorder** — One-tap reorder from frequently ordered items
+- **Chatbot Action Tools** — AI Genie executes actions (order status, cancel, reorder, coupons, delivery ETA, FAQ) via Groq function-calling pipeline
 
 ### 👑 Admin Command Center
 - **Live Analytics** — Revenue, order volume, active users, and restaurant performance trends
@@ -160,7 +161,8 @@ The project follows a clean **MVC (Model-View-Controller)** architecture. See [`
 | Payments | Razorpay 2 (UPI/Card/Wallet/COD) |
 | Email | Brevo API + Nodemailer (BullMQ queue) |
 | Storage | Cloudinary (multer + sharp image processing) |
-| AI | Groq SDK (Llama 3 chat + dish recommendations) |
+| AI | Groq SDK (Llama 3 chat + dish recommendations + function-calling tools) |
+| Testing | fast-check (property-based testing for chatbot tools) |
 | Validation | express-validator + Custom NoSQL Sanitizer |
 | Rate Limiting | express-rate-limit (strict on auth/orders) |
 | Security | Helmet 8, CORS, CSRF protection |
@@ -280,6 +282,12 @@ SwadKart-pro/
 │   ├── middleware/         # Auth, Error, Rate Limit, Fraud Detection, Cache
 │   ├── models/             # 14 Mongoose Schemas with compound indexes
 │   ├── routes/             # 30+ RESTful API route modules
+│   ├── services/
+│   │   └── chat/           # AI Chatbot pipeline
+│   │       ├── tools/      # Action tools (orderStatus, cancel, coupon, ETA, FAQ, reorder)
+│   │       └── *.js        # Pipeline, intent, sentiment, language, retrieval
+│   ├── tests/
+│   │   └── properties/     # Property-based tests (fast-check)
 │   ├── utils/              # Token generators, email templates, cache helpers
 │   ├── workers/            # BullMQ email worker
 │   └── server.js           # Express app entry point
