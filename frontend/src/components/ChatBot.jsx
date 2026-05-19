@@ -84,6 +84,7 @@ const ChatBot = () => {
     if (lastMsg && lastMsg.sender === "bot" && !lastMsg.isStreaming && messages.length > 1) {
       speak(lastMsg.text);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, readAloudEnabled, speak]);
 
   // Cancel speech on widget close (Requirement 5.7)

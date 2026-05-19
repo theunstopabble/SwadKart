@@ -41,7 +41,7 @@ const QuickActionChips = ({ lastAssistantMessage, sessionId, onChipClick, disabl
     }
 
     if (!lastAssistantMessage) {
-      setChips([]);
+      queueMicrotask(() => setChips([]));
       return;
     }
 

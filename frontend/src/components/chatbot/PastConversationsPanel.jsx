@@ -63,6 +63,7 @@ const PastConversationsPanel = ({ isAuthenticated, onSelectConversation, isVisib
     if (isVisible && isAuthenticated) {
       queueMicrotask(() => fetchConversations());
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible, isAuthenticated]);
 
   if (!isAuthenticated || !isVisible) return null;
