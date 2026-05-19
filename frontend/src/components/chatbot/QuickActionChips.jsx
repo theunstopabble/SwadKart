@@ -95,13 +95,13 @@ const QuickActionChips = ({ lastAssistantMessage, sessionId, onChipClick, disabl
   if (chips.length === 0 || loading) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 px-4 pb-2" role="group" aria-label="Quick action suggestions">
+    <div className="flex flex-nowrap sm:flex-wrap gap-2 px-4 pb-2 overflow-x-auto scrollbar-hide" role="group" aria-label="Quick action suggestions">
       {chips.map((chip, index) => (
         <button
           key={`${chip}-${index}`}
           onClick={() => onChipClick(chip)}
           disabled={disabled}
-          className="inline-flex items-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-gray-300 hover:text-white border border-gray-700 hover:border-primary/50 px-3 py-1.5 rounded-full text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-gray-300 hover:text-white border border-gray-700 hover:border-primary/50 px-3 py-2 sm:py-1.5 rounded-full text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 sm:shrink"
           aria-label={`Suggest: ${chip}`}
         >
           <Sparkles size={10} className="text-primary" aria-hidden="true" />

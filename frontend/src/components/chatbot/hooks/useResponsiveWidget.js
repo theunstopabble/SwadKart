@@ -41,8 +41,8 @@ export function isLandscapeConstrained(height) {
  * @returns {object} CSS style object for the widget container
  */
 function computeWidgetStyle(layout, isMaximized) {
-  // Full-screen for mobile or maximized state
-  if (layout === "mobile" || isMaximized) {
+  // Full-screen only when maximized (not default for mobile anymore)
+  if (isMaximized) {
     return {
       position: "fixed",
       top: 0,
@@ -51,6 +51,18 @@ function computeWidgetStyle(layout, isMaximized) {
       height: "100vh",
       bottom: "auto",
       right: "auto",
+    };
+  }
+
+  if (layout === "mobile") {
+    return {
+      position: "fixed",
+      bottom: "80px",
+      right: "12px",
+      left: "12px",
+      width: "auto",
+      height: "75vh",
+      top: "auto",
     };
   }
 
@@ -121,12 +133,11 @@ export function useResponsiveWidget() {
 
   /**
    * Toggle maximize/restore state.
-   * Only applicable on tablet and desktop layouts.
+   * Available on all layouts — mobile users can expand to full-screen if needed.
    */
   const toggleMaximize = useCallback(() => {
-    if (layout === "mobile") return; // Mobile is always full-screen
     setIsMaximized((prev) => !prev);
-  }, [layout]);
+  }, []);
 
   const widgetStyle = computeWidgetStyle(layout, isMaximized);
 

@@ -48,7 +48,7 @@ const ChatInput = ({
   };
 
   return (
-    <div className="p-4 bg-gray-950 border-t border-gray-900 shrink-0">
+    <div className="p-3 sm:p-4 bg-gray-950 border-t border-gray-900 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4">
       {/* Selected file chips */}
       {files.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">

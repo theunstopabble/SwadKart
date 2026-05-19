@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Scrollbar hide utility for horizontal chip scrolling on mobile */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* =========================================
    🌍 GLOBAL STYLES (Base Setup)
    ========================================= */

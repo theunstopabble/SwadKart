@@ -17,7 +17,7 @@ const FAQ_DATA = {
   helpline: {
     topic: "helpline",
     answer:
-      "You can reach SwadKart support at 1800-XXX-XXXX (toll-free, 9 AM - 9 PM IST) or email support@swadkart.com.",
+      "You can reach SwadKart support at 1800-XXX-XXXX (toll-free, 9 AM - 9 PM IST) or email swadkartt@gmail.com.",
   },
   refund_policy: {
     topic: "refund_policy",

@@ -296,12 +296,16 @@ const ChatBot = () => {
   );
 
   return (
-    <div className="fixed bottom-6 right-6 z-[999] flex flex-col items-end font-sans">
+    <div className={`fixed z-[999] flex flex-col items-end font-sans ${isOpen && isMaximized ? "inset-0" : "bottom-6 right-6"}`}>
       {/* Chat Widget */}
       {isOpen && (
         <div
-          className="mb-4 bg-gray-950 border border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col backdrop-blur-xl"
-          style={widgetStyle}
+          className={`bg-gray-950 border border-gray-800 shadow-2xl overflow-hidden flex flex-col backdrop-blur-xl ${
+            isMaximized
+              ? "rounded-none w-full h-full"
+              : "mb-4 rounded-[1.5rem]"
+          }`}
+          style={isMaximized ? undefined : widgetStyle}
           role="dialog"
           aria-label="SwadKart Genie Chat"
           aria-modal="false"
@@ -309,7 +313,6 @@ const ChatBot = () => {
           {/* Header */}
           <ChatHeader
             isMaximized={isMaximized}
-            layout={layout}
             onToggleMaximize={toggleMaximize}
             onNewChat={handleNewChat}
             onClose={() => setIsOpen(false)}
@@ -366,25 +369,27 @@ const ChatBot = () => {
         </div>
       )}
 
-      {/* Floating Action Button (FAB) */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="bg-primary hover:bg-red-600 text-white p-5 rounded-[1.8rem] shadow-2xl shadow-primary/40 transition-all hover:scale-110 active:scale-95 group relative z-50 hover:rotate-3"
-        aria-label={isOpen ? "Close chat" : "Open chat"}
-      >
-        {isOpen ? (
-          <X size={28} />
-        ) : (
-          <div className="relative">
-            <MessageCircle size={28} />
-            <Sparkles
-              size={14}
-              className="absolute -top-2 -right-2 text-yellow-300 animate-bounce drop-shadow-md"
-              aria-hidden="true"
-            />
-          </div>
-        )}
-      </button>
+      {/* Floating Action Button (FAB) — hidden when maximized */}
+      {!(isMaximized && isOpen) && (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="bg-primary hover:bg-red-600 text-white p-4 sm:p-5 rounded-[1.8rem] shadow-2xl shadow-primary/40 transition-all hover:scale-110 active:scale-95 group relative z-50 hover:rotate-3"
+          aria-label={isOpen ? "Close chat" : "Open chat"}
+        >
+          {isOpen ? (
+            <X size={24} />
+          ) : (
+            <div className="relative">
+              <MessageCircle size={24} />
+              <Sparkles
+                size={12}
+                className="absolute -top-2 -right-2 text-yellow-300 animate-bounce drop-shadow-md"
+                aria-hidden="true"
+              />
+            </div>
+          )}
+        </button>
+      )}
     </div>
   );
 };
