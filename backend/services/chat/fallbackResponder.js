@@ -52,8 +52,9 @@ export const STATIC = {
  * @returns {{ reply: string, degraded: true }}
  */
 export function buildFallback(language) {
+  const reply = Object.hasOwn(STATIC, language) ? STATIC[language] : STATIC.English;
   return {
-    reply: STATIC[language] ?? STATIC.English,
+    reply,
     degraded: true,
   };
 }

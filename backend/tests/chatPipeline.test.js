@@ -48,9 +48,14 @@ jest.unstable_mockModule("../services/chat/groqQueue.js", () => ({
 }));
 
 const mockExecuteOrderPlacement = jest.fn();
-jest.unstable_mockModule("../services/chat/orderPlacementTool.js", () => ({
-  toolSchema: { type: "function", function: { name: "place_order" } },
-  executeOrderPlacement: mockExecuteOrderPlacement,
+jest.unstable_mockModule("../services/chat/tools/toolRegistry.js", () => ({
+  buildToolRegistry: jest.fn().mockReturnValue([
+    { type: "function", function: { name: "place_order" } },
+  ]),
+  getToolExecutor: jest.fn().mockImplementation((name) => {
+    if (name === "place_order") return mockExecuteOrderPlacement;
+    return null;
+  }),
 }));
 
 jest.unstable_mockModule("../services/chat/fallbackResponder.js", () => ({

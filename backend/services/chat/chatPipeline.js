@@ -8,13 +8,14 @@
  *   3. Parallel: classify intent + analyze sentiment
  *   4. Retrieve products (for recommendation/order_inquiry/order_placement intents)
  *   5. Build prompt with token budget
- *   6. Groq call with retry policy (3 attempts, 500ms/1500ms backoff, 429 → immediate fallback)
- *   7. Handle tool_call responses (order placement)
- *   8. Persist messages
- *   9. Escalation flag logic (3 consecutive sentiment < -0.4)
- *  10. Fallback on failure
+ *   6. Build tools from registry (auth-conditional)
+ *   7. Multi-tool loop: execute tool_calls, accumulate results, re-call LLM until final text
+ *   8. Emit streaming events (token + done)
+ *   9. Persist messages
+ *  10. Escalation flag logic (3 consecutive sentiment < -0.4)
+ *  11. Fallback on failure
  *
- * Requirements: 1.1, 1.2, 2.5, 3.1, 3.4, 6.3, 6.4, 6.5, 8.1, 8.5, 12.1, 12.2, 12.3, 12.5, 15.2
+ * Requirements: 1.1, 1.2, 2.5, 3.1, 3.4, 6.3, 6.4, 6.5, 7.3, 7.4, 7.5, 7.6, 8.1, 8.5, 12.1, 12.2, 12.3, 12.5, 15.2
  */
 
 import { detectLanguage } from "./languageDetector.js";
@@ -23,7 +24,7 @@ import { analyzeSentiment } from "./sentimentAnalyzer.js";
 import { retrieveProducts } from "./retrievalService.js";
 import { fitToBudget } from "./tokenBudget.js";
 import { callGroq } from "./groqQueue.js";
-import { toolSchema, executeOrderPlacement } from "./orderPlacementTool.js";
+import { buildToolRegistry, getToolExecutor } from "./tools/toolRegistry.js";
 import * as conversationRepo from "./conversationRepo.js";
 import { buildFallback } from "./fallbackResponder.js";
 import { serializeEvent } from "./sseSerializer.js";
@@ -353,10 +354,8 @@ async function executePipeline({
     newUserMessage: message,
   });
 
-  // ─── Step 6: Groq call with retry policy ─────────────────────────
-  // Conditionally include order tool if authenticated and intent is order_placement
-  const tools =
-    userId && intent === "order_placement" ? [toolSchema] : null;
+  // ─── Step 6: Build tools from registry ─────────────────────────────
+  const tools = buildToolRegistry({ userId });
 
   let completion;
   try {
@@ -419,74 +418,71 @@ async function executePipeline({
     };
   }
 
-  // ─── Step 7: Handle tool_call responses ──────────────────────────
+  // ─── Step 7: Multi-tool loop ───────────────────────────────────────
   let reply = "";
-  const choice = completion?.choices?.[0];
+  let currentMessages = [...budgetedMessages];
 
-  if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
-    // Handle tool call (order placement)
-    const toolCall = choice.message.tool_calls[0];
-    let toolResult;
+  // Process tool calls in a loop until the LLM produces a final text reply
+  while (completion?.choices?.[0]?.message?.tool_calls?.length > 0) {
+    const toolCalls = completion.choices[0].message.tool_calls;
 
-    try {
-      const args = JSON.parse(toolCall.function.arguments);
-      toolResult = await executeOrderPlacement({
-        productId: args.productId,
-        quantity: args.quantity,
-        userId,
-      });
-    } catch {
-      toolResult = { success: false, reason: "internal_error" };
-    }
+    // Append the assistant message (with tool_calls) to the conversation
+    currentMessages.push(completion.choices[0].message);
 
-    // Emit tool_call event if streaming
-    if (emit) {
+    // Execute each tool call and accumulate tool response messages
+    for (const toolCall of toolCalls) {
+      const executor = getToolExecutor(toolCall.function.name);
+      let toolResult;
+
       try {
-        emit(
-          serializeEvent({
-            id: `tool_${Date.now()}`,
-            type: "tool_call",
-            payload: {
-              name: toolCall.function.name,
-              result: toolResult,
-            },
-          })
-        );
+        const args = JSON.parse(toolCall.function.arguments);
+        toolResult = executor
+          ? await executor({ ...args, userId })
+          : { success: false, reason: "unknown_tool" };
       } catch {
-        // Swallow emit errors
+        toolResult = { success: false, reason: "internal_error" };
+      }
+
+      // Append tool response message
+      currentMessages.push({
+        role: "tool",
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(toolResult),
+      });
+
+      // Emit tool_call SSE event if streaming
+      if (emit) {
+        try {
+          emit(
+            serializeEvent({
+              id: `tool_${Date.now()}`,
+              type: "tool_call",
+              payload: {
+                name: toolCall.function.name,
+                result: toolResult,
+              },
+            })
+          );
+        } catch {
+          // Swallow emit errors — never leave SSE stream inconsistent
+        }
       }
     }
 
-    // Send tool result back to Groq for final response
+    // Re-call the LLM with accumulated tool responses
     try {
-      const toolMessages = [
-        ...budgetedMessages,
-        choice.message,
-        {
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: JSON.stringify(toolResult),
-        },
-      ];
-
-      const followUp = await callGroqWithRetry({
-        messages: toolMessages,
-        tools: null,
-      });
-      reply =
-        followUp?.choices?.[0]?.message?.content ||
-        (toolResult.success
-          ? `Added ${toolResult.product?.name || "item"} to your cart!`
-          : `Sorry, I couldn't complete that: ${toolResult.reason}`);
+      completion = await callGroqWithRetry({ messages: currentMessages, tools });
     } catch {
-      // If follow-up fails, construct a reply from the tool result
-      reply = toolResult.success
-        ? `Done! Added ${toolResult.product?.quantity || ""}x ${toolResult.product?.name || "item"} (₹${toolResult.product?.price || ""}) to your cart.`
-        : `Sorry, I couldn't place that order: ${toolResult.reason}`;
+      // If the follow-up LLM call fails, produce a generic error reply
+      reply = "Sorry, I encountered an issue processing your request. Please try again.";
+      break;
     }
-  } else {
-    // Normal text response
-    reply = choice?.message?.content || "";
+  }
+
+  // Extract the final text reply from the LLM (if not already set by error path)
+  if (!reply) {
+    const finalChoice = completion?.choices?.[0];
+    reply = finalChoice?.message?.content || "";
   }
 
   // ─── Step 8: Emit streaming events ──────────────────────────────

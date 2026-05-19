@@ -57,24 +57,29 @@ jest.unstable_mockModule("../../services/chat/groqQueue.js", () => ({
   callGroq: mockCallGroq,
 }));
 
-// --- Order Placement Tool ---
+// --- Tool Registry ---
 const mockExecuteOrderPlacement = jest.fn();
-jest.unstable_mockModule("../../services/chat/orderPlacementTool.js", () => ({
-  toolSchema: {
-    type: "function",
-    function: {
-      name: "place_order",
-      parameters: {
-        type: "object",
-        properties: {
-          productId: { type: "string" },
-          quantity: { type: "integer", minimum: 1, maximum: 10 },
+jest.unstable_mockModule("../../services/chat/tools/toolRegistry.js", () => ({
+  buildToolRegistry: jest.fn().mockReturnValue([
+    {
+      type: "function",
+      function: {
+        name: "place_order",
+        parameters: {
+          type: "object",
+          properties: {
+            productId: { type: "string" },
+            quantity: { type: "integer", minimum: 1, maximum: 10 },
+          },
+          required: ["productId", "quantity"],
         },
-        required: ["productId", "quantity"],
       },
     },
-  },
-  executeOrderPlacement: mockExecuteOrderPlacement,
+  ]),
+  getToolExecutor: jest.fn().mockImplementation((name) => {
+    if (name === "place_order") return mockExecuteOrderPlacement;
+    return null;
+  }),
 }));
 
 // --- Fallback Responder ---
