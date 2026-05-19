@@ -34,6 +34,7 @@ const Gamification = lazy(() => import("./pages/Gamification"));
 const Reservations = lazy(() => import("./pages/Reservations"));
 const GroupOrders = lazy(() => import("./pages/GroupOrders"));
 const GDPRSettings = lazy(() => import("./pages/GDPRSettings"));
+const ChatbotAnalytics = lazy(() => import("./pages/admin/ChatbotAnalytics"));
 
 // Components
 import Navbar from "./components/Navbar";
@@ -293,6 +294,9 @@ function App() {
                 {/* Admin Routes */}
                 <Route path="/admin/dashboard" element={<AdminRoute />}>
                   <Route index element={<AdminDashboard />} />
+                </Route>
+                <Route path="/admin/chatbot-analytics" element={<AdminRoute />}>
+                  <Route index element={<ChatbotAnalytics />} />
                 </Route>
 
                 {/* Restaurant Owner Routes */}

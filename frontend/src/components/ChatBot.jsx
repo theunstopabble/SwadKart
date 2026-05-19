@@ -1,13 +1,57 @@
-import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Bot, Sparkles, RefreshCw, Paperclip, File, XCircle } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { MessageCircle, X, Sparkles } from "lucide-react";
 import { useSelector } from "react-redux";
-import { BASEURL } from "../config";
 
+// Hooks
+import { useChatSession } from "./chatbot/hooks/useChatSession";
+import { useChatStream } from "./chatbot/hooks/useChatStream";
+import { useResponsiveWidget } from "./chatbot/hooks/useResponsiveWidget";
+import { useSpeechRecognition } from "./chatbot/hooks/useSpeechRecognition";
+import { useSpeechSynthesis } from "./chatbot/hooks/useSpeechSynthesis";
+
+// Sub-components
+import ChatHeader from "./chatbot/ChatHeader";
+import ChatMessageList from "./chatbot/ChatMessageList";
+import ChatInput from "./chatbot/ChatInput";
+import QuickActionChips from "./chatbot/QuickActionChips";
+import PastConversationsPanel from "./chatbot/PastConversationsPanel";
+import VoiceControls from "./chatbot/VoiceControls";
+
+/**
+ * ChatBot container component — composes all sub-components and hooks.
+ *
+ * When closed: shows a floating action button (FAB).
+ * When open: shows the full chat widget positioned via useResponsiveWidget.
+ *
+ * Requirements: 1.7, 4.8, 5.1, 7.4, 7.5, 7.6, 11.5, 11.8, 13.1-13.8, 14.1, 14.3-14.6
+ */
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showPastConversations, setShowPastConversations] = useState(false);
   const { userInfo } = useSelector((state) => state.user);
   const { cartItems } = useSelector((state) => state.cart);
 
+  // Hooks
+  const { sessionId, startNewChat } = useChatSession();
+  const { sendMessage, isStreaming, streamedText, resetStream } = useChatStream();
+  const { layout, widgetStyle, isMaximized, isLandscape, toggleMaximize } = useResponsiveWidget();
+  const {
+    isListening,
+    transcript,
+    error: micError,
+    startListening,
+    stopListening,
+    isSupported: isRecognitionSupported,
+  } = useSpeechRecognition();
+  const {
+    speak,
+    cancel: cancelSpeech,
+    isSupported: isSynthesisSupported,
+    readAloudEnabled,
+    toggleReadAloud,
+  } = useSpeechSynthesis();
+
+  // Local state
   const [messages, setMessages] = useState([
     {
       text: `Namaste${
@@ -17,24 +61,200 @@ const ChatBot = () => {
     },
   ]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [chipsDisabled, setChipsDisabled] = useState(false);
 
-  const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
-  const fileInputRef = useRef(null);
+  // Track the last assistant message for quick-action chips
+  const lastAssistantMessage = messages
+    .filter((m) => m.sender === "bot" && !m.isStreaming)
+    .slice(-1)[0]?.text || null;
 
-  // 👈 FIX 1: Inline the scroll logic to remove useEffect dependency lint error
+  // Handle transcript from speech recognition → replace input (Requirement 5.4)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 300);
+    if (transcript && transcript.trim().length > 0) {
+      setInput(transcript);
     }
-  }, [isOpen]);
+  }, [transcript]);
 
+  // Read aloud new assistant messages (Requirement 5.6)
+  useEffect(() => {
+    if (!readAloudEnabled) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && lastMsg.sender === "bot" && !lastMsg.isStreaming && messages.length > 1) {
+      speak(lastMsg.text);
+    }
+  }, [messages.length, readAloudEnabled, speak]);
+
+  // Cancel speech on widget close (Requirement 5.7)
+  useEffect(() => {
+    if (!isOpen) {
+      cancelSpeech();
+    }
+  }, [isOpen, cancelSpeech]);
+
+  // Handle streaming text updates
+  useEffect(() => {
+    if (isStreaming && streamedText) {
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.isStreaming) {
+          return [
+            ...prev.slice(0, -1),
+            { ...last, text: streamedText },
+          ];
+        }
+        return prev;
+      });
+    }
+  }, [streamedText, isStreaming]);
+
+  /**
+   * Send a message (text or file attachment).
+   */
+  const handleSend = useCallback(async () => {
+    const trimmedInput = input.trim();
+    if ((!trimmedInput && files.length === 0) || isLoading || isStreaming) return;
+
+    const userMsg = trimmedInput || "📎 [File attachment]";
+    setInput("");
+    setChipsDisabled(true);
+
+    // Add user message
+    setMessages((prev) => [
+      ...prev,
+      { text: userMsg, sender: "user", files: [...files] },
+    ]);
+
+    // Add streaming placeholder for bot
+    setMessages((prev) => [
+      ...prev,
+      { text: "", sender: "bot", isStreaming: true },
+    ]);
+
+    setIsLoading(true);
+    setFiles([]);
+
+    try {
+      const result = await sendMessage(userMsg, sessionId, cartItems);
+
+      // Replace streaming placeholder with final message
+      setMessages((prev) => {
+        const withoutStreaming = prev.filter((m) => !m.isStreaming);
+        return [
+          ...withoutStreaming,
+          {
+            text: result.text || "My taste buds are confused! Can you say that again? 🍛",
+            sender: "bot",
+            error: !!result.error,
+          },
+        ];
+      });
+    } catch {
+      // Replace streaming placeholder with error message
+      setMessages((prev) => {
+        const withoutStreaming = prev.filter((m) => !m.isStreaming);
+        return [
+          ...withoutStreaming,
+          {
+            text: "🧞‍♂️ Genie is out of magic! Please check your internet.",
+            sender: "bot",
+            error: true,
+          },
+        ];
+      });
+    } finally {
+      setIsLoading(false);
+      setChipsDisabled(false);
+    }
+  }, [input, files, isLoading, isStreaming, sendMessage, sessionId, cartItems]);
+
+  /**
+   * Handle quick-action chip click — submit chip text as user message.
+   */
+  const handleChipClick = useCallback((chipText) => {
+    setInput(chipText);
+    // Trigger send on next tick after input is set
+    setTimeout(() => {
+      setInput("");
+      setChipsDisabled(true);
+      setMessages((prev) => [
+        ...prev,
+        { text: chipText, sender: "user" },
+        { text: "", sender: "bot", isStreaming: true },
+      ]);
+      setIsLoading(true);
+
+      sendMessage(chipText, sessionId, cartItems)
+        .then((result) => {
+          setMessages((prev) => {
+            const withoutStreaming = prev.filter((m) => !m.isStreaming);
+            return [
+              ...withoutStreaming,
+              {
+                text: result.text || "My taste buds are confused! Can you say that again? 🍛",
+                sender: "bot",
+                error: !!result.error,
+              },
+            ];
+          });
+        })
+        .catch(() => {
+          setMessages((prev) => {
+            const withoutStreaming = prev.filter((m) => !m.isStreaming);
+            return [
+              ...withoutStreaming,
+              {
+                text: "🧞‍♂️ Genie is out of magic! Please check your internet.",
+                sender: "bot",
+                error: true,
+              },
+            ];
+          });
+        })
+        .finally(() => {
+          setIsLoading(false);
+          setChipsDisabled(false);
+        });
+    }, 0);
+  }, [sendMessage, sessionId, cartItems]);
+
+  /**
+   * Start a new chat session.
+   */
+  const handleNewChat = useCallback(() => {
+    startNewChat();
+    resetStream();
+    setMessages([
+      {
+        text: `Namaste${
+          userInfo ? " " + userInfo.name : ""
+        }! 🙏 I am SwadKart Genie 🧞‍♂️. Looking for a spicy recommendation or need help with an order?`,
+        sender: "bot",
+      },
+    ]);
+    setInput("");
+    setFiles([]);
+    setChipsDisabled(false);
+  }, [startNewChat, resetStream, userInfo]);
+
+  /**
+   * Load a past conversation.
+   */
+  const handleSelectConversation = useCallback((conv) => {
+    if (conv.messages && conv.messages.length > 0) {
+      const loadedMessages = conv.messages.map((m) => ({
+        text: m.content,
+        sender: m.role === "user" ? "user" : "bot",
+      }));
+      setMessages(loadedMessages);
+    }
+    setShowPastConversations(false);
+  }, []);
+
+  /**
+   * Handle file selection.
+   */
   const handleFileChange = (e) => {
     const selected = Array.from(e.target.files || []);
     if (selected.length + files.length > 3) {
@@ -47,208 +267,110 @@ const ChatBot = () => {
     setFiles((prev) => [...prev, ...selected]);
   };
 
-  const removeFile = (index) => {
+  const handleRemoveFile = (index) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSend = async () => {
-    const trimmedInput = input.trim();
-    if ((!trimmedInput && files.length === 0) || loading) return;
-
-    const userMsg = trimmedInput || "📎 [File attachment]";
-    setInput("");
-    setMessages((prev) => [
-      ...prev,
-      { text: userMsg, sender: "user", files: [...files] },
-    ]);
-    setLoading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("message", trimmedInput);
-      files.forEach((f) => formData.append("attachments", f));
-      formData.append("cartItems", JSON.stringify(cartItems));
-
-      const res = await fetch(`${BASEURL}/api/v1/chat`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-      setFiles([]);
-
-      if (!res.ok) throw new Error("chat failed");
-
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        data = { reply: "Genie is out of magic! Please check your internet." };
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          text:
-            data.reply ||
-            "My taste buds are confused! Can you say that again? 🍛",
-          sender: "bot",
-        },
-      ]);
-    } catch (error) {
-      console.error("ChatBot Error:", error);
-      setFiles([]);
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: "🧞‍♂️ Genie is out of magic! Please check your internet.",
-          sender: "bot",
-        },
-      ]);
-    } finally {
-      setLoading(false);
+  /**
+   * Toggle mic on/off.
+   */
+  const handleToggleMic = useCallback(() => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
     }
-  };
+  }, [isListening, startListening, stopListening]);
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  // Mic button rendered as a slot for ChatInput (maintains tab order)
+  const micButton = (
+    <VoiceControls
+      isListening={isListening}
+      isRecognitionSupported={isRecognitionSupported}
+      onToggleMic={handleToggleMic}
+      isSynthesisSupported={isSynthesisSupported}
+      readAloudEnabled={readAloudEnabled}
+      onToggleReadAloud={toggleReadAloud}
+      error={micError}
+    />
+  );
 
   return (
     <div className="fixed bottom-6 right-6 z-[999] flex flex-col items-end font-sans">
+      {/* Chat Widget */}
       {isOpen && (
-        <div className="mb-4 w-[90vw] md:w-96 bg-gray-950 border border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-500 flex flex-col h-[550px] max-h-[80vh] backdrop-blur-xl">
-          <div className="bg-primary p-5 flex justify-between items-center shadow-lg">
-            <div className="flex items-center gap-3 text-white">
-              <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md shadow-inner">
-                <Bot size={22} />
-              </div>
-              <div>
-                <h3 className="font-black italic uppercase tracking-tighter text-sm">
-                  Genie <span className="text-black/60">Pro</span>
-                </h3>
-                <p className="text-[9px] font-bold text-white/80 flex items-center gap-1.5 uppercase tracking-widest">
-                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]"></span>
-                  AI Online
-                </p>
-              </div>
-            </div>
+        <div
+          className="mb-4 bg-gray-950 border border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col backdrop-blur-xl"
+          style={widgetStyle}
+          role="dialog"
+          aria-label="SwadKart Genie Chat"
+          aria-modal="false"
+        >
+          {/* Header */}
+          <ChatHeader
+            isMaximized={isMaximized}
+            layout={layout}
+            onToggleMaximize={toggleMaximize}
+            onNewChat={handleNewChat}
+            onClose={() => setIsOpen(false)}
+          />
+
+          {/* Past Conversations Panel — hidden in landscape constrained mode */}
+          {!isLandscape && (
+            <PastConversationsPanel
+              isAuthenticated={!!userInfo}
+              onSelectConversation={handleSelectConversation}
+              isVisible={showPastConversations}
+            />
+          )}
+
+          {/* Toggle past conversations button (only for authenticated users, not in landscape) */}
+          {!!userInfo && !isLandscape && (
             <button
-              onClick={() => setIsOpen(false)}
-              className="bg-black/20 hover:bg-black/40 p-2 rounded-full text-white transition-all hover:rotate-90 duration-300"
+              onClick={() => setShowPastConversations((prev) => !prev)}
+              className="text-[10px] text-gray-500 hover:text-gray-300 uppercase tracking-wider font-bold px-4 py-1 text-left transition-colors"
+              aria-label={showPastConversations ? "Hide past conversations" : "Show past conversations"}
+              aria-expanded={showPastConversations}
             >
-              <X size={18} />
+              {showPastConversations ? "▲ Hide past chats" : "▼ Past chats"}
             </button>
-          </div>
+          )}
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-black/95 custom-scrollbar">
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex ${
-                  msg.sender === "user" ? "justify-end" : "justify-start"
-                } animate-in fade-in slide-in-from-bottom-2`}
-              >
-                <div
-                  className={`max-w-[85%] p-4 rounded-[1.5rem] text-sm leading-relaxed font-medium shadow-md ${
-                    msg.sender === "user"
-                      ? "bg-primary text-white rounded-br-none shadow-primary/10"
-                      : "bg-gray-900 text-gray-200 rounded-bl-none border border-gray-800"
-                  }`}
-                >
-                  <p className="whitespace-pre-line">{msg.text}</p>
-                  {/* 📎 Attachment pills inside user message */}
-                  {msg.files && msg.files.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {msg.files.map((f, fi) => (
-                        <span
-                          key={fi}
-                          className="inline-flex items-center gap-1 bg-white/20 px-2 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm"
-                        >
-                          <File size={10} />
-                          {f.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-900 text-primary p-4 rounded-[1.5rem] rounded-bl-none border border-gray-800 text-xs flex items-center gap-3 animate-pulse">
-                  <RefreshCw size={14} className="animate-spin" />
-                  <span className="font-black uppercase tracking-widest text-[10px]">
-                    Genie is cooking...
-                  </span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+          {/* Message List */}
+          <ChatMessageList
+            messages={messages}
+            isLoading={isLoading && !isStreaming}
+          />
 
-          <div className="p-4 bg-gray-950 border-t border-gray-900">
-            {/* 📎 Selected file chips */}
-            {files.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {files.map((f, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-lg text-[10px] font-bold"
-                  >
-                    <File size={10} />
-                    {f.name}
-                    <button onClick={() => removeFile(i)} className="ml-1 hover:text-white">
-                      <XCircle size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+          {/* Quick Action Chips */}
+          <QuickActionChips
+            lastAssistantMessage={lastAssistantMessage}
+            sessionId={sessionId}
+            onChipClick={handleChipClick}
+            disabled={chipsDisabled || isLoading || isStreaming}
+            messageCount={messages.length}
+          />
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={loading || files.length >= 3}
-                className="text-gray-400 hover:text-primary transition-colors p-2 sm:p-3 rounded-2xl disabled:opacity-30 shrink-0"
-                title="Attach file (PDF, TXT, DOCX, Image)"
-              >
-                <Paperclip size={18} />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.txt,.docx,.doc,image/*"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder="Ask for food recommendations..."
-                className="flex-1 min-w-0 bg-black border border-gray-800 text-white rounded-2xl px-3 sm:px-5 py-3 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-gray-600 font-medium shadow-inner"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-              />
-              <button
-                onClick={handleSend}
-                disabled={loading || (!input.trim() && files.length === 0)}
-                className="bg-primary hover:bg-red-600 text-white p-3 sm:p-3.5 rounded-2xl transition-all disabled:opacity-50 disabled:grayscale shadow-xl shadow-primary/20 active:scale-90 hover:-translate-y-1 shrink-0"
-              >
-                <Send size={18} />
-              </button>
-            </div>
-          </div>
+          {/* Input Area */}
+          <ChatInput
+            input={input}
+            onInputChange={setInput}
+            onSend={handleSend}
+            isLoading={isLoading || isStreaming}
+            files={files}
+            onFileChange={handleFileChange}
+            onRemoveFile={handleRemoveFile}
+            micButton={micButton}
+            isOpen={isOpen}
+          />
         </div>
       )}
 
+      {/* Floating Action Button (FAB) */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="bg-primary hover:bg-red-600 text-white p-5 rounded-[1.8rem] shadow-2xl shadow-primary/40 transition-all hover:scale-110 active:scale-95 group relative z-50 hover:rotate-3"
+        aria-label={isOpen ? "Close chat" : "Open chat"}
       >
         {isOpen ? (
           <X size={28} />
@@ -258,6 +380,7 @@ const ChatBot = () => {
             <Sparkles
               size={14}
               className="absolute -top-2 -right-2 text-yellow-300 animate-bounce drop-shadow-md"
+              aria-hidden="true"
             />
           </div>
         )}

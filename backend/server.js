@@ -32,7 +32,8 @@ import orderRoutes from "./routes/orderRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import couponRoutes from "./routes/couponRoutes.js";
-import chatRoutes from "./routes/chatRoutes.js";
+import chatRoutes, { adminRouter as chatAdminRoutes } from "./routes/chatRoutes.js";
+import { scheduleCleanup } from "./services/chat/cleanupJob.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import restaurantRoutes from "./routes/restaurantRoutes.js";
 import biometricRoutes from "./routes/biometricRoutes.js";
@@ -414,6 +415,7 @@ app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/coupons", couponRoutes);
 app.use("/api/v1/chat", chatRoutes);
+app.use("/api/v1/admin", chatAdminRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/restaurants", restaurantRoutes);
 app.use("/api/v1/biometric", biometricRoutes);
@@ -478,6 +480,9 @@ const PORT = process.env.PORT || 8000;
 
 const server = httpServer.listen(PORT, () => {
   console.log(`🔥 Mainframe firing on Sector ${PORT} [${process.env.NODE_ENV || "development"}]`);
+
+  // 🧹 Schedule 90-day conversation cleanup job (Requirement 7.7)
+  scheduleCleanup();
 });
 
 // --- 🛡️ Graceful Shutdown ---
@@ -520,3 +525,6 @@ process.on("uncaughtException", (err) => {
   // Always crash on uncaught exceptions to avoid corrupted state
   server.close(() => process.exit(1));
 });
+
+// Export app for testing
+export { app };

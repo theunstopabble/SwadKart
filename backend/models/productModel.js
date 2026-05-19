@@ -88,6 +88,9 @@ const productSchema = mongoose.Schema(
     autoDisable: { type: Boolean, default: true }, // Auto-disable when stock hits 0
     lastRestocked: { type: Date, default: null },
 
+    // 🏷️ TAGS (Chatbot RAG enhancement)
+    tags: { type: [String], default: [] },
+
     // ⏰ AVAILABILITY SCHEDULING (FEAT-7)
     scheduleEnabled: { type: Boolean, default: false },
     schedule: {
@@ -122,7 +125,11 @@ const productSchema = mongoose.Schema(
 // 🚀 PERFORMANCE FIX (STEP 1): Indexing
 productSchema.index({ restaurant: 1 });
 productSchema.index({ category: 1 });
-productSchema.index({ name: "text" });
+// 🔍 Weighted text index for chatbot RAG retrieval
+productSchema.index(
+  { name: "text", tags: "text", category: "text", description: "text" },
+  { weights: { name: 10, tags: 5, category: 3, description: 1 } }
+);
 
 const Product = mongoose.model("Product", productSchema);
 export default Product;
