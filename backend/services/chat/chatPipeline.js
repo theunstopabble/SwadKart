@@ -42,7 +42,7 @@ const RETRY_DELAYS = [500, 1500];
 const MAX_LLM_ATTEMPTS = 3;
 
 /** Intents that trigger product retrieval */
-const RETRIEVAL_INTENTS = ["recommendation", "order_inquiry", "order_placement"];
+const RETRIEVAL_INTENTS = ["recommendation", "order_inquiry", "order_placement", "general_chat", "unknown"];
 
 /** Escalation threshold: sentiment below this value is considered negative */
 const ESCALATION_THRESHOLD = -0.4;

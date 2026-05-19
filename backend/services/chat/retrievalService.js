@@ -64,7 +64,7 @@ export async function retrieveProducts(query) {
  */
 async function primarySearch(query) {
   return Product.find(
-    { $text: { $search: query }, countInStock: { $gt: 0 }, isAvailable: true },
+    { $text: { $search: query }, countInStock: { $gt: 0 }, isAvailable: { $ne: false } },
     { score: { $meta: "textScore" } }
   )
     .sort({ score: { $meta: "textScore" } })
@@ -79,7 +79,7 @@ async function primarySearch(query) {
  * @returns {Promise<Array>} Popular product documents
  */
 async function fallbackSearch() {
-  return Product.find({ countInStock: { $gt: 0 }, isAvailable: true })
+  return Product.find({ countInStock: { $gt: 0 }, isAvailable: { $ne: false } })
     .sort({ numReviews: -1, name: 1 })
     .limit(MAX_RESULTS)
     .lean();
