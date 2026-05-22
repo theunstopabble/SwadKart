@@ -399,3 +399,14 @@ If you find SwadKart useful, please consider giving it a **star** ⭐ on GitHub 
 *Built with ❤️ by [Gautam Kumar](https://gautam-kr.vercel.app/) at Jagannath University, Jaipur*
 
 </div>
+
+---
+
+## 🌐 More Projects by Gautam Kumar
+
+| Project | Description | Link |
+|---------|-------------|------|
+| **Portfolio** | Personal portfolio & developer profile | [gautam-kr.vercel.app](https://gautam-kr.vercel.app) |
+| **InterviewMinds** | Enterprise AI mock interview platform | [interviewminds.vercel.app](https://interviewminds.vercel.app) |
+| **Satark-AI** | Deepfake detection & speaker verification platform | [satark-deepfake.vercel.app](https://satark-deepfake.vercel.app) |
+| **TexFolio** | AI-powered LaTeX resume builder with RBAC | [texfolio.vercel.app](https://texfolio.vercel.app) |
