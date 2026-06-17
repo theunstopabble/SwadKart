@@ -2,14 +2,14 @@
 
   <img src="frontend/public/logo.png" alt="SwadKart - Best Food Delivery App in Jaipur" width="120" />
 
-  # 🍔 SwadKart — Multi-Vendor Food Delivery Platform
+# 🍔 SwadKart — Multi-Vendor Food Delivery Platform
 
-  **India's Next-Gen Food Ordering & Delivery System | MERN Stack | Real-Time Tracking | AI-Powered**
+**India's Next-Gen Food Ordering & Delivery System | MERN Stack | Real-Time Tracking | AI-Powered**
 
-  [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-swadkart.vercel.app-success?style=for-the-badge&logo=vercel&logoColor=white)](https://swadkart.vercel.app/)
-  [![GitHub Stars](https://img.shields.io/github/stars/theunstopabble/SwadKart-pro?style=for-the-badge&logo=github&color=blue)](https://github.com/theunstopabble/SwadKart-pro)
-  [![Last Commit](https://img.shields.io/github/last-commit/theunstopabble/SwadKart-pro?style=for-the-badge&color=orange)](https://github.com/theunstopabble/SwadKart-pro/commits/main)
-  [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-swadkart.vercel.app-success?style=for-the-badge&logo=vercel&logoColor=white)](https://swadkart.vercel.app/)
+[![GitHub Stars](https://img.shields.io/github/stars/theunstopabble/swadkart?style=for-the-badge&logo=github&color=blue)](https://github.com/theunstopabble/swadkart)
+[![Last Commit](https://img.shields.io/github/last-commit/theunstopabble/swadkart?style=for-the-badge&color=orange)](https://github.com/theunstopabble/swadkart/commits/main)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
   <br />
 
@@ -58,8 +58,8 @@
 
 ### 🔐 Biometric Security — Fingerprint & FaceID Login
 
-| Premium Lock Screen | Profile Control Center |
-|:---:|:---:|
+|                                                  Premium Lock Screen                                                   |                                               Profile Control Center                                                |
+| :--------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------: |
 | <img src="frontend/assets/biometric-lock.png" alt="SwadKart Biometric Lock Screen - WebAuthn Security" width="100%" /> | <img src="frontend/assets/biometric-profile.png" alt="SwadKart User Profile - Wallet and SwadCoins" width="100%" /> |
 
 </div>
@@ -85,6 +85,7 @@
 ## 🌟 Key Features
 
 ### 🛍️ User Experience
+
 - **Smart Discovery** — AI-powered restaurant & dish recommendations with natural language search
 - **Voice Search** — Hands-free search in English & Hindi using Web Speech API
 - **Dynamic Cart** — Real-time price calculation with surge pricing, coupons, and SwadPass discounts
@@ -94,6 +95,7 @@
 - **Chatbot Action Tools** — AI Genie executes actions (order status, cancel, reorder, coupons, delivery ETA, FAQ) via Groq function-calling pipeline
 
 ### 👑 Admin Command Center
+
 - **Live Analytics** — Revenue, order volume, active users, and restaurant performance trends
 - **Demand Heatmap** — Interactive Leaflet.js map visualizing high-demand zones
 - **User Management** — Full RBAC (Role-Based Access Control)
@@ -101,22 +103,26 @@
 - **Fraud Detection** — Heuristics engine flags suspicious orders, repeat addresses, coupon abuse
 
 ### 🏪 Restaurant & Delivery Partner
+
 - **Menu Lab** — Stock management, variant toggling, real-time availability
 - **Delivery Dashboard** — Accept/reject orders, GPS tracking, OTP-verified delivery handoff
 - **ETA Prediction** — Dynamic delivery time based on distance, traffic, and order queue
 
 ### 💎 SwadPass Subscription
+
 - **Free Delivery** — Unlimited free delivery on all orders
 - **Exclusive Discounts** — Additional 10% off every order
 - **Priority Support** — Fast-track customer service
 
 ### 🎮 Gamification & Loyalty
+
 - **Order Streaks** — 3-day, 7-day, and 30-day streak badges
 - **SwadCoins** — Earn coins on every order, redeem for discounts
 - **Achievement Badges** — First Bite, Week Warrior, Month Master, Explorer, Top 10
 - **Referral System** — Invite friends and earn rewards on their first paid order
 
 ### 📊 Enterprise Features
+
 - **Surge Pricing** — Dynamic delivery fee multiplier based on demand vs supply
 - **Group Ordering** — Split bills with friends via invite code (equal or item-wise)
 - **Table Reservations** — Book tables with QR code confirmation
@@ -132,41 +138,41 @@ The project follows a clean **MVC (Model-View-Controller)** architecture. See [`
 
 ### Frontend (`/frontend`)
 
-| Layer | Technology |
-|---|---|
-| Framework | React 19 + Vite 7 |
-| State Management | Redux Toolkit 2 |
-| Styling | Tailwind CSS 3 + Lucide React Icons |
-| Routing | React Router 7 (Lazy Loading) |
-| Real-time | Socket.io-client 4 |
-| Maps | Leaflet.js 1.9 |
-| Charts | Recharts 3 |
-| AI | Groq SDK (LLM chatbot + recommendations) |
-| Voice | Web Speech API (en-IN / hi-IN) |
-| Auth | Firebase Auth + Google OAuth + WebAuthn |
-| i18n | i18next (English + Hindi) |
-| Build | Vite PWA (vite-plugin-pwa 0.19) |
-| PDF | jsPDF + jsPDF-autotable |
-| Push | Firebase Cloud Messaging (FCM) |
+| Layer            | Technology                               |
+| ---------------- | ---------------------------------------- |
+| Framework        | React 19 + Vite 7                        |
+| State Management | Redux Toolkit 2                          |
+| Styling          | Tailwind CSS 3 + Lucide React Icons      |
+| Routing          | React Router 7 (Lazy Loading)            |
+| Real-time        | Socket.io-client 4                       |
+| Maps             | Leaflet.js 1.9                           |
+| Charts           | Recharts 3                               |
+| AI               | Groq SDK (LLM chatbot + recommendations) |
+| Voice            | Web Speech API (en-IN / hi-IN)           |
+| Auth             | Firebase Auth + Google OAuth + WebAuthn  |
+| i18n             | i18next (English + Hindi)                |
+| Build            | Vite PWA (vite-plugin-pwa 0.19)          |
+| PDF              | jsPDF + jsPDF-autotable                  |
+| Push             | Firebase Cloud Messaging (FCM)           |
 
 ### Backend (`/backend`)
 
-| Layer | Technology |
-|---|---|
-| Runtime | Node.js 22 + Express 5 |
-| Database | MongoDB Atlas (Mongoose 9 ODM) |
-| Cache | Redis (ioredis) / In-Memory Fallback |
-| Auth | JWT (httpOnly cookies) + WebAuthn + Firebase Admin |
-| Real-time | Socket.io 4 (room-based authorization) |
-| Payments | Razorpay 2 (UPI/Card/Wallet/COD) |
-| Email | Brevo API + Nodemailer (BullMQ queue) |
-| Storage | Cloudinary (multer + sharp image processing) |
-| AI | Groq SDK (Llama 3 chat + dish recommendations + function-calling tools) |
-| Testing | fast-check (property-based testing for chatbot tools) |
-| Validation | express-validator + Custom NoSQL Sanitizer |
-| Rate Limiting | express-rate-limit (strict on auth/orders) |
-| Security | Helmet 8, CORS, CSRF protection |
-| Job Queue | BullMQ (Redis-backed email worker) |
+| Layer         | Technology                                                              |
+| ------------- | ----------------------------------------------------------------------- |
+| Runtime       | Node.js 22 + Express 5                                                  |
+| Database      | MongoDB Atlas (Mongoose 9 ODM)                                          |
+| Cache         | Redis (ioredis) / In-Memory Fallback                                    |
+| Auth          | JWT (httpOnly cookies) + WebAuthn + Firebase Admin                      |
+| Real-time     | Socket.io 4 (room-based authorization)                                  |
+| Payments      | Razorpay 2 (UPI/Card/Wallet/COD)                                        |
+| Email         | Brevo API + Nodemailer (BullMQ queue)                                   |
+| Storage       | Cloudinary (multer + sharp image processing)                            |
+| AI            | Groq SDK (Llama 3 chat + dish recommendations + function-calling tools) |
+| Testing       | fast-check (property-based testing for chatbot tools)                   |
+| Validation    | express-validator + Custom NoSQL Sanitizer                              |
+| Rate Limiting | express-rate-limit (strict on auth/orders)                              |
+| Security      | Helmet 8, CORS, CSRF protection                                         |
+| Job Queue     | BullMQ (Redis-backed email worker)                                      |
 
 ---
 
@@ -181,8 +187,8 @@ The project follows a clean **MVC (Model-View-Controller)** architecture. See [`
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/theunstopabble/SwadKart-pro.git
-cd SwadKart-pro
+git clone https://github.com/theunstopabble/swadkart.git
+cd swadkart
 ```
 
 ### 2. Backend Setup
@@ -275,7 +281,7 @@ Visit `http://localhost:5173` to see SwadKart running locally.
 ## 📂 Project Structure
 
 ```
-SwadKart-pro/
+swadkart/
 ├── backend/
 │   ├── config/             # DB, Cloudinary, Redis, WebAuthn configuration
 │   ├── controllers/        # 30+ controllers (User, Order, Admin, Delivery, AI, GDPR)
@@ -319,37 +325,38 @@ SwadKart-pro/
 
 ## 🛡️ Security & Performance
 
-| Feature | Implementation | Status |
-|---|---|---|
-| JWT Security | 32+ char secret, httpOnly cookies, `secure` + `sameSite` | ✅ |
-| CORS | Strict allowlist, dynamic origin validation | ✅ |
-| Rate Limiting | Auth: 10/10min, API: 300/15min, Orders: 20/15min | ✅ |
-| NoSQL Injection Prevention | Custom `$` and `.` sanitizer + parameter binding | ✅ |
-| CSRF Protection | Origin + Referer header validation | ✅ |
-| XSS Prevention | Helmet headers + Content Security Policy | ✅ |
-| Fraud Detection | Non-blocking heuristics on order creation | ✅ |
-| Graceful Shutdown | SIGTERM → close HTTP → close MongoDB → exit(0) | ✅ |
-| Health Checks | `/health` endpoint with MongoDB + Redis status | ✅ |
-| MongoDB Pool | 50 connections, `writeConcern: majority`, heartbeat 10s | ✅ |
-| Query Optimization | `.lean()` on all read-heavy endpoints (3-5x faster) | ✅ |
-| Response Caching | Redis/in-memory cache on GET endpoints (1-5 min TTL) | ✅ |
-| Lazy Loading | All pages lazy-loaded via React Router + Suspense | ✅ |
-| PWA Caching | Service worker precaches 80+ assets | ✅ |
+| Feature                    | Implementation                                           | Status |
+| -------------------------- | -------------------------------------------------------- | ------ |
+| JWT Security               | 32+ char secret, httpOnly cookies, `secure` + `sameSite` | ✅     |
+| CORS                       | Strict allowlist, dynamic origin validation              | ✅     |
+| Rate Limiting              | Auth: 10/10min, API: 300/15min, Orders: 20/15min         | ✅     |
+| NoSQL Injection Prevention | Custom `$` and `.` sanitizer + parameter binding         | ✅     |
+| CSRF Protection            | Origin + Referer header validation                       | ✅     |
+| XSS Prevention             | Helmet headers + Content Security Policy                 | ✅     |
+| Fraud Detection            | Non-blocking heuristics on order creation                | ✅     |
+| Graceful Shutdown          | SIGTERM → close HTTP → close MongoDB → exit(0)           | ✅     |
+| Health Checks              | `/health` endpoint with MongoDB + Redis status           | ✅     |
+| MongoDB Pool               | 50 connections, `writeConcern: majority`, heartbeat 10s  | ✅     |
+| Query Optimization         | `.lean()` on all read-heavy endpoints (3-5x faster)      | ✅     |
+| Response Caching           | Redis/in-memory cache on GET endpoints (1-5 min TTL)     | ✅     |
+| Lazy Loading               | All pages lazy-loaded via React Router + Suspense        | ✅     |
+| PWA Caching                | Service worker precaches 80+ assets                      | ✅     |
 
 ---
 
 ## 🌐 Production Deployment
 
-| Component | Platform | URL |
-|---|---|---|
-| Frontend | Vercel | [swadkart.vercel.app](https://swadkart.vercel.app) |
-| Backend | Render | `swadkart-backend.onrender.com` |
-| Database | MongoDB Atlas | Cluster (M0 Free Tier compatible) |
-| Cache | Redis Cloud | Optional — in-memory fallback |
-| Images | Cloudinary | Auto-optimized delivery |
-| Payments | Razorpay | Test + Live keys supported |
+| Component | Platform      | URL                                                |
+| --------- | ------------- | -------------------------------------------------- |
+| Frontend  | Vercel        | [swadkart.vercel.app](https://swadkart.vercel.app) |
+| Backend   | Render        | `swadkart-backend.onrender.com`                    |
+| Database  | MongoDB Atlas | Cluster (M0 Free Tier compatible)                  |
+| Cache     | Redis Cloud   | Optional — in-memory fallback                      |
+| Images    | Cloudinary    | Auto-optimized delivery                            |
+| Payments  | Razorpay      | Test + Live keys supported                         |
 
 **CI/CD Pipeline (GitHub Actions):**
+
 1. Backend syntax check (`node --check` on all files)
 2. Frontend lint (`npx eslint src/`)
 3. Frontend build test (`npm run build`)
@@ -392,11 +399,11 @@ If you find SwadKart useful, please consider giving it a **star** ⭐ on GitHub 
 
 <div align="center">
 
-**[🌐 Live Demo](https://swadkart.vercel.app/)** · **[📚 Documentation](docs/)** · **[🐛 Report Bug](https://github.com/theunstopabble/SwadKart-pro/issues)** · **[✨ Request Feature](https://github.com/theunstopabble/SwadKart-pro/issues)**
+**[🌐 Live Demo](https://swadkart.vercel.app/)** · **[📚 Documentation](docs/)** · **[🐛 Report Bug](https://github.com/theunstopabble/swadkart/issues)** · **[✨ Request Feature](https://github.com/theunstopabble/swadkart/issues)**
 
 <br />
 
-*Built with ❤️ by [Gautam Kumar](https://gautam-kr.vercel.app/) at Jagannath University, Jaipur*
+_Built with ❤️ by [Gautam Kumar](https://gautam-kr.vercel.app/) at Jagannath University, Jaipur_
 
 </div>
 
@@ -404,9 +411,9 @@ If you find SwadKart useful, please consider giving it a **star** ⭐ on GitHub 
 
 ## 🌐 More Projects by Gautam Kumar
 
-| Project | Description | Link |
-|---------|-------------|------|
-| **Portfolio** | Personal portfolio & developer profile | [gautam-kr.vercel.app](https://gautam-kr.vercel.app) |
-| **InterviewMinds** | Enterprise AI mock interview platform | [interviewminds.vercel.app](https://interviewminds.vercel.app) |
-| **Satark-AI** | Deepfake detection & speaker verification platform | [satark-deepfake.vercel.app](https://satark-deepfake.vercel.app) |
-| **TexFolio** | AI-powered LaTeX resume builder with RBAC | [texfolio.vercel.app](https://texfolio.vercel.app) |
+| Project            | Description                                        | Link                                                             |
+| ------------------ | -------------------------------------------------- | ---------------------------------------------------------------- |
+| **Portfolio**      | Personal portfolio & developer profile             | [gautam-kr.vercel.app](https://gautam-kr.vercel.app)             |
+| **InterviewMinds** | Enterprise AI mock interview platform              | [interviewminds.vercel.app](https://interviewminds.vercel.app)   |
+| **Satark-AI**      | Deepfake detection & speaker verification platform | [satark-deepfake.vercel.app](https://satark-deepfake.vercel.app) |
+| **TexFolio**       | AI-powered LaTeX resume builder with RBAC          | [texfolio.vercel.app](https://texfolio.vercel.app)               |

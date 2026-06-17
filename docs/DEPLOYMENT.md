@@ -100,19 +100,20 @@ VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
 ## Step 2: Backend Deployment (Render)
 
 ### 2.1 Create Render Account
+
 1. Go to [render.com](https://render.com)
 2. Connect GitHub repository
 3. Create **Web Service**
 
 ### 2.2 Configure Backend Service
 
-| Setting | Value |
-|---------|-------|
-| **Root Directory** | `backend` |
-| **Runtime** | `Node` |
-| **Build Command** | (empty - no build step for Node) |
-| **Start Command** | `npm start` |
-| **Plan** | `Free` or `Starter` |
+| Setting            | Value                            |
+| ------------------ | -------------------------------- |
+| **Root Directory** | `backend`                        |
+| **Runtime**        | `Node`                           |
+| **Build Command**  | (empty - no build step for Node) |
+| **Start Command**  | `npm start`                      |
+| **Plan**           | `Free` or `Starter`              |
 
 ### 2.3 Environment Variables (Render Dashboard)
 
@@ -123,6 +124,7 @@ Add all variables from `backend/.env` in Render's Environment Variables section.
 ### 2.4 Health Check
 
 The backend exposes `/health` endpoint which Render can use:
+
 ```
 https://swadkart-backend.onrender.com/health
 ```
@@ -140,18 +142,19 @@ https://swadkart-backend.onrender.com/health
 
 ### 3.2 Environment Variables (Vercel Dashboard)
 
-| Name | Value |
-|------|-------|
+| Name           | Value                                          |
+| -------------- | ---------------------------------------------- |
 | `VITE_API_URL` | `https://swadkart-backend.onrender.com/api/v1` |
 
 ### 3.3 Build Settings
 
-| Setting | Value |
-|---------|-------|
-| Build Command | `npm run build` |
-| Output Directory | `dist` |
+| Setting          | Value           |
+| ---------------- | --------------- |
+| Build Command    | `npm run build` |
+| Output Directory | `dist`          |
 
 ### 3.4 Install Command
+
 ```
 npm install
 ```
@@ -159,10 +162,14 @@ npm install
 ### 3.5 Vercel Configuration (vercel.json)
 
 The `frontend/vercel.json` already exists:
+
 ```json
 {
   "rewrites": [
-    { "source": "/api/v1/:path*", "destination": "https://swadkart-backend.onrender.com/api/v1/:path*" }
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://swadkart-backend.onrender.com/api/v1/:path*"
+    }
   ],
   "headers": [
     {
@@ -178,21 +185,25 @@ The `frontend/vercel.json` already exists:
 ## Step 4: MongoDB Atlas Setup
 
 ### 4.1 Create Cluster
+
 1. Go to [mongodb.com/atlas](https://www.mongodb.com/atlas)
 2. Create free cluster (M0 Sandbox)
 3. Choose region closest to your users (Mumbai for India)
 
 ### 4.2 Create Database User
+
 1. Security → Database Access → Add New User
 2. Grant `Read and write to any database`
 3. Save password (needed for MONGO_URI)
 
 ### 4.3 Network Access
+
 1. Security → Network Access → Add IP Address
 2. Add `0.0.0.0/0` (allow all IPs for development)
 3. For production, add specific Vercel/Render IP ranges
 
 ### 4.4 Get Connection String
+
 1. Clusters → Connect → Connect your application
 2. Copy connection string
 3. Replace `<password>` with your database user password
@@ -213,6 +224,7 @@ mongodb+srv://myuser:mypassword@cluster0.xxxxx.mongodb.net/swadkart?retryWrites=
    - API Secret
 
 Add to backend `.env`:
+
 ```env
 CLOUDINARY_CLOUD_NAME=xxxxxxxxxx
 CLOUDINARY_API_KEY=xxxxxxxxxxxxxxxx
@@ -224,16 +236,19 @@ CLOUDINARY_API_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
 ## Step 6: Razorpay Setup
 
 ### 6.1 Create Razorpay Account
+
 1. Go to [razorpay.com](https://razorpay.com)
 2. Create test account first
 3. Get API Key ID and Secret from Dashboard → Settings → API Keys
 
 ### 6.2 Webhook Setup (Production)
+
 1. Dashboard → Settings → Webhooks
 2. Add endpoint: `https://swadkart-backend.onrender.com/api/v1/payment/webhook`
 3. Events: `payment.success`, `payment.failed`
 
 ### 6.3 Environment Variables
+
 ```env
 RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
 RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
@@ -248,18 +263,22 @@ RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
 ### For End Users
 
 #### Android (Chrome)
+
 1. Visit `https://swadkart.vercel.app`
 2. Tap "Install" in the banner or Chrome menu (⋮) → "Add to Home Screen"
 
 #### iOS (Safari)
+
 1. Visit `https://swadkart.vercel.app`
 2. Tap Share button → "Add to Home Screen"
 
 #### Desktop (Chrome)
+
 1. Visit `https://swadkart.vercel.app`
 2. Click install icon in address bar (left side)
 
 ### PWA Features Working
+
 - ✅ Offline browsing (cached pages)
 - ✅ Background sync (orders queue when offline)
 - ✅ Push notifications
@@ -279,14 +298,17 @@ npm run migrate:chatbot
 ```
 
 This runs `utils/migrateChatbotIndexes.js` which creates:
+
 - Compound text index on `products.name`, `products.description`, `products.category`
 - Unique compound index on `couponusages` (user + coupon)
 
 **When to run:**
+
 - After first deployment with chatbot action tools
 - Safe to re-run (idempotent — skips if indexes already exist)
 
 **Verify:**
+
 ```bash
 # Check indexes were created
 node -e "
@@ -334,11 +356,13 @@ jobs:
 ## Step 9: Custom Domain (Optional)
 
 ### Vercel (Frontend)
+
 1. Project Settings → Domains
 2. Add `swadkart.com`
 3. Configure DNS (CNAME to Vercel)
 
 ### Render (Backend)
+
 1. Service Settings → Custom Domain
 2. Add `api.swadkart.com`
 3. Point CNAME to Render endpoint
@@ -396,10 +420,13 @@ If deployment breaks:
 ## Monitoring & Alerts
 
 ### Backend Health
+
 ```bash
 curl https://swadkart-backend.onrender.com/health
 ```
+
 Expected response:
+
 ```json
 {
   "status": "healthy",
@@ -412,13 +439,16 @@ Expected response:
 ```
 
 ### Render Logs
+
 Check Render dashboard for:
+
 - Error logs (red)
 - Response times
 - Memory/CPU usage
 - Instance count
 
 ### Vercel Analytics
+
 - Bandwidth usage
 - Build times
 - Error rates
@@ -430,8 +460,8 @@ Check Render dashboard for:
 
 ```bash
 # Clone repo
-git clone https://github.com/yourusername/theunstopable-swadkart-pro.git
-cd theunstopable-swadkart-pro
+git clone https://github.com/yourusername/theunstopable-swadkart.git
+cd theunstopable-swadkart
 
 # Backend
 cd backend
@@ -453,28 +483,34 @@ Backend runs at `http://localhost:8000`
 ## Troubleshooting
 
 ### "Cannot connect to database"
+
 - Check MONGO_URI format (must include password)
 - Check MongoDB Atlas IP whitelist
 - Check network connectivity
 
 ### "CORS error in production"
+
 - Verify FRONTEND_URL in backend .env matches exact Vercel URL
 - Check no trailing slashes
 
 ### "Payment webhook not working"
+
 - Razorpay webhook must use raw body (server.js handles this)
 - Check webhook is registered in Razorpay dashboard
 
 ### "Images not loading"
+
 - Verify Cloudinary credentials
 - Check CLOUDINARY_URL format
 
 ### "PWA not installing"
+
 - Service worker must be served over HTTPS
 - manifest.json must be accessible
 - Icons must be at least 192x192 and 512x512 PNG
 
 ### "Socket.io connection fails"
+
 - Check CORS whitelist includes frontend URL
 - Check Socket.io auth token is valid
 - Check backend is not in idle sleep (use ping keep-alive)
