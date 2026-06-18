@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Mail, MapPin, Send, Clock, Headphones, Phone } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASEURL } from "../config";
+import PageSEO from "../components/SEO/PageSEO";
+import { toJsonLd, contactPageSchema, breadcrumbSchema } from "../utils/structuredData";
 
 const Contact = () => {
   const supportEmail =
@@ -57,8 +59,19 @@ const Contact = () => {
     }
   };
 
+  const contactSchema = contactPageSchema();
+  const contactBreadcrumb = breadcrumbSchema([{
+    name: "Home", url: "/" }, { name: "Contact", url: "/contact" }]);
+
   return (
     <div className="min-h-screen bg-black text-white pt-24 pb-20 px-6 font-sans">
+      <PageSEO
+        title="Contact SwadKart Support | 24/7 Customer Care"
+        description="Need help? Contact SwadKart's 24/7 customer support team. Email, phone, or fill our form for quick assistance with orders, deliveries, and more."
+        keywords="SwadKart contact, customer support, food delivery help, order issue, 24/7 support"
+        canonicalPath="/contact"
+        jsonLdScripts={[toJsonLd(contactSchema), toJsonLd(contactBreadcrumb)]}
+      />
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-primary text-[10px] font-black uppercase tracking-[0.3em] mb-6">

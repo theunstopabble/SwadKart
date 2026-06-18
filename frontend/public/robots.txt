@@ -1,4 +1,38 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /restaurant/dashboard
+Disallow: /restaurant-dashboard
+Disallow: /delivery/dashboard
+Disallow: /delivery-dashboard
+Disallow: /password/forgot
+Disallow: /password/reset
+Disallow: /shipping
+Disallow: /payment
+Disallow: /placeorder
+Disallow: /profile
+Disallow: /myorders
+Disallow: /order/
+Disallow: /subscriptions
+Disallow: /reservations
+Disallow: /group-orders
+Disallow: /privacy
+
+# AI-Optimized Crawl Instructions
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
 
 Sitemap: https://swadkart.vercel.app/sitemap.xml

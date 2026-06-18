@@ -10,6 +10,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast"; // Notifications ke liye
 import { Analytics } from "@vercel/analytics/react";
+import { HelmetProvider } from "react-helmet-async";
 import axios from "axios";
 
 // Google Client ID Load
@@ -22,23 +23,25 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Provider store={store}>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <BrowserRouter>
-          <App />
-          <Analytics />
-          <Toaster
-            position="top-center"
-            reverseOrder={false}
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: "#1f2937",
-                color: "#fff",
-                borderRadius: "15px",
-                border: "1px solid #374151",
-              },
-            }}
-          />
-        </BrowserRouter>
+        <HelmetProvider>
+          <BrowserRouter>
+            <App />
+            <Analytics />
+            <Toaster
+              position="top-center"
+              reverseOrder={false}
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: "#1f2937",
+                  color: "#fff",
+                  borderRadius: "15px",
+                  border: "1px solid #374151",
+                },
+              }}
+            />
+          </BrowserRouter>
+        </HelmetProvider>
       </GoogleOAuthProvider>
     </Provider>
   </React.StrictMode>,

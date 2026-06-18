@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { Search, MapPin, Clock, Star, ArrowRight, Loader2, Trophy, Sparkles } from "lucide-react";
 import { BASEURL } from "../config";
 import { getSocket } from "../utils/socket.js";
+import PageSEO from "../components/SEO/PageSEO";
+import { toJsonLd, localBusinessSchema, breadcrumbSchema } from "../utils/structuredData";
 
 // Lazy-load VoiceSearch: non-critical, only needed on user interaction
 const VoiceSearch = lazy(() => import("../components/VoiceSearch"));
@@ -110,8 +112,18 @@ const Home = () => {
     e.target.style.display = "none";
   };
 
+  const homeSchema = localBusinessSchema();
+  const homeBreadcrumb = breadcrumbSchema([{ name: "Home", url: "/" }]);
+
   return (
     <div className="bg-black min-h-screen text-white pt-20">
+      <PageSEO
+        title="Order Food Online in Jaipur — Fastest AI-Powered Food Delivery"
+        description="Order delicious food from top restaurants in Jaipur. AI chatbot, real-time GPS tracking, voice search & secure payments. Download the SwadKart app today!"
+        keywords="food delivery app, order food online jaipur, best restaurant delivery, AI food recommendations, voice search food, SwadKart"
+        canonicalPath="/"
+        jsonLdScripts={[toJsonLd(homeSchema), toJsonLd(homeBreadcrumb)]}
+      />
       {/* ================= HERO SECTION ================= */}
       {/* Using <img> instead of CSS background-image for better LCP discovery by browser preload scanner */}
       <div className="relative h-[500px] w-full overflow-hidden">

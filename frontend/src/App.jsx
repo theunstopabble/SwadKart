@@ -29,6 +29,8 @@ const DeliveryPartnerDashboard = lazy(
 );
 const InfoPage = lazy(() => import("./pages/InfoPage"));
 const Contact = lazy(() => import("./pages/Contact"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const About = lazy(() => import("./pages/About"));
 const SwadPass = lazy(() => import("./pages/SwadPass"));
 const Gamification = lazy(() => import("./pages/Gamification"));
 const Reservations = lazy(() => import("./pages/Reservations"));
@@ -273,6 +275,8 @@ function App() {
                   element={<ResetPassword />}
                 />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/about" element={<About />} />
                 <Route path="/page/:type" element={<InfoPage />} />
 
                 {/* User Protected Routes */}

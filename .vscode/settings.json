@@ -2,5 +2,6 @@
   "java.configuration.updateBuildConfiguration": "interactive",
   "editor.formatOnType": true,
   "editor.unusualLineTerminators": "prompt",
-  "terminal.integrated.accessibleViewPreserveCursorPosition": true
+  "terminal.integrated.accessibleViewPreserveCursorPosition": true,
+  "postman.settings.dotenv-detection-notification-visibility": false
 }
