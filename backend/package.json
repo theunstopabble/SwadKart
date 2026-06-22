@@ -52,7 +52,8 @@
       "axios": "$axios"
     },
     "@tootallnate/once": "^3.0.1",
-    "http-proxy-agent": "^7.0.0"
+    "http-proxy-agent": "^7.0.0",
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "fast-check": "^4.8.0",
