@@ -187,6 +187,7 @@ The project follows a clean **MVC (Model-View-Controller)** architecture. See [`
 | [docs/EDGE_CASES.md](docs/EDGE_CASES.md) | Security & performance edge cases, graceful degradation, failure modes |
 | [docs/TECH_STACK.md](docs/TECH_STACK.md) | Layer-by-layer dependency inventory: frontend, backend, DevOps |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | User journey, admin ops & delivery driver Mermaid workflows |
+| [docs/AI_DISCOVERABILITY_FRAMEWORKS.md](docs/AI_DISCOVERABILITY_FRAMEWORKS.md) | AI discoverability: AEO, GEO, LLMO, AI-SEO, E-E-A-T & traditional SEO |
 
 ---
 
