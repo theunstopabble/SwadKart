@@ -3,14 +3,19 @@ dotenv.config();
 
 const isProduction = process.env.NODE_ENV === "production";
 
-// Only start the worker in production with Redis
+// Only start the BullMQ worker in production with a Redis URL.
+// When Redis is absent, sendEmail.js falls back to direct delivery.
 if (isProduction && process.env.REDIS_URL) {
   const { Worker } = await import("bullmq");
   const IORedis = (await import("ioredis")).default;
-  const axios = (await import("axios")).default;
+
+  const { default: sendEmailWithProvider } = await import(
+    "../utils/emailProvider.js"
+  );
 
   const connection = new IORedis(process.env.REDIS_URL, {
     maxRetriesPerRequest: null,
+    enableReadyCheck: false,
     lazyConnect: true,
     retryStrategy: (times) => {
       if (times > 3) return null;
@@ -22,49 +27,7 @@ if (isProduction && process.env.REDIS_URL) {
     "emailQueue",
     async (job) => {
       const options = job.data;
-      const senderEmail = process.env.SMTP_MAIL;
-      const apiKey = process.env.BREVO_API_KEY;
-
-      if (!senderEmail || !apiKey) {
-        throw new Error("Missing 'SMTP_MAIL' or 'BREVO_API_KEY' in .env file.");
-      }
-
-      const url = "https://api.brevo.com/v3/smtp/email";
-
-      const htmlContent = options.html
-        ? options.html
-        : `<html><body style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <p>${
-              options.message
-                ? options.message.replace(/\n/g, "<br>")
-                : "No message content."
-            }</p>
-          </body></html>`;
-
-      const data = {
-        sender: {
-          name: "SwadKart Support",
-          email: senderEmail,
-        },
-        to: [
-          {
-            email: options.email,
-            name: options.email ? options.email.split("@")[0] : "User",
-          },
-        ],
-        subject: options.subject || "SwadKart Notification",
-        htmlContent: htmlContent,
-      };
-
-      const response = await axios.post(url, data, {
-        headers: {
-          accept: "application/json",
-          "api-key": apiKey,
-          "content-type": "application/json",
-        },
-      });
-
-      return response.data;
+      return await sendEmailWithProvider(options);
     },
     { connection },
   );
@@ -75,8 +38,12 @@ if (isProduction && process.env.REDIS_URL) {
 
   emailWorker.on("failed", (job, err) => {
     console.error(
-      `❌ [BullMQ] Email job failed for ${job.data.email}: ${err.message}`,
+      `❌ [BullMQ] Email job failed for ${job?.data?.email}: ${err.message}`,
     );
+  });
+
+  emailWorker.on("error", (err) => {
+    console.error("❌ [BullMQ Worker] Connection error:", err.message);
   });
 }
 

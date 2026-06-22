@@ -2,7 +2,6 @@ import crypto from "crypto";
 import Razorpay from "razorpay";
 import Order from "../models/orderModel.js";
 import Restaurant from "../models/restaurantModel.js";
-import User from "../models/userModel.js";
 import Coupon from "../models/couponModel.js";
 import dotenv from "dotenv";
 import sendEmail from "../utils/sendEmail.js";
@@ -11,6 +10,7 @@ import {
   getAdminOrderAlertTemplate,
   getRestaurantOrderAlertTemplate,
 } from "../utils/emailTemplates.js";
+import getAdminEmail from "../utils/getAdminEmail.js";
 import CouponUsage from "../models/couponUsageModel.js";
 import { sanitizeObjectId } from "../utils/sanitize.js";
 
@@ -174,11 +174,11 @@ export const verifyPayment = async (req, res) => {
           });
         }
 
-        // Admin revenue alert (always send if admin exists)
-        const admin = await User.findOne({ role: "admin" });
-        if (admin) {
+        // Admin revenue alert (always send if admin email is configured)
+        const adminEmail = await getAdminEmail();
+        if (adminEmail) {
           await sendEmail({
-            email: admin.email,
+            email: adminEmail,
             subject: `💰 Revenue Alert: Order #${order._id.toString().slice(-6)}`,
             html: getAdminOrderAlertTemplate(updatedOrder),
           });

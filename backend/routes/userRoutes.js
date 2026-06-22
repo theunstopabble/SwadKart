@@ -1,5 +1,6 @@
 import express from "express";
 import { contactSupport } from "../controllers/supportController.js";
+import { testEmailDelivery } from "../controllers/diagnosticController.js";
 
 // Controllers Import
 import {
@@ -113,6 +114,14 @@ router.post(
 
 // Database Seeding (Dev only)
 router.post("/admin/seed", protect, authorizeRoles("admin"), seedDatabase);
+
+// Email Delivery Diagnostic (Admin only)
+router.post(
+  "/admin/test-email",
+  protect,
+  authorizeRoles("admin"),
+  testEmailDelivery,
+);
 
 // =================================================================
 // 🆔 DYNAMIC ID ROUTES (MUST BE AT THE END)

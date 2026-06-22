@@ -15,6 +15,7 @@ import {
   getAdminOrderAlertTemplate,
   getRestaurantOrderAlertTemplate,
 } from "../utils/emailTemplates.js";
+import getAdminEmail from "../utils/getAdminEmail.js";
 import { awardCoinsToUser } from "./loyaltyController.js";
 import { createNotification } from "./notificationController.js";
 import { calculateOrderETA, recalculateETA } from "./etaController.js";
@@ -388,10 +389,10 @@ export const addOrderItems = asyncHandler(async (req, res) => {
           });
 
           // 📧 Admin: New Order Alert
-          const admin = await User.findOne({ role: "admin" });
-          if (admin) {
+          const adminEmail = await getAdminEmail();
+          if (adminEmail) {
             await sendEmail({
-              email: admin.email,
+              email: adminEmail,
               subject: `🔔 New ${paymentMethod} Order #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
               html: getAdminOrderAlertTemplate(populatedOrder),
             });
