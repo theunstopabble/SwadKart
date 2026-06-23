@@ -1,5 +1,5 @@
 import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
+import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 import { adminOnly } from "../middleware/roleMiddleware.js";
 import { cacheResponse } from "../middleware/cacheMiddleware.js";
 import {
@@ -16,7 +16,7 @@ import {
 const router = express.Router();
 
 router.get("/leaderboard", protect, cacheResponse("analytics:leaderboard", 60), getLeaderboard);
-router.get("/restaurant/:id/performance", protect, getRestaurantPerformance);
+router.get("/restaurant/:id/performance", protect, authorizeRoles("admin", "restaurant_owner"), getRestaurantPerformance);
 router.post("/restaurant/:id/refresh", protect, refreshRestaurantScore);
 
 // FEAT-24: Admin Analytics Dashboard

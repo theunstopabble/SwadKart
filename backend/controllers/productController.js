@@ -2,7 +2,7 @@ import Product from "../models/productModel.js";
 import Restaurant from "../models/restaurantModel.js"; // Required import
 import { getCache, setCache, clearCache } from "../utils/cache.js";
 import asyncHandler from "express-async-handler";
-import { sanitizeObjectId } from "../utils/sanitize.js";
+import { sanitizeObjectId, sanitizeString } from "../utils/sanitize.js";
 
 // ============================================================
 // PUBLIC ROUTES
@@ -185,9 +185,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
       }
 
       // Update fields — use !== undefined to allow falsy values like 0 or ""
-      product.name = req.body.name !== undefined ? req.body.name : product.name;
+      product.name = req.body.name !== undefined ? sanitizeString(req.body.name) : product.name;
       product.price = req.body.price !== undefined ? req.body.price : product.price;
-      product.description = req.body.description !== undefined ? req.body.description : product.description;
+      product.description = req.body.description !== undefined ? sanitizeString(req.body.description) : product.description;
       product.image = req.body.image || product.image;
       product.category = req.body.category || product.category;
       const previousStock = product.countInStock;

@@ -643,23 +643,26 @@ export const updateOrderStatus = async (req, res) => {
         restaurant.location.coordinates
       ) {
         // Query nearest partner within 5 KM radius using GeoJSON
-        const nearestPartner = await User.findOne({
-          role: "delivery_partner",
-          isAvailable: true,
-          currentLocation: {
-            $nearSphere: {
-              $geometry: {
-                type: "Point",
-                coordinates: restaurant.location.coordinates, // [longitude, latitude]
+        const nearestPartner = await User.findOneAndUpdate(
+          {
+            role: "delivery_partner",
+            isAvailable: true,
+            currentLocation: {
+              $nearSphere: {
+                $geometry: {
+                  type: "Point",
+                  coordinates: restaurant.location.coordinates, // [longitude, latitude]
+                },
+                $maxDistance: 5000, // 5000 meters = 5 KM
               },
-              $maxDistance: 5000, // 5000 meters = 5 KM
             },
           },
-        });
+          { $set: { isAvailable: false } },
+          { new: true },
+        );
 
         if (nearestPartner) {
           order.deliveryPartner = nearestPartner._id;
-          // Generate OTP for auto-assigned delivery so partner can complete it
           if (!order.deliveryOTP) {
             order.deliveryOTP = crypto.randomInt(1000, 10000);
           }
@@ -680,15 +683,6 @@ export const updateOrderStatus = async (req, res) => {
     }
 
     const updatedOrder = await order.save();
-
-    // Only mark partner unavailable after order is successfully saved
-    if (status === "Ready" && updatedOrder.deliveryPartner) {
-      const nearestPartner = await User.findById(updatedOrder.deliveryPartner);
-      if (nearestPartner) {
-        nearestPartner.isAvailable = false;
-        await nearestPartner.save();
-      }
-    }
 
     // 🔔 Notify via Firebase Cloud Messaging
     if (order.user && order.user.fcmToken) {

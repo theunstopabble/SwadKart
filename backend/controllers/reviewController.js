@@ -1,6 +1,6 @@
 import Product from "../models/productModel.js";
 import Order from "../models/orderModel.js";
-import { sanitizeObjectId } from "../utils/sanitize.js";
+import { sanitizeObjectId, sanitizeString } from "../utils/sanitize.js";
 
 // ============================================================
 // ⭐ CREATE PRODUCT REVIEW (Verified Purchase Only)
@@ -56,7 +56,7 @@ export const createProductReview = async (req, res) => {
     const review = {
       name: req.user.name,
       rating: clampedRating,
-      comment,
+      comment: sanitizeString(comment),
       user: req.user._id,
       avatar: req.user.image || "",
     };

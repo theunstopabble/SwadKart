@@ -99,7 +99,7 @@ export const checkOrderCountBadges = async (userId, totalOrders) => {
 
     if (newBadges.length > 0) {
       await User.findByIdAndUpdate(userId, {
-        $push: { badges: { $each: newBadges } },
+        $addToSet: { badges: { $each: newBadges } },
       });
     }
 

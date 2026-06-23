@@ -60,7 +60,7 @@ export const registerUser = async (req, res, next) => {
           // 📧 Send User Email
           await sendEmail({
             email: userExists.email,
-            subject: `🔐 ${otp} is your Verification Code`,
+          subject: "🔐 Your SwadKart Verification Code",
             html: getOtpTemplate(otp),
           });
 

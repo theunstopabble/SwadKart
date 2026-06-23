@@ -17,7 +17,7 @@ const userSchema = mongoose.Schema(
       required: [true, "Please add a password"],
       minlength: 6,
     },
-    phone: { type: String, required: [true, "Please add a phone number"] },
+    phone: { type: String, required: [true, "Please add a phone number"], unique: true },
     role: {
       type: String,
       required: true,

@@ -107,8 +107,8 @@ app.set("trust proxy", 1);
 // 🛡️ Razorpay webhook needs RAW body (must be BEFORE express.json())
 app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
 
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 // --- 🌐 Configuration ---
 // 🛡️ SECURITY FIX (SEC-7): Only allow specific Vercel domains, not any *.vercel.app

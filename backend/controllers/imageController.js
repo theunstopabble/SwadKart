@@ -32,7 +32,7 @@ const MAX_DIM = 2048;
 function isAllowedUrl(url) {
   try {
     const parsed = new URL(url);
-    return ALLOWED_HOSTS.includes(parsed.hostname) || parsed.hostname.endsWith(".vercel.app");
+    return ALLOWED_HOSTS.includes(parsed.hostname);
   } catch {
     return false;
   }
@@ -67,6 +67,7 @@ export const generateThumbnail = async (req, res) => {
       responseType: "arraybuffer",
       timeout: 10000,
       maxContentLength: 5 * 1024 * 1024,
+      maxRedirects: 0,
       headers: { "User-Agent": "SwadKart-ThumbnailBot/1.0" },
     });
 
