@@ -39,7 +39,7 @@ export const testEmailDelivery = async (req, res) => {
         ? "✅ set"
         : "⚠️ not set (falls back to SMTP_MAIL)",
       SMTP_FROM_NAME: process.env.SMTP_FROM_NAME || "⚠️ not set (defaults to SwadKart Support)",
-      REDIS_URL: process.env.REDIS_URL ? "✅ set (BullMQ enabled)" : "⚠️ not set (direct send)",
+      REDIS_URL: process.env.REDIS_URL ? "✅ set (used for chat pipeline & caching)" : "⚠️ not set (in-memory fallback)",
     },
     resolvedSender: {
       email: sender.email || null,
