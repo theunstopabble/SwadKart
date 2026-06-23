@@ -19,14 +19,21 @@ import { updateOrderStreak } from "./gamificationController.js";
 // ============================================================
 export const getMyDeliveryOrders = async (req, res) => {
   try {
-    // Populate customer info and restaurant location if needed
-    // 🛡️ SECURITY FIX: Added .lean()
-    const orders = await Order.find({ deliveryPartner: req.user._id })
-      .populate("user", "name phone")
-      .sort({ createdAt: -1 })
-      .lean();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
-    res.json(orders);
+    const [orders, total] = await Promise.all([
+      Order.find({ deliveryPartner: req.user._id })
+        .populate("user", "name phone")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Order.countDocuments({ deliveryPartner: req.user._id }),
+    ]);
+
+    res.json({ orders, page, pages: Math.ceil(total / limit), total });
   } catch (error) {
     res.status(500).json({ message: "Error fetching your deliveries" });
   }
@@ -200,12 +207,14 @@ export const updateOrderToDelivered = async (req, res) => {
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // 🛡️ Auth check: only assigned partner can deliver
-    if (
-      !order.deliveryPartner ||
-      order.deliveryPartner.toString() !== req.user._id.toString()
-    ) {
-      return res.status(403).json({ message: "Not authorized to deliver this order" });
+    // 🛡️ Auth check: only assigned partner can deliver (admins bypass)
+    if (req.user.role !== "admin") {
+      if (
+        !order.deliveryPartner ||
+        order.deliveryPartner.toString() !== req.user._id.toString()
+      ) {
+        return res.status(403).json({ message: "Not authorized to deliver this order" });
+      }
     }
 
     // 🛡️ Security: OTP attempt limiting

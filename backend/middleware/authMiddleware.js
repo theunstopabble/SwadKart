@@ -28,6 +28,14 @@ export const protect = asyncHandler(async (req, res, next) => {
         throw new Error("User not found with this token");
       }
 
+      if (
+        decoded.tokenVersion !== undefined &&
+        decoded.tokenVersion !== req.user.tokenVersion
+      ) {
+        res.status(401);
+        throw new Error("Token expired after password change");
+      }
+
       return next(); // Agar user mil gaya, to aage badho
     } catch (error) {
       console.error("🔥 Header Auth Error:", error.message);
@@ -50,6 +58,14 @@ export const protect = asyncHandler(async (req, res, next) => {
       if (!req.user) {
         res.status(401);
         throw new Error("User not found with this cookie");
+      }
+
+      if (
+        decoded.tokenVersion !== undefined &&
+        decoded.tokenVersion !== req.user.tokenVersion
+      ) {
+        res.status(401);
+        throw new Error("Token expired after password change");
       }
 
       return next();

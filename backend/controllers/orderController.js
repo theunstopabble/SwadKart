@@ -47,6 +47,11 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     throw new Error("No order items found");
   }
 
+  if (orderItems.some(item => item.qty <= 0 || !Number.isInteger(item.qty))) {
+    res.status(400);
+    throw new Error("Invalid item quantity");
+  }
+
   // ==========================================
   // 🛡️ SECURITY FIX: Single Restaurant Validation
   // ==========================================
@@ -575,7 +580,6 @@ const VALID_TRANSITIONS = {
   Ready: ["Out for Delivery"],
   "Out for Delivery": ["Delivered"],
   Delivered: [],
-  Cancelled: [],
 };
 
 export const updateOrderStatus = async (req, res) => {
@@ -763,13 +767,20 @@ export const getMyRestaurantOrders = async (req, res) => {
     }
 
     // 2. Find orders that contain items from this restaurant
-    const orders = await Order.find({
-      "orderItems.restaurant": restaurant._id,
-    })
-      .populate("user", "name email")
-      .populate("deliveryPartner", "name phone")
-      .sort({ createdAt: -1 })
-      .lean();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const [orders, total] = await Promise.all([
+      Order.find({ "orderItems.restaurant": restaurant._id })
+        .populate("user", "name email")
+        .populate("deliveryPartner", "name phone")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Order.countDocuments({ "orderItems.restaurant": restaurant._id }),
+    ]);
 
     // BUG-04 FIX: Strip deliveryOTP from restaurant owner's view
     const securedOrders = orders.map((order) => {
@@ -777,7 +788,7 @@ export const getMyRestaurantOrders = async (req, res) => {
       return rest;
     });
 
-    res.json(securedOrders);
+    res.json({ orders: securedOrders, page, pages: Math.ceil(total / limit), total });
   } catch (error) {
     console.error("Error in getMyRestaurantOrders:", error);
     res.status(500).json({ message: error.message });
@@ -905,6 +916,22 @@ export const cancelOrder = asyncHandler(async (req, res) => {
       order.isPaid === true &&
       (order.paymentMethod === "Online" || order.paymentMethod === "Wallet")
     ) {
+      // 🛡️ SECURITY FIX: Initiate Razorpay refund for Online payments
+      if (order.paymentMethod === "Online" && order.paymentResult?.id) {
+        try {
+          const instance = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET,
+          });
+          await instance.payments.refund(order.paymentResult.id, {
+            amount: Math.round(order.totalPrice * 100),
+          });
+          console.log(`Razorpay Refund Initiated: ${order.totalPrice}`);
+        } catch (rzpErr) {
+          console.error("Razorpay refund failed:", rzpErr.message);
+        }
+      }
+
       const refundedBuyer = await User.findByIdAndUpdate(
         order.user,
         {

@@ -37,7 +37,7 @@ router.route("/:id/reviews").post(protect, createProductReview);
 
 // 3️⃣ STOCK TOGGLE ROUTE
 // Controller handles the ownership check
-router.route("/:id/toggle-stock").patch(protect, toggleProductStock);
+router.route("/:id/toggle-stock").patch(protect, authorizeRoles("admin", "restaurant_owner"), toggleProductStock);
 
 // 4️⃣ GENERIC ID ROUTES (Last)
 router

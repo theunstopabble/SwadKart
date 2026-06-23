@@ -37,23 +37,24 @@ export const getRazorpayKey = (req, res) => {
 // 🛡️ SECURITY FIX (SEC-1): Validate amount from DB, never trust frontend
 export const createRazorpayOrder = async (req, res) => {
   try {
-    const { amount, orderId: rawOrderId } = req.body;
+    const { orderId: rawOrderId } = req.body;
     const instance = getRazorpayInstance();
     const orderId = rawOrderId ? sanitizeObjectId(rawOrderId) : null;
 
-    // 🛡️ Server-side price validation: If orderId provided, use DB amount
-    let verifiedAmount = Number(amount);
-    if (orderId) {
-      const dbOrder = await Order.findById(orderId);
-      if (!dbOrder) {
-        return res.status(404).json({ success: false, message: "Order not found" });
-      }
-      verifiedAmount = dbOrder.totalPrice;
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "orderId is required" });
     }
 
-    if (!verifiedAmount || verifiedAmount <= 0) {
-      return res.status(400).json({ success: false, message: "Invalid payment amount" });
+    const dbOrder = await Order.findById(orderId);
+    if (!dbOrder) {
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
+
+    if (dbOrder.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Not authorized for this order" });
+    }
+
+    const verifiedAmount = dbOrder.totalPrice;
 
     const options = {
       amount: Math.round(verifiedAmount * 100), // Convert to Paisa
@@ -134,6 +135,10 @@ export const verifyPayment = async (req, res) => {
       );
 
       if (!order) return res.status(404).json({ message: "Order not found" });
+
+      if (order.user._id.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: "Not authorized for this order" });
+      }
 
       // 🛡️ SECURITY FIX: Verify payment amount matches order totalPrice
       const expectedAmount = Math.round(order.totalPrice * 100);
@@ -330,6 +335,10 @@ export const razorpayWebhook = async (req, res) => {
             console.log(`✅ Webhook Success: Order ${orderId} marked as PAID.`);
           }
         }
+      } else if (body.event === "payment.failed") {
+        const paymentData = body.payload.payment.entity;
+        const failureReason = paymentData.error_description || "Unknown error";
+        console.warn(`❌ Payment Failed: ${paymentData.id} — ${failureReason}`);
       }
 
       res.status(200).json({ status: "ok" });

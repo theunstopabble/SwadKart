@@ -61,7 +61,7 @@ export const updateUserProfile = async (req, res, next) => {
         user.description = req.body.description;
       }
       const updatedUser = await user.save();
-      const token = generateToken(res, updatedUser._id); // Refreshes HttpOnly cookie
+      const token = generateToken(res, updatedUser._id, updatedUser.tokenVersion); // Refreshes HttpOnly cookie
 
       const safeData = updatedUser.toObject();
       delete safeData.password;
@@ -403,7 +403,7 @@ export const googleCheck = async (req, res, next) => {
     const user = await User.findOne({ email: String(email) });
 
     if (user) {
-      const token = generateToken(res, user._id); // Sets HttpOnly Cookie
+      const token = generateToken(res, user._id, user.tokenVersion); // Sets HttpOnly Cookie
 
       // 🛡️ SECURITY FIX: Sanitize user object, strictly remove password and omit token
       const userSafeData = user.toObject();
@@ -451,7 +451,7 @@ export const googleRegister = async (req, res, next) => {
     });
 
     if (user) {
-      const token = generateToken(res, user._id);
+      const token = generateToken(res, user._id, user.tokenVersion);
       const safeUser = user.toObject();
       delete safeUser.password;
       safeUser.token = token;

@@ -91,6 +91,9 @@ const userSchema = mongoose.Schema(
     swadPassExpiry: { type: Date, default: null },
     swadPassStartedAt: { type: Date, default: null },
 
+    // 🔐 TOKEN VERSION (JWT invalidation on password reset)
+    tokenVersion: { type: Number, default: 0 },
+
     // 🏆 GAMIFICATION (FEAT-7)
     orderStreak: { type: Number, default: 0, min: 0 },
     longestStreak: { type: Number, default: 0, min: 0 },

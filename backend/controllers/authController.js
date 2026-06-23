@@ -156,7 +156,7 @@ export const verifyEmailAPI = async (req, res, next) => {
       console.error("⚠️ Welcome email failed (Silent):", emailError.message);
     }
 
-    const token = generateToken(res, user._id);
+    const token = generateToken(res, user._id, user.tokenVersion);
 
     try {
       if (user.pendingReferralCode) {
@@ -191,7 +191,7 @@ export const loginUser = async (req, res, next) => {
         throw new Error("🚫 Email not verified!");
       }
 
-      const token = generateToken(res, user._id); // Sets Secure HttpOnly Cookie
+      const token = generateToken(res, user._id, user.tokenVersion); // Sets Secure HttpOnly Cookie
 
       // Return full user data (sans password) to prevent Redux data wipe
       const safeUser = user.toObject();
@@ -266,10 +266,11 @@ export const resetPassword = async (req, res, next) => {
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
     // BUG-14 FIX: Auto-login user after successful password reset
-    const token = generateToken(res, user._id);
+    const token = generateToken(res, user._id, user.tokenVersion);
     res.json({ message: "Password Updated. You are now logged in.", token });
   } catch (e) {
     next(e);
