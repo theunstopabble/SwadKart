@@ -76,10 +76,11 @@ const Cart = () => {
 
     if (savedCoupon && savedDiscount) {
       // Validate coupon is still active before showing stale data
+      const cartTotal = itemsPrice + taxPrice + shippingPrice;
       fetch(`${BASEURL}/api/v1/coupons/validate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: savedCoupon, orderTotal: 0 }),
+        body: JSON.stringify({ code: savedCoupon, orderTotal: cartTotal }),
         credentials: "include",
       }).then((res) => {
         if (!res.ok) {

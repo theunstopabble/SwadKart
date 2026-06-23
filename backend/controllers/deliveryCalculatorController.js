@@ -1,5 +1,6 @@
 import asyncHandler from "express-async-handler";
 import Order from "../models/orderModel.js";
+import { calculateSurgeMultiplier } from "./surgePricingController.js";
 
 export const calculateDeliveryFee = asyncHandler(async (req, res) => {
   const { distanceKm, isSurgeActive, hasSwadPass, orderSubtotal, baseFee = 40 } = req.body;
@@ -11,7 +12,7 @@ export const calculateDeliveryFee = asyncHandler(async (req, res) => {
 
   const freeDeliveryThreshold = 500;
   const maxDeliveryFee = 120;
-  const surgeMultiplier = isSurgeActive ? (await import("../controllers/surgePricingController.js")).getSurgeMultiplier() : 1;
+  const surgeMultiplier = isSurgeActive ? (await calculateSurgeMultiplier()).multiplier : 1;
 
   let deliveryFee = 0;
 

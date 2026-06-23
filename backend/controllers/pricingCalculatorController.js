@@ -32,9 +32,7 @@ export const calculateCommission = asyncHandler(async (req, res) => {
     deliveryFeeCover: order.deliveryFee || 0,
     surgeRevenue: order.surgePrice || 0,
     tipAmount: order.tipAmount || 0,
-    breakEvenForRestaurant: Number(
-      (restaurantPayout - (order.deliveryFee || 0) + order.itemsPrice).toFixed(2)
-    ),
+    breakEvenForRestaurant: Number(restaurantPayout.toFixed(2)),
   });
 });
 

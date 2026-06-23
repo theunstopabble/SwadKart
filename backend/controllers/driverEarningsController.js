@@ -129,7 +129,7 @@ export const getDriverIncentives = asyncHandler(async (req, res) => {
     { deliveries: 200, bonus: 6000, label: "200 deliveries" },
   ];
 
-  const achieved = incentiveTiers.filter((t) => deliveredCount >= t.delivals);
+  const achieved = incentiveTiers.filter((t) => deliveredCount >= t.deliveries);
   const nextMilestone = incentiveTiers.find((t) => deliveredCount < t.deliveries);
 
   const weeklyTarget = { deliveries: 25, bonus: 750 };

@@ -25,7 +25,7 @@ export const fraudDetection = async (req, res, next) => {
       const phonePrefix = String(shippingAddress.phone).slice(0, 6);
       const phoneMatch = await User.countDocuments({
         _id: { $ne: userId },
-        phone: { $regex: "^" + phonePrefix },
+        phone: { $regex: "^" + phonePrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") },
       });
       if (phoneMatch >= 3) {
         flags.push("multiple_accounts_same_phone_prefix");

@@ -21,7 +21,9 @@ export const calculateCoinEarnings = asyncHandler(async (req, res) => {
     throw new Error("Valid order amount is required");
   }
 
-  const targetUserId = userId || req.user?._id;
+  const targetUserId = userId && userId !== req.user?._id.toString()
+    ? (req.user?.role === "admin" ? userId : req.user._id)
+    : (userId || req.user?._id);
   const user = targetUserId ? await User.findById(targetUserId).select("swadCoins badges") : null;
 
   let earningRate = 1;
@@ -164,8 +166,8 @@ export const getRewardBreakdown = asyncHandler(async (req, res) => {
   const recentSpent = recentOrders.reduce((s, o) => s + (o.itemsPrice || 0), 0);
   const projectedMonthlyCoins = Math.floor(recentSpent / 10) * 1;
 
-  const earnedCoins = coinTxs.filter((t) => t.type === "Credit").reduce((s, t) => s + Math.abs(t.amount), 0);
-  const redeemedCoins = coinTxs.filter((t) => t.type === "Debit").reduce((s, t) => s + Math.abs(t.amount), 0);
+  const earnedCoins = coinTxs.filter((t) => t.type === "Earn" || t.type === "Bonus" || t.type === "Referral").reduce((s, t) => s + Math.abs(t.amount), 0);
+  const redeemedCoins = coinTxs.filter((t) => t.type === "Redeem" || t.type === "Refund").reduce((s, t) => s + Math.abs(t.amount), 0);
 
   res.json({
     currentCoins: user?.swadCoins || 0,
