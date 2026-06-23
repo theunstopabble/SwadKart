@@ -251,6 +251,11 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     const netItemsValue = Math.max(0, serverItemsPrice - serverCouponDiscount);
     const serverCommission = parseFloat((netItemsValue * commissionRate).toFixed(2));
     const serverRestaurantPayout = parseFloat((netItemsValue - serverCommission).toFixed(2));
+
+    // 🛡️ SECURITY: Validate and sanitize client-supplied tax & tip (never trust frontend)
+    const serverTaxPrice = Number(taxPrice) || 0;
+    const serverTipAmount = Number(tipAmount) || 0;
+
     // 🛡️ CRITICAL FIX: serverDeliveryFee already includes base shipping + surge.
     // Do NOT add serverShippingPrice and serverSurgePrice again — that triple-charges delivery.
     const serverTotalPrice = parseFloat(
