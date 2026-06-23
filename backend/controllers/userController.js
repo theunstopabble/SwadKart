@@ -329,11 +329,11 @@ export const createDummyRestaurant = async (req, res, next) => {
 
 export const getDeliveryPartners = async (req, res, next) => {
   try {
-    // Schema default is `isAvailable: true`, but existing docs may lack the field.
-    // Match both `true` and missing field to avoid hiding partners from the admin list.
+    // Return all delivery partners. Assignability is checked in the
+    // assignDeliveryPartner controller — unavailable partners get a 400
+    // with a clear message instead of being hidden from the admin list.
     const partners = await User.find({
       role: "delivery_partner",
-      $or: [{ isAvailable: true }, { isAvailable: { $exists: false } }],
     }).select("-password");
     return res.json(partners);
   } catch (error) {

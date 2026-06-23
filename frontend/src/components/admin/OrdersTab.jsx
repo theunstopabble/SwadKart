@@ -156,11 +156,17 @@ const OrdersTab = ({ orders, deliveryPartners, fetchAllData }) => {
                           value={selectedPartner[o._id] || ""}
                         >
                           <option value="">Scan Drivers</option>
-                          {deliveryPartners.map((p) => (
-                            <option key={p._id} value={p._id}>
-                              {p.name}
-                            </option>
-                          ))}
+                          {deliveryPartners
+                            .sort((a, b) => {
+                              if (a.isAvailable !== b.isAvailable) return a.isAvailable ? -1 : 1;
+                              return a.name.localeCompare(b.name);
+                            })
+                            .map((p) => (
+                              <option key={p._id} value={p._id}>
+                                {p.name}{" "}
+                                {p.isAvailable === false ? "(Busy)" : "(Available)"}
+                              </option>
+                            ))}
                         </select>
                         <button
                           onClick={() => handleAssignPartner(o._id)}
