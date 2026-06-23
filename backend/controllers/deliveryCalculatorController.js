@@ -1,10 +1,17 @@
 import asyncHandler from "express-async-handler";
 import mongoose from "mongoose";
 import Order from "../models/orderModel.js";
+import User from "../models/userModel.js";
 import { calculateSurgeMultiplier } from "./surgePricingController.js";
 
 export const calculateDeliveryFee = asyncHandler(async (req, res) => {
-  const { distanceKm, isSurgeActive, hasSwadPass, orderSubtotal, baseFee = 40 } = req.body;
+  let { distanceKm, isSurgeActive, orderSubtotal, baseFee = 40 } = req.body;
+  let hasSwadPass = false;
+
+  if (req.user) {
+    const user = await User.findById(req.user._id).select("hasSwadPass swadPassExpiry").lean();
+    hasSwadPass = !!(user?.hasSwadPass && user?.swadPassExpiry && new Date(user.swadPassExpiry) > new Date());
+  }
 
   if (distanceKm === undefined || distanceKm < 0) {
     res.status(400);
@@ -44,7 +51,13 @@ export const calculateDeliveryFee = asyncHandler(async (req, res) => {
 });
 
 export const calculateDeliveryRoute = asyncHandler(async (req, res) => {
-  const { pickupLat, pickupLng, dropLat, dropLng, vehicleType = "scooter" } = req.body;
+  let { pickupLat, pickupLng, dropLat, dropLng, vehicleType = "scooter" } = req.body;
+
+  const VALID_VEHICLES = ["bicycle", "scooter", "bike"];
+  if (!VALID_VEHICLES.includes(vehicleType)) {
+    res.status(400);
+    throw new Error(`Invalid vehicleType. Must be one of: ${VALID_VEHICLES.join(", ")}`);
+  }
 
   if (!pickupLat || !pickupLng || !dropLat || !dropLng) {
     res.status(400);

@@ -61,12 +61,7 @@ const ChatbotAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Per-section error tracking for retry controls
-  const [sectionErrors, setSectionErrors] = useState({
-    tiles: null,
-    intents: null,
-    sentiment: null,
-  });
+  const sectionErrors = { tiles: null, intents: null, sentiment: null };
 
   /**
    * Validates the date range:
@@ -104,7 +99,7 @@ const ChatbotAnalytics = () => {
     setDateError("");
     setLoading(true);
     setError(null);
-    setSectionErrors({ tiles: null, intents: null, sentiment: null });
+    // sectionErrors is static; retry uses global error
 
     try {
       const fromISO = new Date(fromDate + "T00:00:00Z").toISOString();

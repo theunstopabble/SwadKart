@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
 import Referral from "../models/referralModel.js";
@@ -18,7 +19,7 @@ export const getMyReferral = asyncHandler(async (req, res) => {
 
   // Auto-generate if missing
   if (!user.referralCode && user.role === "user") {
-    user.referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    user.referralCode = crypto.randomBytes(6).toString("hex").toUpperCase();
     await user.save();
   }
 
@@ -114,21 +115,19 @@ export const applyReferralOnRegister = async (newUserId, referralCode) => {
 // 4. PROCESS REFERRAL REWARD (Called when referee's first order is delivered)
 // ==========================================
 export const processReferralReward = async (refereeId, orderId) => {
-  const referral = await Referral.findOne({
-    referee: refereeId,
-    status: "pending",
-  }).populate("referrer", "swadCoins");
+  const referral = await Referral.findOneAndUpdate(
+    { referee: refereeId, status: "pending" },
+    { $set: { status: "completed", firstOrder: orderId } },
+    { new: true },
+  ).populate("referrer", "swadCoins");
 
   if (!referral) return;
 
-  // Mark as completed (will be paid after order delivery)
-  referral.status = "completed";
-  referral.firstOrder = orderId;
-  await referral.save();
+  const referrerId = referral.referrer._id;
 
   // Award coins to referrer
   await awardCoinsToUser(
-    referral.referrer._id,
+    referrerId,
     REFERRAL_COIN_REWARD,
     "Referral",
     `Referral reward for inviting a new user`,
@@ -143,13 +142,14 @@ export const processReferralReward = async (refereeId, orderId) => {
     "Referral",
     `Referral reward for your first order`,
     orderId,
-    referral.referrer._id,
+    referrerId,
   );
 
-  // Update referral status to paid
-  referral.status = "paid";
-  referral.paidAt = new Date();
-  await referral.save();
+  // Update referral status to paid atomically
+  await Referral.findOneAndUpdate(
+    { _id: referral._id, status: "completed" },
+    { $set: { status: "paid", paidAt: new Date() } },
+  );
 };
 
 // ==========================================
@@ -157,7 +157,7 @@ export const processReferralReward = async (refereeId, orderId) => {
 // ==========================================
 export const getAllReferrals = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 20;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
 
   const referrals = await Referral.find({})
     .populate("referrer", "name email")

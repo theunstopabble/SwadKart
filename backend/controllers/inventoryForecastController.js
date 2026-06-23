@@ -142,28 +142,36 @@ export const getWasteAnalysis = asyncHandler(async (req, res) => {
   const matchFilter = { orderStatus: { $ne: "Cancelled" }, createdAt: { $gte: startDate } };
   if (restaurantId) matchFilter["orderItems.restaurant"] = restaurantId;
 
-  const orders = await Order.find(matchFilter).select("orderItems.createdAt").lean();
+  const orders = await Order.find(matchFilter).select("orderItems createdAt").lean();
 
-  const dailyWaste = orders.reduce((acc, o) => {
+  const totalOrderCount = orders.length;
+  const dailyWaste = {};
+  orders.forEach((o) => {
     const day = new Date(o.createdAt).toISOString().split("T")[0];
-    if (!acc[day]) acc[day] = 0;
-    acc[day] += Math.random() * 0.05;
-    return acc;
-  }, {});
+    if (!dailyWaste[day]) dailyWaste[day] = { orders: 0 };
+    dailyWaste[day].orders += 1;
+  });
+  Object.keys(dailyWaste).forEach((day) => {
+    dailyWaste[day] = (dailyWaste[day].orders / totalOrderCount) * 0.05;
+  });
 
   const wasteByCategory = await Product.aggregate([
     { $match: restaurantId ? { restaurant: restaurantId } : {} },
-    { $group: { _id: "$category", avgWasteRate: { $avg: 0.03 }, productCount: { $sum: 1 } } },
+    { $group: { _id: "$category", productCount: { $sum: 1 } } },
   ]);
+
+  const avgWasteRate = Object.values(dailyWaste).length > 0
+    ? Number((Object.values(dailyWaste).reduce((s, r) => s + r, 0) / Object.values(dailyWaste).length * 100).toFixed(2))
+    : 3;
 
   res.json({
     period: `${days} days`,
     dailyWaste: Object.entries(dailyWaste).map(([date, rate]) => ({ date, wasteRate: Number((rate * 100).toFixed(2)) })),
     wasteByCategory: wasteByCategory.map((c) => ({
       category: c._id || "General",
-      estimatedWastePercent: Number((c.avgWasteRate * 100).toFixed(2)),
+      estimatedWastePercent: 3,
       products: c.productCount,
     })),
-    avgWasteRate: Number((Object.values(dailyWaste).reduce((s, r) => s + r, 0) / Object.keys(dailyWaste).length * 100).toFixed(2)) || 3,
+    avgWasteRate,
   });
 });

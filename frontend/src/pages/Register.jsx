@@ -184,7 +184,7 @@ const Register = () => {
                   set: setConfirmPassword,
                 },
                 {
-                  icon: Lock,
+                  icon: Gift,
                   type: "text",
                   placeholder: "Referral Code (Optional)",
                   val: referralCode,
@@ -289,7 +289,28 @@ const Register = () => {
               <button
                 type="button"
                 disabled={timer > 0 || isLoading}
-                onClick={() => submitHandler()}
+                onClick={async () => {
+                  setIsLoading(true);
+                  try {
+                    const res = await fetch(`${BASEURL}/api/v1/users/resend-otp`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email }),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setTimer(30);
+                      setOtp("");
+                      toast.success(data.message || "OTP resent! 📧");
+                    } else {
+                      toast.error(data.message || "Failed to resend OTP");
+                    }
+                  } catch {
+                    toast.error("Server Error. Please try again.");
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
                 className={`font-bold flex items-center gap-1.5 ${
                   timer > 0
                     ? "text-gray-600 cursor-not-allowed"

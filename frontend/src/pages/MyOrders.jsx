@@ -56,6 +56,10 @@ const MyOrders = () => {
 
   const handleReorder = (order) => {
     try {
+      if (!order.orderItems || order.orderItems.length === 0) {
+        toast.error("This order has no items to reorder");
+        return;
+      }
       const orderRestaurantId = order.orderItems[0]?.restaurant;
       if (
         cartItems.length > 0 &&
@@ -272,7 +276,7 @@ const MyOrders = () => {
                             if (res.ok) {
                               const data = await res.json();
                               setOrders((prev) =>
-                                prev.map((o) => (o._id === order._id ? data : o)),
+                                prev.map((o) => (o._id === order._id ? { ...o, ...data } : o)),
                               );
                               toast.success("Order cancelled successfully");
                             } else {

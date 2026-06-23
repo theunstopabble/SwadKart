@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { BASEURL } from "../config";
 import { disconnectSocket } from "../utils/socket";
+import { logout } from "../redux/userSlice";
 
 // 👇 Import PWA Button
 import InstallPWA from "./InstallPWA";
@@ -76,7 +77,7 @@ const Navbar = () => {
     } catch {
       // Proceed with frontend logout even if server call fails
     }
-    dispatch({ type: "user/logout" });
+    dispatch(logout());
     dispatch({ type: "cart/logout" });
     disconnectSocket();
     setIsOpen(false);

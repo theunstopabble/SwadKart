@@ -1,13 +1,22 @@
 import asyncHandler from "express-async-handler";
 import Product from "../models/productModel.js";
+import Restaurant from "../models/restaurantModel.js";
 
 export const calculateItemCost = asyncHandler(async (req, res) => {
   const { productId } = req.params;
 
-  const product = await Product.findById(productId).populate("restaurant", "name");
+  const product = await Product.findById(productId).populate("restaurant", "name owner");
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
+  }
+
+  if (req.user.role !== "admin") {
+    const restaurant = await Restaurant.findById(product.restaurant?._id || product.restaurant).select("owner");
+    if (!restaurant || restaurant.owner.toString() !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error("Not authorized to view this product's cost data");
+    }
   }
 
   const ingredientCost = product.ingredients?.reduce(
@@ -49,6 +58,14 @@ export const updateItemCost = asyncHandler(async (req, res) => {
     throw new Error("Product not found");
   }
 
+  if (req.user.role !== "admin") {
+    const restaurant = await Restaurant.findById(product.restaurant).select("owner");
+    if (!restaurant || restaurant.owner.toString() !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error("Not authorized to update this product's cost");
+    }
+  }
+
   if (ingredients) product.ingredients = ingredients;
   if (foodCostPercentage !== undefined) product.foodCostPercentage = foodCostPercentage;
   if (preparationCost !== undefined) product.preparationCost = preparationCost;
@@ -62,7 +79,24 @@ export const updateItemCost = asyncHandler(async (req, res) => {
 });
 
 export const getMenuCostAnalysis = asyncHandler(async (req, res) => {
-  const { restaurantId } = req.query;
+  let { restaurantId } = req.query;
+
+  if (req.user.role !== "admin") {
+    if (!restaurantId) {
+      const owned = await Restaurant.findOne({ owner: req.user._id }).select("_id").lean();
+      if (!owned) {
+        res.status(403);
+        throw new Error("No restaurant found for this user");
+      }
+      restaurantId = owned._id;
+    } else {
+      const restaurant = await Restaurant.findById(restaurantId).select("owner");
+      if (!restaurant || restaurant.owner.toString() !== req.user._id.toString()) {
+        res.status(403);
+        throw new Error("Not authorized to view this restaurant's cost analysis");
+      }
+    }
+  }
 
   const filter = restaurantId ? { restaurant: restaurantId } : {};
   const products = await Product.find(filter).populate("restaurant", "name");

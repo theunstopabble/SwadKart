@@ -18,7 +18,7 @@ i18n
     fallbackLng: "en",
     lng: "en",
     interpolation: {
-      escapeValue: false,
+      escapeValue: true,
     },
     detection: {
       order: ["localStorage", "navigator"],

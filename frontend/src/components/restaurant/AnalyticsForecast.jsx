@@ -9,8 +9,7 @@ import {
 const AnalyticsForecast = () => {
   const [projection, setProjection] = useState(null);
   const [forecast, setForecast] = useState(null);
-  const [demand, setDemand] = useState(null);
-  void setDemand;
+  // Demand state available for future implementation
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState("30");
 

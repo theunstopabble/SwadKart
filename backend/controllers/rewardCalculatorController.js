@@ -1,6 +1,7 @@
 import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
 import Order from "../models/orderModel.js";
+import CoinTransaction from "../models/coinTransactionModel.js";
 
 export const getLoyaltyTiers = asyncHandler(async (req, res) => {
   const tiers = [
@@ -157,7 +158,7 @@ export const getRewardBreakdown = asyncHandler(async (req, res) => {
   const [orders, user, coinTxs] = await Promise.all([
     Order.find({ user: userId, isPaid: true }).select("itemsPrice createdAt").sort({ createdAt: -1 }).limit(90).lean(),
     User.findById(userId).select("swadCoins referralCode referralRewardClaimed"),
-    (await import("../models/coinTransactionModel.js")).default.find({ user: userId }).sort({ createdAt: -1 }).limit(50).lean(),
+    CoinTransaction.find({ user: userId }).sort({ createdAt: -1 }).limit(50).lean(),
   ]);
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);

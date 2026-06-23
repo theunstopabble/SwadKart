@@ -63,7 +63,7 @@ const OrderAgain = () => {
             <button
               key={item.product}
               onClick={() => handleReorder(item)}
-              className="group text-left bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-[#222] overflow-hidden hover:shadow-md transition-all duration-200"
+              className="group text-left bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-200"
             >
               <div className="aspect-square overflow-hidden">
                 <img

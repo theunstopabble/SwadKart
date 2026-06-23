@@ -25,6 +25,17 @@ export const createCoupon = async (req, res) => {
       return res.status(400).json({ message: "Coupon code already exists" });
     }
 
+    if (discountPercentage !== undefined) {
+      const dp = Number(discountPercentage);
+      if (!Number.isFinite(dp) || dp < 0 || dp > 100) {
+        return res.status(400).json({ message: "discountPercentage must be between 0 and 100" });
+      }
+    }
+
+    if (expirationDate && new Date(expirationDate) <= new Date()) {
+      return res.status(400).json({ message: "expirationDate must be in the future" });
+    }
+
     const coupon = await Coupon.create({
       code: code.toUpperCase(),
       discountPercentage,

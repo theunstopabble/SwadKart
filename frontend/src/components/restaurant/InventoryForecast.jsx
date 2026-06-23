@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Package, AlertTriangle, TrendingDown, CheckCircle } from "lucide-react";
 import { BASEURL } from "../../config";
+import { toast } from "react-hot-toast";
 
 const InventoryForecast = () => {
   const [forecast, setForecast] = useState([]);
@@ -17,7 +18,7 @@ const InventoryForecast = () => {
       setForecast(data.forecasts || []);
       setSummary(data.summary);
       setRecommendations(data.restockRecommendations || []);
-    } catch (_err) { void _err; } finally {
+    } catch (_err) { toast.error("Failed to load inventory forecast"); void _err; } finally {
       setLoading(false);
     }
   };

@@ -65,7 +65,7 @@ const CostCalculator = () => {
       toast.success("Cost data updated");
       setEditMode(false);
       fetchMenuAnalysis();
-    } catch (_err) { void _err; } finally {
+    } catch (_err) { toast.error("Failed to update item cost"); void _err; } finally {
       setLoading(false);
     }
   };

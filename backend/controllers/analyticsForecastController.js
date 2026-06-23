@@ -50,11 +50,11 @@ export const getRevenueProjection = asyncHandler(async (req, res) => {
   const totalRevenue = dailyRevenue.reduce((s, d) => s + d.revenue, 0);
   const totalOrders = dailyRevenue.reduce((s, d) => s + d.orders, 0);
   const avgOrderValue = totalOrders ? totalRevenue / totalOrders : 0;
-  const avgDailyRevenue = totalRevenue / dailyRevenue.length || 0;
+  const avgDailyRevenue = dailyRevenue.length > 0 ? totalRevenue / dailyRevenue.length : 0;
 
   const revenueValues = dailyRevenue.map((d) => d.revenue);
   const mean = avgDailyRevenue;
-  const variance = revenueValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (revenueValues.length || 1);
+  const variance = revenueValues.length > 0 ? revenueValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / revenueValues.length : 0;
   const stdDev = Math.sqrt(variance);
 
   const projected7Days = [];
@@ -137,7 +137,7 @@ export const getOrderVolumeForecast = asyncHandler(async (req, res) => {
   const peakHours = hourlyVolume.filter((h) => h.count >= 5).map((h) => h._id);
   const offPeakHours = hourlyVolume.filter((h) => h.count <= 2).map((h) => h._id);
 
-  const avgDailyOrders = hourlyVolume.reduce((s, h) => s + h.count, 0) / days;
+  const avgDailyOrders = hourlyVolume.reduce((s, h) => s + h.count, 0) / daysNum;
   const projectedNext7Days = Math.round(avgDailyOrders * 7);
   const projectedNext30Days = Math.round(avgDailyOrders * 30);
 
@@ -163,6 +163,7 @@ export const getDemandAnalytics = asyncHandler(async (req, res) => {
 
   const now = new Date();
   const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
+  matchFilter.createdAt = { $gte: startDate };
 
   const productDemand = await Order.aggregate([
     { $match: matchFilter },

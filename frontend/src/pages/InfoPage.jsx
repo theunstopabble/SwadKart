@@ -61,8 +61,8 @@ const InfoPage = () => {
       icon: <HelpCircle size={40} className="text-primary" />,
       text: "Need support? Our team is available 24/7.",
       details: [
-        "📞 Call: +91 12345 67890",
-        "📧 Email: swadkartt@gmail.com",
+        `📞 Call: ${import.meta.env.VITE_SUPPORT_PHONE || "+91 12345 67890"}`,
+        `📧 Email: ${import.meta.env.VITE_SUPPORT_EMAIL || "swadkartt@gmail.com"}`,
         "💬 Chat Support: Coming Soon",
       ],
     },

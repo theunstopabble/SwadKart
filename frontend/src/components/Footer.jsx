@@ -23,7 +23,7 @@ const Footer = () => {
   // Using a fallback here ensures it looks professional immediately.
   const SUPPORT_EMAIL =
     import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
-  const SUPPORT_PHONE = "+91 98765 43210";
+  const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE || "+91 98765 43210";
 
   const socialLinks = [
     {

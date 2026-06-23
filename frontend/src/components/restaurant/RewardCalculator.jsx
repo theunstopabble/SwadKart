@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Award, Coins, Star, TrendingUp, Gift } from "lucide-react";
 import { BASEURL } from "../../config";
 import { toast } from "react-hot-toast";
@@ -37,7 +37,7 @@ const RewardCalculator = () => {
     }
   };
 
-  useState(() => { fetchTiers(); fetchBreakdown(); }, []);
+  useEffect(() => { fetchTiers(); fetchBreakdown(); }, []);
 
   const calculateEarnings = async () => {
     if (!form.orderAmount) { toast.error("Enter order amount"); return; }

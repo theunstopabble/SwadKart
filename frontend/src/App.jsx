@@ -80,6 +80,7 @@ function App() {
     if (userInfo) {
       dispatch(validateSession());
     }
+    // Intentionally run only on mount; userInfo change handled by validateSession result
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -346,13 +347,13 @@ function App() {
 // 🛡️ ROUTE GUARDS
 const PrivateRoute = () => {
   const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return null;
+  if (loading) return <PageLoader />;
   return userInfo ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const AdminRoute = () => {
   const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return null;
+  if (loading) return <PageLoader />;
   return userInfo && userInfo.role === "admin" ? (
     <Outlet />
   ) : (
@@ -362,7 +363,7 @@ const AdminRoute = () => {
 
 const RestaurantRoute = () => {
   const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return null;
+  if (loading) return <PageLoader />;
   const isAllowed =
     userInfo &&
     (userInfo.role === "restaurant_owner" || userInfo.role === "admin");
@@ -371,7 +372,7 @@ const RestaurantRoute = () => {
 
 const DeliveryRoute = () => {
   const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return null;
+  if (loading) return <PageLoader />;
   const isAllowed =
     userInfo &&
     (userInfo.role === "delivery_partner" || userInfo.role === "admin");

@@ -8,7 +8,12 @@ dotenv.config();
 const CloudinaryStorage =
   multerStorageCloudinary.CloudinaryStorage || multerStorageCloudinary;
 
-// 1. Cloudinary Config
+const requiredCloudinaryVars = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
+const missingCloudinaryVars = requiredCloudinaryVars.filter((v) => !process.env[v]);
+if (missingCloudinaryVars.length > 0) {
+  throw new Error(`Missing Cloudinary env vars: ${missingCloudinaryVars.join(", ")}`);
+}
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,

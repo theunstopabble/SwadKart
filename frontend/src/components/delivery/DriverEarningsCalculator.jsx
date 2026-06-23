@@ -34,7 +34,7 @@ const DriverEarningsCalculator = () => {
       if (!res.ok) throw new Error();
       const data = await res.json();
       setResult(data);
-    } catch (_err) { void _err; } finally {
+    } catch (_err) { toast.error("Failed to calculate earnings"); void _err; } finally {
       setLoading(false);
     }
   };

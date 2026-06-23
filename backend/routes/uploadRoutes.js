@@ -5,11 +5,13 @@ import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+const FILE_TYPE_WHITELIST = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
+  if (FILE_TYPE_WHITELIST.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Only image files are allowed!"), false);
+    cb(new Error("Only image files (JPEG, PNG, WebP, GIF) are allowed — SVG not permitted"), false);
   }
 };
 

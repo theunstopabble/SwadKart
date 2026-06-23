@@ -5,12 +5,19 @@ export const requestNotificationPermission = async () => {
   }
 };
 
+const stripHtml = (str) => {
+  const div = document.createElement("div");
+  div.innerHTML = str;
+  return div.textContent || div.innerText || "";
+};
+
 export const sendNotification = (title, options = {}) => {
   if (Notification.permission === "granted") {
-    new Notification(title, {
-      icon: "/logo.png",
-      badge: "/pwa-192x192.png",
+    new Notification(stripHtml(title), {
       ...options,
+      icon: options.icon || "/logo.png",
+      badge: options.badge || "/pwa-192x192.png",
+      body: options.body ? stripHtml(options.body) : undefined,
     });
   }
 };

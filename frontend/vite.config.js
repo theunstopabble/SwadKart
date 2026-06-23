@@ -97,7 +97,7 @@ export default defineConfig(({ mode }) => {
     // 🌐 DEV SERVER
     server: {
       port: 5173,
-      host: isDev, // Listen on all IPs only in dev
+      host: false,
       https: false, // HTTP for local dev (avoids SSL cert issues with ServiceWorker + cookies)
       proxy: {
         "/api": {

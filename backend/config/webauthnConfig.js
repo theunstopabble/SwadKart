@@ -28,4 +28,6 @@ export const webAuthnConfig = {
   origin: origin,
 };
 
-console.log("🔒 WebAuthn Config Loaded:", webAuthnConfig);
+if (process.env.NODE_ENV !== "production") {
+  console.log("🔒 WebAuthn Config Loaded:", webAuthnConfig);
+}

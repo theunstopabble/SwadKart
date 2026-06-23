@@ -36,7 +36,7 @@ const VoiceSearch = ({ setSearchTerm }) => {
 
     recognition.onerror = (event) => {
       setIsListening(false);
-      console.error(event.error);
+      console.error("Speech recognition error:", event.error);
       toast.error("Didn't catch that. Try again?");
     };
 
