@@ -106,6 +106,18 @@ export const verifyPayment = async (req, res) => {
       }
     }
 
+    // 🛡️ SECURITY FIX: Verify Razorpay order belongs to this internal orderId
+    // Prevents replaying a payment_id from a different order
+    let razorpayOrder;
+    try {
+      razorpayOrder = await instance.orders.fetch(razorpay_order_id);
+    } catch (rzpErr) {
+      return res.status(502).json({ success: false, message: "Payment gateway unreachable" });
+    }
+    if (!razorpayOrder.notes?.orderId || razorpayOrder.notes.orderId !== orderId) {
+      return res.status(400).json({ success: false, message: "Payment order does not match this order" });
+    }
+
     // 1. Verify payment status directly via Razorpay API for security
     let payment;
     try {
@@ -123,6 +135,12 @@ export const verifyPayment = async (req, res) => {
 
       if (!order) return res.status(404).json({ message: "Order not found" });
 
+      // 🛡️ SECURITY FIX: Verify payment amount matches order totalPrice
+      const expectedAmount = Math.round(order.totalPrice * 100);
+      if (payment.amount !== expectedAmount) {
+        return res.status(400).json({ success: false, message: "Payment amount mismatch — possible tampering" });
+      }
+
       // 🛡️ IDEMPOTENCY: Already paid? Return without side effects (no duplicate emails/sockets)
       if (order.isPaid) {
         return res.status(200).json({ success: true, message: "Payment already verified", order });
@@ -138,13 +156,18 @@ export const verifyPayment = async (req, res) => {
         email_address: payment.email || (order.user && order.user.email) || "",
       };
 
-      // BUG-08 FIX: Create CouponUsage only after successful payment
+      // BUG-08 FIX: Atomic CouponUsage via upsert — prevents race condition
       if (order.couponCode && order.user && order.user._id) {
         const coupon = await Coupon.findOne({ code: order.couponCode.toUpperCase() });
         if (coupon) {
-          const alreadyUsed = await CouponUsage.findOne({ user: order.user._id, coupon: coupon._id });
-          if (!alreadyUsed) {
-            await CouponUsage.create({ user: order.user._id, coupon: coupon._id, order: order._id });
+          try {
+            await CouponUsage.findOneAndUpdate(
+              { user: order.user._id, coupon: coupon._id },
+              { $setOnInsert: { user: order.user._id, coupon: coupon._id, order: order._id } },
+              { upsert: true }
+            );
+          } catch (upsertErr) {
+            if (upsertErr.code !== 11000) throw upsertErr;
           }
         }
       }
@@ -286,18 +309,21 @@ export const razorpayWebhook = async (req, res) => {
             };
 
             await order.save();
-            // NEW-07 FIX: Create CouponUsage on webhook payment success to prevent coupon reuse
+            // NEW-07 FIX: Atomic CouponUsage via upsert on webhook
             if (order.couponCode) {
               try {
                 const coupon = await Coupon.findOne({ code: order.couponCode.toUpperCase() });
                 if (coupon) {
-                  const alreadyUsed = await CouponUsage.findOne({ user: order.user, coupon: coupon._id });
-                  if (!alreadyUsed) {
-                    await CouponUsage.create({ user: order.user, coupon: coupon._id, order: order._id });
-                  }
+                  await CouponUsage.findOneAndUpdate(
+                    { user: order.user, coupon: coupon._id },
+                    { $setOnInsert: { user: order.user, coupon: coupon._id, order: order._id } },
+                    { upsert: true }
+                  );
                 }
               } catch (couponErr) {
-                console.error('Webhook CouponUsage creation failed:', couponErr.message);
+                if (couponErr.code !== 11000) {
+                  console.error('Webhook CouponUsage creation failed:', couponErr.message);
+                }
               }
             }
 

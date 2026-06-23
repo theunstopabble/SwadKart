@@ -310,7 +310,6 @@ const PlaceOrder = () => {
         };
         const rzp = new window.Razorpay(options);
         rzp.open();
-        setIsProcessing(false);
       }
     } catch (error) {
       if (isMounted.current) {

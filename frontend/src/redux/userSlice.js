@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { BASEURL } from "../config";
+import { disconnectSocket } from "../utils/socket";
 // 🛡️ SECURITY FIX: Strip out tokens from old sessions to prevent XSS
 const safeParse = (raw) => {
   try {
@@ -119,6 +120,7 @@ const userSlice = createSlice({
       localStorage.removeItem("couponDiscount");
       localStorage.removeItem("appliedCoupon");
       localStorage.removeItem("isBiometricEnabled");
+      disconnectSocket();
     },
   },
   // 👇 2. EXTRA REDUCERS

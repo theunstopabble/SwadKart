@@ -26,13 +26,7 @@ export const getMyDeliveryOrders = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // 🛡️ SECURITY FIX: Strip out the deliveryOTP from every order in the array
-    const securedOrders = orders.map((order) => {
-      delete order.deliveryOTP;
-      return order;
-    });
-
-    res.json(securedOrders);
+    res.json(orders);
   } catch (error) {
     res.status(500).json({ message: "Error fetching your deliveries" });
   }
@@ -72,24 +66,20 @@ export const assignDeliveryPartner = async (req, res) => {
       return res.status(400).json({ message: `Cannot assign partner to a ${order.orderStatus.toLowerCase()} order` });
     }
 
-    const partner = await User.findById(deliveryPartnerId);
-    if (!partner)
-      return res.status(404).json({ message: "Delivery partner not found" });
-
-    // 🛡️ Verify partner is actually a delivery_partner role and is available
-    if (partner.role !== "delivery_partner") {
-      return res.status(400).json({ message: "Selected user is not a delivery partner" });
-    }
-    if (partner.isAvailable === false) {
-      return res.status(400).json({ message: "Delivery partner is currently unavailable" });
+    // 🛡️ ATOMIC: findOneAndUpdate prevents race condition where two admins
+    // assign the same partner simultaneously. Only matches if available=true.
+    const partner = await User.findOneAndUpdate(
+      { _id: deliveryPartnerId, role: "delivery_partner", isAvailable: true },
+      { $set: { isAvailable: false } },
+      { new: true }
+    );
+    if (!partner) {
+      return res.status(400).json({ message: "Delivery partner is not available or not found" });
     }
 
     order.deliveryPartner = deliveryPartnerId;
     order.deliveryStatus = "Assigned";
     order.orderStatus = "Ready";
-
-    // Mark partner as unavailable while they have this order
-    await User.findByIdAndUpdate(deliveryPartnerId, { isAvailable: false });
 
     // OTP logic (Already generated in orderController, but safe to check/refresh here)
     if (!order.deliveryOTP) {
@@ -99,12 +89,15 @@ export const assignDeliveryPartner = async (req, res) => {
 
     const updatedOrder = await order.save();
 
-    // 🔔 Notify Driver via Socket
+    // 🔔 Notify Driver via Socket (with OTP)
     if (req.io) {
       req.io
         .to(deliveryPartnerId.toString())
         .emit("orderAssigned", updatedOrder);
-      req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
+      // Notify customer WITHOUT OTP
+      const customerView = updatedOrder.toObject();
+      delete customerView.deliveryOTP;
+      req.io.to(order._id.toString()).emit("orderUpdated", customerView);
     }
 
     // 📧 Send Email to Driver
@@ -183,10 +176,12 @@ export const updateDeliveryAction = async (req, res) => {
 
     const updatedOrder = await order.save();
 
-    // 🔔 Real-time Updates to Customer, Restaurant, and Driver
+    // 🔔 Real-time Updates — strip OTP from customer-facing emits
     if (req.io) {
-      req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
-      req.io.emit("globalOrderUpdate", updatedOrder);
+      const orderData = updatedOrder.toObject();
+      delete orderData.deliveryOTP;
+      req.io.to(order._id.toString()).emit("orderUpdated", orderData);
+      req.io.emit("globalOrderUpdate", orderData);
     }
 
     res.json(updatedOrder);
@@ -263,10 +258,12 @@ export const updateOrderToDelivered = async (req, res) => {
       console.error("🔗 Referral processing error (non-blocking):", refErr.message);
     }
 
-    // 🔔 Notify Everyone
+    // 🔔 Notify Everyone — strip OTP from customer-facing emits
     if (req.io) {
-      req.io.to(order._id.toString()).emit("orderUpdated", updatedOrder);
-      req.io.emit("globalOrderUpdate", updatedOrder);
+      const orderData = updatedOrder.toObject();
+      delete orderData.deliveryOTP;
+      req.io.to(order._id.toString()).emit("orderUpdated", orderData);
+      req.io.emit("globalOrderUpdate", orderData);
     }
 
     // 🔥 FEAT-20: Push notification to customer (non-blocking)

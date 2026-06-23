@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
 import { sanitizeObjectId } from "../utils/sanitize.js";
 import Razorpay from "razorpay";
+import crypto from "crypto";
 import { sendPush } from "../utils/pushNotification.js";
 import sendEmail from "../utils/sendEmail.js";
 import {
@@ -252,9 +253,10 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     const serverCommission = parseFloat((netItemsValue * commissionRate).toFixed(2));
     const serverRestaurantPayout = parseFloat((netItemsValue - serverCommission).toFixed(2));
 
-    // 🛡️ SECURITY: Validate and sanitize client-supplied tax & tip (never trust frontend)
-    const serverTaxPrice = Number(taxPrice) || 0;
-    const serverTipAmount = Number(tipAmount) || 0;
+    // 🛡️ SECURITY: Recalculate tax server-side — never trust frontend
+    const serverTaxPrice = Number((serverItemsPrice * 0.05).toFixed(2));
+    // Validate tip: cap at ₹500 max, floor at 0
+    const serverTipAmount = Math.min(Math.max(0, Number(tipAmount) || 0), 500);
 
     // 🛡️ CRITICAL FIX: serverDeliveryFee already includes base shipping + surge.
     // Do NOT add serverShippingPrice and serverSurgePrice again — that triple-charges delivery.
@@ -504,13 +506,8 @@ export const getOrderById = async (req, res) => {
         .json({ message: "Not authorized to view this order" });
     }
 
-    // 🛡️ SECURITY FIX: Completely remove OTP if the user is a delivery partner
-    // BUG-04 FIX: Also strip OTP from restaurant owner view
-    if (
-      req.user &&
-      (req.user.role === "delivery_partner" ||
-        req.user.role === "restaurant_owner")
-    ) {
+    // Strip OTP from restaurant owner view only — delivery partner needs it
+    if (req.user && req.user.role === "restaurant_owner") {
       delete order.deliveryOTP;
     }
     res.json(order);
@@ -658,6 +655,10 @@ export const updateOrderStatus = async (req, res) => {
 
         if (nearestPartner) {
           order.deliveryPartner = nearestPartner._id;
+          // Generate OTP for auto-assigned delivery so partner can complete it
+          if (!order.deliveryOTP) {
+            order.deliveryOTP = crypto.randomInt(1000, 10000);
+          }
           console.log(
             `🛵 Auto-Assigned Order to Partner: ${nearestPartner.name}`,
           );
@@ -697,18 +698,22 @@ export const updateOrderStatus = async (req, res) => {
 
     // 🔔 Notify User & Delivery Partner via Socket.io
     if (req.io) {
+      // Strip OTP from customer-facing emit
+      const safeOrder = updatedOrder.toObject();
+      delete safeOrder.deliveryOTP;
+
       if (order.user && order.user._id) {
-        req.io.to(order.user._id.toString()).emit("orderUpdated", updatedOrder);
+        req.io.to(order.user._id.toString()).emit("orderUpdated", safeOrder);
       }
 
-      // Tell specifically assigned partner securely
+      // Tell specifically assigned partner (with OTP — they need it)
       if (status === "Ready" && updatedOrder.deliveryPartner) {
         req.io
           .to(updatedOrder.deliveryPartner.toString())
           .emit("orderAssigned", updatedOrder);
       } else if (status === "Ready") {
-        // Fallback: Notify all if no one was assigned via AI
-        req.io.emit("newDeliveryTask", updatedOrder);
+        // Fallback: Notify all (without OTP)
+        req.io.emit("newDeliveryTask", safeOrder);
       }
     }
 
@@ -856,10 +861,16 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     throw new Error("Order not found");
   }
 
-  // 🛡️ SECURITY FIX (SEC-2/BUG-2): Only order owner or admin can cancel
+  // 🛡️ Only order owner, admin, or the restaurant owner can cancel
   const isOwner = order.user.toString() === req.user._id.toString();
   const isAdmin = req.user.role === "admin";
-  if (!isOwner && !isAdmin) {
+  let isRestaurantOwner = false;
+  if (!isOwner && !isAdmin && req.user.role === "restaurant_owner") {
+    const restaurantDoc = await Restaurant.findOne({ owner: req.user._id }).lean();
+    const orderRestaurantId = order.orderItems[0]?.restaurant?.toString();
+    isRestaurantOwner = !!(restaurantDoc && orderRestaurantId === restaurantDoc._id.toString());
+  }
+  if (!isOwner && !isAdmin && !isRestaurantOwner) {
     res.status(403);
     throw new Error("Not authorized to cancel this order");
   }

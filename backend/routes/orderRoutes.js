@@ -138,8 +138,8 @@ router.put(
 // 💳 PAYMENT CONFIRMATION
 // ============================================================
 
-// ✅ Mark as Paid (Called after successful Razorpay transaction)
-router.put("/:id/pay", protect, updateOrderToPaid);
+// ✅ Mark as Paid (admin-only — use paymentController.verifyPayment for regular flow)
+router.put("/:id/pay", protect, authorizeRoles("admin"), updateOrderToPaid);
 
 // ============================================================
 // 🔍 FETCHING BY ID (Must be at the end)

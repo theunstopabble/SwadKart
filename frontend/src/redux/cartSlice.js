@@ -48,7 +48,7 @@ const generateCartId = (item) => {
 // 🛠️ HELPER: Update LocalStorage
 // ==========================================
 const updateCartStorage = (cartItems) => {
-  browserStorage.setItem("cartItems", JSON.stringify(cartItems));
+  browserStorage.setItem("cartItems", cartItems);
 };
 
 const initialState = {
