@@ -1,10 +1,17 @@
 import asyncHandler from "express-async-handler";
-import User from "../models/userModel.js";
+import mongoose from "mongoose";
 import Order from "../models/orderModel.js";
-import Restaurant from "../models/restaurantModel.js";
+import Payout from "../models/payoutModel.js";
 
 export const calculateDriverEarnings = asyncHandler(async (req, res) => {
   const { distanceKm, orderValue, isPeakHour, isSurgeActive, vehicleType = "scooter", promotions = [] } = req.body;
+
+  const distKm = Number(distanceKm);
+  const ordValue = Number(orderValue);
+  if (!Number.isFinite(distKm) || distKm < 0) {
+    res.status(400);
+    throw new Error("Valid distanceKm is required");
+  }
 
   const baseEarnings = {
     bicycle: { perKm: 3, base: 10, perMinute: 0.5 },
@@ -15,10 +22,10 @@ export const calculateDriverEarnings = asyncHandler(async (req, res) => {
   const rate = baseEarnings[vehicleType] || baseEarnings.scooter;
 
   const base = rate.base;
-  const distancePay = distanceKm * rate.perKm;
+  const distancePay = distKm * rate.perKm;
   const distancePayAmount = Number(distancePay.toFixed(2));
 
-  const tipShare = orderValue > 0 ? Math.min(orderValue * 0.05, 30) : 0;
+  const tipShare = ordValue > 0 ? Math.min(ordValue * 0.05, 30) : 0;
   const surgeBonus = isSurgeActive ? Number((base + distancePayAmount) * 0.2) : 0;
   const peakBonus = isPeakHour ? 20 : 0;
 
@@ -34,8 +41,8 @@ export const calculateDriverEarnings = asyncHandler(async (req, res) => {
 
   res.json({
     vehicleType,
-    distanceKm,
-    orderValue,
+    distanceKm: distKm,
+    orderValue: ordValue,
     breakdown: {
       base,
       distancePay: distancePayAmount,
@@ -48,19 +55,23 @@ export const calculateDriverEarnings = asyncHandler(async (req, res) => {
     platformCut,
     grossEarnings: Number(subtotal.toFixed(2)),
     netEarnings,
-    effectiveRatePerKm: Number((netEarnings / distanceKm).toFixed(2)),
+    effectiveRatePerKm: distKm > 0 ? Number((netEarnings / distKm).toFixed(2)) : 0,
   });
 });
 
 export const getDriverPayoutHistory = asyncHandler(async (req, res) => {
-  const driverId = req.user.role === "delivery_partner" ? req.user._id : req.query.driverId;
+  let driverId = req.user.role === "delivery_partner" ? req.user._id : req.query.driverId;
+
+  if (driverId && typeof driverId === "string" && !mongoose.Types.ObjectId.isValid(driverId)) {
+    return res.status(400).json({ message: "Invalid driverId" });
+  }
 
   if (!driverId) {
     res.status(400);
     throw new Error("Driver ID is required");
   }
 
-  const payoutRecords = await (await import("../models/payoutModel.js")).default
+  const payoutRecords = await Payout
     .find({ user: driverId })
     .sort({ createdAt: -1 })
     .limit(30)
@@ -109,7 +120,14 @@ export const getDriverPayoutHistory = asyncHandler(async (req, res) => {
 
 export const getDriverIncentives = asyncHandler(async (req, res) => {
   const { driverId } = req.query;
-  const targetId = driverId || req.user?._id;
+  let targetId = req.user._id;
+
+  if (req.user.role === "admin") {
+    if (driverId && !mongoose.Types.ObjectId.isValid(driverId)) {
+      return res.status(400).json({ message: "Invalid driverId" });
+    }
+    targetId = driverId || req.user._id;
+  }
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const orders = await Order.find({

@@ -117,8 +117,13 @@ export const refreshRestaurantScore = asyncHandler(async (req, res) => {
 // @access  Admin / Restaurant Owner / Public (score only)
 export const getRestaurantPerformance = asyncHandler(async (req, res) => {
   const restaurantId = sanitizeObjectId(req.params.id);
-  const restaurant = await Restaurant.findById(restaurantId).select("name performanceScore scoreMetrics rating numReviews");
+  const restaurant = await Restaurant.findById(restaurantId).select("name performanceScore scoreMetrics rating numReviews owner");
   if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+
+  // 🛡️ Restaurant owners can only view their own performance
+  if (req.user.role === "restaurant_owner" && restaurant.owner?.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "Not authorized to view this restaurant's performance" });
+  }
 
   res.json({
     restaurantId,

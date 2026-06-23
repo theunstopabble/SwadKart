@@ -37,21 +37,7 @@ export const createProductReview = async (req, res) => {
       });
     }
 
-    // 🛡️ 2. DUPLICATE CHECK: One review per user per product
-    const alreadyReviewed = product.reviews.find(
-      (r) => r.user.toString() === req.user._id.toString()
-    );
-
-    if (alreadyReviewed) {
-      return res
-        .status(400)
-        .json({
-          message: "Identity Match: You have already reviewed this dish.",
-        });
-    }
-
-    // ✅ 3. CONSTRUCT REVIEW OBJECT
-    // 🛡️ Clamp rating to valid 1-5 range
+    // 🛡️ 2. DUPLICATE CHECK: One review per user per product — atomic
     const clampedRating = Math.max(1, Math.min(5, Number(rating) || 1));
     const review = {
       name: req.user.name,
@@ -61,23 +47,33 @@ export const createProductReview = async (req, res) => {
       avatar: req.user.image || "",
     };
 
-    // ✅ 4. UPDATE PRODUCT DATA
-    product.reviews.push(review);
-    product.numReviews = product.reviews.length;
+    const result = await Product.findOneAndUpdate(
+      { _id: productId, "reviews.user": { $ne: req.user._id } },
+      {
+        $push: { reviews: review },
+        $inc: { numReviews: 1 },
+      },
+      { new: true }
+    );
+
+    if (!result) {
+      return res.status(400).json({
+        message: "Identity Match: You have already reviewed this dish.",
+      });
+    }
 
     // Calculate Average Rating with 1 decimal precision
-    const totalRating = product.reviews.reduce(
+    const totalRating = result.reviews.reduce(
       (acc, item) => item.rating + acc,
       0
     );
-    product.rating = Number((totalRating / product.reviews.length).toFixed(1));
-
-    await product.save();
+    result.rating = Number((totalRating / result.reviews.length).toFixed(1));
+    await result.save();
 
     res.status(201).json({
       message: "Taste Protocol: Your feedback has been recorded! ⭐",
-      rating: product.rating,
-      numReviews: product.numReviews,
+      rating: result.rating,
+      numReviews: result.numReviews,
     });
   } catch (error) {
     console.error("Review Error:", error.message);

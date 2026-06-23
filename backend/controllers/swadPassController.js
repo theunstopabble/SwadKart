@@ -52,7 +52,6 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
     throw new Error("Invalid subscription type. Choose 'monthly' or 'yearly'.");
   }
 
-  // 🛡️ SECURITY: Verify Razorpay payment signature before activating SwadPass
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     res.status(400);
     throw new Error("Payment verification required. Please complete payment first.");
@@ -72,6 +71,31 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
   if (expectedSignature !== razorpay_signature) {
     res.status(400);
     throw new Error("Payment verification failed. Invalid signature.");
+  }
+
+  // 🛡️ Fetch payment from Razorpay to verify amount and status
+  const Razorpay = (await import("razorpay")).default;
+  const instance = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+  let payment;
+  try {
+    payment = await instance.payments.fetch(razorpay_payment_id);
+  } catch {
+    res.status(502);
+    throw new Error("Payment gateway unreachable. Please retry.");
+  }
+
+  if (payment.status !== "captured") {
+    res.status(400);
+    throw new Error("Payment not captured. Please complete payment.");
+  }
+
+  const expectedAmount = SWADPASS_PRICES[type] * 100;
+  if (payment.amount !== expectedAmount) {
+    res.status(400);
+    throw new Error("Payment amount mismatch — possible tampering.");
   }
 
   const now = new Date();
@@ -112,5 +136,5 @@ export const cancelSwadPass = asyncHandler(async (req, res) => {
     swadPassStartedAt: null,
   });
 
-  res.json({ message: "SwadPass subscription cancelled. Benefits will stop at end of billing period." });
+  res.json({ message: "SwadPass subscription cancelled immediately." });
 });

@@ -61,8 +61,8 @@ export const updateOrderStreak = async (userId) => {
     const update = { orderStreak: newStreak, longestStreak, lastOrderDate: today };
     if (newBadges.length > 0) {
       await User.findByIdAndUpdate(userId, {
-        $push: { badges: { $each: newBadges } },
-        $set: { orderStreak: newStreak, longestStreak, lastOrderDate: today },
+        $addToSet: { badges: { $each: newBadges } },
+        $set: update,
       });
     } else {
       await User.findByIdAndUpdate(userId, update);

@@ -121,7 +121,9 @@ export const sendBulkNotification = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "title and body required" });
   }
 
-  const filter = role ? { role } : {};
+  const allowedRoles = ["user", "admin", "delivery_partner", "restaurant_owner"];
+  const roleFilter = (role && allowedRoles.includes(role)) ? role : null;
+  const filter = roleFilter ? { role: roleFilter } : {};
   const users = await User.find(filter).select("_id fcmToken").limit(500).lean();
 
   const FCM_CONCURRENCY = 50;

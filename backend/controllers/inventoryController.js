@@ -56,19 +56,19 @@ export const bulkRestock = asyncHandler(async (req, res) => {
     const isAdmin = req.user.role === "admin";
 
     if (!isAdmin) {
-      const product = await Product.findById(productId).select("user");
+      const product = await Product.findById(productId).select("restaurant").populate({ path: "restaurant", select: "owner" }).lean();
       if (!product) {
         results.push({ productId: item.productId, status: "not_found" });
         continue;
       }
-      if (product.user?.toString() !== req.user._id.toString()) {
+      if (!product.restaurant || product.restaurant.owner?.toString() !== req.user._id.toString()) {
         results.push({ productId: item.productId, status: "unauthorized" });
         continue;
       }
     }
 
     const updated = await Product.findOneAndUpdate(
-      { _id: productId, ...(isAdmin ? {} : { user: req.user._id }) },
+      { _id: productId },
       {
         $inc: { countInStock: qty },
         $set: {
@@ -112,10 +112,10 @@ export const toggleAutoDisable = asyncHandler(async (req, res) => {
   const product = await Product.findById(productId);
   if (!product) return res.status(404).json({ message: "Product not found" });
 
-  const isOwner = product.user && product.user.toString() === req.user._id.toString();
+  const isOwner = product.restaurant && product.restaurant.owner && product.restaurant.owner.toString() === req.user._id.toString();
   const isAdmin = req.user.role === "admin";
   if (!isAdmin && !isOwner) {
-    return res.status(401).json({ message: "Not authorized" });
+    return res.status(403).json({ message: "Not authorized" });
   }
 
   const autoDisable = req.body.autoDisable;

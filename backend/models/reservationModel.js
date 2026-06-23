@@ -23,7 +23,7 @@ const reservationSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-// Compound index: prevent double booking same time slot
-reservationSchema.index({ restaurant: 1, date: 1, time: 1, status: 1 });
+// Compound unique index: prevent double booking same time slot
+reservationSchema.index({ restaurant: 1, date: 1, time: 1 }, { unique: true });
 
 export default mongoose.model("Reservation", reservationSchema);

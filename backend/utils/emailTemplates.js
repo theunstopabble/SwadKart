@@ -126,7 +126,7 @@ export const getWelcomeTemplate = (name) => {
   const content = `
     <div style="text-align: center;">
       <h1 style="font-size: 28px; margin-bottom: 15px;">Welcome to the Family! 🍕</h1>
-      <p>Hi <strong>${name}</strong>, we are thrilled to have you on board. Get ready to experience the fastest delivery and tastiest meals in town.</p>
+      <p>Hi <strong>${esc(name)}</strong>, we are thrilled to have you on board. Get ready to experience the fastest delivery and tastiest meals in town.</p>
       
       <div style="margin: 35px 0;">
         <a href="${FRONTEND_URL}/" class="btn">Order Now</a>
@@ -298,7 +298,7 @@ export const getRestaurantOrderAlertTemplate = (order, restaurantName) => {
           .join(", ")}</span>`;
       }
       return `<li style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #e5e7eb;">
-      <span style="font-size: 16px;"><strong>${item.name}</strong> x ${item.qty}</span>
+      <span style="font-size: 16px;"><strong>${esc(item.name)}</strong> x ${item.qty}</span>
       ${meta}
     </li>`;
     })
@@ -309,7 +309,7 @@ export const getRestaurantOrderAlertTemplate = (order, restaurantName) => {
     
     <div class="card" style="border-left: 4px solid ${BRAND_RED};">
       <div style="display:flex; justify-content:space-between;">
-        <div><strong>Customer</strong><br>${order.user.name}</div>
+        <div><strong>Customer</strong><br>${esc(order.user.name)}</div>
         <div style="text-align:right;"><strong>Total</strong><br>₹${order.totalPrice}</div>
       </div>
     </div>
@@ -333,14 +333,14 @@ export const getDeliveryRequestTemplate = (order, partner) => {
       const sizeInfo = item.selectedVariant
         ? ` (${item.selectedVariant.name})`
         : "";
-      return `<li style="margin-bottom: 5px;">${item.name}${sizeInfo} x ${item.qty}</li>`;
+      return `<li style="margin-bottom: 5px;">${esc(item.name)}${esc(sizeInfo)} x ${item.qty}</li>`;
     })
     .join("");
 
   const content = `
     <h2 style="text-align: center;">🛵 Delivery Request</h2>
     <p style="text-align: center;">Hi <strong>${
-      partner.name
+      esc(partner.name)
     }</strong>, a new order is available for pickup.</p>
     
     <div class="card">
@@ -358,13 +358,13 @@ export const getDeliveryRequestTemplate = (order, partner) => {
 
     <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 15px; border-radius: 8px; margin-top: 20px;">
       <h3 style="margin: 0 0 5px 0; color: #047857;">📍 Drop Location</h3>
-      <p style="margin: 0; font-weight: bold;">${order.user.name}</p>
+      <p style="margin: 0; font-weight: bold;">${esc(order.user.name)}</p>
       <p style="margin: 5px 0 0 0; font-size: 14px;">${
-        order.shippingAddress.address
-      }, ${order.shippingAddress.city}</p>
+        esc(order.shippingAddress.address)
+      }, ${esc(order.shippingAddress.city)}</p>
       <p style="margin-top: 5px; font-weight: bold; color: ${BRAND_RED};">
-        <a href="tel:${order.shippingAddress.phone}" class="phone-link">📞 ${
-    order.shippingAddress.phone
+        <a href="tel:${esc(order.shippingAddress.phone)}" class="phone-link">📞 ${
+    esc(order.shippingAddress.phone)
   }</a>
       </p>
     </div>
@@ -385,11 +385,11 @@ export const getUserDriverAssignedTemplate = (order, partner) => {
       
       <div style="margin: 30px auto; max-width: 300px; text-align: center;">
         <div style="width: 80px; height: 80px; background: #e5e7eb; border-radius: 50%; margin: 0 auto 15px auto; display: flex; align-items: center; justify-content: center; font-size: 30px;">👤</div>
-        <h3 style="margin: 0;">${partner.name}</h3>
+        <h3 style="margin: 0;">${esc(partner.name)}</h3>
         <p style="font-size: 14px; color: #6b7280; margin-top: 5px;">is your delivery partner</p>
         
         <div style="margin-top: 15px;">
-          <a href="tel:${partner.phone}" style="background: #f3f4f6; color: ${BRAND_DARK}; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; border: 1px solid #d1d5db;">📞 Call Driver</a>
+          <a href="tel:${esc(partner.phone)}" style="background: #f3f4f6; color: ${BRAND_DARK}; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; border: 1px solid #d1d5db;">📞 Call Driver</a>
         </div>
       </div>
 
@@ -410,7 +410,7 @@ export const getOrderCancelledTemplate = (order, reason) => {
         .toUpperCase()}</strong> has been cancelled.</p>
       
       <div class="card" style="background-color: #fef2f2; border-color: #fecaca; color: #991b1b; text-align: left;">
-        <p><strong>Reason:</strong> ${reason || "Changed my mind"}</p>
+        <p><strong>Reason:</strong> ${esc(reason) || "Changed my mind"}</p>
         <p style="margin-top: 10px; font-size: 13px;"><strong>Refund Note:</strong> If you paid online, the refund will be processed to your original payment source within 5-7 business days.</p>
       </div>
       

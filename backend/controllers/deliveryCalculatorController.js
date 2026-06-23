@@ -1,4 +1,5 @@
 import asyncHandler from "express-async-handler";
+import mongoose from "mongoose";
 import Order from "../models/orderModel.js";
 import { calculateSurgeMultiplier } from "./surgePricingController.js";
 
@@ -50,13 +51,24 @@ export const calculateDeliveryRoute = asyncHandler(async (req, res) => {
     throw new Error("Pickup and drop coordinates are required");
   }
 
+  const pLat = Number(pickupLat);
+  const pLng = Number(pickupLng);
+  const dLat = Number(dropLat);
+  const dLng = Number(dropLng);
+
+  if (!Number.isFinite(pLat) || Math.abs(pLat) > 90 || !Number.isFinite(pLng) || Math.abs(pLng) > 180 ||
+      !Number.isFinite(dLat) || Math.abs(dLat) > 90 || !Number.isFinite(dLng) || Math.abs(dLng) > 180) {
+    res.status(400);
+    throw new Error("Valid numeric coordinates required (lat: -90 to 90, lng: -180 to 180)");
+  }
+
   const toRadians = (deg) => (deg * Math.PI) / 180;
   const R = 6371;
-  const dLat = toRadians(dropLat - pickupLat);
-  const dLng = toRadians(dropLng - pickupLng);
+  const dLatR = toRadians(dLat - pLat);
+  const dLngR = toRadians(dLng - pLng);
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(pickupLat)) * Math.cos(toRadians(dropLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    Math.sin(dLatR / 2) * Math.sin(dLatR / 2) +
+    Math.cos(toRadians(pLat)) * Math.cos(toRadians(dLat)) * Math.sin(dLngR / 2) * Math.sin(dLngR / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distanceKm = Number((R * c).toFixed(2));
 
@@ -94,7 +106,16 @@ export const calculateDeliveryRoute = asyncHandler(async (req, res) => {
 });
 
 export const getDeliveryEarningsProjection = asyncHandler(async (req, res) => {
-  const { driverId } = req.query;
+  let driverId = req.query.driverId;
+  if (driverId && !mongoose.Types.ObjectId.isValid(driverId)) {
+    return res.status(400).json({ message: "Invalid driverId" });
+  }
+  driverId = driverId && mongoose.Types.ObjectId.isValid(driverId) ? driverId : null;
+
+  // 🛡️ Delivery partners can only view their own earnings
+  if (req.user.role === "delivery_partner") {
+    driverId = req.user._id.toString();
+  }
 
   const matchFilter = driverId ? { deliveryPartner: driverId } : { deliveryPartner: { $exists: true } };
   const orders = await Order.find({

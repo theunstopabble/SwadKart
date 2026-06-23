@@ -134,8 +134,13 @@ const userSlice = createSlice({
         // Only update userInfo if payload is not null
         // null payload means network error or Render cold start — keep existing session
         if (action.payload) {
-          state.userInfo = action.payload;
-          localStorage.setItem("userInfo", JSON.stringify(action.payload));
+          const sanitised = { ...action.payload };
+          if (sanitised.token) {
+            localStorage.setItem("jwt", sanitised.token);
+            delete sanitised.token;
+          }
+          state.userInfo = sanitised;
+          localStorage.setItem("userInfo", JSON.stringify(sanitised));
         }
         // If null, silently keep the existing userInfo from localStorage
       })

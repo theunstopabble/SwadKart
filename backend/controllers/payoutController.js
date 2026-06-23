@@ -103,7 +103,17 @@ export const requestPayout = asyncHandler(async (req, res) => {
   const periodEnd = pendingOrders[0].createdAt;
   const orderIds = pendingOrders.map((o) => o._id);
 
-  // Create payout record
+  // Atomically mark orders as processing — only claim pending ones
+  const markResult = await Order.updateMany(
+    { _id: { $in: orderIds }, payoutStatus: "pending" },
+    { payoutStatus: "processing" },
+  );
+
+  if (markResult.modifiedCount === 0) {
+    return res.status(409).json({ message: "Payout already being processed" });
+  }
+
+  // Create payout record only after orders are claimed
   const payout = await Payout.create({
     restaurant: restaurantId,
     owner: restaurant.owner,
@@ -113,17 +123,6 @@ export const requestPayout = asyncHandler(async (req, res) => {
     periodEnd,
     status: "pending",
   });
-
-  // Atomically mark orders as processing — only claim pending ones
-  const markResult = await Order.updateMany(
-    { _id: { $in: orderIds }, payoutStatus: "pending" },
-    { payoutStatus: "processing" },
-  );
-
-  // If no orders were actually updated, another request already claimed them
-  if (markResult.modifiedCount === 0) {
-    return res.status(409).json({ message: "Payout already being processed" });
-  }
 
   res.status(201).json({
     message: "Payout request submitted",
@@ -140,7 +139,7 @@ export const requestPayout = asyncHandler(async (req, res) => {
 export const getAllPayouts = asyncHandler(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Number(req.query.limit) || 20);
-  const status = req.query.status || null;
+  const status = (typeof req.query.status === "string" && ["pending", "processing", "paid", "failed", "cancelled"].includes(req.query.status)) ? req.query.status : null;
 
   const filter = status ? { status } : {};
   const total = await Payout.countDocuments(filter);

@@ -1,16 +1,38 @@
 import asyncHandler from "express-async-handler";
+import mongoose from "mongoose";
 import Order from "../models/orderModel.js";
-import Product from "../models/productModel.js";
 import Restaurant from "../models/restaurantModel.js";
+
+const validateRestaurantAccess = async (restaurantId, user) => {
+  if (!restaurantId) return null;
+  if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
+    throw Object.assign(new Error("Invalid restaurant ID"), { status: 400 });
+  }
+  if (user.role === "restaurant_owner") {
+    const restaurant = await Restaurant.findById(restaurantId).select("owner").lean();
+    if (!restaurant || restaurant.owner?.toString() !== user._id.toString()) {
+      throw Object.assign(new Error("Not authorized"), { status: 403 });
+    }
+  }
+  return new mongoose.Types.ObjectId(restaurantId);
+};
+
+const parseDays = (days) => {
+  const n = parseInt(days, 10);
+  return Number.isFinite(n) ? Math.max(1, Math.min(n, 365)) : 30;
+};
 
 export const getRevenueProjection = asyncHandler(async (req, res) => {
   const { restaurantId, days = 30 } = req.query;
 
+  const safeRestaurantId = await validateRestaurantAccess(restaurantId, req.user);
+  const daysNum = parseDays(days);
+
   const matchFilter = { orderStatus: { $ne: "Cancelled" } };
-  if (restaurantId) matchFilter["orderItems.restaurant"] = restaurantId;
+  if (safeRestaurantId) matchFilter["orderItems.restaurant"] = safeRestaurantId;
 
   const now = new Date();
-  const startDate = new Date(now.getTime() - parseInt(days) * 24 * 60 * 60 * 1000);
+  const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
 
   const dailyRevenue = await Order.aggregate([
     { $match: { ...matchFilter, createdAt: { $gte: startDate } } },
@@ -71,11 +93,14 @@ export const getRevenueProjection = asyncHandler(async (req, res) => {
 export const getOrderVolumeForecast = asyncHandler(async (req, res) => {
   const { restaurantId, days = 30 } = req.query;
 
+  const safeRestaurantId = await validateRestaurantAccess(restaurantId, req.user);
+  const daysNum = parseDays(days);
+
   const matchFilter = {};
-  if (restaurantId) matchFilter["orderItems.restaurant"] = restaurantId;
+  if (safeRestaurantId) matchFilter["orderItems.restaurant"] = safeRestaurantId;
 
   const now = new Date();
-  const startDate = new Date(now.getTime() - parseInt(days) * 24 * 60 * 60 * 1000);
+  const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
 
   const hourlyVolume = await Order.aggregate([
     { $match: { ...matchFilter, createdAt: { $gte: startDate } } },
@@ -130,11 +155,14 @@ export const getOrderVolumeForecast = asyncHandler(async (req, res) => {
 export const getDemandAnalytics = asyncHandler(async (req, res) => {
   const { restaurantId, days = 30 } = req.query;
 
+  const safeRestaurantId = await validateRestaurantAccess(restaurantId, req.user);
+  const daysNum = parseDays(days);
+
   const matchFilter = { orderStatus: { $ne: "Cancelled" } };
-  if (restaurantId) matchFilter["orderItems.restaurant"] = restaurantId;
+  if (safeRestaurantId) matchFilter["orderItems.restaurant"] = safeRestaurantId;
 
   const now = new Date();
-  const startDate = new Date(now.getTime() - parseInt(days) * 24 * 60 * 60 * 1000);
+  const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
 
   const productDemand = await Order.aggregate([
     { $match: matchFilter },
@@ -197,14 +225,17 @@ export const getDemandAnalytics = asyncHandler(async (req, res) => {
 export const getProfitLossProjection = asyncHandler(async (req, res) => {
   const { restaurantId, days = 30 } = req.query;
 
+  const safeRestaurantId = await validateRestaurantAccess(restaurantId, req.user);
+  const daysNum = parseDays(days);
+
   const matchFilter = { orderStatus: { $ne: "Cancelled" } };
-  if (restaurantId) matchFilter["orderItems.restaurant"] = restaurantId;
+  if (safeRestaurantId) matchFilter["orderItems.restaurant"] = safeRestaurantId;
 
   const now = new Date();
-  const startDate = new Date(now.getTime() - parseInt(days) * 24 * 60 * 60 * 1000);
+  const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
 
   const orders = await Order.find({ ...matchFilter, createdAt: { $gte: startDate } })
-    .select("itemsPrice totalPrice deliveryFee tipAmount couponDiscount restaurantPayout commission")
+    .select("itemsPrice totalPrice deliveryFee tipAmount couponDiscount restaurantPayout restaurantCommission")
     .lean();
 
   const grossRevenue = orders.reduce((s, o) => s + (o.itemsPrice || 0), 0);
@@ -212,7 +243,7 @@ export const getProfitLossProjection = asyncHandler(async (req, res) => {
   const totalDeliveryFees = orders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
   const totalTips = orders.reduce((s, o) => s + (o.tipAmount || 0), 0);
   const totalDiscounts = orders.reduce((s, o) => s + (o.couponDiscount || 0), 0);
-  const platformRevenue = orders.reduce((s, o) => s + (o.commission || 0), 0);
+  const platformRevenue = orders.reduce((s, o) => s + (o.restaurantCommission || 0), 0);
   const restaurantPayoutTotal = orders.reduce((s, o) => s + (o.restaurantPayout || 0), 0);
 
   const netPlatformRevenue = platformRevenue + totalDeliveryFees - totalDiscounts;

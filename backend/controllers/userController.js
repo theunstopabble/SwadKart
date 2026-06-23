@@ -337,7 +337,7 @@ export const getDeliveryPartners = async (req, res, next) => {
     // with a clear message instead of being hidden from the admin list.
     const partners = await User.find({
       role: "delivery_partner",
-    }).select("-password");
+    }).select("name email phone image currentLocation isAvailable role");
     return res.json(partners);
   } catch (error) {
     next(error);
