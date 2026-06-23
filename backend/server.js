@@ -81,7 +81,7 @@ function validateEnv() {
   }
 
   if (isProduction) {
-    const warnVars = ["RAZORPAY_KEY_ID", "CLOUDINARY_CLOUD_NAME", "BREVO_API_KEY"];
+    const warnVars = ["RAZORPAY_KEY_ID", "CLOUDINARY_CLOUD_NAME", "BREVO_API_KEY", "COOKIE_SECRET"];
     warnVars.forEach((v) => {
       if (!process.env[v]) console.warn("⚠️  Production warning:", v, "is not set");
     });
@@ -234,6 +234,8 @@ io.on("connection", (socket) => {
         { $set: { driverLocation: locationData } },
       ).catch((e) => console.error("Driver location DB update failed:", e.message));
 
+      // Fire-and-forget is intentional — socket handler must not block
+
       // Broadcast to order room (customer + any admins watching)
       io.to(orderId).emit("driverLocationUpdate", locationData);
       // Also emit to user's personal room in case they're not in order room
@@ -251,7 +253,7 @@ io.on("connection", (socket) => {
 // --- 🛡️ Standard Middleware ---
 app.use(helmet());
 app.use(compression());
-app.use(cookieParser());
+app.use(cookieParser(process.env.COOKIE_SECRET));
 
 // Body parser limits already configured at top of file (10mb)
 
@@ -371,6 +373,16 @@ app.use("/api/v1/users/verify-email", authLimiter);
 app.use("/api/v1/users/login", authLimiter);
 app.use("/api/v1/users/register", authLimiter);
 app.use("/api/v1/users/password/forgot", authLimiter);
+
+// 🛡️ Contact support rate limiter (prevent spam)
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: "Too many support requests. Please try again in an hour.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/v1/users/contact-support", contactLimiter);
 
 // 🛡️ FEAT-24: Order creation rate limit (prevent spam / fraud)
 const orderLimiter = rateLimit({

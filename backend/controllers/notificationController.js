@@ -149,7 +149,8 @@ export const sendBulkNotification = asyncHandler(async (req, res) => {
     }
   };
 
-  // Create notifications one-by-one (DB writes), batch FCM in chunks
+  // Create notifications and batch FCM with concurrency control
+  const fcmBatch = [];
   for (const user of users) {
     const notif = await Notification.create({
       user: user._id,
@@ -161,41 +162,16 @@ export const sendBulkNotification = asyncHandler(async (req, res) => {
     });
     notifications.push(notif._id);
 
-    // Fire-and-forget FCM — collect promises for batch
-    const fcmPromise = sendFCM(user, notif);
-    // Schedule FCM as microtask if at concurrency limit
-    if (notifications.length % FCM_CONCURRENCY === 0) {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    }
-  }
-
-  // Batch-send remaining FCMs with concurrency control
-  const fcmPromises = [];
-  for (const user of users) {
     if (user.fcmToken) {
-      fcmPromises.push((async () => {
-        try {
-          const { getMessaging } = await import("firebase-admin/messaging");
-          const { default: admin } = await import("firebase-admin");
-          if (!admin.apps.length) return;
-          await getMessaging().send({
-            token: user.fcmToken,
-            notification: { title, body },
-            data: Object.fromEntries(
-              Object.entries(data).map(([k, v]) => [k, String(v)]),
-            ),
-          });
-        } catch {
-          // FCM errors are non-blocking
-        }
-      })());
+      fcmBatch.push(sendFCM(user, notif));
+    }
+
+    if (fcmBatch.length >= FCM_CONCURRENCY) {
+      await Promise.allSettled(fcmBatch.splice(0, FCM_CONCURRENCY));
     }
   }
 
-  // Process FCM batches with concurrency cap
-  for (let i = 0; i < fcmPromises.length; i += FCM_CONCURRENCY) {
-    await Promise.allSettled(fcmPromises.slice(i, i + FCM_CONCURRENCY));
-  }
+  await Promise.allSettled(fcmBatch);
 
   res.status(201).json({
     message: "Bulk notifications sent",

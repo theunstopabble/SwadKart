@@ -262,6 +262,7 @@ export const createRestaurantByAdmin = async (req, res, next) => {
       email,
       password,
       role: "restaurant_owner",
+      phone: req.body.phone || String(Date.now()).slice(-10),
       image:
         image || "https://images.unsplash.com/photo-1552566626-52f8b828add9",
       isVerified: true,

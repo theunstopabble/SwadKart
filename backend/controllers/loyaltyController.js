@@ -128,6 +128,16 @@ export const adminAdjustCoins = asyncHandler(async (req, res) => {
     throw new Error("Coin amount is required");
   }
 
+  if (coins > 10000 || coins < -10000) {
+    res.status(400);
+    throw new Error("Cannot adjust more than 10,000 coins at a time");
+  }
+
+  if (!reason || reason.trim().length < 3) {
+    res.status(400);
+    throw new Error("Reason is required for coin adjustment");
+  }
+
   const userId = sanitizeObjectId(rawUserId);
   const user = await User.findById(userId);
   if (!user) {

@@ -80,7 +80,7 @@ const OrderDetails = () => {
         socket.off("orderUpdated", handleOrderUpdate);
       };
     }
-  }, [id, userInfo]);
+  }, [id]);
 
   if (loading)
     return (

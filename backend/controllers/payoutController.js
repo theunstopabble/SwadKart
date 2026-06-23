@@ -114,11 +114,16 @@ export const requestPayout = asyncHandler(async (req, res) => {
     status: "pending",
   });
 
-  // Mark orders as processing
-  await Order.updateMany(
-    { _id: { $in: orderIds } },
+  // Atomically mark orders as processing — only claim pending ones
+  const markResult = await Order.updateMany(
+    { _id: { $in: orderIds }, payoutStatus: "pending" },
     { payoutStatus: "processing" },
   );
+
+  // If no orders were actually updated, another request already claimed them
+  if (markResult.modifiedCount === 0) {
+    return res.status(409).json({ message: "Payout already being processed" });
+  }
 
   res.status(201).json({
     message: "Payout request submitted",

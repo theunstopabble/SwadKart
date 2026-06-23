@@ -86,6 +86,17 @@ export const getGroupOrder = asyncHandler(async (req, res) => {
 // @access  Private (Member)
 export const addToGroupCart = asyncHandler(async (req, res) => {
   const { productId, name, price, qty } = req.body;
+
+  if (!productId || !name || price === undefined || price <= 0) {
+    res.status(400);
+    throw new Error("productId, name, and positive price are required");
+  }
+
+  if (qty !== undefined && (!Number.isInteger(qty) || qty <= 0)) {
+    res.status(400);
+    throw new Error("qty must be a positive integer");
+  }
+
   const groupOrder = await GroupOrder.findById(req.params.id);
   if (!groupOrder) {
     res.status(404);
