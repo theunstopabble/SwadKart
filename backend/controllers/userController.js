@@ -328,9 +328,10 @@ export const createDummyRestaurant = async (req, res, next) => {
 
 export const getDeliveryPartners = async (req, res, next) => {
   try {
-    const partners = await User.find({ role: "delivery_partner" }).select(
-      "-password",
-    );
+    const partners = await User.find({
+      role: "delivery_partner",
+      isAvailable: true,
+    }).select("-password");
     return res.json(partners);
   } catch (error) {
     next(error);
