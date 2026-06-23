@@ -156,38 +156,38 @@ const DeliveryPartnerDashboard = () => {
     );
 
   return (
-    <div className="min-h-screen bg-black pt-24 pb-20 px-4 text-white font-sans">
+    <div className="min-h-screen bg-black pt-20 sm:pt-24 pb-24 sm:pb-20 px-3 sm:px-4 text-white font-sans">
       <div className="max-w-4xl mx-auto">
         {/* --- Header Section --- */}
-        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
-          <div className="flex items-center gap-5">
-            <div className="relative group">
+        <header className="mb-8 sm:mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 px-1 sm:px-2">
+          <div className="flex items-center gap-3 sm:gap-5">
+            <div className="relative group shrink-0">
               <div className="absolute inset-0 bg-blue-600 blur-2xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
-              <div className="relative p-5 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl transition-transform hover:scale-105">
-                <Truck size={36} className="text-blue-500" />
+              <div className="relative p-3 sm:p-5 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl transition-transform hover:scale-105">
+                <Truck size={28} className="text-blue-500" />
               </div>
             </div>
-            <div>
-              <h1 className="text-5xl font-extrabold uppercase italic tracking-tighter leading-none">
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold uppercase italic tracking-tighter leading-none break-words">
                 Pilot <span className="text-blue-500">Ops</span>
               </h1>
-              <p className="text-[10px] text-gray-500 font-bold tracking-[0.4em] uppercase mt-3 flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
-                Active Duty: {userInfo?.name}
+              <p className="text-[9px] sm:text-[10px] text-gray-500 font-bold tracking-[0.3em] sm:tracking-[0.4em] uppercase mt-2 sm:mt-3 flex items-center gap-2">
+                <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
+                <span className="truncate">Active Duty: {userInfo?.name}</span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 bg-gray-900 border border-gray-800 px-6 py-3 rounded-xl shadow-lg">
-            <Signal size={14} className="text-green-500 animate-pulse" />
-            <span className="text-[11px] font-extrabold text-white uppercase tracking-widest">
+          <div className="flex items-center gap-2 sm:gap-3 bg-gray-900 border border-gray-800 px-3 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg self-start md:self-auto">
+            <Signal size={12} className="sm:size-[14] text-green-500 animate-pulse shrink-0" />
+            <span className="text-[9px] sm:text-[11px] font-extrabold text-white uppercase tracking-widest whitespace-nowrap">
               System Online
             </span>
           </div>
         </header>
 
         {/* --- Tab Navigation --- */}
-        <div className="flex bg-gray-900/50 p-1.5 rounded-2xl mb-12 border border-gray-800 shadow-inner">
+        <div className="flex bg-gray-900/50 p-1 rounded-xl sm:rounded-2xl mb-8 sm:mb-12 border border-gray-800 shadow-inner">
           {[
             {
               id: "tasks",
@@ -211,13 +211,14 @@ const DeliveryPartnerDashboard = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl font-extrabold text-[10px] uppercase tracking-[0.2em] transition-all duration-300 ${
+              className={`flex-1 flex items-center justify-center gap-1 sm:gap-3 py-2.5 sm:py-4 rounded-lg sm:rounded-xl font-extrabold text-[9px] sm:text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.2em] transition-all duration-300 ${
                 activeTab === tab.id
                   ? `${tab.activeBg} text-white shadow-lg scale-[1.02]`
                   : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
               }`}
             >
-              <tab.icon size={18} /> {tab.label}
+              <tab.icon size={14} className="sm:size-[18] shrink-0" />
+              <span className="sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -225,28 +226,28 @@ const DeliveryPartnerDashboard = () => {
         {/* --- Content Switcher --- */}
         <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
           {activeTab === "tasks" ? (
-            <div className="space-y-10">
-              <div className="flex items-center gap-4 px-2">
-                <h3 className="text-2xl font-extrabold uppercase italic tracking-tighter text-white">
+            <div className="space-y-6 sm:space-y-10">
+              <div className="flex items-center gap-2 sm:gap-4 px-1 sm:px-2">
+                <h3 className="text-lg sm:text-2xl font-extrabold uppercase italic tracking-tighter text-white">
                   Current <span className="text-blue-500">Radar</span>
                 </h3>
                 <div className="h-[1px] flex-1 bg-gray-800"></div>
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-gray-900 px-3 py-1 rounded-lg border border-gray-800">
+                <span className="text-[8px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-gray-900 px-2 sm:px-3 py-1 rounded-lg border border-gray-800 whitespace-nowrap">
                   {tasks.filter((t) => !t.isDelivered).length} Pending
                 </span>
               </div>
 
               {tasks.filter((t) => !t.isDelivered).length === 0 ? (
-                <div className="text-center py-32 bg-gray-900/30 rounded-2xl border-2 border-dashed border-gray-800">
-                  <div className="w-20 h-20 bg-gray-900 border border-gray-800 rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl">
-                    <Package size={32} className="text-gray-700" />
+                <div className="text-center py-16 sm:py-32 bg-gray-900/30 rounded-2xl border-2 border-dashed border-gray-800 mx-1 sm:mx-0">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-900 border border-gray-800 rounded-full flex items-center justify-center mx-auto mb-6 sm:mb-8 shadow-xl">
+                    <Package size={24} className="sm:size-[32] text-gray-700" />
                   </div>
-                  <p className="text-gray-500 font-extrabold uppercase text-[10px] tracking-[0.4em] italic">
+                  <p className="text-gray-500 font-extrabold uppercase text-[9px] sm:text-[10px] tracking-[0.3em] sm:tracking-[0.4em] italic px-4">
                     Radar Clear: Standing by for orders...
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-8">
+                <div className="grid gap-4 sm:gap-8">
                   {tasks
                     .filter((t) => !t.isDelivered)
                     .map((task) => (
@@ -254,34 +255,32 @@ const DeliveryPartnerDashboard = () => {
                         key={task._id}
                         className="bg-gray-900 border border-gray-800 rounded-2xl p-1 shadow-2xl hover:border-blue-500/30 transition-all"
                       >
-                        <div className="relative">
-                          <DeliveryCard
-                            order={task}
-                            onAction={handleDeliveryAction}
-                          />
-                          {task.orderStatus === "Out for Delivery" && (
-                            <div className="absolute bottom-4 right-4 z-10 w-full sm:w-auto p-4 sm:p-0">
-                              <OTPSection
-                                orderId={task._id}
-                                otpValue={otpInputs[task._id] || ""}
-                                onOtpChange={(val) =>
-                                  setOtpInputs({
-                                    ...otpInputs,
-                                    [task._id]: val,
-                                  })
-                                }
-                                onVerify={() => markAsDelivered(task._id)}
-                              />
-                            </div>
-                          )}
-</div>
+                        <DeliveryCard
+                          order={task}
+                          onAction={handleDeliveryAction}
+                        />
+                        {task.orderStatus === "Out for Delivery" && (
+                          <div className="px-3 pb-3">
+                            <OTPSection
+                              orderId={task._id}
+                              otpValue={otpInputs[task._id] || ""}
+                              onOtpChange={(val) =>
+                                setOtpInputs({
+                                  ...otpInputs,
+                                  [task._id]: val,
+                                })
+                              }
+                              onVerify={() => markAsDelivered(task._id)}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>
               )}
             </div>
           ) : activeTab === "earnings" ? (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6 shadow-2xl">
               <EarningsHistory tasks={tasks} />
             </div>
           ) : (
@@ -289,11 +288,7 @@ const DeliveryPartnerDashboard = () => {
           )}
         </div>
 
-        {activeTab === "tasks" && (
-          <div className="absolute bottom-6 right-6">
-            <SOSButton />
-          </div>
-        )}
+        {/* 🔴 SOS — outside container so fixed position works cleanly */}
       </div>
       <SOSButton />
     </div>
