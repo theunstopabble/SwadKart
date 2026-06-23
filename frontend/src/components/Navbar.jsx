@@ -87,7 +87,7 @@ const Navbar = () => {
 
   return (
     /* FIXED: Added pt-8 for Mobile Status Bar compatibility and md:pt-0 for Desktop */
-    <nav className="bg-gray-950 text-white border-b border-gray-800 fixed w-full z-50 top-0 pt-8 md:pt-0 transition-all duration-300">
+    <nav className="bg-gray-950 text-white border-b border-gray-800 fixed w-full z-50 top-0 pt-12 md:pt-0 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* ======================= LOGO ======================= */}
@@ -283,7 +283,7 @@ const Navbar = () => {
 
             <Link
               to="/cart"
-              className="relative group"
+              className="relative group p-2"
               aria-label={t("cart")}
             >
               <ShoppingCart
@@ -306,7 +306,7 @@ const Navbar = () => {
 
             <Link
               to="/cart"
-              className="relative"
+              className="relative p-2"
               onClick={closeMenu}
               aria-label={t("cart")}
             >
@@ -320,7 +320,7 @@ const Navbar = () => {
 
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-300 hover:text-white focus:outline-none ml-1"
+              className="text-gray-300 hover:text-white focus:outline-none p-2"
               aria-label={isOpen ? "Close menu" : "Open menu"}
               aria-expanded={isOpen}
             >
@@ -332,7 +332,7 @@ const Navbar = () => {
 
       {/* ======================= 📱 MOBILE MENU DROPDOWN ======================= */}
       {isOpen && (
-        <div className="md:hidden bg-gray-900 border-b border-gray-800 animate-fade-in-down shadow-2xl">
+          <div className="md:hidden bg-gray-900 border-b border-gray-800 animate-fade-in-down shadow-2xl max-h-[80vh] overflow-y-auto">
           <div className="px-4 pt-2 pb-6 space-y-2">
             <Link
               to="/"
@@ -433,6 +433,26 @@ const Navbar = () => {
                   <Shield size={18} /> Privacy & Data
                 </Link>
 
+                {/* 🌐 Language in Mobile Menu */}
+                <div className="border-t border-gray-800 pt-3 mt-3">
+                  <p className="px-3 py-1 text-[10px] text-gray-500 font-bold uppercase tracking-widest">{t("language")}</p>
+                  <div className="flex gap-2 px-3 pt-1">
+                    <button onClick={() => changeLanguage("en")} className={`flex-1 py-2.5 rounded-lg text-sm font-bold ${i18n.language === "en" ? "bg-primary text-white" : "bg-gray-800 text-gray-400"}`}>English</button>
+                    <button onClick={() => changeLanguage("hi")} className={`flex-1 py-2.5 rounded-lg text-sm font-bold ${i18n.language === "hi" ? "bg-primary text-white" : "bg-gray-800 text-gray-400"}`}>हिन्दी</button>
+                  </div>
+                </div>
+
+                {/* 🔔 Notifications in Mobile Menu */}
+                <div className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-300">
+                  <Bell size={18} />
+                  {t("notifications")}
+                  {unreadCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
+                </div>
+
                 <button
                   onClick={logoutHandler}
                   className="w-full flex items-center gap-2 px-3 py-3 rounded-md text-base font-bold text-red-500 hover:bg-gray-800"
@@ -444,14 +464,14 @@ const Navbar = () => {
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <Link
                   to="/login"
-                  className="text-center py-2 border border-gray-600 rounded-lg font-bold hover:bg-gray-800 text-white"
+                  className="text-center py-3 border border-gray-600 rounded-lg font-bold hover:bg-gray-800 text-white"
                   onClick={closeMenu}
                 >
                   {t("login")}
                 </Link>
                 <Link
                   to="/register"
-                  className="text-center py-2 bg-primary text-white rounded-lg font-bold hover:bg-red-700"
+                  className="text-center py-3 bg-primary text-white rounded-lg font-bold hover:bg-red-700"
                   onClick={closeMenu}
                 >
                   {t("signUp")}

@@ -54,7 +54,7 @@ const LiveTrackingMap = ({ orderId, restaurantCoords, userCoords }) => {
   }, [orderId]);
 
   return (
-    <div className="h-[450px] w-full rounded-[3rem] overflow-hidden border-4 border-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative">
+    <div className="h-[350px] md:h-[450px] w-full rounded-[3rem] overflow-hidden border-4 border-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative">
       {/* Overlay UI */}
       <div className="absolute top-6 left-6 z-[1000] bg-black/80 backdrop-blur-md px-5 py-2.5 rounded-2xl border border-primary/20 flex items-center gap-3">
         <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>

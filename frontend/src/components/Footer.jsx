@@ -129,7 +129,7 @@ const Footer = () => {
           <div className="space-y-6">
             <Link
               to="/"
-              className="text-4xl font-black tracking-tighter text-primary flex items-center gap-1 group w-fit"
+              className="text-3xl md:text-4xl font-black tracking-tighter text-primary flex items-center gap-1 group w-fit"
             >
               Swad
               <span className="text-white group-hover:text-gray-300 transition-colors">

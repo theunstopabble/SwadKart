@@ -78,7 +78,7 @@ const OrderSummary = ({
               <button
                 key={amt}
                 onClick={() => onTipChange && onTipChange(amt)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${
+                className={`px-3 py-2 rounded-lg text-[10px] font-black transition-all ${
                   Number(tipAmount) === amt
                     ? "bg-amber-500 text-black"
                     : "bg-gray-700 text-gray-400 hover:bg-gray-600"
@@ -94,7 +94,7 @@ const OrderSummary = ({
               placeholder="Custom"
               value={tipAmount > 0 ? tipAmount : ""}
               onChange={(e) => onTipChange && onTipChange(Math.max(0, Math.min(500, Number(e.target.value))))}
-              className="w-16 px-2 py-1 rounded-lg bg-gray-700 text-white text-[10px] font-bold text-center focus:outline-none focus:ring-1 focus:ring-amber-500 border-none"
+              className="w-16 px-2 py-2 rounded-lg bg-gray-700 text-white text-[10px] font-bold text-center focus:outline-none focus:ring-1 focus:ring-amber-500 border-none"
             />
           </div>
         </div>

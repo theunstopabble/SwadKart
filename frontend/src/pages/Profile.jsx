@@ -218,7 +218,7 @@ const Profile = () => {
                   />
                   <input
                     type="text"
-                    className="w-full bg-black border border-gray-700 text-white rounded-lg pl-10 pr-4 py-3 focus:border-primary focus:outline-none"
+                    className="w-full bg-black border border-gray-700 text-white rounded-lg pl-10 pr-4 py-3.5 focus:border-primary focus:outline-none"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
@@ -278,7 +278,7 @@ const Profile = () => {
                   />
                   <input
                     type="password"
-                    className="w-full bg-black border border-gray-700 text-white rounded-lg pl-10 pr-4 py-3 focus:border-primary focus:outline-none"
+                    className="w-full bg-black border border-gray-700 text-white rounded-lg pl-10 pr-4 py-3.5 focus:border-primary focus:outline-none"
                     placeholder="Enter new password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -297,7 +297,7 @@ const Profile = () => {
                   />
                   <input
                     type="password"
-                    className="w-full bg-black border border-gray-700 text-white rounded-lg pl-10 pr-4 py-3 focus:border-primary focus:outline-none"
+                    className="w-full bg-black border border-gray-700 text-white rounded-lg pl-10 pr-4 py-3.5 focus:border-primary focus:outline-none"
                     placeholder="Confirm new password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -308,7 +308,7 @@ const Profile = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-primary hover:bg-red-600 text-white font-bold py-3 px-8 rounded-lg flex items-center gap-2 transition-all disabled:opacity-50"
+                className="bg-primary hover:bg-red-600 text-white font-bold py-4 px-8 rounded-lg flex items-center gap-2 transition-all disabled:opacity-50"
               >
                 {loading ? (
                   "Updating..."

@@ -74,7 +74,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black px-4">
-      <div className="max-w-md w-full bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-800">
+      <div className="max-w-md w-full bg-gray-900 p-6 sm:p-8 rounded-2xl shadow-2xl border border-gray-800">
         <h2 className="text-3xl font-extrabold text-white text-center mb-2">
           Hungry? Let's get you
           <br />

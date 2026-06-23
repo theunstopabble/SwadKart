@@ -87,7 +87,7 @@ const AddressForm = ({
       </div>
 
       {/* 🏙️ City & State (Two Columns) */}
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <input
           name="city"
           type="text"
@@ -95,7 +95,7 @@ const AddressForm = ({
           value={formData.city}
           required
           onChange={handleChange}
-          className="w-1/2 bg-black/40 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary focus:bg-black/60 outline-none text-[11px] font-bold uppercase tracking-wider placeholder:text-gray-700"
+          className="w-full sm:w-1/2 bg-black/40 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary focus:bg-black/60 outline-none text-[11px] font-bold uppercase tracking-wider placeholder:text-gray-700"
         />
         <input
           name="state"
@@ -104,7 +104,7 @@ const AddressForm = ({
           value={formData.state}
           required
           onChange={handleChange}
-          className="w-1/2 bg-black/40 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary focus:bg-black/60 outline-none text-[11px] font-bold uppercase tracking-wider placeholder:text-gray-700"
+          className="w-full sm:w-1/2 bg-black/40 text-white px-5 py-4 rounded-xl border border-gray-800 focus:border-primary focus:bg-black/60 outline-none text-[11px] font-bold uppercase tracking-wider placeholder:text-gray-700"
         />
       </div>
 

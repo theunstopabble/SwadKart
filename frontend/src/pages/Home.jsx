@@ -116,7 +116,7 @@ const Home = () => {
   const homeBreadcrumb = breadcrumbSchema([{ name: "Home", url: "/" }]);
 
   return (
-    <div className="bg-black min-h-screen text-white pt-20">
+    <div className="bg-black min-h-screen text-white pt-24 sm:pt-20">
       <PageSEO
         title="Order Food Online in Jaipur — Fastest AI-Powered Food Delivery"
         description="Order delicious food from top restaurants in Jaipur. AI chatbot, real-time GPS tracking, voice search & secure payments. Download the SwadKart app today!"
@@ -126,7 +126,7 @@ const Home = () => {
       />
       {/* ================= HERO SECTION ================= */}
       {/* Using <img> instead of CSS background-image for better LCP discovery by browser preload scanner */}
-      <div className="relative h-[500px] w-full overflow-hidden">
+      <div className="relative h-[400px] md:h-[500px] w-full overflow-hidden">
         <img
           src={HERO_IMG_URL}
           alt="Delicious food spread"

@@ -172,7 +172,7 @@ const OrderDetails = () => {
                     toast.error("Cancel request failed");
                   }
                 }}
-                className="mt-2 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 hover:border-red-500 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                className="mt-2 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 hover:border-red-500 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
               >
                 Cancel Order
               </button>
@@ -227,13 +227,13 @@ const OrderDetails = () => {
               <p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-[9px] mb-8">
                 Share this with the logistics pilot only at the time of delivery
               </p>
-              <div className="flex justify-center gap-4">
+              <div className="flex justify-center gap-2 sm:gap-4">
                 {(order.deliveryOTP ?? "").toString()
                   .split("")
                   .map((digit, i) => (
                     <div
                       key={i}
-                      className="w-16 h-20 bg-black border border-gray-800 rounded-2xl flex items-center justify-center text-4xl font-black text-white shadow-inner"
+                      className="w-12 h-16 sm:w-16 sm:h-20 bg-black border border-gray-800 rounded-2xl flex items-center justify-center text-2xl sm:text-4xl font-black text-white shadow-inner"
                     >
                       {digit}
                     </div>

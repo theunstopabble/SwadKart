@@ -255,18 +255,18 @@ const Cart = () => {
                     <button
                       onClick={() => addToCartHandler(item, item.qty - 1)}
                       disabled={item.qty === 1}
-                      className="p-2.5 text-gray-500 hover:text-white hover:bg-gray-800 disabled:opacity-20 transition-all"
+                      className="p-3 text-gray-500 hover:text-white hover:bg-gray-800 disabled:opacity-20 transition-all"
                     >
-                      <Minus size={14} />
+                      <Minus size={18} />
                     </button>
                     <span className="px-3 font-bold text-sm w-10 text-center text-white">
                       {item.qty}
                     </span>
                     <button
                       onClick={() => addToCartHandler(item, item.qty + 1)}
-                      className="p-2.5 text-gray-500 hover:text-white hover:bg-gray-800 transition-all"
+                      className="p-3 text-gray-500 hover:text-white hover:bg-gray-800 transition-all"
                     >
-                      <Plus size={14} />
+                      <Plus size={18} />
                     </button>
                   </div>
 

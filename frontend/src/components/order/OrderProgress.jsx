@@ -23,7 +23,7 @@ const OrderProgress = ({ currentStatus, statusSteps }) => {
 
   return (
     <div className="bg-gray-950 p-10 rounded-[3rem] border border-gray-900 mb-8 shadow-2xl">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-10 relative">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-10 relative">
         {statusSteps.map((step, index) => {
           const isCompleted = index <= currentIndex;
           const isCurrent = index === currentIndex;
