@@ -148,8 +148,16 @@ app.use((req, res, next) => {
 // ==========================================
 io.use((socket, next) => {
   try {
-    const cookies = cookie.parse(socket.request.headers.cookie || "");
-    const token = cookies.jwt;
+    // Priority: 1. handshake.auth.token  2. cookie.jwt
+    // Cross-origin WebSocket connections don't reliably send cookies
+    // (Chrome blocks third-party cookies by default), so we accept
+    // the token via handshake.auth as well.
+    let token = socket.handshake.auth?.token;
+
+    if (!token) {
+      const cookies = cookie.parse(socket.request.headers.cookie || "");
+      token = cookies.jwt;
+    }
 
     if (!token) {
       console.warn("🚫 Socket Access Denied: No Token");

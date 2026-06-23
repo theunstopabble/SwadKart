@@ -7,8 +7,11 @@ let socket = null;
 
 export const getSocket = () => {
   if (!socket) {
+    const token = localStorage.getItem("jwt");
+
     socket = io(SOCKET_URL, {
       withCredentials: true,
+      auth: token ? { token } : undefined,
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 5,

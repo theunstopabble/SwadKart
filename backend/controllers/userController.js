@@ -61,10 +61,11 @@ export const updateUserProfile = async (req, res, next) => {
         user.description = req.body.description;
       }
       const updatedUser = await user.save();
-      generateToken(res, updatedUser._id); // Refreshes HttpOnly cookie
+      const token = generateToken(res, updatedUser._id); // Refreshes HttpOnly cookie
 
       const safeData = updatedUser.toObject();
       delete safeData.password;
+      safeData.token = token;
 
       return res.json(safeData);
     } else {
@@ -400,13 +401,13 @@ export const googleCheck = async (req, res, next) => {
     const user = await User.findOne({ email: String(email) });
 
     if (user) {
-      generateToken(res, user._id); // Sets HttpOnly Cookie
+      const token = generateToken(res, user._id); // Sets HttpOnly Cookie
 
       // 🛡️ SECURITY FIX: Sanitize user object, strictly remove password and omit token
       const userSafeData = user.toObject();
       delete userSafeData.password;
 
-      return res.json({ exists: true, user: userSafeData });
+      return res.json({ exists: true, user: { ...userSafeData, token } });
     } else {
       return res.json({ exists: false });
     }
@@ -448,9 +449,10 @@ export const googleRegister = async (req, res, next) => {
     });
 
     if (user) {
-      generateToken(res, user._id);
+      const token = generateToken(res, user._id);
       const safeUser = user.toObject();
       delete safeUser.password;
+      safeUser.token = token;
       return res.status(201).json(safeUser);
     }
   } catch (error) {

@@ -12,7 +12,11 @@ const safeParse = (raw) => {
 
 let storedUserInfo = safeParse(localStorage.getItem("userInfo"));
 
+// Token ko userInfo se alag localStorage("jwt") me rakhte hain.
+// HttpOnly cookie cross-origin WebSocket me nahi bheji jaati,
+// isliye hum explicitly token pass karte hain socket.io auth ke through.
 if (storedUserInfo && storedUserInfo.token) {
+  localStorage.setItem("jwt", storedUserInfo.token);
   delete storedUserInfo.token;
   localStorage.setItem("userInfo", JSON.stringify(storedUserInfo));
 }
@@ -100,12 +104,18 @@ const userSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      state.userInfo = action.payload;
-      localStorage.setItem("userInfo", JSON.stringify(action.payload));
+      const payload = action.payload;
+      if (payload && payload.token) {
+        localStorage.setItem("jwt", payload.token);
+        delete payload.token;
+      }
+      state.userInfo = payload;
+      localStorage.setItem("userInfo", JSON.stringify(payload));
     },
     logout: (state) => {
       state.userInfo = null;
       localStorage.removeItem("userInfo");
+      localStorage.removeItem("jwt");
       localStorage.removeItem("couponDiscount");
       localStorage.removeItem("appliedCoupon");
       localStorage.removeItem("isBiometricEnabled");
@@ -142,7 +152,10 @@ const userSlice = createSlice({
 
         // 🛡️ SECURITY FIX: Prevent token from being saved on update
         const updatedData = { ...action.payload };
-        delete updatedData.token;
+        if (updatedData.token) {
+          localStorage.setItem("jwt", updatedData.token);
+          delete updatedData.token;
+        }
 
         state.userInfo = updatedData;
         localStorage.setItem("userInfo", JSON.stringify(updatedData));
