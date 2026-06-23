@@ -9,7 +9,6 @@ import {
 const AnalyticsForecast = () => {
   const [projection, setProjection] = useState(null);
   const [forecast, setForecast] = useState(null);
-  // Demand state available for future implementation
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState("30");
 
@@ -188,50 +187,7 @@ const AnalyticsForecast = () => {
         )}
       </div>
 
-      {demand && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-purple-500/10 rounded-xl">
-              <Package className="text-purple-400" size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-white">Top Products</h3>
-              <p className="text-xs text-gray-400">Best performing items by demand</p>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-[10px] uppercase text-gray-500 tracking-widest border-b border-gray-800">
-                  <th className="pb-3 pr-4">Rank</th>
-                  <th className="pb-3 pr-4">Product</th>
-                  <th className="pb-3 pr-4">Sold</th>
-                  <th className="pb-3 pr-4">Revenue</th>
-                  <th className="pb-3">Avg Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                {demand.topProducts?.map((p, i) => (
-                  <tr key={p.productId} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                    <td className="py-3 pr-4">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        i === 0 ? "bg-yellow-500/20 text-yellow-400" :
-                        i === 1 ? "bg-gray-400/20 text-gray-300" :
-                        i === 2 ? "bg-orange-500/20 text-orange-400" :
-                        "bg-gray-700 text-gray-400"
-                      }`}>{i + 1}</span>
-                    </td>
-                    <td className="py-3 pr-4 text-sm font-medium text-white">{p.name}</td>
-                    <td className="py-3 pr-4 text-sm text-gray-300">{p.quantitySold} units</td>
-                    <td className="py-3 pr-4 text-sm font-bold text-green-400">₹{p.revenue?.toLocaleString()}</td>
-                    <td className="py-3 text-sm text-gray-400">₹{p.avgPrice}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* TODO: Add demand-based Top Products section */}
     </div>
   );
 };

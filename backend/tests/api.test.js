@@ -58,6 +58,7 @@ describe("Auth Routes", () => {
     const res = await request(app)
       .post("/api/v1/users/register")
       .set("Origin", ORIGIN)
+      .set("X-Requested-With", "XMLHttpRequest")
       .send({});
     expect(res.status).toBe(400);
   });
@@ -66,6 +67,7 @@ describe("Auth Routes", () => {
     const res = await request(app)
       .post("/api/v1/users/login")
       .set("Origin", ORIGIN)
+      .set("X-Requested-With", "XMLHttpRequest")
       .send({});
     expect(res.status).toBe(400);
   });
@@ -162,11 +164,11 @@ describe("Calculator Routes (Enterprise)", () => {
 describe("Security: NoSQL Injection Prevention", () => {
   it("should strip $ operators from request body", async () => {
     const res = await request(app)
-      .post("/api/v1/users/register")
+      .post("/api/v1/users/login")
       .set("Origin", ORIGIN)
-      .send({ name: "test", email: "test@test.com", password: "password123", phone: "9999999999", $gt: "" });
-    // Sanitizer strips $ keys and request proceeds normally (400 for validation or other status)
-    // The key point is it should NOT be 500 (injection didn't crash the server)
+      .set("X-Requested-With", "XMLHttpRequest")
+      .send({ email: "test@test.com", password: "password123", $gt: "" });
+    // Sanitizer strips $ keys; login proceeds with clean body (user won't exist -> 401, NOT 500)
     expect(res.status).not.toBe(500);
   });
 
@@ -174,6 +176,7 @@ describe("Security: NoSQL Injection Prevention", () => {
     const res = await request(app)
       .post("/api/v1/users/login")
       .set("Origin", ORIGIN)
+      .set("X-Requested-With", "XMLHttpRequest")
       .send({ email: "test@test.com", password: "pass", "user.role": "admin" });
     // Sanitizer strips dotted keys and request proceeds normally
     // The key point is it should NOT be 500 (injection didn't crash the server)

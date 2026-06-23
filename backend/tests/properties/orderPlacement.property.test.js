@@ -24,20 +24,21 @@ jest.unstable_mockModule("../../models/productModel.js", () => ({
   },
 }));
 
-// Mock mongoose to avoid Cart model issues
-jest.unstable_mockModule("mongoose", () => {
-  const SchemaClass = function () {
-    this.index = jest.fn().mockReturnThis();
-  };
-  SchemaClass.Types = { ObjectId: String };
+// Mock mongoose to avoid User/Cart model issues
+const mockFindByIdAndUpdate = jest.fn().mockResolvedValue({});
+jest.unstable_mockModule("../../models/userModel.js", () => ({
+  default: {
+    findByIdAndUpdate: mockFindByIdAndUpdate,
+  },
+}));
 
+jest.unstable_mockModule("mongoose", () => {
   return {
     default: {
-      Schema: SchemaClass,
+      Schema: function () { return { index: jest.fn().mockReturnThis() }; },
       model: jest.fn(() => ({})),
-      models: {},
     },
-    Schema: SchemaClass,
+    Schema: function () { return { index: jest.fn().mockReturnThis() }; },
   };
 });
 
@@ -223,8 +224,8 @@ describe("Property 9: Order placement validates inputs and only writes to cart w
           expect(result.success).toBe(true);
           expect(result.product.name).toBe("Available Item");
           expect(result.product.quantity).toBe(quantity);
-          // Cart was accessed
-          expect(mockCartModel.findOne).toHaveBeenCalled();
+          // Cart was written via User.findByIdAndUpdate
+          expect(mockFindByIdAndUpdate).toHaveBeenCalled();
         }
       ),
       { numRuns: 50 }

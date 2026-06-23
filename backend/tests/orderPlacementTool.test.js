@@ -7,6 +7,12 @@
 
 import { jest } from "@jest/globals";
 
+// Mock User model (used for cartItems write)
+const mockFindByIdAndUpdate = jest.fn().mockResolvedValue({});
+jest.unstable_mockModule("../models/userModel.js", () => ({
+  default: { findByIdAndUpdate: mockFindByIdAndUpdate },
+}));
+
 // Mock Product model before importing the module
 const mockFindById = jest.fn();
 jest.unstable_mockModule("../models/productModel.js", () => ({
@@ -46,10 +52,6 @@ describe("orderPlacementTool", () => {
   });
 
   describe("executeOrderPlacement", () => {
-    const mockCartModel = {
-      findOne: jest.fn(),
-    };
-
     const validProduct = {
       _id: "product123",
       name: "Butter Chicken",
@@ -65,7 +67,6 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: 2,
           userId: null,
-          cartModel: mockCartModel,
         });
 
         expect(result).toEqual({ success: false, reason: "auth_required" });
@@ -76,7 +77,6 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: 2,
           userId: undefined,
-          cartModel: mockCartModel,
         });
 
         expect(result).toEqual({ success: false, reason: "auth_required" });
@@ -87,7 +87,6 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: 2,
           userId: "",
-          cartModel: mockCartModel,
         });
 
         expect(result).toEqual({ success: false, reason: "auth_required" });
@@ -103,7 +102,7 @@ describe("orderPlacementTool", () => {
           productId: "nonexistent",
           quantity: 2,
           userId: "user123",
-          cartModel: mockCartModel,
+
         });
 
         expect(result).toEqual({ success: false, reason: "product_not_found" });
@@ -116,7 +115,7 @@ describe("orderPlacementTool", () => {
           productId: "bad-id",
           quantity: 2,
           userId: "user123",
-          cartModel: mockCartModel,
+
         });
 
         expect(result).toEqual({ success: false, reason: "product_not_found" });
@@ -134,7 +133,7 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: 0,
           userId: "user123",
-          cartModel: mockCartModel,
+
         });
 
         expect(result).toEqual({ success: false, reason: "invalid_quantity" });
@@ -145,7 +144,7 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: -1,
           userId: "user123",
-          cartModel: mockCartModel,
+
         });
 
         expect(result).toEqual({ success: false, reason: "invalid_quantity" });
@@ -156,7 +155,7 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: 11,
           userId: "user123",
-          cartModel: mockCartModel,
+
         });
 
         expect(result).toEqual({ success: false, reason: "invalid_quantity" });
@@ -167,7 +166,7 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: 2.5,
           userId: "user123",
-          cartModel: mockCartModel,
+
         });
 
         expect(result).toEqual({ success: false, reason: "invalid_quantity" });
@@ -186,7 +185,7 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: 2,
           userId: "user123",
-          cartModel: mockCartModel,
+
         });
 
         expect(result).toEqual({ success: false, reason: "out_of_stock" });
@@ -202,7 +201,7 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: 5,
           userId: "user123",
-          cartModel: mockCartModel,
+
         });
 
         expect(result).toEqual({ success: false, reason: "out_of_stock" });
@@ -218,111 +217,72 @@ describe("orderPlacementTool", () => {
           productId: "product123",
           quantity: 1,
           userId: "user123",
-          cartModel: mockCartModel,
+
         });
 
         expect(result).toEqual({ success: false, reason: "out_of_stock" });
       });
     });
 
-    // Gate 5: Cart write with timeout
+    // Gate 5: Cart write via User.findByIdAndUpdate
     describe("Gate 5 - Cart write", () => {
       beforeEach(() => {
         mockFindById.mockResolvedValue(validProduct);
+        mockFindByIdAndUpdate.mockResolvedValue({});
       });
 
       it("should successfully add item to existing cart", async () => {
-        const mockCart = {
-          user: "user123",
-          items: [],
-          save: jest.fn().mockResolvedValue(true),
-        };
-        mockCart.items.push = jest.fn();
-        mockCartModel.findOne.mockResolvedValue(mockCart);
-
         const result = await executeOrderPlacement({
           productId: "product123",
           quantity: 2,
           userId: "user123",
-          cartModel: mockCartModel,
         });
 
         expect(result).toEqual({
           success: true,
           product: { name: "Butter Chicken", price: 350, quantity: 2 },
         });
-        expect(mockCart.items.push).toHaveBeenCalledWith({
-          product: "product123",
-          quantity: 2,
+        expect(mockFindByIdAndUpdate).toHaveBeenCalledWith("user123", {
+          $pull: { cartItems: { product: "product123" } },
         });
-        expect(mockCart.save).toHaveBeenCalled();
+        expect(mockFindByIdAndUpdate).toHaveBeenCalledWith("user123", {
+          $push: { cartItems: { product: "product123", quantity: 2 } },
+        });
       });
 
       it("should create a new cart when none exists", async () => {
-        const mockSave = jest.fn().mockResolvedValue(true);
-        const mockItems = [];
-        mockCartModel.findOne.mockResolvedValue(null);
-
-        // Mock the constructor behavior
-        const originalCartModel = {
-          findOne: mockCartModel.findOne,
-        };
-
-        // Create a mock that simulates new CartModel()
-        const mockCartModelWithConstructor = function (data) {
-          return { ...data, items: mockItems, save: mockSave };
-        };
-        mockCartModelWithConstructor.findOne = mockCartModel.findOne;
-
         const result = await executeOrderPlacement({
           productId: "product123",
           quantity: 1,
           userId: "user123",
-          cartModel: mockCartModelWithConstructor,
         });
 
         expect(result).toEqual({
           success: true,
           product: { name: "Butter Chicken", price: 350, quantity: 1 },
         });
-        expect(mockSave).toHaveBeenCalled();
+        expect(mockFindByIdAndUpdate).toHaveBeenCalled();
       });
 
       it("should return timeout when cart write exceeds 5s", async () => {
-        const mockCart = {
-          user: "user123",
-          items: [],
-          save: jest.fn().mockImplementation(
-            () => new Promise((resolve) => setTimeout(resolve, 6000))
-          ),
-        };
-        mockCart.items.push = jest.fn();
-        mockCartModel.findOne.mockResolvedValue(mockCart);
+        mockFindByIdAndUpdate.mockRejectedValue(new Error("timeout"));
 
         const result = await executeOrderPlacement({
           productId: "product123",
           quantity: 2,
           userId: "user123",
-          cartModel: mockCartModel,
         });
 
         expect(result).toEqual({ success: false, reason: "timeout" });
-      }, 10000);
+      });
 
       it("should return internal_error when cart save throws", async () => {
-        const mockCart = {
-          user: "user123",
-          items: [],
-          save: jest.fn().mockRejectedValue(new Error("DB write error")),
-        };
-        mockCart.items.push = jest.fn();
-        mockCartModel.findOne.mockResolvedValue(mockCart);
+        mockFindByIdAndUpdate.mockRejectedValue(new Error("DB write error"));
 
         const result = await executeOrderPlacement({
           productId: "product123",
           quantity: 2,
           userId: "user123",
-          cartModel: mockCartModel,
         });
 
         expect(result).toEqual({ success: false, reason: "internal_error" });
@@ -333,41 +293,24 @@ describe("orderPlacementTool", () => {
     describe("Boundary values", () => {
       beforeEach(() => {
         mockFindById.mockResolvedValue(validProduct);
+        mockFindByIdAndUpdate.mockResolvedValue({});
       });
 
       it("should accept quantity of exactly 1", async () => {
-        const mockCart = {
-          user: "user123",
-          items: [],
-          save: jest.fn().mockResolvedValue(true),
-        };
-        mockCart.items.push = jest.fn();
-        mockCartModel.findOne.mockResolvedValue(mockCart);
-
         const result = await executeOrderPlacement({
           productId: "product123",
           quantity: 1,
           userId: "user123",
-          cartModel: mockCartModel,
         });
 
         expect(result.success).toBe(true);
       });
 
       it("should accept quantity of exactly 10", async () => {
-        const mockCart = {
-          user: "user123",
-          items: [],
-          save: jest.fn().mockResolvedValue(true),
-        };
-        mockCart.items.push = jest.fn();
-        mockCartModel.findOne.mockResolvedValue(mockCart);
-
         const result = await executeOrderPlacement({
           productId: "product123",
           quantity: 10,
           userId: "user123",
-          cartModel: mockCartModel,
         });
 
         expect(result.success).toBe(true);
@@ -379,19 +322,10 @@ describe("orderPlacementTool", () => {
           countInStock: 5,
         });
 
-        const mockCart = {
-          user: "user123",
-          items: [],
-          save: jest.fn().mockResolvedValue(true),
-        };
-        mockCart.items.push = jest.fn();
-        mockCartModel.findOne.mockResolvedValue(mockCart);
-
         const result = await executeOrderPlacement({
           productId: "product123",
           quantity: 5,
           userId: "user123",
-          cartModel: mockCartModel,
         });
 
         expect(result.success).toBe(true);

@@ -36,7 +36,7 @@ const Gamification = () => {
       }
     };
     fetchStats();
-  }, []);
+  }, [userInfo]);
 
   if (loading) {
     return (

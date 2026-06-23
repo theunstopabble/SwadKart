@@ -29,9 +29,7 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
-  const [coupons, setCoupons] = useState([]);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
+  const [, setCoupons] = useState([]);
 
   // --- FETCH ALL DATA ---
   // ADMIN-02 FIX: Per-section error isolation + reduced order limit to prevent Render timeout
@@ -41,7 +39,7 @@ const AdminDashboard = () => {
 
     const results = await Promise.allSettled([
       fetch(`${BASEURL}/api/v1/restaurants/admin/all`, fetchOptions),
-      fetch(`${BASEURL}/api/v1/orders?limit=${limit}&page=${page}`, fetchOptions),
+      fetch(`${BASEURL}/api/v1/orders?limit=50&page=1`, fetchOptions),
       fetch(`${BASEURL}/api/v1/users/delivery-partners`, fetchOptions),
       fetch(`${BASEURL}/api/v1/coupons`, fetchOptions),
     ]);
@@ -97,7 +95,7 @@ const AdminDashboard = () => {
     } else {
       console.error("Coupons fetch error:", results[3].reason?.message);
     }
-  }, [userInfo, page, limit]);
+  }, [userInfo]);
 
   useEffect(() => {
     const loadDashboardData = async () => {

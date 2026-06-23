@@ -203,6 +203,10 @@ async function callGroqWithRetry({ messages, tools }) {
  */
 async function checkEscalation(sessionId, currentSentiment, recentMessages) {
   try {
+    // Sticky: if flag is already set, return true immediately
+    const existing = await Conversation.findOne({ sessionId, escalationFlag: true }).select({ escalationFlag: 1 });
+    if (existing?.escalationFlag) return true;
+
     // Gather the last N user message sentiments from history + current
     const userSentiments = [];
 

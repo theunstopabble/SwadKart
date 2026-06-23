@@ -54,7 +54,7 @@ const HeatmapTab = () => {
       }
     };
     fetchHeatmap();
-  }, [userInfo]);
+  }, []);
 
   if (loading)
     return (

@@ -68,6 +68,13 @@ jest.unstable_mockModule("../../models/productModel.js", () => ({
   },
 }));
 
+// Mock User model (used by reorderTool, orderPlacementTool, orderStatusTool)
+jest.unstable_mockModule("../../models/userModel.js", () => ({
+  default: {
+    findByIdAndUpdate: jest.fn().mockResolvedValue({}),
+  },
+}));
+
 // Mock mongoose (used by reorderTool for transactions)
 jest.unstable_mockModule("mongoose", () => ({
   default: {
@@ -183,6 +190,8 @@ const { execute: executeDeliveryEta } = await import(
 const { execute: executeReorder } = await import(
   "../../services/chat/tools/reorderTool.js"
 );
+
+const UserModel = (await import("../../models/userModel.js")).default;
 
 const { callGroq } = await import("../../services/chat/groqQueue.js");
 
@@ -1368,11 +1377,8 @@ describe("Feature: chatbot-action-tools, Property 10: Reorder item validation an
           );
           expect(result.data.totalCartValue).toBeCloseTo(expectedTotal, 2);
 
-          // Verify atomic cart write was performed via transaction
-          expect(mongooseMockP10.startSession).toHaveBeenCalled();
-          expect(mockSession.startTransaction).toHaveBeenCalled();
-          expect(mockSession.commitTransaction).toHaveBeenCalled();
-          expect(mockSession.endSession).toHaveBeenCalled();
+          // Verify cart write was performed via User.findByIdAndUpdate
+          expect(UserModel.findByIdAndUpdate).toHaveBeenCalled();
         }
       }),
       { numRuns: 20 }
@@ -1440,7 +1446,7 @@ describe("Feature: chatbot-action-tools, Property 10: Reorder item validation an
           expect(result.reason).toBe("no_items_available");
 
           // No cart write should occur
-          expect(mongooseMockP10.startSession).not.toHaveBeenCalled();
+          expect(UserModel.findByIdAndUpdate).not.toHaveBeenCalled();
           expect(CartModelP10.findOneAndUpdate).not.toHaveBeenCalled();
         }
       ),
@@ -1684,20 +1690,8 @@ describe("Feature: chatbot-action-tools, Property 14: Write timeout enforcement 
             }),
           }));
 
-          // Mock mongoose.startSession to simulate a transaction that times out
-          // The session's startTransaction succeeds, but Cart.findOneAndUpdate
-          // (inside the transaction) rejects with timeout
-          const mockSession = {
-            startTransaction: jest.fn(),
-            commitTransaction: jest.fn(),
-            abortTransaction: jest.fn(),
-            endSession: jest.fn(),
-          };
-          mongooseMock.startSession.mockResolvedValue(mockSession);
-
-          // Mock Cart.findOneAndUpdate to reject with timeout during the transaction
-          const { Cart } = await import("../../services/chat/orderPlacementTool.js");
-          Cart.findOneAndUpdate.mockRejectedValue(new Error("timeout"));
+          // Mock User.findByIdAndUpdate to reject with timeout during the cart write
+          UserModel.findByIdAndUpdate.mockRejectedValue(new Error("timeout"));
 
           const result = await executeReorder({ userId: "user123" });
 
@@ -1706,14 +1700,8 @@ describe("Feature: chatbot-action-tools, Property 14: Write timeout enforcement 
           expect(result.reason).toBe("timeout");
           expect(typeof result.message).toBe("string");
 
-          // Atomicity: The transaction should have been aborted
-          // When Cart.findOneAndUpdate throws inside the transaction,
-          // the catch block calls session.abortTransaction()
-          expect(mockSession.abortTransaction).toHaveBeenCalled();
-          // endSession should always be called (in the finally block)
-          expect(mockSession.endSession).toHaveBeenCalled();
-          // commitTransaction should NOT have been called (write failed)
-          expect(mockSession.commitTransaction).not.toHaveBeenCalled();
+          // Cart write was attempted but failed
+          expect(UserModel.findByIdAndUpdate).toHaveBeenCalled();
         }
       ),
       { numRuns: 20 }

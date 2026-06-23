@@ -320,6 +320,7 @@ describe("Property 21: Analytics aggregations match their definitional formulas"
           mockAggregate
             .mockResolvedValueOnce([{ _id: null, avgMs }])
             .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([])
             .mockResolvedValueOnce([]);
           mockFind.mockReturnValue({
             select: jest.fn().mockReturnValue({
@@ -374,7 +375,8 @@ describe("Property 21: Analytics aggregations match their definitional formulas"
         mockAggregate
           .mockResolvedValueOnce([]) // avg response time
           .mockResolvedValueOnce([]) // intent distribution
-          .mockResolvedValueOnce([{ _id: null, negative, neutral, positive }]); // sentiment
+          .mockResolvedValueOnce([{ _id: null, negative, neutral, positive }]) // sentiment
+          .mockResolvedValueOnce([]); // conversion
         mockFind.mockReturnValue({
           select: jest.fn().mockReturnValue({
             lean: jest.fn().mockResolvedValue([]),
@@ -433,7 +435,8 @@ describe("Property 21: Analytics aggregations match their definitional formulas"
           mockAggregate
             .mockResolvedValueOnce([]) // avg response time
             .mockResolvedValueOnce(intentAggResult) // intent distribution
-            .mockResolvedValueOnce([]); // sentiment
+            .mockResolvedValueOnce([]) // sentiment
+            .mockResolvedValueOnce([]); // conversion
           mockFind.mockReturnValue({
             select: jest.fn().mockReturnValue({
               lean: jest.fn().mockResolvedValue([]),
@@ -511,30 +514,16 @@ describe("Property 21: Analytics aggregations match their definitional formulas"
 
           resetMocks();
           mockCountDocuments.mockResolvedValue(totalAuth);
-          mockAggregate.mockResolvedValue([]);
-
-          // Create mock authenticated conversations
-          const conversations = Array.from({ length: totalAuth }, (_, i) => ({
-            userId: `user_${i}`,
-            messages: [
-              { role: "user", content: "hi", createdAt: new Date() },
-              { role: "assistant", content: "hello", createdAt: new Date() },
-            ],
-            updatedAt: new Date(),
-          }));
-
-          mockFind.mockReturnValue({
-            select: jest.fn().mockReturnValue({
-              lean: jest.fn().mockResolvedValue(conversations),
-            }),
-          });
-
-          // Mock order existence for the first `actualConversions` conversations
-          let orderCheckCount = 0;
-          mockOrderExists.mockImplementation(() => {
-            orderCheckCount++;
-            return Promise.resolve(orderCheckCount <= actualConversions ? { _id: "order1" } : null);
-          });
+          // Aggregate calls: avgResponseTime, intentDistribution, sentimentDistribution, conversion
+          mockAggregate
+            .mockResolvedValueOnce([]) // avg response time
+            .mockResolvedValueOnce([]) // intent distribution
+            .mockResolvedValueOnce([]) // sentiment distribution
+            .mockResolvedValueOnce([{ // conversion rate
+              _id: null,
+              totalAuthenticated: totalAuth,
+              conversionsCount: actualConversions,
+            }]);
 
           const req = createMockReq({
             from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),

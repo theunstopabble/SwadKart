@@ -108,8 +108,10 @@ export async function executeOrderPlacement({
         quantity,
       },
     };
-  } catch {
-    // Catch-all for unexpected errors
+  } catch (err) {
+    if (err.message === "timeout") {
+      return { success: false, reason: "timeout" };
+    }
     return { success: false, reason: "internal_error" };
   }
 }

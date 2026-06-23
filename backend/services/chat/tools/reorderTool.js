@@ -12,6 +12,8 @@ import Order from "../../../models/orderModel.js";
 import Product from "../../../models/productModel.js";
 import User from "../../../models/userModel.js";
 
+
+
 export const toolSchema = {
   type: "function",
   function: {
@@ -40,7 +42,7 @@ export const toolSchema = {
  * @param {string|null} params.userId - Authenticated user ID
  * @returns {Promise<object>} Structured result with reorder status or error
  */
-export async function execute({ userId }) {
+export async function execute({ userId }, { orderQueryTimeoutMs = 3000 } = {}) {
   // Gate 1: Auth check
   if (!userId) {
     return {
@@ -60,7 +62,7 @@ export async function execute({ userId }) {
       .lean();
 
     const orderTimeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), 3000)
+      setTimeout(() => reject(new Error("timeout")), orderQueryTimeoutMs)
     );
 
     const order = await Promise.race([orderQueryPromise, orderTimeoutPromise]);

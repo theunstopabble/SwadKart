@@ -24,10 +24,8 @@ const PastConversationsPanel = ({ isAuthenticated, onSelectConversation, isVisib
 
   const fetchConversations = useCallback((signal) => {
     if (!isAuthenticated) return;
-
     setLoading(true);
     setError(null);
-
     fetch(`${BASEURL}/api/v1/chat/history`, {
       method: "GET",
       credentials: "include",
@@ -45,21 +43,18 @@ const PastConversationsPanel = ({ isAuthenticated, onSelectConversation, isVisib
           setError("Could not load past conversations");
         }
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (isVisible && isAuthenticated) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      fetchConversations(controller.signal);
-      return () => {
-        controller.abort();
-        clearTimeout(timeoutId);
-      };
-    }
+    if (!isVisible || !isAuthenticated) return;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    Promise.resolve().then(() => fetchConversations(controller.signal));
+    return () => {
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
   }, [isVisible, isAuthenticated, fetchConversations]);
 
   if (!isAuthenticated || !isVisible) return null;

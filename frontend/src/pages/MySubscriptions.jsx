@@ -22,7 +22,7 @@ const MySubscriptions = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userInfo) { setLoading(false); return; }
+    if (!userInfo) return;
     fetch(`${BASEURL}/api/v1/subscriptions/my`, { credentials: "include" })
       .then((r) => {
         if (!r.ok) throw new Error("fetch failed");

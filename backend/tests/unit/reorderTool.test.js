@@ -10,6 +10,12 @@ import { jest } from "@jest/globals";
 
 // ─── Mock setup ────────────────────────────────────────────────────────────────
 
+jest.unstable_mockModule("../../models/userModel.js", () => ({
+  default: {
+    findByIdAndUpdate: jest.fn().mockResolvedValue({}),
+  },
+}));
+
 jest.unstable_mockModule("../../models/orderModel.js", () => ({
   default: {
     findOne: jest.fn(),
@@ -38,32 +44,24 @@ jest.unstable_mockModule("mongoose", () => ({
 jest.unstable_mockModule("../../services/chat/orderPlacementTool.js", () => ({
   toolSchema: { type: "function", function: { name: "place_order" } },
   executeOrderPlacement: jest.fn(),
-  Cart: {
-    findOneAndUpdate: jest.fn().mockResolvedValue({ user: "user123", items: [] }),
-  },
 }));
 
 // ─── Import modules after mocks ────────────────────────────────────────────────
 
 const Order = (await import("../../models/orderModel.js")).default;
 const Product = (await import("../../models/productModel.js")).default;
-const mongoose = (await import("mongoose")).default;
-const { Cart } = await import("../../services/chat/orderPlacementTool.js");
+const User = (await import("../../models/userModel.js")).default;
 const { execute } = await import(
   "../../services/chat/tools/reorderTool.js"
 );
+const ORDER_OPTS = { orderQueryTimeoutMs: 100 };
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("reorderTool", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mongoose.startSession.mockResolvedValue(mockSession);
-    mockSession.startTransaction.mockClear();
-    mockSession.commitTransaction.mockClear();
-    mockSession.abortTransaction.mockClear();
-    mockSession.endSession.mockClear();
-    Cart.findOneAndUpdate.mockResolvedValue({ user: "user123", items: [] });
+    User.findByIdAndUpdate.mockResolvedValue({});
   });
 
   /**
@@ -95,7 +93,7 @@ describe("reorderTool", () => {
       return { lean: jest.fn().mockResolvedValue(products[id] || null) };
     });
 
-    const result = await execute({ userId: "user123" });
+    const result = await execute({ userId: "user123" }, ORDER_OPTS);
 
     expect(result.success).toBe(true);
     expect(result.data.addedItems).toHaveLength(3);
@@ -109,11 +107,8 @@ describe("reorderTool", () => {
     // Verify total: (350*2) + (60*4) + (120*1) = 700 + 240 + 120 = 1060
     expect(result.data.totalCartValue).toBe(1060);
 
-    // Verify transaction was used
-    expect(mongoose.startSession).toHaveBeenCalled();
-    expect(mockSession.startTransaction).toHaveBeenCalled();
-    expect(mockSession.commitTransaction).toHaveBeenCalled();
-    expect(mockSession.endSession).toHaveBeenCalled();
+    // Verify cart was written via User.findByIdAndUpdate
+    expect(User.findByIdAndUpdate).toHaveBeenCalled();
   });
 
   /**
@@ -143,14 +138,14 @@ describe("reorderTool", () => {
       return { lean: jest.fn().mockResolvedValue(null) };
     });
 
-    const result = await execute({ userId: "user123" });
+    const result = await execute({ userId: "user123" }, ORDER_OPTS);
 
     expect(result.success).toBe(false);
     expect(result.reason).toBe("no_items_available");
     expect(result.message).toBeDefined();
 
     // No cart write should occur
-    expect(mongoose.startSession).not.toHaveBeenCalled();
+    expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
   /**
@@ -179,7 +174,7 @@ describe("reorderTool", () => {
       return { lean: jest.fn().mockResolvedValue(null) };
     });
 
-    const result = await execute({ userId: "user123" });
+    const result = await execute({ userId: "user123" }, ORDER_OPTS);
 
     expect(result.success).toBe(true);
     expect(result.data.addedItems).toHaveLength(2);
@@ -195,9 +190,8 @@ describe("reorderTool", () => {
     // Verify total: (250*2) + (180*1) = 500 + 180 = 680
     expect(result.data.totalCartValue).toBe(680);
 
-    // Transaction should still be used for the available items
-    expect(mongoose.startSession).toHaveBeenCalled();
-    expect(mockSession.commitTransaction).toHaveBeenCalled();
+    // Cart should be written for the available items
+    expect(User.findByIdAndUpdate).toHaveBeenCalled();
   });
 
   /**
@@ -209,7 +203,7 @@ describe("reorderTool", () => {
     const orderSortMock = jest.fn().mockReturnValue({ lean: orderLeanMock });
     Order.findOne.mockReturnValue({ sort: orderSortMock, lean: orderLeanMock });
 
-    const result = await execute({ userId: "user_no_orders" });
+    const result = await execute({ userId: "user_no_orders" }, ORDER_OPTS);
 
     expect(result.success).toBe(false);
     expect(result.reason).toBe("no_orders");
@@ -217,6 +211,6 @@ describe("reorderTool", () => {
 
     // No product lookups or cart writes should occur
     expect(Product.findById).not.toHaveBeenCalled();
-    expect(mongoose.startSession).not.toHaveBeenCalled();
+    expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 });

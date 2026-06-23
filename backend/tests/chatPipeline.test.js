@@ -344,9 +344,11 @@ describe("chatPipeline", () => {
         choices: [{ message: { content: "I'm sorry", tool_calls: null } }],
       });
 
+      // No existing escalation flag (sticky check returns null)
       mockFindOne.mockReturnValue({
-        select: jest.fn().mockResolvedValue({ escalationFlag: true }),
+        select: jest.fn().mockResolvedValue(null),
       });
+      mockFindOneAndUpdate.mockResolvedValue({ escalationFlag: true });
 
       const result = await runChatPipeline({
         userId: "user1",

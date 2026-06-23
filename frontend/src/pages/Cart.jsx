@@ -104,7 +104,7 @@ const Cart = () => {
     }
 
     return () => abort.abort();
-  }, []);
+  }, [itemsPrice, shippingPrice, taxPrice]);
 
   // --- 5. Handlers ---
 

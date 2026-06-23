@@ -60,10 +60,10 @@ export async function runCleanup() {
 export async function scheduleCleanup() {
   if (intervalId) return;
 
+  intervalId = setInterval(runCleanup, TWENTY_FOUR_HOURS_MS);
+
   // Run immediately on first schedule
   await runCleanup();
-
-  intervalId = setInterval(runCleanup, TWENTY_FOUR_HOURS_MS);
 
   console.log("[CleanupJob] Scheduled to run every 24 hours.");
 }

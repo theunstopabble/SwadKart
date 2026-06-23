@@ -86,7 +86,7 @@ const LiveOrders = ({
 
               {/* 📋 ORDER ITEMS */}
               <div className="space-y-3 mb-6 bg-black/40 p-4 rounded-xl border border-gray-800">
-                {(order.orderItems || []).map((item, idx) => (
+                {(order.orderItems || []).map((item) => (
                   <div
                     key={item._id}
                     className="flex justify-between items-start text-sm"
