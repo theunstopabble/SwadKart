@@ -61,7 +61,7 @@ const MenuManagement = ({
                 }`}
               >
                 <Power size={12} />{" "}
-                {item.countInStock > 0 ? "AVAILABLE" : "SOLD OUT"}
+                {item.countInStock > 0 ? `${item.countInStock} IN STOCK` : "SOLD OUT"}
               </button>
 
               {/* Reorder Buttons (Optional if backend supports it) */}

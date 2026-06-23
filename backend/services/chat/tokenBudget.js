@@ -12,26 +12,19 @@ import { encoding_for_model } from "tiktoken";
 
 const MAX_TOKENS = 6000;
 
-// Lazily initialize the encoder (singleton)
-let encoder = null;
-
-function getEncoder() {
-  if (!encoder) {
-    encoder = encoding_for_model("gpt-4");
-  }
-  return encoder;
-}
-
 /**
  * Count tokens in a string using cl100k_base encoding.
+ * Creates and frees the encoder on each call to avoid WASM memory leaks.
  * @param {string} text - The text to tokenize
  * @returns {number} Token count
  */
 export function countTokens(text) {
   if (!text || typeof text !== "string") return 0;
-  const enc = getEncoder();
-  const tokens = enc.encode(text);
-  return tokens.length;
+  const encoder = encoding_for_model("gpt-4");
+  const tokens = encoder.encode(text);
+  const count = tokens.length;
+  encoder.free();
+  return count;
 }
 
 /**

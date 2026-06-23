@@ -105,11 +105,7 @@ export async function classifyIntent(message, { redis, groq }) {
   const intent = INTENT_SET.includes(rawLabel) ? rawLabel : "unknown";
 
   // Step 4: Cache for 3600s (best-effort, swallow errors)
-  try {
-    redis.setEx(cacheKey, 3600, intent).catch(() => {});
-  } catch {
-    // Swallow Redis cache write errors
-  }
+  redis.setEx(cacheKey, 3600, intent).catch(() => {});
 
   return intent;
 }

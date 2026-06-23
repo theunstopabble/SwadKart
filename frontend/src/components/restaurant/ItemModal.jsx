@@ -17,22 +17,21 @@ const ItemModal = ({
   newItem,
   setNewItem,
   handleSubmitItem,
+  imageMode: imageModeProp,
 }) => {
   const [uploading, setUploading] = useState(false);
   const [imageMode, setImageMode] = useState("url"); // 'url' or 'upload'
 
-  // --- Logic to detect if editing existing item is URL or Uploaded ---
+  // Use imageMode prop if provided; otherwise detect from image URL
   useEffect(() => {
-    if (showModal && newItem.image) {
-      // Agar image hai, aur wo Cloudinary ki nahi hai, to URL mode maan lo
-      // (Waise default URL mode safe rehta hai edit ke time)
-      if (!newItem.image.includes("cloudinary")) {
-        setImageMode("url");
-      } else {
-        setImageMode("upload");
-      }
+    if (imageModeProp) {
+      setImageMode(imageModeProp);
+      return;
     }
-  }, [showModal, newItem.image]);
+    if (showModal && newItem.image) {
+      setImageMode(newItem.image.match(/cloudinary|res\.cloudinary/i) ? "upload" : "url");
+    }
+  }, [showModal, newItem.image, imageModeProp]);
 
   if (!showModal) return null;
 

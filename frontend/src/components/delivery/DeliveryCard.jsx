@@ -27,6 +27,7 @@ const DeliveryCard = ({ order, onAction }) => {
             #{order._id ? order._id.slice(-6) : "------"}
           </h3>
         </div>
+        {/* Status badge — field is deliveryStatus (not status); values: Assigned, Accepted, etc. */}
         <div
           className={`shrink-0 px-3 sm:px-4 py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-widest italic border ${
             order.deliveryStatus === "Assigned"

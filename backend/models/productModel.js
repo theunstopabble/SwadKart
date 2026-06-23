@@ -125,6 +125,8 @@ const productSchema = mongoose.Schema(
 // 🚀 PERFORMANCE FIX (STEP 1): Indexing
 productSchema.index({ restaurant: 1 });
 productSchema.index({ category: 1 });
+productSchema.index({ restaurant: 1, isVeg: 1 });
+productSchema.index({ restaurant: 1, isAvailable: 1 });
 // 🔍 Weighted text index for chatbot RAG retrieval
 productSchema.index(
   { name: "text", tags: "text", category: "text", description: "text" },

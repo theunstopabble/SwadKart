@@ -27,6 +27,7 @@ const emergencySchema = mongoose.Schema(
 
 emergencySchema.index({ driver: 1, status: 1 });
 emergencySchema.index({ status: 1 });
+emergencySchema.index({ location: "2dsphere" });
 
 const Emergency = mongoose.model("Emergency", emergencySchema);
 export default Emergency;

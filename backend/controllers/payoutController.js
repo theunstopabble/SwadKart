@@ -103,6 +103,7 @@ export const requestPayout = asyncHandler(async (req, res) => {
   const periodEnd = pendingOrders[0].createdAt;
   const orderIds = pendingOrders.map((o) => o._id);
 
+  // TODO: use MongoDB transaction
   // Atomically mark orders as processing — only claim pending ones
   const markResult = await Order.updateMany(
     { _id: { $in: orderIds }, payoutStatus: "pending" },

@@ -8,8 +8,12 @@ const OTPSection = ({ orderId, otpValue, onOtpChange, onVerify }) => {
     if (!orderId || !onVerify) return;
     if (!otpValue || otpValue.length !== 4 || !/^\d{4}$/.test(otpValue)) return;
     setVerifying(true);
-    onVerify(orderId);
-    setVerifying(false);
+    const verifyPromise = onVerify(orderId);
+    if (verifyPromise && typeof verifyPromise.then === 'function') {
+      verifyPromise.finally(() => setVerifying(false));
+    } else {
+      setVerifying(false);
+    }
   };
 
   return (

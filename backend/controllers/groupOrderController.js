@@ -2,6 +2,7 @@ import asyncHandler from "express-async-handler";
 import crypto from "crypto";
 import GroupOrder from "../models/groupOrderModel.js";
 import Order from "../models/orderModel.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // @desc    Create a group order
 // @route   POST /api/v1/group-orders
@@ -61,7 +62,7 @@ export const joinGroupOrder = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/group-orders/:id
 // @access  Private (Member or Host)
 export const getGroupOrder = asyncHandler(async (req, res) => {
-  const groupOrder = await GroupOrder.findById(req.params.id)
+  const groupOrder = await GroupOrder.findById(sanitizeObjectId(req.params.id))
     .populate("host", "name")
     .populate("restaurant", "name image")
     .populate("cart.product", "name image price");
@@ -97,7 +98,7 @@ export const addToGroupCart = asyncHandler(async (req, res) => {
     throw new Error("qty must be a positive integer");
   }
 
-  const groupOrder = await GroupOrder.findById(req.params.id);
+  const groupOrder = await GroupOrder.findById(sanitizeObjectId(req.params.id));
   if (!groupOrder) {
     res.status(404);
     throw new Error("Group order not found");
@@ -124,7 +125,7 @@ groupOrder.cart.push({ product: productId, name, price, qty: qty || 1, addedBy: 
 // @route   GET /api/v1/group-orders/:id/split
 // @access  Private (Member)
 export const calculateSplit = asyncHandler(async (req, res) => {
-  const groupOrder = await GroupOrder.findById(req.params.id);
+  const groupOrder = await GroupOrder.findById(sanitizeObjectId(req.params.id));
   if (!groupOrder) {
     res.status(404);
     throw new Error("Group order not found");

@@ -676,9 +676,13 @@ export const updateOrderStatus = async (req, res) => {
 
       // ⏰ FEAT-12: Recalculate ETA when order is Ready and partner assigned
       if (order.deliveryPartner) {
-        const { estimatedDeliveryAt, estimatedMinutes, reason } = recalculateETA(order, "restaurant_ready");
-        order.estimatedDeliveryAt = estimatedDeliveryAt;
-        order.etaUpdates.push({ estimatedMinutes, reason });
+        try {
+          const { estimatedDeliveryAt, estimatedMinutes, reason } = recalculateETA(order, "restaurant_ready");
+          order.estimatedDeliveryAt = estimatedDeliveryAt;
+          order.etaUpdates.push({ estimatedMinutes, reason });
+        } catch (etaErr) {
+          console.error("⚠️ ETA recalculation failed:", etaErr.message);
+        }
       }
     }
 
@@ -859,7 +863,7 @@ export const getSalesStats = async (req, res) => {
 // ❌ CANCEL ORDER & WALLET REFUND LOGIC
 // ==========================================
 export const cancelOrder = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id);
+  const order = await Order.findById(sanitizeObjectId(req.params.id));
 
   if (!order) {
     res.status(404);

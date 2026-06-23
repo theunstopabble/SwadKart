@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChefHat, Bell, BellOff, Clock, Save, Settings } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASEURL } from "../../config";
@@ -10,9 +10,26 @@ const DashboardHeader = ({
   setActiveTab,
 }) => {
   const [showSettings, setShowSettings] = useState(false);
-
-  // Default timings (You can fetch these from backend on load if needed)
   const [timings, setTimings] = useState({ open: "10:00", close: "22:00" });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${BASEURL}/api/v1/restaurants/settings`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.openingTime && data.closingTime) {
+            setTimings({ open: data.openingTime, close: data.closingTime });
+          }
+        }
+      } catch {
+        // keep defaults
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleSaveSettings = async () => {
     try {
@@ -32,7 +49,7 @@ const DashboardHeader = ({
         toast.success("Store Timings Updated! ⏰");
         setShowSettings(false);
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         toast.error(data.message || "Failed to update settings");
       }
     } catch (e) {

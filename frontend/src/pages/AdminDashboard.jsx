@@ -30,6 +30,8 @@ const AdminDashboard = () => {
   const [restaurants, setRestaurants] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
   const [coupons, setCoupons] = useState([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
 
   // --- FETCH ALL DATA ---
   // ADMIN-02 FIX: Per-section error isolation + reduced order limit to prevent Render timeout
@@ -37,67 +39,65 @@ const AdminDashboard = () => {
     if (!userInfo) return;
     const fetchOptions = { credentials: "include" };
 
-    // 1. Restaurants — isolated
-    try {
-      const resRest = await fetch(
-        `${BASEURL}/api/v1/restaurants/admin/all`,
-        fetchOptions,
-      );
-      if (resRest.ok) {
-        const restResponse = await resRest.json();
-        setRestaurants(
-          Array.isArray(restResponse) ? restResponse : restResponse.data || [],
-        );
+    const results = await Promise.allSettled([
+      fetch(`${BASEURL}/api/v1/restaurants/admin/all`, fetchOptions),
+      fetch(`${BASEURL}/api/v1/orders?limit=${limit}&page=${page}`, fetchOptions),
+      fetch(`${BASEURL}/api/v1/users/delivery-partners`, fetchOptions),
+      fetch(`${BASEURL}/api/v1/coupons`, fetchOptions),
+    ]);
+
+    // 1. Restaurants
+    if (results[0].status === "fulfilled") {
+      const res = results[0].value;
+      if (res.ok) {
+        const data = await res.json();
+        setRestaurants(Array.isArray(data) ? data : data.data || []);
       } else {
-        console.warn("Restaurants fetch failed:", resRest.status);
+        console.warn("Restaurants fetch failed:", res.status);
       }
-    } catch (err) {
-      console.error("Restaurants fetch error:", err.message);
+    } else {
+      console.error("Restaurants fetch error:", results[0].reason?.message);
     }
 
-    // 2. Orders — isolated, reduced limit to 50
-    try {
-      const resOrders = await fetch(
-        `${BASEURL}/api/v1/orders?limit=50&page=1`,
-        fetchOptions,
-      );
-      if (resOrders.ok) {
-        const ordersResponse = await resOrders.json();
-        setOrders(ordersResponse.data || ordersResponse);
+    // 2. Orders
+    if (results[1].status === "fulfilled") {
+      const res = results[1].value;
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(Array.isArray(data) ? data : data.data || []);
       } else {
-        console.warn("Orders fetch failed:", resOrders.status);
+        console.warn("Orders fetch failed:", res.status);
       }
-    } catch (err) {
-      console.error("Orders fetch error:", err.message);
+    } else {
+      console.error("Orders fetch error:", results[1].reason?.message);
     }
 
-    // 3. Delivery Partners — isolated
-    try {
-      const resPartners = await fetch(
-        `${BASEURL}/api/v1/users/delivery-partners`,
-        fetchOptions,
-      );
-      if (resPartners.ok) {
-        setDeliveryPartners(await resPartners.json());
+    // 3. Delivery Partners
+    if (results[2].status === "fulfilled") {
+      const res = results[2].value;
+      if (res.ok) {
+        const data = await res.json();
+        setDeliveryPartners(Array.isArray(data) ? data : data.data || []);
       } else {
-        console.warn("Partners fetch failed:", resPartners.status);
+        console.warn("Partners fetch failed:", res.status);
       }
-    } catch (err) {
-      console.error("Partners fetch error:", err.message);
+    } else {
+      console.error("Partners fetch error:", results[2].reason?.message);
     }
 
-    // 4. Coupons — isolated (was using axios which could throw on non-2xx)
-    try {
-      const resCoupons = await fetch(`${BASEURL}/api/v1/coupons`, fetchOptions);
-      if (resCoupons.ok) {
-        setCoupons(await resCoupons.json());
+    // 4. Coupons
+    if (results[3].status === "fulfilled") {
+      const res = results[3].value;
+      if (res.ok) {
+        const data = await res.json();
+        setCoupons(Array.isArray(data) ? data : data.data || []);
       } else {
-        console.warn("Coupons fetch failed:", resCoupons.status);
+        console.warn("Coupons fetch failed:", res.status);
       }
-    } catch (err) {
-      console.error("Coupons fetch error:", err.message);
+    } else {
+      console.error("Coupons fetch error:", results[3].reason?.message);
     }
-  }, [userInfo]);
+  }, [userInfo, page, limit]);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -152,8 +152,8 @@ const AdminDashboard = () => {
         {/* --- RENDER ACTIVE TAB --- */}
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
-            {activeTab === "overview" && <OverviewTab userInfo={userInfo} />}
-            {activeTab === "heatmap" && <HeatmapTab userInfo={userInfo} />}
+            {activeTab === "overview" && <OverviewTab />}
+            {activeTab === "heatmap" && <HeatmapTab />}
 
             {activeTab === "orders" && (
               <OrdersTab
@@ -182,7 +182,6 @@ const AdminDashboard = () => {
 
             {activeTab === "coupons" && (
               <CouponsTab
-                coupons={coupons}
                 userInfo={userInfo}
                 fetchAllData={fetchAllData}
               />

@@ -32,7 +32,7 @@ const restaurantSchema = mongoose.Schema(
       ref: "User",
     },
 
-    reviews: [reviewSchema],
+    reviews: [reviewSchema], // no maxlength cap — embedded array grows unbounded (acceptable for LOW volume)
     rating: { type: Number, required: true, default: 0 },
     numReviews: { type: Number, required: true, default: 0 },
 
@@ -81,6 +81,8 @@ const restaurantSchema = mongoose.Schema(
 restaurantSchema.index({ owner: 1 });
 restaurantSchema.index({ isVerified: 1 });
 restaurantSchema.index({ isActive: 1 });
+restaurantSchema.index({ isActive: 1, isVerified: 1 });
+restaurantSchema.index({ isActive: 1, isOpenNow: 1 });
 restaurantSchema.index({ location: "2dsphere" });
 
 const Restaurant = mongoose.model("Restaurant", restaurantSchema);

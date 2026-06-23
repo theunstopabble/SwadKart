@@ -24,7 +24,7 @@ import { toast } from "react-hot-toast";
 const OverviewTab = () => {
   const { userInfo } = useSelector((state) => state.user);
   const [graphData, setGraphData] = useState([]);
-  const [stats, setStats] = useState({ revenue: 0, orders: 0, restaurants: 0 });
+  const [stats, setStats] = useState({ revenue: 0, orders: 0, restaurants: 0, users: 0 });
   const [adminStats, setAdminStats] = useState(null);
   const [topRestaurants, setTopRestaurants] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
@@ -38,7 +38,7 @@ const OverviewTab = () => {
         };
 
         // ADMIN-07 FIX: Handle graph and stats API failures independently + fix field name mismatch
-        const [resGraph, resStats, resAdmin, resTopRest, resTopProd] = await Promise.all([
+        const results = await Promise.allSettled([
           fetch(`${BASEURL}/api/v1/orders/sales-stats`, config),
           fetch(`${BASEURL}/api/v1/orders/analytics`, config),
           fetch(`${BASEURL}/api/v1/analytics/admin/summary`, config),
@@ -47,8 +47,8 @@ const OverviewTab = () => {
         ]);
 
         // Handle graph independently
-        if (resGraph.ok) {
-          const graphResult = await resGraph.json();
+        if (results[0].status === "fulfilled" && results[0].value.ok) {
+          const graphResult = await results[0].value.json();
           const safeGraph = Array.isArray(graphResult) ? graphResult : [];
           const formatted = safeGraph.map((item) => ({
             day: new Date(item._id).toLocaleDateString("en-IN", {
@@ -58,39 +58,43 @@ const OverviewTab = () => {
           }));
           setGraphData(formatted);
         } else {
-          console.warn("Sales graph API failed:", resGraph.status);
+          console.warn("Sales graph API failed:", results[0].status === "fulfilled" ? results[0].value.status : results[0].reason?.message);
           setGraphData([]);
         }
 
         // Handle stats independently
-        if (resStats.ok) {
-          const statsResult = await resStats.json();
+        if (results[1].status === "fulfilled" && results[1].value.ok) {
+          const statsResult = await results[1].value.json();
           setStats({
-            revenue: statsResult.totalSales || 0, // ADMIN-07 FIX: was stats.revenue, backend sends totalSales
+            revenue: statsResult.totalSales || 0,
             orders: statsResult.totalOrders || 0,
             restaurants: statsResult.totalRestaurants || 0,
             users: statsResult.totalUsers || 0,
           });
         } else {
-          console.warn("Dashboard stats API failed:", resStats.status);
+          console.warn("Dashboard stats API failed:", results[1].status === "fulfilled" ? results[1].value.status : results[1].reason?.message);
         }
 
         // FEAT-24: New admin analytics endpoints
-        if (resAdmin.ok) {
-          const adminData = await resAdmin.json();
+        if (results[2].status === "fulfilled" && results[2].value.ok) {
+          const adminData = await results[2].value.json();
           setAdminStats(adminData);
         } else {
-          console.warn("Admin summary API failed:", resAdmin.status);
+          console.warn("Admin summary API failed:", results[2].status === "fulfilled" ? results[2].value.status : results[2].reason?.message);
         }
 
-        if (resTopRest.ok) {
-          const topRestData = await resTopRest.json();
+        if (results[3].status === "fulfilled" && results[3].value.ok) {
+          const topRestData = await results[3].value.json();
           setTopRestaurants(topRestData.top || []);
+        } else {
+          console.warn("Top restaurants API failed:", results[3].status === "fulfilled" ? results[3].value.status : results[3].reason?.message);
         }
 
-        if (resTopProd.ok) {
-          const topProdData = await resTopProd.json();
+        if (results[4].status === "fulfilled" && results[4].value.ok) {
+          const topProdData = await results[4].value.json();
           setTopProducts(topProdData.top || []);
+        } else {
+          console.warn("Top products API failed:", results[4].status === "fulfilled" ? results[4].value.status : results[4].reason?.message);
         }
       } catch {
         toast.error("Analytics sync failed");
@@ -114,7 +118,6 @@ const OverviewTab = () => {
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* 👆 BAS YE ADD KARNA HAI */}
       {/* 🚀 1. Stats Cards Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Revenue Card */}
@@ -197,7 +200,7 @@ const OverviewTab = () => {
                 <p className="text-gray-500 text-sm">No data yet</p>
               )}
               {topRestaurants.map((r, i) => (
-                <div key={i} className="flex items-center justify-between bg-gray-900 p-3 rounded-xl">
+                <div key={r._id || i} className="flex items-center justify-between bg-gray-900 p-3 rounded-xl">
                   <div className="flex items-center gap-3">
                     <span className="text-primary font-black text-sm w-6">{i + 1}</span>
                     <img src={r.image || "https://placehold.co/40"} alt="" onError={(e) => { e.target.src = "https://placehold.co/40"; }} className="w-8 h-8 rounded-lg object-cover" />
@@ -220,7 +223,7 @@ const OverviewTab = () => {
                 <p className="text-gray-500 text-sm">No data yet</p>
               )}
               {topProducts.map((p, i) => (
-                <div key={i} className="flex items-center justify-between bg-gray-900 p-3 rounded-xl">
+                <div key={p._id || i} className="flex items-center justify-between bg-gray-900 p-3 rounded-xl">
                   <div className="flex items-center gap-3">
                     <span className="text-primary font-black text-sm w-6">{i + 1}</span>
                     <img src={p.image || "https://placehold.co/40"} alt="" onError={(e) => { e.target.src = "https://placehold.co/40"; }} className="w-8 h-8 rounded-lg object-cover" />

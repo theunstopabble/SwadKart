@@ -8,7 +8,7 @@ import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
-import { sanitizeEmail, sanitizePhone } from "../utils/sanitize.js";
+import { sanitizeEmail, sanitizePhone, sanitizeObjectId } from "../utils/sanitize.js";
 
 // =================================================================
 // 👤 1. USER PROFILE OPERATIONS (Self)
@@ -181,7 +181,7 @@ export const getUsers = async (req, res, next) => {
 
 export const updateUserByAdmin = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(sanitizeObjectId(req.params.id));
     if (user) {
       user.name = req.body.name || user.name;
       user.image = req.body.image || user.image;
@@ -213,13 +213,14 @@ export const updateUserByAdmin = async (req, res, next) => {
 
 export const deleteUserByAdmin = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(sanitizeObjectId(req.params.id));
     if (user) {
       if (user.role === "admin") {
         res.status(400);
         throw new Error("Cannot delete Admin");
       }
 
+      // TODO: soft-delete
       // Also delete the associated restaurant profile if it exists
       await Restaurant.findOneAndDelete({ owner: user._id });
       // 🛡️ GDPR FIX: Cascade delete related user data

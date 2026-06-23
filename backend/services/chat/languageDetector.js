@@ -197,10 +197,12 @@ export function detectLanguage(text) {
   scores["Bengali"] = bengaliScore;
 
   // Marathi score: Devanagari chars + Marathi keywords (differentiate from Hindi)
+  // When both Devanagari and Marathi keywords present → full score
+  // When only Devanagari chars (no Marathi keywords) → partial Devanagari score
   scores["Marathi"] =
     devanagariCount > 0 && marathiKeywordCount > 0
       ? devanagariScore * 0.7 + marathiKeywordCount * 1.5
-      : devanagariCount > 0 && marathiKeywordCount > 0
+      : devanagariCount > 0 && marathiKeywordCount === 0
         ? devanagariScore * 0.5
         : 0;
 

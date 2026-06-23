@@ -100,6 +100,14 @@ const conversationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Cap messages array to last 500 entries to prevent unbounded growth
+conversationSchema.pre("save", function (next) {
+  if (this.messages && this.messages.length > 500) {
+    this.messages = this.messages.slice(-500);
+  }
+  next();
+});
+
 // 🚀 INDEXES for performance
 conversationSchema.index({ updatedAt: 1 }); // 90-day cleanup sweep
 conversationSchema.index({ userId: 1, updatedAt: -1 }); // history listing

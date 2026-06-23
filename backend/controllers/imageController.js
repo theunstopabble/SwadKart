@@ -62,12 +62,17 @@ export const generateThumbnail = async (req, res) => {
   if (height) height = Math.max(1, height);
 
   try {
-    // Fetch image (timeout 10s, max 5MB)
+    // Fetch image (timeout 10s, max 5MB, up to 2 redirects)
     const response = await axios.get(url, {
       responseType: "arraybuffer",
       timeout: 10000,
       maxContentLength: 5 * 1024 * 1024,
-      maxRedirects: 0,
+      maxRedirects: 2,
+      beforeRedirect: (redirectedReq) => {
+        if (!isAllowedUrl(redirectedReq.hostname ? `https://${redirectedReq.hostname}` : redirectedReq.protocol + "//" + redirectedReq.host)) {
+          throw new Error("Redirect target not in allowlist");
+        }
+      },
       headers: { "User-Agent": "SwadKart-ThumbnailBot/1.0" },
     });
 

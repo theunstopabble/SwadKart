@@ -40,6 +40,7 @@ const payoutSchema = mongoose.Schema(
 );
 
 payoutSchema.index({ restaurant: 1, status: 1 });
+payoutSchema.index({ owner: 1, status: 1 });
 payoutSchema.index({ createdAt: -1 });
 
 const Payout = mongoose.model("Payout", payoutSchema);

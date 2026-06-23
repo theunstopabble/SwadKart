@@ -126,6 +126,7 @@ export const streamChat = async (req, res) => {
       cartItems: cartItems || [],
       attachments,
       emit,
+      signal: abortController.signal,
     });
   } catch (error) {
     // Pipeline threw — send error event if client is still connected

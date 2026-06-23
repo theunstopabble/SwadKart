@@ -124,9 +124,10 @@ export const sendBulkNotification = asyncHandler(async (req, res) => {
   const allowedRoles = ["user", "admin", "delivery_partner", "restaurant_owner"];
   const roleFilter = (role && allowedRoles.includes(role)) ? role : null;
   const filter = roleFilter ? { role: roleFilter } : {};
-  const users = await User.find(filter).select("_id fcmToken").limit(500).lean();
+  const totalUsers = await User.countDocuments(filter);
 
   const FCM_CONCURRENCY = 50;
+  const PAGE_SIZE = 500;
   const notifications = [];
 
   const sendFCM = async (user, notif) => {
@@ -152,28 +153,36 @@ export const sendBulkNotification = asyncHandler(async (req, res) => {
   };
 
   // Create notifications and batch FCM with concurrency control
-  const fcmBatch = [];
-  for (const user of users) {
-    const notif = await Notification.create({
-      user: user._id,
-      title,
-      body,
-      type,
-      data,
-      sentVia: ["in_app"],
-    });
-    notifications.push(notif._id);
+  for (let page = 0; page * PAGE_SIZE < totalUsers; page++) {
+    const users = await User.find(filter)
+      .select("_id fcmToken")
+      .skip(page * PAGE_SIZE)
+      .limit(PAGE_SIZE)
+      .lean();
 
-    if (user.fcmToken) {
-      fcmBatch.push(sendFCM(user, notif));
+    const fcmBatch = [];
+    for (const user of users) {
+      const notif = await Notification.create({
+        user: user._id,
+        title,
+        body,
+        type,
+        data,
+        sentVia: ["in_app"],
+      });
+      notifications.push(notif._id);
+
+      if (user.fcmToken) {
+        fcmBatch.push(sendFCM(user, notif));
+      }
+
+      if (fcmBatch.length >= FCM_CONCURRENCY) {
+        await Promise.allSettled(fcmBatch.splice(0, FCM_CONCURRENCY));
+      }
     }
 
-    if (fcmBatch.length >= FCM_CONCURRENCY) {
-      await Promise.allSettled(fcmBatch.splice(0, FCM_CONCURRENCY));
-    }
+    await Promise.allSettled(fcmBatch);
   }
-
-  await Promise.allSettled(fcmBatch);
 
   res.status(201).json({
     message: "Bulk notifications sent",

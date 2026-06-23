@@ -22,7 +22,7 @@ const UsersTab = ({ userInfo }) => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASEURL}/api/v1/users/admin/all?limit=1000`, {
+      const res = await fetch(`${BASEURL}/api/v1/users/admin/all?limit=10000`, {
         credentials: "include",
       });
       if (res.ok) {
@@ -61,7 +61,7 @@ const UsersTab = ({ userInfo }) => {
         );
         fetchUsers();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         toast.error(err.message || "Protocol Failure: Role update failed");
       }
     } catch {
@@ -83,7 +83,7 @@ const UsersTab = ({ userInfo }) => {
         toast.success("Identity scrubbed from database");
         setUsers(users.filter((u) => u._id !== id));
       } else {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
         toast.error(error.message || "Scrub failed");
       }
     } catch {
@@ -91,7 +91,7 @@ const UsersTab = ({ userInfo }) => {
     }
   };
 
-  const filteredUsers = users.filter((u) => {
+  const filteredUsers = loading ? [] : users.filter((u) => {
     const matchesSearch =
       u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase());

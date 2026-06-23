@@ -89,7 +89,7 @@ const wrapEmail = (content, title = "Notification") => {
           <p>
             <a href="${FRONTEND_URL}">Visit Website</a> • 
             <a href="mailto:${
-              process.env.SMTP_MAIL || "support@swadkart.com"
+              esc(process.env.SMTP_MAIL || "support@swadkart.com")
             }">Contact Support</a>
           </p>
         </div>
@@ -146,7 +146,7 @@ export const getResetPasswordTemplate = (resetUrl) => {
       <p>We received a request to reset your password. Click the button below to choose a new one.</p>
       
       <div style="margin: 35px 0;">
-        <a href="${resetUrl}" class="btn">Reset Password</a>
+        <a href="${esc(resetUrl)}" class="btn">Reset Password</a>
       </div>
       
       <p style="font-size: 13px; color: #9ca3af;">This link expires in 1 hour. If you didn't ask for this, you can safely ignore this email.</p>
@@ -305,7 +305,7 @@ export const getRestaurantOrderAlertTemplate = (order, restaurantName) => {
     .join("");
 
   const content = `
-    <h2 style="color: ${BRAND_RED}; text-align: center;">🔔 New Order for ${restaurantName}</h2>
+      <h2 style="color: ${BRAND_RED}; text-align: center;">🔔 New Order for ${esc(restaurantName)}</h2>
     
     <div class="card" style="border-left: 4px solid ${BRAND_RED};">
       <div style="display:flex; justify-content:space-between;">

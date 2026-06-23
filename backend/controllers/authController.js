@@ -245,6 +245,7 @@ export const forgotPassword = async (req, res, next) => {
 };
 
 // @desc    Reset Password
+// TODO: Add per-IP rate limiting to prevent brute-force token guessing
 export const resetPassword = async (req, res, next) => {
   try {
     const resetPasswordToken = crypto

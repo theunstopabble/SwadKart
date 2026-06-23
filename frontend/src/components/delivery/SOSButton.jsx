@@ -16,7 +16,13 @@ const SOSButton = () => {
     }
 
     setLoading(true);
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+      toast.error("GPS request timed out. Try again.");
+    }, 20000);
+
     if (!navigator.geolocation) {
+      clearTimeout(safetyTimer);
       toast.error("GPS not supported");
       setLoading(false);
       return;
@@ -24,6 +30,7 @@ const SOSButton = () => {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        clearTimeout(safetyTimer);
         const { latitude, longitude } = position.coords;
 
         try {
@@ -53,6 +60,7 @@ const SOSButton = () => {
         }
       },
       (err) => {
+        clearTimeout(safetyTimer);
         if (err.code === err.TIMEOUT) {
           toast.error("GPS timeout. Try again.");
         } else {

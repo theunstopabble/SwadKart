@@ -18,11 +18,16 @@ import { getSocket } from "../../utils/socket";
 import { optimizeImageUrl } from "../../utils/imageOptimizer";
 
 const ShopsTab = ({ restaurants, fetchAllData }) => {
+  const [loading, setLoading] = useState(true);
   const [showAddShopModal, setShowAddShopModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
   const [showDummyModal, setShowDummyModal] = useState(false);
   const [editingShop, setEditingShop] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    if (restaurants) setLoading(false);
+  }, [restaurants]);
 
   // Form States
   const [newShop, setNewShop] = useState({
@@ -69,7 +74,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
         `${BASEURL}/api/v1/restaurants/${id}/approve`,
         getFetchOptions("PUT"),
       );
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
         toast.success("Merchant Verified: Shop is now LIVE! 🚀");
@@ -103,7 +108,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
         toast.success("Merchant decommissioned successfully");
         if (fetchAllData) fetchAllData();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         toast.error(err.message || "Delete failed");
       }
     } catch {
@@ -126,7 +131,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
         if (fetchAllData) fetchAllData();
         toast.success("Identity Created: Merchant onboarded!");
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         toast.error(err.message || "Failed to create shop");
       }
     } catch {
@@ -152,7 +157,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
         if (fetchAllData) fetchAllData();
         toast.success("Merchant parameters updated! ✨");
       } else {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
         toast.error(errData.message || "Update sequence failed");
       }
     } catch {
@@ -198,8 +203,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
     e.target.src = PLACEHOLDER_IMG;
   };
 
-  // ADMIN-06 FIX: Show loading spinner while restaurant data is still being fetched
-  if (!restaurants || restaurants.length === 0) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <Loader2 className="animate-spin text-primary" size={36} />

@@ -12,6 +12,7 @@ import {
   getAllRestaurantsAdmin,
 } from "../controllers/restaurantController.js";
 import Restaurant from "../models/restaurantModel.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 import { cacheResponse } from "../middleware/cacheMiddleware.js";
@@ -61,7 +62,7 @@ router.put(
   authorizeRoles("admin"),
   async (req, res) => {
     try {
-      const restaurant = await Restaurant.findById(req.params.id);
+      const restaurant = await Restaurant.findById(sanitizeObjectId(req.params.id));
       if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
 
       const { name, image, description, openingTime, closingTime, address, phone } = req.body;
@@ -76,7 +77,7 @@ router.put(
       const updated = await restaurant.save();
       res.json({ message: "Restaurant updated", restaurant: updated });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      next(error);
     }
   }
 );
@@ -88,16 +89,16 @@ router.delete(
   authorizeRoles("admin"),
   async (req, res) => {
     try {
-      const restaurant = await Restaurant.findById(req.params.id);
+      const restaurant = await Restaurant.findById(sanitizeObjectId(req.params.id));
       if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
 
       const Product = (await import("../models/productModel.js")).default;
-      await Product.deleteMany({ restaurant: req.params.id });
+      await Product.deleteMany({ restaurant: sanitizeObjectId(req.params.id) });
 
       await restaurant.deleteOne();
       res.json({ message: "Restaurant and associated menu items deleted" });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      next(error);
     }
   }
 );

@@ -99,18 +99,20 @@ const sendEmailWithProvider = async (options) => {
         timeout: 15000,
       });
 
-      console.log(`✅ [Brevo] Email sent to: ${options.email}`);
+      const redacted = options.email.split("@")[0].slice(0, 2) + "***@" + options.email.split("@")[1];
+      console.log(`✅ [Brevo] Email sent to: ${redacted}`);
       return response.data;
     } catch (brevoErr) {
       const message = brevoErr?.response?.data?.message || brevoErr.message;
-      console.error(`❌ [Brevo] Failed to send to ${options.email}:`, message);
+      const redactedEmail = options.email.split("@")[0].slice(0, 2) + "***@" + options.email.split("@")[1];
+      console.error(`❌ [Brevo] Failed to send to ${redactedEmail}:`, message);
 
       // If no SMTP fallback is configured, rethrow the Brevo error
       if (!process.env.SMTP_HOST || !process.env.SMTP_PASSWORD) {
         throw brevoErr;
       }
 
-      console.log(`🔄 [Email] Falling back to SMTP for ${options.email}`);
+      console.log(`🔄 [Email] Falling back to SMTP for ${redactedEmail}`);
     }
   }
 
@@ -144,6 +146,8 @@ const sendEmailWithProvider = async (options) => {
       tls: {
         rejectUnauthorized: process.env.NODE_ENV === "production",
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
     });
 
     const info = await transporter.sendMail({
@@ -153,7 +157,8 @@ const sendEmailWithProvider = async (options) => {
       html: htmlContent,
     });
 
-    console.log(`✅ [SMTP] Email sent to: ${options.email} | ${info.messageId}`);
+    const redacted = options.email.split("@")[0].slice(0, 2) + "***@" + options.email.split("@")[1];
+    console.log(`✅ [SMTP] Email sent to: ${redacted} | ${info.messageId}`);
     return info;
   }
 

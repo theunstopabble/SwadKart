@@ -141,6 +141,10 @@ userSchema.pre("save", async function () {
     if (this.walletTransactions && this.walletTransactions.length > 100) {
       this.walletTransactions = this.walletTransactions.slice(-100);
     }
+    // Cap badges array to last 50 entries to prevent unbounded growth
+    if (this.badges && this.badges.length > 50) {
+      this.badges = this.badges.slice(-50);
+    }
   } catch (error) {
     throw new Error(error);
   }
@@ -191,6 +195,8 @@ userSchema.post("save", function (doc) {
 // 🚀 PERFORMANCE FIX (STEP 1): Indexing
 // Email index is auto-created by unique: true in schema definition above
 userSchema.index({ role: 1 });
+userSchema.index({ otpExpires: 1 }, { expireAfterSeconds: 0 });
+userSchema.index({ resetPasswordExpire: 1 }, { expireAfterSeconds: 0 });
 
 // 🛰️ GEOSPATIAL FIX (STEP 1): 2dsphere index for location queries
 userSchema.index({ currentLocation: "2dsphere" });

@@ -17,7 +17,8 @@ const isProduction = process.env.NODE_ENV === "production";
  */
 const sendEmail = async (options) => {
   const envLabel = isProduction ? "PROD" : "DEV";
-  console.log(`📧 [${envLabel}] Sending email to: ${options.email} | ${options.subject}`);
+  const redacted = options.email.split("@")[0].slice(0, 2) + "***@" + options.email.split("@")[1];
+  console.log(`📧 [${envLabel}] Sending email to: ${redacted} | ${options.subject}`);
 
   try {
     const { default: sendEmailWithProvider } = await import("./emailProvider.js");

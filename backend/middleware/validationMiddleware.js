@@ -55,7 +55,7 @@ const validators = {
 
 export const validate = (schema) => {
   if (!validators[schema]) {
-    throw new Error(`Unknown validation schema: ${schema}`);
+    return (req, res) => res.status(500).json({ message: "Unknown validation schema" });
   }
   return (req, res, next) => {
     const errors = validators[schema](req.body);

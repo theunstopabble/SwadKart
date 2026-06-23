@@ -60,7 +60,7 @@ const subscriptionSchema = new mongoose.Schema(
           default: "scheduled",
         },
         deliveredAt: { type: Date },
-        otp: { type: String },
+        otp: { type: String }, // TODO: hash before storing — do NOT store plain text
         rider: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       },
     ],

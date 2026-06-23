@@ -9,6 +9,7 @@ import { optimizeImageUrl } from "../../utils/imageOptimizer";
 const MenuTab = ({ restaurants }) => {
   const [selectedRestaurant, setSelectedRestaurant] = useState("");
   const [menuItems, setMenuItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editItemId, setEditItemId] = useState(null);
@@ -40,6 +41,7 @@ const MenuTab = ({ restaurants }) => {
   // --- Fetch Menu ---
   const fetchMenu = async () => {
     if (!selectedRestaurant) return;
+    setIsLoading(true);
     try {
       // Backend Owner ID se menu fetch kar lega
       const res = await fetch(
@@ -50,6 +52,8 @@ const MenuTab = ({ restaurants }) => {
       setMenuItems(Array.isArray(data) ? data : []);
     } catch {
       toast.error("Sync error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -131,7 +135,7 @@ const MenuTab = ({ restaurants }) => {
       fetchMenu();
       toast.success("Menu Synchronized! 🍔");
     } else {
-      const err = await res.json();
+      const err = await res.json().catch(() => ({}));
       // Error message example: "No Restaurant found for this owner"
       toast.error(err.message || "Operation Failed");
     }

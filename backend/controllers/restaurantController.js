@@ -83,7 +83,7 @@ const getAllRestaurantsAdmin = async (req, res) => {
 // @route   GET /api/v1/restaurants/:id
 const getRestaurantById = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(req.params.id).populate(
+    const restaurant = await Restaurant.findById(sanitizeObjectId(req.params.id)).populate(
       "owner",
       "name email"
     );

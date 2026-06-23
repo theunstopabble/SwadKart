@@ -2,7 +2,8 @@ import asyncHandler from "express-async-handler";
 import Order from "../models/orderModel.js";
 import User from "../models/userModel.js";
 
-// In-memory surge config (can be moved to DB model later)
+// In-memory surge config
+// TODO: Persist surge config to DB so it survives restarts
 let surgeConfig = {
   enabled: true,
   baseDeliveryFee: 40,

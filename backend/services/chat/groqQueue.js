@@ -12,7 +12,17 @@
  *   chat:groq:queue                — LIST of serialized queued items
  */
 
+import crypto from "crypto";
 import cacheClient from "../../config/redis.js";
+
+const REDIS_TIMEOUT_MS = 500;
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("redis_timeout")), ms)),
+  ]);
+}
 
 const RPM_CAP = 27;
 const QUEUE_CAP = 100;
@@ -65,16 +75,16 @@ function refreshInMemoryMinute() {
 }
 
 /**
- * Try to increment the RPM counter in Redis.
+ * Try to increment the RPM counter in Redis atomically.
  * Returns the new count, or null if Redis is unavailable.
  */
 async function tryIncrementRedis() {
   try {
     const key = getRpmRedisKey();
-    // Use a simple get/set pattern compatible with the existing redis client proxy
-    const current = await cacheClient.get(key);
-    const count = current ? parseInt(current, 10) + 1 : 1;
-    await cacheClient.setEx(key, COUNTER_TTL_SECONDS, String(count));
+    const count = await withTimeout(cacheClient.incr(key), REDIS_TIMEOUT_MS);
+    if (count === 1) {
+      await withTimeout(cacheClient.expire(key, COUNTER_TTL_SECONDS), REDIS_TIMEOUT_MS);
+    }
     return count;
   } catch {
     return null;
@@ -88,7 +98,7 @@ async function tryIncrementRedis() {
 async function getCurrentRpmCount() {
   try {
     const key = getRpmRedisKey();
-    const current = await cacheClient.get(key);
+    const current = await withTimeout(cacheClient.get(key), REDIS_TIMEOUT_MS);
     return current ? parseInt(current, 10) : 0;
   } catch {
     return null;
@@ -101,16 +111,13 @@ async function getCurrentRpmCount() {
  */
 async function enqueueRedis(item) {
   try {
-    // Check queue length — use a stored counter since the basic redis client
-    // may not support LLEN directly. We store serialized items as a JSON list value.
-    const raw = await cacheClient.get(QUEUE_KEY);
+    const raw = await withTimeout(cacheClient.get(QUEUE_KEY), REDIS_TIMEOUT_MS);
     const queue = raw ? JSON.parse(raw) : [];
     if (queue.length >= QUEUE_CAP) {
       return false;
     }
     queue.push(item);
-    // No TTL on the queue key itself; items self-expire via deadline
-    await cacheClient.setEx(QUEUE_KEY, 120, JSON.stringify(queue));
+    await withTimeout(cacheClient.setEx(QUEUE_KEY, 300, JSON.stringify(queue)), REDIS_TIMEOUT_MS);
     return true;
   } catch {
     return false;
@@ -123,15 +130,15 @@ async function enqueueRedis(item) {
  */
 async function dequeueRedis() {
   try {
-    const raw = await cacheClient.get(QUEUE_KEY);
+    const raw = await withTimeout(cacheClient.get(QUEUE_KEY), REDIS_TIMEOUT_MS);
     if (!raw) return null;
     const queue = JSON.parse(raw);
     if (queue.length === 0) return null;
     const item = queue.shift();
     if (queue.length > 0) {
-      await cacheClient.setEx(QUEUE_KEY, 120, JSON.stringify(queue));
+      await withTimeout(cacheClient.setEx(QUEUE_KEY, 300, JSON.stringify(queue)), REDIS_TIMEOUT_MS);
     } else {
-      await cacheClient.del(QUEUE_KEY);
+      await withTimeout(cacheClient.del(QUEUE_KEY), REDIS_TIMEOUT_MS);
     }
     return item;
   } catch {
@@ -156,6 +163,13 @@ async function drainQueue() {
     const item = await dequeueRedis();
     if (!item) break;
 
+    // Guard against timer already having processed this ID
+    if (processedIds.has(item.id)) {
+      processedIds.delete(item.id);
+      continue;
+    }
+    processedIds.add(item.id);
+
     // Check deadline
     const elapsed = Date.now() - item.enqueueTs;
     if (elapsed >= DEADLINE_MS) {
@@ -165,6 +179,7 @@ async function drainQueue() {
       if (pendingCallbacks.has(item.id)) {
         const { resolve } = pendingCallbacks.get(item.id);
         pendingCallbacks.delete(item.id);
+        processedIds.delete(item.id);
         resolve({ fallback: true, reason: "deadline_exceeded" });
       }
       continue;
@@ -174,6 +189,7 @@ async function drainQueue() {
     if (pendingCallbacks.has(item.id)) {
       const { resolve, reject, fn } = pendingCallbacks.get(item.id);
       pendingCallbacks.delete(item.id);
+      processedIds.delete(item.id);
       await tryIncrementRedis();
       available--;
       try {
@@ -183,8 +199,6 @@ async function drainQueue() {
         reject(err);
       }
     }
-
-    available--;
   }
 }
 
@@ -197,9 +211,18 @@ function drainInMemoryQueue() {
 
   while (available > 0 && inMemoryState.queue.length > 0) {
     const item = inMemoryState.queue.shift();
+    const id = item._id;
+
+    if (id && processedIds.has(id)) {
+      processedIds.delete(id);
+      continue;
+    }
+    if (id) processedIds.add(id);
+
     const elapsed = Date.now() - item.enqueueTs;
 
     if (elapsed >= DEADLINE_MS) {
+      if (id) processedIds.delete(id);
       item.resolve({ fallback: true, reason: "deadline_exceeded" });
       continue;
     }
@@ -216,9 +239,14 @@ function drainInMemoryQueue() {
 /**
  * Map of pending callbacks for queued Redis items.
  * Key: unique item ID, Value: { resolve, reject, fn }
+ * Growth is bounded by QUEUE_CAP (100) — safe from unbounded memory growth.
  */
 const pendingCallbacks = new Map();
-let callbackIdCounter = 0;
+
+/**
+ * Set of already-processed item IDs to guard against timer/queue race conditions.
+ */
+const processedIds = new Set();
 
 /**
  * Execute a Groq call through the rate-limited queue.
@@ -239,12 +267,12 @@ export async function callGroq(fn) {
       await tryIncrementRedis();
       const result = await fn();
       // Try to drain queue after successful execution
-      drainQueue().catch(() => {});
+      drainQueue().catch((e) => console.error("groqQueue drain failed:", e.message));
       return result;
     }
 
     // Over budget — enqueue
-    const id = `q_${++callbackIdCounter}_${Date.now()}`;
+    const id = `q_${crypto.randomUUID()}`;
     const item = { id, enqueueTs: Date.now() };
 
     return new Promise((resolve, reject) => {
@@ -259,8 +287,13 @@ export async function callGroq(fn) {
 
       // Set a deadline timeout
       setTimeout(() => {
+        if (processedIds.has(id)) {
+          processedIds.delete(id);
+          return;
+        }
         if (pendingCallbacks.has(id)) {
           pendingCallbacks.delete(id);
+          processedIds.add(id);
           resolve({ fallback: true, reason: "deadline_exceeded" });
         }
       }, DEADLINE_MS);
@@ -289,10 +322,17 @@ export async function callGroq(fn) {
     inMemoryState.queue.push(item);
 
     // Set a deadline timeout
+    const inMemId = `mem_${crypto.randomUUID()}`;
+    item._id = inMemId;
     setTimeout(() => {
+      if (processedIds.has(inMemId)) {
+        processedIds.delete(inMemId);
+        return;
+      }
       const idx = inMemoryState.queue.indexOf(item);
       if (idx !== -1) {
         inMemoryState.queue.splice(idx, 1);
+        processedIds.add(inMemId);
         resolve({ fallback: true, reason: "deadline_exceeded" });
       }
     }, DEADLINE_MS);
@@ -313,6 +353,6 @@ export const _internals = {
     inMemoryState.count = 0;
     inMemoryState.queue = [];
     pendingCallbacks.clear();
-    callbackIdCounter = 0;
+    processedIds.clear();
   },
 };

@@ -65,7 +65,11 @@ import gdprRoutes from "./routes/gdprRoutes.js";
 // ============================================================
 function validateEnv() {
   const isProduction = process.env.NODE_ENV === "production";
-  const requiredVars = ["JWT_SECRET", "MONGO_URI"];
+  const requiredVars = [
+    "JWT_SECRET",
+    "MONGO_URI",
+    ...(isProduction ? ["RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET", "COOKIE_SECRET"] : []),
+  ];
 
   const missing = requiredVars.filter((v) => !process.env[v]);
   if (missing.length > 0) {
@@ -105,7 +109,7 @@ app.set("trust proxy", 1);
 
 // --- 📏 Body Parser Limits (prevent DoS) ---
 // 🛡️ Razorpay webhook needs RAW body (must be BEFORE express.json())
-app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
+app.use("/api/v1/payment/webhook", express.raw({ type: "application/json", limit: "10kb" }));
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
@@ -161,6 +165,11 @@ io.use((socket, next) => {
 
     if (!token) {
       console.warn("🚫 Socket Access Denied: No Token");
+      return next(new Error("Authentication error"));
+    }
+
+    if (token.length > 1000) {
+      console.warn("🚫 Socket Access Denied: Token too long");
       return next(new Error("Authentication error"));
     }
 
@@ -232,7 +241,7 @@ io.on("connection", (socket) => {
       Order.updateOne(
         { _id: orderId },
         { $set: { driverLocation: locationData } },
-      ).catch((e) => console.error("Driver location DB update failed:", e.message));
+      ).catch((e) => console.error(`[server] Driver location DB update failed for order ${orderId}:`, e.message));
 
       // Fire-and-forget is intentional — socket handler must not block
 
@@ -312,18 +321,13 @@ const csrfProtection = (req, res, next) => {
     return next();
   }
 
-  const origin = req.headers.origin;
-  const referer = req.headers.referer;
-
-  const isValidOrigin = origin && allowedOrigins.includes(origin);
-  const isValidReferer =
-    referer && allowedOrigins.some((o) => referer.startsWith(o));
-
-  if (!isValidOrigin && !isValidReferer) {
-    console.error("🚫 CSRF Attack Blocked from:", origin || referer);
+  // Require custom header for cookie-authenticated requests (protection against
+  // cross-origin form submission — browsers cannot set X-Requested-With cross-origin)
+  if (!req.headers["x-requested-with"]) {
+    console.error("🚫 CSRF Blocked: Missing X-Requested-With header");
     return res
       .status(403)
-      .json({ message: "CSRF Blocked: Unauthorized Request Origin" });
+      .json({ message: "CSRF Blocked: Missing required header" });
   }
 
   next();
@@ -353,7 +357,7 @@ app.use(
 // --- 🚦 2. Rate Limiting ---
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 200,
   message: "Too many requests from this IP, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
@@ -373,6 +377,7 @@ app.use("/api/v1/users/verify-email", authLimiter);
 app.use("/api/v1/users/login", authLimiter);
 app.use("/api/v1/users/register", authLimiter);
 app.use("/api/v1/users/password/forgot", authLimiter);
+app.use("/api/v1/users/password/reset", authLimiter);
 
 // 🛡️ Contact support rate limiter (prevent spam)
 const contactLimiter = rateLimit({
@@ -405,7 +410,15 @@ app.get("/ping", (req, res) => {
 });
 
 // 🏥 Health Check Endpoint (for uptime monitoring & load balancers)
-app.get("/health", async (req, res) => {
+const healthLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: "Too many health checks",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.get("/health", healthLimiter, async (req, res) => {
   const mongoReady = mongoose.connection.readyState === 1;
   let redisReady = true;
   try {

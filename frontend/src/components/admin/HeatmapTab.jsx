@@ -15,7 +15,8 @@ const HeatmapLayer = ({ points }) => {
     if (!points || points.length === 0) return;
 
     // Convert data to Leaflet heat format: [lat, lng, intensity]
-    const heatPoints = points.map((p) => [p.lat, p.lng, p.weight || 0.5]);
+    const valid = points.filter(p => p.lat && p.lng && isFinite(p.lat) && isFinite(p.lng));
+    const heatPoints = valid.map((p) => [p.lat, p.lng, p.weight || 0.5]);
 
     const heat = L.heatLayer(heatPoints, {
       radius: 25,
@@ -32,7 +33,7 @@ const HeatmapLayer = ({ points }) => {
   return null;
 };
 
-const HeatmapTab = ({ userInfo }) => {
+const HeatmapTab = () => {
   const [heatmapData, setHeatmapData] = useState([]);
   const [loading, setLoading] = useState(true);
 

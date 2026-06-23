@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -55,13 +55,19 @@ const DeliveryPartnerDashboard = () => {
     }
   }, [userInfo]);
 
+  const fetchRef = useRef(fetchMyDeliveries);
+
+  useEffect(() => {
+    fetchRef.current = fetchMyDeliveries;
+  }, [fetchMyDeliveries]);
+
   useEffect(() => {
     if (!userInfo) {
       navigate("/login");
       return;
     }
 
-    fetchMyDeliveries();
+    fetchRef.current();
 
     const socket = getSocket();
 
@@ -76,7 +82,7 @@ const DeliveryPartnerDashboard = () => {
           border: "1px solid #3b82f6",
         },
       });
-      fetchMyDeliveries();
+      fetchRef.current();
     };
     socket.on("orderAssigned", handleOrderAssigned);
 
@@ -84,7 +90,7 @@ const DeliveryPartnerDashboard = () => {
       socket.off("orderAssigned", handleOrderAssigned);
       // Intentionally not calling disconnectSocket here since it's a shared singleton
     };
-  }, [userInfo, navigate, fetchMyDeliveries]);
+  }, [userInfo, navigate]);
 
   // --- Handlers ---
   const handleDeliveryAction = async (id, action) => {
@@ -118,7 +124,7 @@ const DeliveryPartnerDashboard = () => {
 
   const markAsDelivered = async (id) => {
     const otp = otpInputs[id];
-    if (!otp || otp.toString().length !== 4)
+    if (!otp || String(otp || "").length !== 4)
       return toast.error("Enter valid 4-digit OTP");
 
     try {

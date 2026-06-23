@@ -3,7 +3,14 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const isProduction = process.env.NODE_ENV === "production";
+const IN_MEMORY_MAX = 1000;
 const inMemoryCache = new Map();
+
+function evictLRU() {
+  if (inMemoryCache.size < IN_MEMORY_MAX) return;
+  const oldest = inMemoryCache.keys().next().value;
+  if (oldest) inMemoryCache.delete(oldest);
+}
 
 // In-memory fallback for local dev
 const inMemoryClient = {
@@ -17,11 +24,16 @@ const inMemoryClient = {
     return entry.value;
   },
   setEx: async (key, ttl, value) => {
+    evictLRU();
     inMemoryCache.set(key, { value, expire: Date.now() + ttl * 1000 });
   },
   del: async (key) => {
     inMemoryCache.delete(key);
   },
+  incr: async () => { throw new Error("in-memory does not support incr"); },
+  expire: async () => {},
+  sadd: async () => {},
+  smembers: async () => [],
   on: () => {},
   connect: async () => {},
   ping: async () => "PONG",

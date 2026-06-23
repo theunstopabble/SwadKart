@@ -53,7 +53,7 @@ const OrdersTab = ({ orders, deliveryPartners, fetchAllData }) => {
         toast.success("Pilot assigned to mission! 🚀");
         fetchAllData();
       } else {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
         toast.error(error.message || "Assignment failed");
       }
     } catch {
@@ -156,7 +156,7 @@ const OrdersTab = ({ orders, deliveryPartners, fetchAllData }) => {
                           value={selectedPartner[o._id] || ""}
                         >
                           <option value="">Scan Drivers</option>
-                          {deliveryPartners
+                          {[...deliveryPartners]
                             .sort((a, b) => {
                               if (a.isAvailable !== b.isAvailable) return a.isAvailable ? -1 : 1;
                               return a.name.localeCompare(b.name);

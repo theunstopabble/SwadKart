@@ -9,12 +9,8 @@ import mongoose from "mongoose";
 export const sanitizeString = (input) => {
   if (typeof input !== "string") return "";
   const sanitized = input.trim();
-  const dangerousPatterns = ['$where', '$function', '$accumulator', '$expr', '$jsonSchema', '$text', '$meta', '$mod'];
-  for (const pattern of dangerousPatterns) {
-    if (sanitized.startsWith(pattern) && /\s/.test(sanitized.slice(pattern.length).charAt(0))) {
-      return "";
-    }
-  }
+  // Block any string starting with a MongoDB operator ($ prefixed)
+  if (/^\$/.test(sanitized)) return "";
   return sanitized;
 };
 

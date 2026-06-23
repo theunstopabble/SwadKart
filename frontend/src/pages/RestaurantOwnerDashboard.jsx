@@ -70,11 +70,12 @@ const RestaurantOwnerDashboard = () => {
 
   // ✅ Wrap getFetchOptions in useCallback
   const getFetchOptions = useCallback(
-    (method = "GET", body = null) => ({
+    (method = "GET", body = null, extraHeaders = {}) => ({
       method,
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
+        ...extraHeaders,
       },
       body: body ? JSON.stringify(body) : null,
     }),
@@ -111,15 +112,18 @@ const RestaurantOwnerDashboard = () => {
         ),
         safeJson(
           fetch(
-            `${BASEURL}/api/v1/products/restaurant/${userInfo._id}`,
-            getFetchOptions(),
+            `${BASEURL}/api/v1/products/restaurant`,
+            getFetchOptions("GET", null, { 'x-restaurant-id': userInfo._id }),
           ),
         ),
         safeJson(
           fetch(`${BASEURL}/api/v1/users/delivery-partners`, getFetchOptions()),
         ),
         safeJson(
-          fetch(`${BASEURL}/api/v1/orders/sales-stats`, getFetchOptions()),
+          fetch(
+            `${BASEURL}/api/v1/orders/sales-stats`,
+            getFetchOptions("GET", null, { 'x-restaurant-id': userInfo._id }),
+          ),
         ),
       ]);
 
@@ -135,10 +139,10 @@ const RestaurantOwnerDashboard = () => {
 
       setGraphData(
         safeGraph.map((i) => ({
-          day: new Date(i._id).toLocaleDateString("en-US", {
-            weekday: "short",
-          }),
-          sales: i.sales,
+          day: i._id && !isNaN(new Date(i._id).getTime())
+            ? new Date(i._id).toLocaleDateString("en-US", { weekday: "short" })
+            : "N/A",
+          sales: i.sales || 0,
         })),
       );
 
@@ -264,18 +268,23 @@ const RestaurantOwnerDashboard = () => {
         ? `${BASEURL}/api/v1/products/${editId}`
         : `${BASEURL}/api/v1/products`;
 
+      const safePrice = (val) => {
+        const n = parseFloat(val);
+        return isNaN(n) ? 0 : n;
+      };
+
       const payload = {
         ...newItem,
-        price: Number(newItem.price),
+        price: safePrice(newItem.price),
         isVeg: newItem.isVeg === "true",
         restaurantId: userInfo._id,
         variants: (newItem.variants || []).map((v) => ({
           ...v,
-          price: Number(v.price),
+          price: safePrice(v.price),
         })),
         addons: (newItem.addons || []).map((a) => ({
           ...a,
-          price: Number(a.price),
+          price: safePrice(a.price),
         })),
       };
 

@@ -186,6 +186,8 @@ orderSchema.index({ user: 1 });
 orderSchema.index({ "orderItems.restaurant": 1 });
 orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ createdAt: -1 });
+orderSchema.index({ deliveryPartner: 1, deliveryStatus: 1 });
+orderSchema.index({ isPaid: 1, createdAt: -1 });
 
 const Order = mongoose.model("Order", orderSchema);
 export default Order;

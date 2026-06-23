@@ -43,6 +43,9 @@ const CouponsTab = ({ fetchAllData }) => {
 
   useEffect(() => {
     fetchCoupons();
+    const onFocus = () => { fetchCoupons(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, []);
 
   const handleCouponSubmit = async (e) => {
@@ -156,7 +159,7 @@ const CouponsTab = ({ fetchAllData }) => {
       fetchCoupons();
       if (fetchAllData) fetchAllData();
     } catch {
-      // Silent fail or toast
+      toast.error("Toggle failed");
     }
   };
 
@@ -352,7 +355,7 @@ const CouponsTab = ({ fetchAllData }) => {
                   <div className="bg-black p-6 rounded-[2rem] border-2 border-gray-900 flex flex-col items-center justify-center min-w-[110px] group-hover:border-primary transition-all">
                     {/* Displaying correct field: discountPercentage */}
                     <span className="text-3xl font-black text-primary italic tracking-tighter">
-                      {coupon.discountPercentage}%
+                      {coupon.discountPercentage ?? 0}%
                     </span>
                     <span className="text-[8px] font-black text-gray-600 uppercase tracking-[0.4em] mt-1">
                       REDUCTION

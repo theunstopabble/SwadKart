@@ -88,7 +88,7 @@ const LiveOrders = ({
               <div className="space-y-3 mb-6 bg-black/40 p-4 rounded-xl border border-gray-800">
                 {(order.orderItems || []).map((item, idx) => (
                   <div
-                    key={item._id || item.name || idx}
+                    key={item._id}
                     className="flex justify-between items-start text-sm"
                   >
                     <div>
@@ -96,7 +96,7 @@ const LiveOrders = ({
                         {item.qty}x {item.name}
                       </span>
                       {/* Variant */}
-                      {item.selectedVariant && (
+                      {item.selectedVariant?.name && (
                         <div className="text-[10px] text-gray-400 uppercase tracking-wide">
                           Size: {item.selectedVariant.name}
                         </div>

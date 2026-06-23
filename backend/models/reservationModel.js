@@ -19,11 +19,18 @@ const reservationSchema = new mongoose.Schema(
     specialRequests: { type: String, default: "" },
     qrCode: { type: String }, // Data URI or Cloudinary URL
     checkedInAt: { type: Date, default: null },
+    tableNumber: { type: Number, default: 1 },
   },
   { timestamps: true },
 );
 
-// Compound unique index: prevent double booking same time slot
-reservationSchema.index({ restaurant: 1, date: 1, time: 1 }, { unique: true });
+// Index for looking up reservations by user
+reservationSchema.index({ user: 1 });
+
+// Compound unique index: prevent double booking the same table at the same slot
+reservationSchema.index(
+  { restaurant: 1, date: 1, time: 1, tableNumber: 1 },
+  { unique: true },
+);
 
 export default mongoose.model("Reservation", reservationSchema);

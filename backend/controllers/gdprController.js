@@ -11,10 +11,10 @@ export const exportUserData = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
   const [user, orders, couponUsages, reservations] = await Promise.all([
-    User.findById(userId).select("-password -refreshToken").lean(),
-    Order.find({ user: userId }).lean(),
-    CouponUsage.find({ user: userId }).populate("coupon", "code discountPercentage").lean(),
-    Reservation.find({ user: userId }).lean(),
+    User.findById(userId).select("name email phone").lean(),
+    Order.find({ user: userId }).select("orderStatus items totalPrice createdAt deliveryAddress").lean(),
+    CouponUsage.find({ user: userId }).populate("coupon", "code discountPercentage").select("coupon usedAt").lean(),
+    Reservation.find({ user: userId }).select("date time guests status createdAt").lean(),
   ]);
 
   const exportPackage = {

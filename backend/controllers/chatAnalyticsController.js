@@ -137,45 +137,83 @@ export const getChatbotAnalytics = async (req, res) => {
       : { negative: 0, neutral: 0, positive: 0 };
 
     // ─── Conversion rate ───────────────────────────────────────────
-    // Conversations with authenticated users in the date range
-    const authenticatedConversations = await Conversation.find({
-      createdAt: { $gte: from, $lte: to },
-      userId: { $ne: null },
-    })
-      .select("userId messages updatedAt")
-      .lean();
+    // Use a single aggregation with $lookup to batch the queries
+    const conversionAgg = await Conversation.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: from, $lte: to },
+          userId: { $ne: null },
+        },
+      },
+      {
+        $addFields: {
+          lastAssistantTime: {
+            $let: {
+              vars: {
+                assistantMsgs: {
+                  $filter: {
+                    input: "$messages",
+                    as: "m",
+                    cond: { $eq: ["$$m.role", "assistant"] },
+                  },
+                },
+              },
+              in: {
+                $ifNull: [
+                  { $arrayElemAt: ["$$assistantMsgs.createdAt", -1] },
+                  null,
+                ],
+              },
+            },
+          },
+        },
+      },
+      { $match: { lastAssistantTime: { $ne: null } } },
+      {
+        $lookup: {
+          from: "orders",
+          let: { userId: "$userId", lastTime: "$lastAssistantTime" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$user", "$$userId"] },
+                    { $gte: ["$createdAt", "$$lastTime"] },
+                    {
+                      $lte: [
+                        "$createdAt",
+                        {
+                          $add: ["$$lastTime", 24 * 60 * 60 * 1000],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+          ],
+          as: "matchingOrders",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalAuthenticated: { $sum: 1 },
+          conversionsCount: {
+            $sum: {
+              $cond: [{ $gt: [{ $size: "$matchingOrders" }, 0] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
 
-    let conversionsCount = 0;
-    const totalAuthenticated = authenticatedConversations.length;
-
-    if (totalAuthenticated > 0) {
-      // For each authenticated conversation, check if the user placed an order
-      // within 24 hours of the conversation's last assistant message
-      for (const conv of authenticatedConversations) {
-        // Find the last assistant message timestamp
-        const assistantMessages = (conv.messages || []).filter(
-          (m) => m.role === "assistant"
-        );
-        if (assistantMessages.length === 0) continue;
-
-        const lastAssistantTime = new Date(
-          assistantMessages[assistantMessages.length - 1].createdAt
-        );
-        const windowEnd = new Date(
-          lastAssistantTime.getTime() + 24 * 60 * 60 * 1000
-        );
-
-        // Check if an order was placed in that window
-        const orderExists = await Order.exists({
-          user: conv.userId,
-          createdAt: { $gte: lastAssistantTime, $lte: windowEnd },
-        });
-
-        if (orderExists) {
-          conversionsCount++;
-        }
-      }
-    }
+    const totalAuthenticated =
+      conversionAgg.length > 0 ? conversionAgg[0].totalAuthenticated : 0;
+    const conversionsCount =
+      conversionAgg.length > 0 ? conversionAgg[0].conversionsCount : 0;
 
     const conversionRate =
       totalAuthenticated > 0

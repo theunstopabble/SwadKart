@@ -35,6 +35,28 @@ import Conversation from "../../models/conversationModel.js";
 /** Total pipeline timeout in milliseconds */
 const PIPELINE_TIMEOUT_MS = 15_000;
 
+/** Max length for product names and descriptions in system prompt */
+const MAX_PRODUCT_NAME_LENGTH = 100;
+const MAX_DESCRIPTION_LENGTH = 200;
+
+/**
+ * Sanitize a string for safe inclusion in the system prompt.
+ * Strips control characters and truncates to a reasonable length.
+ * @param {string} str - Input string
+ * @param {number} maxLen - Maximum allowed length
+ * @returns {string} Sanitized string
+ */
+function sanitize(str, maxLen) {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/[\x00-\x1f\x7f-\x9f]/g, "") // strip control characters
+    .trim()
+    .slice(0, maxLen);
+}
+
+/** Maximum tool-call iterations before forcing text reply */
+const MAX_TOOL_ITERATIONS = 5;
+
 /** Retry backoff delays in milliseconds */
 const RETRY_DELAYS = [500, 1500];
 
@@ -76,7 +98,7 @@ CONVERSATION STYLE:
     const productLines = products
       .map(
         (p) =>
-          `- ${p.name}: ₹${p.price} [${p.stockStatus}] — ${p.description}`
+          `- ${sanitize(p.name, MAX_PRODUCT_NAME_LENGTH)}: ₹${p.price} [${p.stockStatus}] — ${sanitize(p.description, MAX_DESCRIPTION_LENGTH)}`
       )
       .join("\n");
     prompt += `\n\nAVAILABLE PRODUCTS (recommend ONLY from this list):\n${productLines}`;
@@ -86,7 +108,7 @@ CONVERSATION STYLE:
 
   if (cartItems && Array.isArray(cartItems) && cartItems.length > 0) {
     const cartLines = cartItems
-      .map((item) => `${item.qty || item.quantity || 1}x ${item.name} (₹${item.price})`)
+      .map((item) => `${item.qty ?? item.quantity ?? 1}x ${item.name} (₹${item.price})`)
       .join(", ");
     prompt += `\n\nUSER'S CURRENT CART: ${cartLines}`;
   }
@@ -140,7 +162,9 @@ async function callGroqWithRetry({ messages, tools }) {
 
       // If groqQueue returned a fallback indicator, treat as failure
       if (result && result.fallback) {
-        throw new Error("groq_queue_fallback");
+        const err = new Error("groq_queue_fallback");
+        err.noRetry = true;
+        throw err;
       }
 
       return result;
@@ -149,6 +173,11 @@ async function callGroqWithRetry({ messages, tools }) {
 
       // HTTP 429 → immediate fallback, no retry
       if (error?.status === 429 || error?.message?.includes("429")) {
+        throw error;
+      }
+
+      // Queue fallback → immediate exit, no retry
+      if (error?.noRetry) {
         throw error;
       }
 
@@ -191,7 +220,7 @@ async function checkEscalation(sessionId, currentSentiment, recentMessages) {
 
     // Check last 3 user sentiments
     if (userSentiments.length < ESCALATION_COUNT) {
-      return;
+      return false;
     }
 
     const lastThree = userSentiments.slice(-ESCALATION_COUNT);
@@ -199,13 +228,18 @@ async function checkEscalation(sessionId, currentSentiment, recentMessages) {
 
     if (allNegative) {
       // Set escalation flag (sticky — only set, never clear)
-      await Conversation.findOneAndUpdate(
+      const updated = await Conversation.findOneAndUpdate(
         { sessionId, escalationFlag: { $ne: true } },
-        { $set: { escalationFlag: true } }
+        { $set: { escalationFlag: true } },
+        { new: true }
       );
+      return updated?.escalationFlag || false;
     }
+
+    return false;
   } catch {
     // Swallow escalation errors — non-critical
+    return false;
   }
 }
 
@@ -228,6 +262,7 @@ export async function runChatPipeline({
   cartItems = [],
   attachments = [],
   emit = null,
+  signal = null,
 }) {
   const startTime = Date.now();
 
@@ -240,7 +275,18 @@ export async function runChatPipeline({
     attachments,
     emit,
     startTime,
+    signal,
   });
+
+  const abortPromise = signal
+    ? new Promise((_, reject) => {
+        signal.addEventListener(
+          "abort",
+          () => reject(new Error("pipeline_aborted")),
+          { once: true }
+        );
+      })
+    : null;
 
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(
@@ -249,8 +295,12 @@ export async function runChatPipeline({
     );
   });
 
+  const promises = abortPromise
+    ? [pipelinePromise, timeoutPromise, abortPromise]
+    : [pipelinePromise, timeoutPromise];
+
   try {
-    return await Promise.race([pipelinePromise, timeoutPromise]);
+    return await Promise.race(promises);
   } catch (error) {
     // Pipeline timed out or failed catastrophically — return fallback
     const { language: langResult } = detectLanguage(message || "");
@@ -316,6 +366,7 @@ async function executePipeline({
   attachments,
   emit,
   startTime,
+  signal,
 }) {
   // ─── Step 1: Load conversation history ───────────────────────────
   const recentMessages = await conversationRepo.loadRecentMessages(sessionId);
@@ -421,9 +472,14 @@ async function executePipeline({
   // ─── Step 7: Multi-tool loop ───────────────────────────────────────
   let reply = "";
   let currentMessages = [...budgetedMessages];
+  let toolIterations = 0;
 
   // Process tool calls in a loop until the LLM produces a final text reply
-  while (completion?.choices?.[0]?.message?.tool_calls?.length > 0) {
+  while (
+    toolIterations < MAX_TOOL_ITERATIONS &&
+    completion?.choices?.[0]?.message?.tool_calls?.length > 0
+  ) {
+    toolIterations++;
     const toolCalls = completion.choices[0].message.tool_calls;
 
     // Append the assistant message (with tool_calls) to the conversation
@@ -557,18 +613,7 @@ async function executePipeline({
   }
 
   // ─── Step 10: Check escalation ──────────────────────────────────
-  let escalationFlag = false;
-  await checkEscalation(sessionId, sentiment, recentMessages);
-
-  // Check current escalation state
-  try {
-    const conv = await Conversation.findOne({ sessionId }).select(
-      "escalationFlag"
-    );
-    escalationFlag = conv?.escalationFlag || false;
-  } catch {
-    // Swallow
-  }
+  const escalationFlag = await checkEscalation(sessionId, sentiment, recentMessages);
 
   return {
     reply,
