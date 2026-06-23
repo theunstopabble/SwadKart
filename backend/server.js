@@ -18,11 +18,6 @@ import cookie from "cookie";
 import connectDB from "./config/db.js";
 import cacheClient from "./config/redis.js";
 
-// 🚀 PERFORMANCE FIX (STEP 3): Initialize Background Workers
-import("./workers/emailWorker.js").catch((err) => {
-  console.error("⚠️ Email worker failed to load:", err.message);
-});
-
 // Error Middlewares
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
