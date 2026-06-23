@@ -181,7 +181,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pt-24 pb-10 px-6">
+    <div className="min-h-screen bg-black text-white pt-20 pb-10 px-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <User className="text-primary" size={32} />
@@ -326,7 +326,7 @@ const Profile = () => {
             {/* Profile Card */}
             <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-8 flex flex-col items-center text-center relative overflow-hidden shadow-2xl">
               <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/20 to-transparent"></div>
-              <div className="relative w-28 h-28 bg-black rounded-full border-4 border-gray-800 flex items-center justify-center text-4xl font-black text-primary mb-4 shadow-xl uppercase">
+              <div className="relative w-20 h-20 sm:w-28 sm:h-28 bg-black rounded-full border-4 border-gray-800 flex items-center justify-center text-2xl sm:text-4xl font-black text-primary mb-4 shadow-xl uppercase">
                 {userInfo?.image ? (
                   <img
                     src={userInfo.image}

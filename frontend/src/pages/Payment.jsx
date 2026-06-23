@@ -26,7 +26,7 @@ const Payment = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pt-24 px-4 md:px-10 pb-20 font-sans">
+    <div className="min-h-screen bg-black text-white pt-20 px-4 md:px-10 pb-20 font-sans">
       <CheckoutSteps step1 step2 step3 />
 
       <div className="max-w-xl mx-auto mt-10">

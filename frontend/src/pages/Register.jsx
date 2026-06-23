@@ -120,7 +120,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-black px-4 pt-28 pb-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen w-full flex items-center justify-center bg-black px-4 pt-20 pb-12 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-gray-900/80 backdrop-blur-md p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-800">
         {/* Header Section */}
         <div className="text-center">

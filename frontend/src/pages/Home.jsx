@@ -118,7 +118,7 @@ const Home = () => {
   const homeBreadcrumb = breadcrumbSchema([{ name: "Home", url: "/" }]);
 
   return (
-    <div className="bg-black min-h-screen text-white pt-24 sm:pt-20">
+    <div className="bg-black min-h-screen text-white pt-20">
       <PageSEO
         title="Order Food Online in Jaipur — Fastest AI-Powered Food Delivery"
         description="Order delicious food from top restaurants in Jaipur. AI chatbot, real-time GPS tracking, voice search & secure payments. Download the SwadKart app today!"
@@ -128,7 +128,7 @@ const Home = () => {
       />
       {/* ================= HERO SECTION ================= */}
       {/* Using <img> instead of CSS background-image for better LCP discovery by browser preload scanner */}
-      <div className="relative h-[400px] md:h-[500px] w-full overflow-hidden">
+      <div className="relative min-h-[50vh] md:h-[500px] w-full overflow-hidden">
         <img
           src={HERO_IMG_URL}
           alt="Delicious food spread"
@@ -196,7 +196,7 @@ const Home = () => {
         {/* Loading / No Data / List */}
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <Loader2 className="animate-spin text-primary h-12 w-12" />
+            <Loader2 className="animate-spin animate-gpu text-primary h-12 w-12" />
           </div>
         ) : filteredRestaurants.length === 0 ? (
           <div className="text-center py-20 bg-gray-900 rounded-2xl">
@@ -210,7 +210,7 @@ const Home = () => {
               <Link
                 to={`/restaurant/${shop._id}`}
                 key={shop._id}
-                className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/10 group block"
+                className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/10 group block animate-gpu"
               >
                 {/* Image Section */}
                 <div className="relative h-60 overflow-hidden">

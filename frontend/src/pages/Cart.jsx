@@ -207,7 +207,7 @@ const Cart = () => {
 
   // --- 7. Render: Main Cart UI ---
   return (
-    <div className="min-h-screen bg-black text-white pt-28 px-4 md:px-10 pb-20 font-sans">
+    <div className="min-h-screen bg-black text-white pt-20 px-4 md:px-10 pb-20 font-sans">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -228,7 +228,7 @@ const Cart = () => {
             {cartItems.map((item) => (
               <div
                 key={item.cartUniqueId || item._id}
-                className="flex flex-col sm:flex-row items-center bg-gray-900 border border-gray-800 p-5 rounded-2xl hover:border-gray-700 transition-all group"
+                className="flex flex-col sm:flex-row items-start sm:items-center bg-gray-900 border border-gray-800 p-5 rounded-2xl hover:border-gray-700 transition-all group animate-gpu"
               >
                 {/* Product Image */}
                 <img
@@ -237,11 +237,11 @@ const Cart = () => {
                   onError={(e) => {
                     e.target.src = "https://placehold.co/100";
                   }}
-                  className="w-24 h-24 object-cover rounded-xl mb-4 sm:mb-0 grayscale group-hover:grayscale-0 transition-all duration-500 border border-gray-800"
+                  className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-xl mb-4 sm:mb-0 grayscale group-hover:grayscale-0 transition-all duration-500 border border-gray-800"
                 />
 
                 {/* Product Details */}
-                <div className="sm:ml-6 flex-1 text-center sm:text-left">
+                <div className="sm:ml-6 flex-1 text-left">
                   <span className="text-lg font-bold italic uppercase text-white">
                     {item.name || "Unknown Item"}
                   </span>
@@ -275,7 +275,7 @@ const Cart = () => {
                 </div>
 
                 {/* Quantity Controls & Delete */}
-                <div className="flex items-center gap-4 mt-4 sm:mt-0">
+                <div className="flex items-center gap-4 mt-4 sm:mt-0 sm:ml-auto">
                   <div className="flex items-center bg-black/50 border border-gray-700 rounded-xl overflow-hidden">
                     <button
                       onClick={() => addToCartHandler(item, item.qty - 1)}

@@ -1,10 +1,20 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Mic, MicOff, Globe } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 const VoiceSearch = ({ setSearchTerm }) => {
   const [isListening, setIsListening] = useState(false);
-  const [lang, setLang] = useState("en-IN"); // en-IN or hi-IN
+  const [lang, setLang] = useState("en-IN");
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
 
   const startListening = () => {
     const SpeechRecognition =
@@ -14,10 +24,15 @@ const VoiceSearch = ({ setSearchTerm }) => {
       return toast.error("Browser doesn't support Voice Search 😔");
     }
 
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
+
     const recognition = new SpeechRecognition();
-    recognition.lang = lang; // English (India) or Hindi (India)
+    recognition.lang = lang;
     recognition.continuous = false;
     recognition.interimResults = false;
+    recognitionRef.current = recognition;
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -26,6 +41,7 @@ const VoiceSearch = ({ setSearchTerm }) => {
 
     recognition.onend = () => {
       setIsListening(false);
+      recognitionRef.current = null;
     };
 
     recognition.onresult = (event) => {
@@ -36,6 +52,8 @@ const VoiceSearch = ({ setSearchTerm }) => {
 
     recognition.onerror = (event) => {
       setIsListening(false);
+      recognitionRef.current = null;
+      if (event.error === "aborted") return;
       console.error("Speech recognition error:", event.error);
       toast.error("Didn't catch that. Try again?");
     };

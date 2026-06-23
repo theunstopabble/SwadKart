@@ -329,7 +329,7 @@ const PlaceOrder = () => {
     );
 
   return (
-    <div className="min-h-screen bg-black text-white pt-24 px-4 md:px-10 pb-20 font-sans">
+    <div className="min-h-screen bg-black text-white pt-20 px-4 md:px-10 pb-20 font-sans">
       <CheckoutSteps step1 step2 step3 step4 />
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 mt-12 items-start">
@@ -394,7 +394,7 @@ const PlaceOrder = () => {
               </h2>
             </div>
 
-            <div className="space-y-4 max-h-[500px] overflow-y-auto no-scrollbar pr-2">
+            <div className="space-y-4 max-h-[300px] sm:max-h-[500px] overflow-y-auto no-scrollbar pr-2">
               {cart.cartItems.map((item) => (
                 <div
                   key={item.cartUniqueId || item._id || item.product}

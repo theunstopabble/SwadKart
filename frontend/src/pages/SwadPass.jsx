@@ -123,14 +123,14 @@ const SwadPass = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-950 text-white">
+      <div className="flex items-center justify-center h-screen bg-black text-white">
         <Loader className="animate-spin mr-2" /> Loading...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-6">
+    <div className="min-h-screen bg-black text-white p-6">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <Crown className="text-yellow-400" size={32} />

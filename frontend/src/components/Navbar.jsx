@@ -63,7 +63,9 @@ const Navbar = () => {
       }
     };
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 30000);
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchNotifs();
+    }, 30000);
     return () => clearInterval(interval);
   }, [userInfo]);
 
@@ -87,8 +89,7 @@ const Navbar = () => {
   const closeMenu = () => setIsOpen(false);
 
   return (
-    /* FIXED: Added pt-8 for Mobile Status Bar compatibility and md:pt-0 for Desktop */
-    <nav className="bg-gray-950 text-white border-b border-gray-800 fixed w-full z-50 top-0 pt-12 md:pt-0 transition-all duration-300">
+    <nav className="bg-gray-950 text-white border-b border-gray-800 fixed w-full z-50 top-0 pt-[env(safe-area-inset-top)] md:pt-0 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* ======================= LOGO ======================= */}

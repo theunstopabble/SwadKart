@@ -153,7 +153,7 @@ const Shipping = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pt-24 px-4 pb-20 font-sans">
+    <div className="min-h-screen bg-black text-white pt-20 px-4 pb-20 font-sans">
       <CheckoutSteps step1 step2 />
 
       <div className="max-w-2xl mx-auto mt-10">

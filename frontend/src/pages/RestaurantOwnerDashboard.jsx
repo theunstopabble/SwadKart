@@ -305,7 +305,7 @@ const RestaurantOwnerDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pt-24 pb-12 px-4 md:px-8 font-sans">
+    <div className="min-h-screen bg-black text-white pt-20 pb-12 px-4 md:px-8 font-sans">
       <audio ref={audioPlayer} src="/notification.mp3" preload="auto" />
 
       <div className="max-w-7xl mx-auto">

@@ -39,7 +39,7 @@ const CheckoutSteps = ({ step1, step2, step3, step4 }) => {
 
             {/* Step Name */}
             <span
-              className={`absolute -bottom-6 text-[10px] md:text-xs font-bold uppercase tracking-wide w-24 text-center ${
+              className={`absolute -bottom-6 text-[10px] md:text-xs font-bold uppercase tracking-wide max-w-[80px] sm:max-w-[96px] truncate text-center ${
                 step.active ? "text-white" : "text-gray-600"
               }`}
             >

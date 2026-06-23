@@ -18,6 +18,8 @@ import {
   Wallet,
   Truck,
   Timer,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { BASEURL } from "../config";
 import OrderProgress from "../components/order/OrderProgress";
@@ -34,6 +36,7 @@ const OrderDetails = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showOTP, setShowOTP] = useState(false);
 
   const statusSteps = [
     "Placed",
@@ -109,7 +112,7 @@ const OrderDetails = () => {
     );
 
   return (
-    <div className="min-h-screen bg-black text-white pt-24 px-4 md:px-10 pb-20 font-sans">
+    <div className="min-h-screen bg-black text-white pt-20 px-4 md:px-10 pb-20 font-sans">
       <div className="max-w-6xl mx-auto">
         <Link
           to="/myorders"
@@ -233,12 +236,23 @@ const OrderDetails = () => {
                   .map((digit, i) => (
                     <div
                       key={i}
-                      className="w-12 h-16 sm:w-16 sm:h-20 bg-black border border-gray-800 rounded-2xl flex items-center justify-center text-2xl sm:text-4xl font-black text-white shadow-inner"
+                      className={`w-12 h-16 sm:w-16 sm:h-20 bg-black border border-gray-800 rounded-2xl flex items-center justify-center text-2xl sm:text-4xl font-black shadow-inner transition-all duration-300 ${
+                        showOTP ? "text-white" : "text-transparent"
+                      }`}
                     >
-                      {digit}
+                      <span className={showOTP ? "" : "blur-lg scale-150 select-none"}>
+                        {showOTP ? digit : "•"}
+                      </span>
                     </div>
                   ))}
               </div>
+              <button
+                onClick={() => setShowOTP((p) => !p)}
+                className="mt-6 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-primary transition-all mx-auto"
+              >
+                {showOTP ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showOTP ? "Hide OTP" : "Tap to Reveal OTP"}
+              </button>
             </div>
           )}
 

@@ -110,7 +110,7 @@ const AdminDashboard = () => {
   }, [userInfo, fetchAllData]);
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 pb-10 px-4 md:px-10 font-sans">
+    <div className="min-h-screen bg-black text-white pt-20 pb-10 px-4 md:px-10 font-sans">
       <div className="max-w-7xl mx-auto">
         <header className="mb-10">
           <h1 className="text-4xl md:text-5xl font-extrabold italic uppercase tracking-tighter flex items-center gap-4">

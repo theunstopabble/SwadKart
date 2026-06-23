@@ -95,12 +95,12 @@ const MyOrders = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 px-4 pb-20 font-sans">
+    <div className="min-h-screen bg-black text-white pt-20 px-4 pb-20 font-sans">
       <div className="max-w-4xl mx-auto">
         {/* Header Section */}
         <header className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4 px-2">
           <div>
-            <h1 className="text-5xl font-extrabold uppercase italic tracking-tighter flex items-center gap-4">
+            <h1 className="text-3xl sm:text-5xl font-extrabold uppercase italic tracking-tighter flex items-center gap-4">
               My <span className="text-primary">History</span>
             </h1>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] mt-3 ml-1">

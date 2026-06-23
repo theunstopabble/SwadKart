@@ -186,7 +186,7 @@ const RestaurantMenu = () => {
     );
 
   return (
-    <div className="bg-black min-h-screen text-white pb-20 pt-24 font-sans">
+    <div className="bg-black min-h-screen text-white pb-20 pt-20 font-sans">
       <MenuHero restaurant={restaurant} />
       <MenuFilters
         searchTerm={searchTerm}
@@ -216,9 +216,9 @@ const RestaurantMenu = () => {
                 {items.map((item) => (
                   <div
                     key={item._id}
-                    className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden group flex flex-col shadow-2xl relative hover:border-primary/40 transition-all duration-300"
+                    className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden group flex flex-col shadow-2xl relative hover:border-primary/40 transition-all duration-300 animate-gpu"
                   >
-                    <div className="relative h-52 overflow-hidden">
+                    <div className="relative aspect-video overflow-hidden">
                       <img
                         src={item.image || "https://placehold.co/600x400"}
                         onError={(e) => { e.target.src = "https://placehold.co/600x400/1f2937/white?text=No+Image"; }}

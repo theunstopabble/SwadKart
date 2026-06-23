@@ -83,7 +83,7 @@ const MySubscriptions = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pt-24 pb-10 px-4 md:px-10 font-sans">
+    <div className="min-h-screen bg-black text-white pt-20 pb-10 px-4 md:px-10 font-sans">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter mb-2">
           My <span className="text-primary">Subscriptions</span>
