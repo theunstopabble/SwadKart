@@ -22,7 +22,9 @@ const homeIcon = new L.Icon({
 // 🔄 Helper Component to auto-move map when driver moves
 function ChangeView({ center }) {
   const map = useMap();
-  map.setView(center, 15);
+  React.useEffect(() => {
+    map.setView(center, 15);
+  }, [center, map]);
   return null;
 }
 
@@ -47,8 +49,14 @@ const LiveTrackingMap = ({ orderId, restaurantCoords, userCoords }) => {
     };
     socket.on("driverLocationUpdate", handleDriverLocation);
 
+    const handleReconnect = () => {
+      socket.emit("joinOrder", orderId);
+    };
+    socket.io.on("reconnect", handleReconnect);
+
     return () => {
       socket.off("driverLocationUpdate", handleDriverLocation);
+      socket.io.off("reconnect", handleReconnect);
       socket.emit("leaveOrder", orderId);
     };
   }, [orderId]);

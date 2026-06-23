@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASEURL } from "../config";
 import { toast } from "react-hot-toast";
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 
 const GroupOrders = () => {
+  const { userInfo } = useSelector((state) => state.user);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -32,11 +34,8 @@ const GroupOrders = () => {
         `${BASEURL}/api/v1/group-orders/my`,
         { withCredentials: true }
       );
-      if (res.status === 401 || res.status === 403) {
-        setOrders([]);
-      } else {
-        setOrders(Array.isArray(res.data) ? res.data : res.data?.data || []);
-      }
+      // axios throws on non-2xx; auth errors handled in catch
+      setOrders(Array.isArray(res.data) ? res.data : res.data?.data || []);
     } catch {
       setOrders([]);
     } finally {
@@ -45,8 +44,9 @@ const GroupOrders = () => {
   };
 
   useEffect(() => {
+    if (!userInfo) return;
     fetchOrders();
-  }, []);
+  }, [userInfo]);
 
   const handleCreate = async (e) => {
     e.preventDefault();

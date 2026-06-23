@@ -30,7 +30,7 @@ Generate exactly 3 short suggestion messages (max 40 chars each) that a user mig
 Return ONLY a JSON array of 3 strings. No explanation, no markdown, no code blocks.
 Example: ["What's on sale?", "Show my orders", "Recommend something spicy"]`;
 
-    const userPrompt = context
+    const userPrompt = context && typeof context === "string"
       ? `The last assistant message was: "${context.substring(0, 200)}". Suggest 3 follow-up questions the user might ask.`
       : "Suggest 3 starter questions for a food delivery chatbot.";
 

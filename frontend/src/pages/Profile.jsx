@@ -48,7 +48,7 @@ const Profile = () => {
         });
         if (res.ok) {
           const freshData = await res.json();
-          dispatch(setCredentials({ ...userInfo, ...freshData }));
+          dispatch(setCredentials({ ...userInfo, ...(freshData || {}) }));
         }
       } catch (err) {
         console.error("Error fetching fresh profile:", err);

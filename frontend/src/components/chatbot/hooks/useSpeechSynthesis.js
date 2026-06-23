@@ -71,16 +71,27 @@ export function useSpeechSynthesis() {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = LANGUAGE_MAP[language] || "en-IN";
 
+      let chromeBugTimeout;
+
       utterance.onstart = () => {
         setIsSpeaking(true);
+        // Chrome speech bug workaround: restart if speech stops prematurely
+        chromeBugTimeout = setTimeout(() => {
+          if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          }
+        }, 10000);
       };
 
       utterance.onend = () => {
+        clearTimeout(chromeBugTimeout);
         setIsSpeaking(false);
         utteranceRef.current = null;
       };
 
       utterance.onerror = () => {
+        clearTimeout(chromeBugTimeout);
         setIsSpeaking(false);
         utteranceRef.current = null;
       };

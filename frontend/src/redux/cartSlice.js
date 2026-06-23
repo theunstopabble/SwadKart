@@ -1,4 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { logout as userLogoutAction } from "./userSlice";
 
 // ==========================================
 // ==========================================
@@ -48,7 +49,7 @@ const generateCartId = (item) => {
 // 🛠️ HELPER: Update LocalStorage
 // ==========================================
 const updateCartStorage = (cartItems) => {
-  browserStorage.setItem("cartItems", JSON.stringify(cartItems));
+  browserStorage.setItem("cartItems", cartItems);
 };
 
 const initialState = {
@@ -148,5 +149,10 @@ export const {
   clearCart,
   logout
 } = cartSlice.actions;
+
+export const logoutUser = () => (dispatch) => {
+  dispatch(logout());
+  dispatch(userLogoutAction());
+};
 
 export default cartSlice.reducer;

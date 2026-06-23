@@ -78,9 +78,10 @@ const QuickActionChips = ({ lastAssistantMessage, sessionId, onChipClick, disabl
           setChips([]);
         }
       })
-      .catch(() => {
-        // On failure or timeout — render no chips per Requirement 14.6
-        setChips([]);
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          setChips([]);
+        }
       })
       .finally(() => {
         clearTimeout(timeoutId);

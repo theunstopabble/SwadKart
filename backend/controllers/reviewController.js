@@ -87,9 +87,14 @@ export const createProductReview = async (req, res) => {
 
 // @desc    Get top rated products (Featured)
 // @route   GET /api/v1/products/top
+// NOTE: Duplicate of `getTopProducts` in analyticsController — kept for backward compat; prefer the analyticsController version.
 export const getTopProducts = async (req, res) => {
-  const products = await Product.find({ isAvailable: { $ne: false } })
-    .sort({ rating: -1 })
-    .limit(3);
-  res.json(products);
+  try {
+    const products = await Product.find({ isAvailable: { $ne: false } })
+      .sort({ rating: -1 })
+      .limit(3);
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };

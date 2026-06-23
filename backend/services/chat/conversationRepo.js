@@ -7,6 +7,7 @@
  * Requirements: 7.1, 7.2, 7.3, 7.8, 7.9
  */
 
+import mongoose from "mongoose";
 import Conversation from "../../models/conversationModel.js";
 
 /**
@@ -48,6 +49,7 @@ function sleep(ms) {
  * @throws {Error} If all retry attempts are exhausted
  */
 export async function appendMessages({ sessionId, userId, messages }) {
+  if (!sessionId) throw new Error("sessionId required");
   let lastError;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -125,6 +127,7 @@ export async function loadRecentMessages(sessionId) {
  * @returns {Promise<Array<{ id: string, sessionId: string, lastMessage: string, updatedAt: Date }>>}
  */
 export async function listConversations(userId) {
+  if (!userId) return [];
   const conversations = await Conversation.find({ userId })
     .sort({ updatedAt: -1 })
     .limit(10)
@@ -155,6 +158,7 @@ export async function listConversations(userId) {
  * @returns {Promise<object|null>} The conversation document or null
  */
 export async function loadConversation(conversationId, userId) {
+  if (!mongoose.Types.ObjectId.isValid(conversationId)) return null;
   const conversation = await Conversation.findOne({
     _id: conversationId,
     userId,

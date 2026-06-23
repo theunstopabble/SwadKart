@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 /**
  * Breakpoints from Requirement 13:
@@ -139,7 +139,7 @@ export function useResponsiveWidget() {
     setIsMaximized((prev) => !prev);
   }, []);
 
-  const widgetStyle = computeWidgetStyle(layout, isMaximized);
+  const widgetStyle = useMemo(() => computeWidgetStyle(layout, isMaximized), [layout, isMaximized]);
 
   return {
     layout,

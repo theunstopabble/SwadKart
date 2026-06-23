@@ -315,7 +315,7 @@ const PlaceOrder = () => {
       if (isMounted.current) {
         setIsProcessing(false);
       }
-      toast.error(error.message || "Mission Failed: Order error");
+      toast.error(error?.message || "Mission Failed");
     }
   };
 

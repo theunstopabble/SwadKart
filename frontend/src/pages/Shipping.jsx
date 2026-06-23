@@ -37,10 +37,17 @@ const Shipping = () => {
   const [isSearching, setIsSearching] = useState(false);
 
   // --- Logic: Fetch Address from Coords ---
+  const abortGeocodeRef = React.useRef(null);
+
   const fetchAddressFromCoords = async (lat, lng) => {
+    abortGeocodeRef.current?.abort();
+    const controller = new AbortController();
+    abortGeocodeRef.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+        { signal: controller.signal },
       );
       if (!res.ok) {
         console.error("Geocoding Error: non-200 response");
@@ -66,18 +73,27 @@ const Shipping = () => {
         }));
       }
     } catch {
+      if (controller.signal.aborted) return;
       console.error("Geocoding Error");
+    } finally {
+      clearTimeout(timeout);
     }
   };
+
+  const abortSearchRef = React.useRef(null);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery) return;
     setIsSearching(true);
+    abortSearchRef.current?.abort();
+    const controller = new AbortController();
+    abortSearchRef.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&countrycodes=in`,
-        { headers: { "User-Agent": "SwadKart/1.0" } },
+        { headers: { "User-Agent": "SwadKart/1.0" }, signal: controller.signal },
       );
       if (!res.ok) {
         console.error("Search Error: non-200 response");
@@ -90,8 +106,10 @@ const Shipping = () => {
         fetchAddressFromCoords(newPos[0], newPos[1]);
       }
     } catch {
+      if (controller.signal.aborted) return;
       console.error("Search Error");
     } finally {
+      clearTimeout(timeout);
       setIsSearching(false);
     }
   };

@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASEURL } from "../config";
+import { toast } from "react-hot-toast";
 import {
   Download,
   Trash2,
@@ -11,12 +13,14 @@ import {
 } from "lucide-react";
 
 const GDPRSettings = () => {
+  const { userInfo } = useSelector((state) => state.user);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleExport = async () => {
+    if (!userInfo) { toast.error("Please login first"); return; }
     setExporting(true);
     setMessage("");
     try {
@@ -45,6 +49,7 @@ const GDPRSettings = () => {
   };
 
   const handleDelete = async () => {
+    if (!userInfo) { toast.error("Please login first"); return; }
     if (!confirmDelete) {
       setConfirmDelete(true);
       return;

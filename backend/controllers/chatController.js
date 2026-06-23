@@ -8,6 +8,7 @@
  */
 
 import { runChatPipeline } from "../services/chat/chatPipeline.js";
+import { sanitizeString } from "../utils/sanitize.js";
 
 const MAX_MESSAGE_LENGTH = 2000;
 
@@ -18,7 +19,7 @@ export const chatWithGenie = async (req, res) => {
   try {
     const { message, cartItems } = req.body;
     const userId = req.user ? req.user._id.toString() : null;
-    const sessionId = req.body.sessionId || req.headers["x-session-id"] || null;
+    const sessionId = sanitizeString(req.body.sessionId) || sanitizeString(req.headers["x-session-id"]) || null;
 
     // ─── Validation ────────────────────────────────────────────────
     if (!message || typeof message !== "string" || message.trim().length === 0) {

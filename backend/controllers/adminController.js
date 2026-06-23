@@ -65,11 +65,11 @@ export const getDashboardStats = async (req, res) => {
       },
     ]);
 
-    // Format breakdown object
-    const breakdown = { placed: 0, delivered: 0, cancelled: 0, preparing: 0 };
+    // Format breakdown object — use dynamic keys from aggregation result
+    const breakdown = {};
     statsData[0].breakdown.forEach((item) => {
       const key = item._id.toLowerCase();
-      if (breakdown.hasOwnProperty(key)) breakdown[key] = item.count;
+      breakdown[key] = item.count;
     });
 
     const recentOrders = await Order.find(query)
@@ -105,12 +105,7 @@ export const getHeatmapData = async (req, res) => {
       "shippingAddress.lng": { $exists: true, $ne: null },
     };
 
-    // 🛡️ PRIVACY FIX: restaurant_owner can only see their own restaurant's orders
-    if (req.user && req.user.role === "restaurant_owner") {
-      const restaurants = await Restaurant.find({ owner: req.user._id }).select("_id");
-      const restaurantIds = restaurants.map((r) => r._id);
-      filter["orderItems.restaurant"] = { $in: restaurantIds };
-    }
+    // (restaurant_owner guard removed — route is admin-only)
 
     const orders = await Order.find(filter).select(
       "shippingAddress.lat shippingAddress.lng totalPrice"
@@ -132,6 +127,7 @@ export const getHeatmapData = async (req, res) => {
 // ==========================================
 // 🛡️ 3. USER MANAGEMENT (Admin)
 // ==========================================
+// TODO: Wire `getAllUsersAdmin` to a route (e.g. GET /api/v1/admin/users)
 export const getAllUsersAdmin = async (req, res) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
@@ -153,6 +149,7 @@ export const getAllUsersAdmin = async (req, res) => {
   }
 };
 
+// TODO: Wire `updateUserRole` to a route (e.g. PUT /api/v1/admin/users/:id/role)
 export const updateUserRole = async (req, res) => {
   try {
     const userId = sanitizeObjectId(req.params.id);
@@ -182,6 +179,7 @@ export const updateUserRole = async (req, res) => {
 // ==========================================
 // 🏪 4. RESTAURANT APPROVAL (New)
 // ==========================================
+// TODO: Wire `toggleRestaurantApproval` to a route (e.g. PUT /api/v1/admin/restaurants/:id/approve)
 export const toggleRestaurantApproval = async (req, res) => {
   try {
     const restaurantId = sanitizeObjectId(req.params.id);
@@ -202,6 +200,7 @@ export const toggleRestaurantApproval = async (req, res) => {
   }
 };
 
+// TODO: Wire `deleteUser` to a route (e.g. DELETE /api/v1/admin/users/:id)
 export const deleteUser = async (req, res) => {
   try {
     const userId = sanitizeObjectId(req.params.id);

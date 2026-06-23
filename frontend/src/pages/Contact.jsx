@@ -34,6 +34,7 @@ const Contact = () => {
       return toast.error("Please fill all fields! ✍️");
     }
 
+    // TODO: Add CAPTCHA / rate-limit to prevent spam
     setLoading(true);
     try {
       const res = await fetch(`${BASEURL}/api/v1/users/contact-support`, {

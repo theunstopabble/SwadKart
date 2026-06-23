@@ -31,6 +31,22 @@ function ChangeView({ center }) {
   return null;
 }
 
+function LocationMarker({ mapCenter, onMapClick }) {
+  useMapEvents({
+    click(e) {
+      const lat = Number(e.latlng.lat);
+      const lng = Number(e.latlng.lng);
+      if (lat && lng && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+        onMapClick?.(lat, lng);
+      }
+    },
+  });
+  return (
+    <Marker position={mapCenter}>
+    </Marker>
+  );
+}
+
 const AddressMap = ({
   mapCenter,
   onMapClick,
@@ -41,21 +57,6 @@ const AddressMap = ({
   handleCurrentLocation,
   loadingLocation,
 }) => {
-  const LocationMarker = () => {
-    useMapEvents({
-      click(e) {
-        const lat = Number(e.latlng.lat);
-        const lng = Number(e.latlng.lng);
-        if (lat && lng && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
-          onMapClick?.(lat, lng);
-        }
-      },
-    });
-    return (
-      <Marker position={mapCenter}>
-      </Marker>
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -109,10 +110,10 @@ const AddressMap = ({
           {/* TileLayer with Dark Filter via CSS below */}
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution="&copy; SwadKart Maps"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
           <ChangeView center={mapCenter} />
-          <LocationMarker />
+          <LocationMarker mapCenter={mapCenter} onMapClick={onMapClick} />
         </MapContainer>
 
         {/* CSS for Dark Map Layer */}

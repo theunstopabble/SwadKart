@@ -77,11 +77,12 @@ export async function execute({ orderId, userId }) {
         .lean();
     }
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), 3000)
-    );
+    let deliveryTimer;
+    const timeoutPromise = new Promise((_, reject) => {
+      deliveryTimer = setTimeout(() => reject(new Error("timeout")), 3000);
+    });
 
-    const order = await Promise.race([queryPromise, timeoutPromise]);
+    const order = await Promise.race([queryPromise, timeoutPromise]).finally(() => clearTimeout(deliveryTimer));
 
     // Gate 2: Check existence
     if (!order) {

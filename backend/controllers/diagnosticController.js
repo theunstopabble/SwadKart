@@ -25,7 +25,12 @@ const isFreeDomain = (email) => {
 // @route   POST /api/v1/admin/test-email
 // @access  Private/Admin
 export const testEmailDelivery = async (req, res) => {
-  const sender = getSender();
+  let sender;
+  try {
+    sender = getSender();
+  } catch (err) {
+    return res.status(500).json({ message: `getSender() failed: ${err.message}` });
+  }
 
   const report = {
     timestamp: new Date().toISOString(),
@@ -59,7 +64,7 @@ export const testEmailDelivery = async (req, res) => {
   try {
     report.adminEmail = await getAdminEmail();
   } catch (err) {
-    report.adminEmail = `Error: ${err.message}`;
+    report.adminEmail = null;
   }
 
   // 2. Check Brevo verified senders (reveals if the sender address is approved)

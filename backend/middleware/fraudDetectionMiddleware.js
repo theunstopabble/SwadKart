@@ -21,6 +21,7 @@ export const fraudDetection = async (req, res, next) => {
     }
 
     // 2. Multiple accounts with same phone prefix (last 30 days) — proxy for duplicate accounts
+    // NOTE: Requires a $regex index on the phone field for performance at scale.
     if (shippingAddress?.phone) {
       const phonePrefix = String(shippingAddress.phone).slice(0, 6);
       const phoneMatch = await User.countDocuments({

@@ -8,10 +8,11 @@ const CartItem = ({ item }) => {
   if (!item) return null;
 
   const handleDecrement = () => {
-    if (item.qty <= 1) {
+    const qty = item.qty ?? 0;
+    if (qty <= 1) {
       dispatch(removeFromCart(item.cartUniqueId));
     } else {
-      dispatch(addToCart({ ...item, qty: item.qty - 1 }));
+      dispatch(addToCart({ ...item, qty: qty - 1 }));
     }
   };
 

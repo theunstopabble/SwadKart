@@ -45,7 +45,11 @@ export const getSocket = () => {
     if (storedToken !== currentToken) {
       socket.auth = storedToken ? { token: storedToken } : {};
       if (socket.connected) {
-        socket.disconnect().connect();
+        try {
+          socket.disconnect().connect();
+        } catch (e) {
+          console.warn("Socket reconnect failed:", e.message);
+        }
       }
     }
   }

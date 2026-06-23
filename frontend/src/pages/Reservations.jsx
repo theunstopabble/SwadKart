@@ -34,11 +34,8 @@ const Reservations = () => {
         `${BASEURL}/api/v1/reservations/my`,
         { withCredentials: true }
       );
-      if (res.status === 401 || res.status === 403) {
-        setReservations([]);
-      } else {
-        setReservations(Array.isArray(res.data) ? res.data : res.data?.data || []);
-      }
+      // axios throws on non-2xx; auth errors handled in catch
+      setReservations(Array.isArray(res.data) ? res.data : res.data?.data || []);
     } catch {
       setReservations([]);
     } finally {
@@ -52,6 +49,11 @@ const Reservations = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Future-date validation
+    if (new Date(`${form.date}T${form.time}`) <= new Date()) {
+      setMessage("Reservation must be in the future");
+      return;
+    }
     setSubmitting(true);
     setMessage("");
     try {

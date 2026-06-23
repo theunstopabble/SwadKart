@@ -73,11 +73,12 @@ export async function execute({ orderId, userId }) {
         .lean();
     }
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), 3000)
-    );
+    let orderStatusTimer;
+    const timeoutPromise = new Promise((_, reject) => {
+      orderStatusTimer = setTimeout(() => reject(new Error("timeout")), 3000);
+    });
 
-    const order = await Promise.race([queryPromise, timeoutPromise]);
+    const order = await Promise.race([queryPromise, timeoutPromise]).finally(() => clearTimeout(orderStatusTimer));
 
     // Gate 3: Check existence
     if (!order) {

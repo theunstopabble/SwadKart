@@ -40,6 +40,10 @@ export function clampSentiment(value) {
  */
 export async function analyzeSentiment(message, { groq }) {
   try {
+    let sentimentTimer;
+    const sentimentTimeoutPromise = new Promise((_, reject) => {
+      sentimentTimer = setTimeout(() => reject(new Error("Sentiment analysis timeout")), 3000);
+    });
     const completion = await Promise.race([
       groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
@@ -57,10 +61,8 @@ export async function analyzeSentiment(message, { groq }) {
         max_tokens: 10,
         temperature: 0,
       }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Sentiment analysis timeout")), 3000)
-      ),
-    ]);
+      sentimentTimeoutPromise,
+    ]).finally(() => clearTimeout(sentimentTimer));
 
     const rawOutput = completion?.choices?.[0]?.message?.content?.trim();
     const score = parseFloat(rawOutput);

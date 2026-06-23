@@ -25,7 +25,7 @@ const ChatMessageList = ({ messages, isLoading }) => {
       aria-label="Chat messages"
     >
       {messages.map((msg, index) => (
-        <ChatMessageBubble key={index} message={msg} />
+        <ChatMessageBubble key={msg.id || msg._id || index} message={msg} />
       ))}
 
       {/* Loading indicator */}

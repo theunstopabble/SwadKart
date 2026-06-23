@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASEURL } from "../config";
 import { Flame, Award, Trophy, Loader, Star } from "lucide-react";
 
 const Gamification = () => {
+  const { userInfo } = useSelector((state) => state.user);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!userInfo) { setStats({ currentStreak: 0, longestStreak: 0, totalOrders: 0, badges: [] }); setLoading(false); return; }
     const fetchStats = async () => {
       try {
         const { data } = await axios.get(

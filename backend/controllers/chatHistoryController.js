@@ -8,6 +8,7 @@
  */
 
 import * as conversationRepo from "../services/chat/conversationRepo.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 /**
  * GET /api/v1/chat/history — List the user's most recent 10 conversations
@@ -15,8 +16,11 @@ import * as conversationRepo from "../services/chat/conversationRepo.js";
 export const listConversations = async (req, res) => {
   try {
     const userId = req.user._id.toString();
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(50, Number(req.query.limit) || 10);
+    const skip = (page - 1) * limit;
 
-    const conversations = await conversationRepo.listConversations(userId);
+    const conversations = await conversationRepo.listConversations(userId, { skip, limit });
 
     return res.json({ conversations });
   } catch (error) {
@@ -33,7 +37,7 @@ export const listConversations = async (req, res) => {
 export const getConversation = async (req, res) => {
   try {
     const userId = req.user._id.toString();
-    const conversationId = req.params.id;
+    const conversationId = sanitizeObjectId(req.params.id);
 
     if (!conversationId) {
       return res.status(400).json({ error: "Conversation ID is required." });

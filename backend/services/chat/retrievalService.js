@@ -63,6 +63,7 @@ export async function retrieveProducts(query) {
  * @returns {Promise<Array>} Matching product documents
  */
 async function primarySearch(query) {
+  if (!query || !query.trim()) throw new Error("empty query");
   return Product.find(
     { $text: { $search: query }, countInStock: { $gt: 0 }, isAvailable: { $ne: false } },
     { score: { $meta: "textScore" } }

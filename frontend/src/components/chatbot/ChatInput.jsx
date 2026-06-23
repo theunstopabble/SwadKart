@@ -54,7 +54,7 @@ const ChatInput = ({
         <div className="flex flex-wrap gap-1.5 mb-2">
           {files.map((f, i) => (
             <span
-              key={i}
+              key={`${f.name}-${f.size}-${i}`}
               className="inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-lg text-[10px] font-bold"
             >
               <File size={10} aria-hidden="true" />

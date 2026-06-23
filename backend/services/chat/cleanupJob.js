@@ -57,11 +57,11 @@ export async function runCleanup() {
  *
  * @returns {void}
  */
-export function scheduleCleanup() {
+export async function scheduleCleanup() {
   if (intervalId) return;
 
   // Run immediately on first schedule
-  runCleanup();
+  await runCleanup();
 
   intervalId = setInterval(runCleanup, TWENTY_FOUR_HOURS_MS);
 

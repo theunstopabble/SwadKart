@@ -8,11 +8,7 @@ const store = configureStore({
     cart: cartReducer, // 👈 Store mein add kiya
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      serializableCheck: {
-        ignoredActions: ["persist/PERSIST", "persist/REHYDRATE"],
-      },
-    }),
+    getDefaultMiddleware(),
 });
 
 export default store;

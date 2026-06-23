@@ -22,7 +22,7 @@ const MySubscriptions = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userInfo) return;
+    if (!userInfo) { setLoading(false); return; }
     fetch(`${BASEURL}/api/v1/subscriptions/my`, { credentials: "include" })
       .then((r) => {
         if (!r.ok) throw new Error("fetch failed");
@@ -40,19 +40,23 @@ const MySubscriptions = () => {
   }, [userInfo]);
 
   const action = async (id, type) => {
-    const res = await fetch(`${BASEURL}/api/v1/subscriptions/${id}/${type === "pause" ? "pause" : type === "resume" ? "resume" : "cancel"}`, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-    });
-    if (res.ok) {
-      toast.success(type === "pause" ? "Subscription paused" : type === "resume" ? "Subscription resumed" : "Subscription cancelled");
-      const updated = await res.json();
-      setSubs((prev) =>
-        prev.map((s) => (s._id === id ? { ...s, status: updated.subscription?.status || s.status } : s)),
-      );
-    } else {
-      toast.error("Action failed");
+    try {
+      const res = await fetch(`${BASEURL}/api/v1/subscriptions/${id}/${type === "pause" ? "pause" : type === "resume" ? "resume" : "cancel"}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        toast.success(type === "pause" ? "Subscription paused" : type === "resume" ? "Subscription resumed" : "Subscription cancelled");
+        const updated = await res.json();
+        setSubs((prev) =>
+          prev.map((s) => (s._id === id ? { ...s, status: updated.subscription?.status || s.status } : s)),
+        );
+      } else {
+        toast.error("Action failed");
+      }
+    } catch {
+      toast.error("Network error performing action");
     }
   };
 

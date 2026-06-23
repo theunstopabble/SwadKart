@@ -73,7 +73,7 @@ export default function FAQ() {
         description="Find answers to all your questions about SwadKart — Jaipur's AI-powered food delivery app. Learn about payments, delivery, SwadPass, rewards, and more."
         keywords="SwadKart FAQ, food delivery questions, how SwadKart works, order tracking, SwadPass, SwadCoins, group orders"
         canonicalPath="/faq"
-        jsonLd={[jsonLd]}
+        jsonLdScripts={[jsonLd]}
       />
 
       <div className="max-w-4xl mx-auto">

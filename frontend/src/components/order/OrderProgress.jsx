@@ -63,7 +63,7 @@ const OrderProgress = ({ currentStatus, statusSteps }) => {
           <div
             className="h-full bg-primary transition-all duration-1000"
             style={{
-              width: `${(currentIndex / (statusSteps.length - 1)) * 100}%`,
+              width: statusSteps.length > 1 ? `${(currentIndex / (statusSteps.length - 1)) * 100}%` : "100%",
             }}
           ></div>
         </div>

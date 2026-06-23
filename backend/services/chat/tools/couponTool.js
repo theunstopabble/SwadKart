@@ -55,10 +55,13 @@ function formatDate(date) {
  * @returns {Promise}
  */
 function withTimeout(promise, ms = 3000) {
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("timeout")), ms)
-  );
-  return Promise.race([promise, timeoutPromise]);
+  let timer;
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("timeout")), ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timer);
+  });
 }
 
 /**
@@ -163,6 +166,7 @@ async function handleList(userId) {
  * @returns {Promise<object>}
  */
 async function handleApply(couponCode, userId) {
+  if (!couponCode) return { success: false, reason: "missing_coupon_code" };
   const now = new Date();
 
   // Gate 2: Validate coupon exists

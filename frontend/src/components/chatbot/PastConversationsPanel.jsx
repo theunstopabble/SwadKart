@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { History, RefreshCw, MessageSquare, AlertCircle } from "lucide-react";
 import { BASEURL } from "../../config";
 
@@ -22,19 +22,16 @@ const PastConversationsPanel = ({ isAuthenticated, onSelectConversation, isVisib
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchConversations = () => {
+  const fetchConversations = useCallback((signal) => {
     if (!isAuthenticated) return;
 
     setLoading(true);
     setError(null);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
     fetch(`${BASEURL}/api/v1/chat/history`, {
       method: "GET",
       credentials: "include",
-      signal: controller.signal,
+      signal,
     })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load conversations");
@@ -49,22 +46,21 @@ const PastConversationsPanel = ({ isAuthenticated, onSelectConversation, isVisib
         }
       })
       .finally(() => {
-        clearTimeout(timeoutId);
         setLoading(false);
       });
-
-    return () => {
-      controller.abort();
-      clearTimeout(timeoutId);
-    };
-  };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isVisible && isAuthenticated) {
-      queueMicrotask(() => fetchConversations());
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      fetchConversations(controller.signal);
+      return () => {
+        controller.abort();
+        clearTimeout(timeoutId);
+      };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isVisible, isAuthenticated]);
+  }, [isVisible, isAuthenticated, fetchConversations]);
 
   if (!isAuthenticated || !isVisible) return null;
 

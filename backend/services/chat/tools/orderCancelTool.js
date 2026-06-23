@@ -96,11 +96,12 @@ export async function execute({ orderId, userId }) {
         .lean();
     }
 
-    const fetchTimeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), WRITE_TIMEOUT_MS)
-    );
+    let fetchTimer;
+    const fetchTimeout = new Promise((_, reject) => {
+      fetchTimer = setTimeout(() => reject(new Error("timeout")), WRITE_TIMEOUT_MS);
+    });
 
-    const order = await Promise.race([fetchPromise, fetchTimeout]);
+    const order = await Promise.race([fetchPromise, fetchTimeout]).finally(() => clearTimeout(fetchTimer));
 
     if (!order) {
       return {
@@ -161,11 +162,12 @@ export async function execute({ orderId, userId }) {
       { new: true }
     ).lean();
 
-    const writeTimeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), WRITE_TIMEOUT_MS)
-    );
+    let writeTimer;
+    const writeTimeout = new Promise((_, reject) => {
+      writeTimer = setTimeout(() => reject(new Error("timeout")), WRITE_TIMEOUT_MS);
+    });
 
-    const updatedOrder = await Promise.race([updatePromise, writeTimeout]);
+    const updatedOrder = await Promise.race([updatePromise, writeTimeout]).finally(() => clearTimeout(writeTimer));
 
     if (!updatedOrder) {
       // Race condition: order status changed between read and write

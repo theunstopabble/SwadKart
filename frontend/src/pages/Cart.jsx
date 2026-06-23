@@ -52,10 +52,13 @@ const Cart = () => {
 
   // --- 4. Fetch Coupons & Load Saved Coupon ---
   useEffect(() => {
+    const abort = new AbortController();
+
     const fetchCoupons = async () => {
       try {
       const res = await fetch(`${BASEURL}/api/v1/coupons/available`, {
         credentials: "include",
+        signal: abort.signal,
       });
       if (!res.ok) {
         console.error("Error fetching coupons: non-200 response");
@@ -64,7 +67,9 @@ const Cart = () => {
       const data = await res.json();
       setAvailableCoupons(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error("Error fetching coupons:", error);
+        if (error.name !== "AbortError") {
+          console.error("Error fetching coupons:", error);
+        }
       }
     };
 
@@ -82,6 +87,7 @@ const Cart = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: savedCoupon, orderTotal: cartTotal }),
         credentials: "include",
+        signal: abort.signal,
       }).then((res) => {
         if (!res.ok) {
           localStorage.removeItem("appliedCoupon");
@@ -96,6 +102,8 @@ const Cart = () => {
         localStorage.removeItem("couponDiscount");
       });
     }
+
+    return () => abort.abort();
   }, []);
 
   // --- 5. Handlers ---

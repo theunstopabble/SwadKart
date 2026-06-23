@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASEURL } from "../config";
 import { toast } from "react-hot-toast";
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 const SwadPass = () => {
+  const { userInfo } = useSelector((state) => state.user);
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -35,10 +37,16 @@ const SwadPass = () => {
   };
 
   useEffect(() => {
+    if (!userInfo) { setLoading(false); return; }
     fetchStatus();
-  }, []);
+  }, [userInfo]);
 
   const handleSubscribe = async () => {
+    if (!userInfo) { toast.error("Please login first"); return; }
+    if (!import.meta.env.VITE_RAZORPAY_KEY_ID) {
+      toast.error("Payment gateway not configured");
+      return;
+    }
     setActionLoading(true);
     setMessage("");
     try {

@@ -55,8 +55,9 @@ const Home = () => {
     fetchRestaurants();
 
     // FEAT-26: Fetch AI dish recommendations for logged-in users
+    const abortRecs = new AbortController();
     if (userInfo) {
-      fetch(`${BASEURL}/api/v1/analytics/recommendations?limit=6`, { credentials: "include" })
+      fetch(`${BASEURL}/api/v1/analytics/recommendations?limit=6`, { credentials: "include", signal: abortRecs.signal })
         .then((r) => r.ok ? r.json() : null)
         .then((data) => {
           if (data?.recommendations) setRecommendations(data.recommendations);
@@ -90,6 +91,7 @@ const Home = () => {
     }
 
     return () => {
+      abortRecs.abort();
       if (socket && handleRestaurantUpdate) {
         socket.off("restaurantUpdated", handleRestaurantUpdate);
       }
@@ -221,7 +223,7 @@ const Home = () => {
                     alt={shop.name || "Restaurant image"}
                     loading="lazy"
                     onError={(e) => {
-                      e.target.src = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=70&fm=webp";
+                      e.target.src = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=70&fm=webp&fit=crop";
                     }}
                     width={400}
                     height={267}
