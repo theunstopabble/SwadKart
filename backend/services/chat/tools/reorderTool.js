@@ -8,10 +8,9 @@
  * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10
  */
 
-import mongoose from "mongoose";
 import Order from "../../../models/orderModel.js";
 import Product from "../../../models/productModel.js";
-import { Cart } from "../orderPlacementTool.js";
+import User from "../../../models/userModel.js";
 
 export const toolSchema = {
   type: "function",
@@ -121,35 +120,15 @@ export async function execute({ userId }) {
       };
     }
 
-    // Gate 5: Atomic cart write via MongoDB transaction with 5-second timeout
+    // Gate 5: Write to shared User.cartItems
     const cartItems = addedItems.map((item) => ({
       product: item.product,
       quantity: item.quantity,
     }));
 
-    const cartWritePromise = (async () => {
-      const session = await mongoose.startSession();
-      session.startTransaction();
-      try {
-        await Cart.findOneAndUpdate(
-          { user: userId },
-          { $push: { items: { $each: cartItems } } },
-          { upsert: true, new: true, session }
-        );
-        await session.commitTransaction();
-      } catch (err) {
-        await session.abortTransaction();
-        throw err;
-      } finally {
-        session.endSession();
-      }
-    })();
-
-    const cartTimeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), 5000)
-    );
-
-    await Promise.race([cartWritePromise, cartTimeoutPromise]);
+    await User.findByIdAndUpdate(userId, {
+      $push: { cartItems: { $each: cartItems } },
+    });
 
     // Calculate total cart value from added items
     const totalCartValue = addedItems.reduce(
