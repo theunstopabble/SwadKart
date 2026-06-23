@@ -25,5 +25,8 @@ const emergencySchema = mongoose.Schema(
   { timestamps: true }
 );
 
+emergencySchema.index({ driver: 1, status: 1 });
+emergencySchema.index({ status: 1 });
+
 const Emergency = mongoose.model("Emergency", emergencySchema);
 export default Emergency;

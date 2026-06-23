@@ -9,13 +9,13 @@
  *   2. Product existence (Product.findById)
  *   3. Quantity range (integer 1–10)
  *   4. Stock availability (product.stock >= quantity AND product.isAvailable)
- *   5. Cart write with 5s timeout
+ *   5. Cart write on User model (shared with frontend)
  *
  * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
  */
 
 import Product from "../../models/productModel.js";
-import mongoose from "mongoose";
+import User from "../../models/userModel.js";
 
 /**
  * Groq-compatible tool schema for the place_order function.
@@ -46,59 +46,22 @@ export const toolSchema = {
 };
 
 /**
- * Cart schema for persisting user cart items in MongoDB.
- * Uses a simple find-or-create pattern per userId.
- */
-const cartItemSchema = new mongoose.Schema(
-  {
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
-    },
-    quantity: { type: Number, required: true, min: 1 },
-  },
-  { _id: false }
-);
-
-const cartSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      unique: true,
-    },
-    items: { type: [cartItemSchema], default: [] },
-  },
-  { timestamps: true }
-);
-
-// Avoid model recompilation in hot-reload scenarios
-const Cart =
-  mongoose.models.Cart || mongoose.model("Cart", cartSchema);
-
-/**
  * Execute the order placement tool.
  *
- * Validates inputs through sequential gates and writes to the cart
- * only when all gates pass. Uses a 5-second timeout on the cart write.
+ * Validates inputs through sequential gates and writes to the User model's
+ * cartItems array (shared with the frontend).
  *
  * @param {object} params
  * @param {string} params.productId - Product ID to add
  * @param {number} params.quantity - Quantity to add (1–10)
  * @param {string|null} params.userId - Authenticated user ID (null = anonymous)
- * @param {object} [params.cartModel] - Optional Cart model override (for testing)
  * @returns {Promise<object>} Result object with success/failure info
  */
 export async function executeOrderPlacement({
   productId,
   quantity,
   userId,
-  cartModel,
 }) {
-  const CartModel = cartModel || Cart;
-
   try {
     // Gate 1: Authentication required
     if (!userId) {
@@ -127,33 +90,10 @@ export async function executeOrderPlacement({
       return { success: false, reason: "out_of_stock" };
     }
 
-    // Gate 5: Cart write with 5s timeout
-    const cartWritePromise = (async () => {
-      let cart = await CartModel.findOne({ user: userId });
-
-      if (!cart) {
-        cart = new CartModel({ user: userId, items: [] });
-      }
-
-      // Push the new item to the cart
-      cart.items.push({ product: productId, quantity });
-      await cart.save();
-
-      return cart;
-    })();
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Cart write timeout")), 5000)
-    );
-
-    try {
-      await Promise.race([cartWritePromise, timeoutPromise]);
-    } catch (err) {
-      if (err.message === "Cart write timeout") {
-        return { success: false, reason: "timeout" };
-      }
-      return { success: false, reason: "internal_error" };
-    }
+    // Gate 5: Write to shared User.cartItems (visible to frontend profile)
+    await User.findByIdAndUpdate(userId, {
+      $push: { cartItems: { product: productId, quantity } },
+    });
 
     // Success
     return {
@@ -169,5 +109,3 @@ export async function executeOrderPlacement({
     return { success: false, reason: "internal_error" };
   }
 }
-
-export { Cart };

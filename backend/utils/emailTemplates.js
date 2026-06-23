@@ -155,6 +155,15 @@ export const getResetPasswordTemplate = (resetUrl) => {
   return wrapEmail(content, "Reset Password");
 };
 
+// HTML-escape user-controlled values to prevent XSS in emails
+const esc = (s) => {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>'"]/g, (c) => {
+    const m = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
+    return m[c] || c;
+  });
+};
+
 // =================================================================
 // 📦 3. ORDER & NOTIFICATION TEMPLATES
 // =================================================================
@@ -182,7 +191,7 @@ export const getOrderConfirmationTemplate = (order, isPaid) => {
       <tr class="receipt-row">
         <td width="10%" class="item-qty">${item.qty}x</td>
         <td width="70%">
-          <div class="item-name">${item.name}</div>
+          <div class="item-name">${esc(item.name)}</div>
           ${metaHtml ? `<div class="item-meta">${metaHtml}</div>` : ""}
         </td>
         <td width="20%" class="item-price">₹${item.price * item.qty}</td>
@@ -216,19 +225,11 @@ export const getOrderConfirmationTemplate = (order, isPaid) => {
 
     <div style="margin-top: 25px;">
       <h3 style="font-size: 16px;">📍 Delivering To:</h3>
-      <p style="margin-bottom: 5px; font-weight: bold; color: ${BRAND_DARK};">${
-    order.user.name
-  }</p>
-      <p style="font-size: 14px; margin-bottom: 5px;">${
-        order.shippingAddress.address
-      }</p>
-      <p style="font-size: 14px; color: #6b7280;">${
-        order.shippingAddress.city
-      } - ${order.shippingAddress.postalCode}</p>
+      <p style="margin-bottom: 5px; font-weight: bold; color: ${BRAND_DARK};">${esc(order.user.name)}</p>
+      <p style="font-size: 14px; margin-bottom: 5px;">${esc(order.shippingAddress.address)}</p>
+      <p style="font-size: 14px; color: #6b7280;">${esc(order.shippingAddress.city)} - ${esc(order.shippingAddress.postalCode)}</p>
       <p style="font-size: 14px; color: ${BRAND_RED}; font-weight: bold;">
-        <a href="tel:${order.shippingAddress.phone}" class="phone-link">📞 ${
-    order.shippingAddress.phone
-  }</a>
+        <a href="tel:${esc(order.shippingAddress.phone)}" class="phone-link">📞 ${esc(order.shippingAddress.phone)}</a>
       </p>
     </div>
 
@@ -251,7 +252,7 @@ export const getAdminOrderAlertTemplate = (order) => {
           .map((a) => a.name)
           .join(", ")}</div>`;
       }
-      return `<li style="margin-bottom: 8px;"><strong>${item.name}</strong> x ${item.qty}${meta}</li>`;
+      return `<li style="margin-bottom: 8px;"><strong>${esc(item.name)}</strong> x ${item.qty}${meta}</li>`;
     })
     .join("");
 
@@ -259,7 +260,7 @@ export const getAdminOrderAlertTemplate = (order) => {
     <h2 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px; display: inline-block;">🚨 New Order Alert</h2>
     
     <div class="card" style="border-left: 4px solid #ef4444; margin-top: 20px;">
-      <p><strong>Customer:</strong> ${order.user.name}</p>
+      <p><strong>Customer:</strong> ${esc(order.user.name)}</p>
       <p><strong>Amount:</strong> ₹${order.totalPrice}</p>
       <p><strong>Payment:</strong> ${order.paymentMethod}</p>
     </div>
@@ -271,9 +272,9 @@ export const getAdminOrderAlertTemplate = (order) => {
 
     <div style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
       <p style="font-size: 12px; color: #9ca3af; margin-bottom: 5px;">DELIVERY ADDRESS</p>
-      <p style="margin: 0;">${order.shippingAddress.address}, ${order.shippingAddress.city}</p>
+      <p style="margin: 0;">${esc(order.shippingAddress.address)}, ${esc(order.shippingAddress.city)}</p>
       <p style="margin-top: 5px; font-weight: bold;">
-        <a href="tel:${order.shippingAddress.phone}" class="phone-link">📞 ${order.shippingAddress.phone}</a>
+        <a href="tel:${esc(order.shippingAddress.phone)}" class="phone-link">📞 ${esc(order.shippingAddress.phone)}</a>
       </p>
     </div>
 

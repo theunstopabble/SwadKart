@@ -923,6 +923,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
           console.log(`Razorpay Refund Initiated: ${order.totalPrice}`);
         } catch (rzpErr) {
           console.error("Razorpay refund failed:", rzpErr.message);
+          throw new Error("Refund processing failed — cancellation aborted");
         }
       }
 

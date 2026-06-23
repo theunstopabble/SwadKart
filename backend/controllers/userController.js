@@ -40,7 +40,9 @@ export const updateUserProfile = async (req, res, next) => {
       }
 
       user.name = req.body.name || user.name;
-      user.email = sanitizeEmail(req.body.email) || user.email;
+      if (req.body.email) {
+        user.email = sanitizeEmail(req.body.email);
+      }
       if (req.body.phone) {
         const cleanPhone = sanitizePhone(req.body.phone);
         const phoneRegex = /^[6-9]\d{9}$/;

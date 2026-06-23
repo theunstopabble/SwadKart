@@ -48,6 +48,15 @@ const userSchema = mongoose.Schema(
     },
     isAvailable: { type: Boolean, default: true },
 
+    // 🛒 CHATBOT CART ITEMS
+    cartItems: [
+      {
+        product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+        quantity: { type: Number, default: 1, min: 1 },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
+
     // 💳 WALLET SYSTEM
     walletBalance: { type: Number, default: 0 },
     walletTransactions: [

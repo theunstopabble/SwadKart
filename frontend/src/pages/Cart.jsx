@@ -75,9 +75,25 @@ const Cart = () => {
     const savedDiscount = localStorage.getItem("couponDiscount");
 
     if (savedCoupon && savedDiscount) {
-      setAppliedCoupon(savedCoupon);
-      setCouponCode(savedCoupon);
-      setDiscount(Number(savedDiscount));
+      // Validate coupon is still active before showing stale data
+      fetch(`${BASEURL}/api/v1/coupons/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: savedCoupon, orderTotal: 0 }),
+        credentials: "include",
+      }).then((res) => {
+        if (!res.ok) {
+          localStorage.removeItem("appliedCoupon");
+          localStorage.removeItem("couponDiscount");
+          return;
+        }
+        setAppliedCoupon(savedCoupon);
+        setCouponCode(savedCoupon);
+        setDiscount(Number(savedDiscount));
+      }).catch(() => {
+        localStorage.removeItem("appliedCoupon");
+        localStorage.removeItem("couponDiscount");
+      });
     }
   }, []);
 

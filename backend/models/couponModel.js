@@ -37,5 +37,7 @@ const couponSchema = mongoose.Schema(
   },
 );
 
+couponSchema.index({ isActive: 1, expirationDate: 1 });
+
 const Coupon = mongoose.model("Coupon", couponSchema);
 export default Coupon;

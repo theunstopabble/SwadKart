@@ -9,9 +9,9 @@ import mongoose from "mongoose";
 export const sanitizeString = (input) => {
   if (typeof input !== "string") return "";
   const sanitized = input.trim();
-  const dangerousPatterns = ['$where', '$function', '$accumulator', '$expr', '$jsonSchema', '$text', '$meta', '$mod', '$regex', '$exists', '$type', '$nin', '$in'];
+  const dangerousPatterns = ['$where', '$function', '$accumulator', '$expr', '$jsonSchema', '$text', '$meta', '$mod'];
   for (const pattern of dangerousPatterns) {
-    if (sanitized.startsWith(pattern) || sanitized.includes(pattern)) {
+    if (sanitized.startsWith(pattern) && /\s/.test(sanitized.slice(pattern.length).charAt(0))) {
       return "";
     }
   }
