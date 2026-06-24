@@ -108,20 +108,26 @@
   ],
   "rewrites": [
     {
+      "source": "/sitemap.xml",
+      "destination": "/sitemap.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/robots.txt"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "https://swadkart-5wtf.onrender.com/api/$1"
     },
     {
       "source": "/socket.io/(.*)",
       "destination": "https://swadkart-5wtf.onrender.com/socket.io/$1"
-    },
-    {
-      "source": "/sitemap.xml",
-      "destination": "/sitemap.xml"
-    },
-    {
-      "source": "/robots.txt",
-      "destination": "/robots.txt"
     },
     {
       "source": "/:path*",
