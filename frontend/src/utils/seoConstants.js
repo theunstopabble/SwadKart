@@ -36,7 +36,7 @@ export const SITE = {
   author: {
     name: "Gautam Kumar",
     url: "https://gautam-kr.vercel.app",
-    jobTitle: "Full-Stack Developer & AI Engineer",
+    jobTitle: "Full-Stack Developer",
     sameAs: [
       "https://github.com/theunstopabble",
       "https://www.linkedin.com/in/gautamkr62",

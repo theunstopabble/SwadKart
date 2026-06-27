@@ -14,7 +14,12 @@ import {
 } from "lucide-react";
 import PageSEO from "../components/SEO/PageSEO";
 import { SITE } from "../utils/seoConstants";
-import { toJsonLd, aboutPageSchema, organizationSchema, breadcrumbSchema } from "../utils/structuredData";
+import {
+  toJsonLd,
+  aboutPageSchema,
+  organizationSchema,
+  breadcrumbSchema,
+} from "../utils/structuredData";
 
 const stats = [
   { label: "Partner Restaurants", value: "150+" },
@@ -52,7 +57,11 @@ const values = [
 
 const authorSameAs = [
   { icon: Github, label: "GitHub", url: "https://github.com/theunstopabble" },
-  { icon: Linkedin, label: "LinkedIn", url: "https://www.linkedin.com/in/gautamkr62" },
+  {
+    icon: Linkedin,
+    label: "LinkedIn",
+    url: "https://www.linkedin.com/in/gautamkr62",
+  },
   { icon: Twitter, label: "Twitter / X", url: "https://x.com/_unstopabble" },
 ];
 
@@ -71,7 +80,11 @@ export default function About() {
     { name: "About SwadKart", url: "/about" },
   ]);
 
-  const jsonLdScripts = [toJsonLd(aboutSchema), toJsonLd(orgSchema), toJsonLd(breadcrumb)];
+  const jsonLdScripts = [
+    toJsonLd(aboutSchema),
+    toJsonLd(orgSchema),
+    toJsonLd(breadcrumb),
+  ];
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -95,10 +108,12 @@ export default function About() {
             About <span className="text-primary">SwadKart</span>
           </h1>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
-            SwadKart is a production-grade, AI-powered multi-vendor food delivery platform 
-            revolutionizing how Jaipur orders food. Built by passionate developers at 
-            <strong> Jagannath University, Jaipur</strong>, we combine cutting-edge AI technology 
-            with seamless user experience to deliver food faster, smarter, and safer.
+            SwadKart is a production-grade, AI-powered multi-vendor food
+            delivery platform revolutionizing how Jaipur orders food. Built by
+            passionate developers at
+            <strong> Jagannath University, Jaipur</strong>, we combine
+            cutting-edge AI technology with seamless user experience to deliver
+            food faster, smarter, and safer.
           </p>
         </div>
       </section>
@@ -111,8 +126,12 @@ export default function About() {
               key={stat.label}
               className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 text-center hover:border-primary/30 transition-all duration-300"
             >
-              <div className="text-3xl sm:text-4xl font-black text-primary mb-2">{stat.value}</div>
-              <div className="text-gray-400 text-sm font-medium">{stat.label}</div>
+              <div className="text-3xl sm:text-4xl font-black text-primary mb-2">
+                {stat.value}
+              </div>
+              <div className="text-gray-400 text-sm font-medium">
+                {stat.label}
+              </div>
             </div>
           ))}
         </div>
@@ -126,7 +145,8 @@ export default function About() {
               Our <span className="text-primary">Mission</span> & Values
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-              We're not just delivering food — we're delivering innovation, trust, and community support with every order.
+              We're not just delivering food — we're delivering innovation,
+              trust, and community support with every order.
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
@@ -139,7 +159,9 @@ export default function About() {
                   <value.icon size={28} className="text-primary" />
                 </div>
                 <h3 className="text-xl font-bold mb-3">{value.title}</h3>
-                <p className="text-gray-400 leading-relaxed">{value.description}</p>
+                <p className="text-gray-400 leading-relaxed">
+                  {value.description}
+                </p>
               </div>
             ))}
           </div>
@@ -154,7 +176,9 @@ export default function About() {
               Meet the <span className="text-primary">Creator</span>
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-              SwadKart was designed, developed, and deployed by a passionate full-stack developer & AI engineer.
+              SwadKart was designed, developed, and deployed by a passionate
+              Full-Stack Developer | Solo-shipped 4 SaaS products | AI
+              integration .
             </p>
           </div>
 
@@ -162,16 +186,25 @@ export default function About() {
             <div className="flex flex-col md:flex-row items-center gap-8">
               {/* Author Image Placeholder */}
               <div className="w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-br from-primary/20 to-primary/40 rounded-full flex items-center justify-center ring-2 ring-primary/30 flex-shrink-0">
-                <span className="text-4xl font-black text-primary italic">GK</span>
+                <span className="text-4xl font-black text-primary italic">
+                  GK
+                </span>
               </div>
 
               <div className="flex-1 text-center md:text-left">
-                <h3 className="text-2xl sm:text-3xl font-black mb-2">Gautam Kumar</h3>
-                <p className="text-primary font-semibold mb-4">Full-Stack Developer & AI Engineer</p>
+                <h3 className="text-2xl sm:text-3xl font-black mb-2">
+                  Gautam Kumar
+                </h3>
+                <p className="text-primary font-semibold mb-4">
+                  Full-Stack Developer | Solo-shipped 4 SaaS products | AI
+                  integration
+                </p>
                 <p className="text-gray-400 leading-relaxed mb-6">
-                  A final-year Computer Science student at Jagannath University, Jaipur, with expertise in React, Node.js, 
-                  AI/ML (Groq LLM), and cloud-native infrastructure. SwadKart is his flagship project, combining cutting-edge 
-                  AI with practical food delivery solutions for Indian consumers.
+                  A final-year Computer Science student at Jagannath University,
+                  Jaipur, with expertise in React, Node.js, AI/ML (Groq LLM),
+                  and cloud-native infrastructure. SwadKart is his flagship
+                  project, combining cutting-edge AI with practical food
+                  delivery solutions for Indian consumers.
                 </p>
                 <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                   {authorSameAs.map((link) => (
@@ -201,7 +234,8 @@ export default function About() {
             Get in <span className="text-primary">Touch</span>
           </h2>
           <p className="text-gray-400 mb-8">
-            Have questions, feedback, or partnership inquiries? We'd love to hear from you.
+            Have questions, feedback, or partnership inquiries? We'd love to
+            hear from you.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
@@ -210,7 +244,9 @@ export default function About() {
             >
               <Mail size={24} className="text-primary" />
               <div className="text-left">
-                <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">Email</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">
+                  Email
+                </div>
                 <div className="font-semibold">{SITE.email}</div>
               </div>
             </a>
@@ -220,14 +256,18 @@ export default function About() {
             >
               <Phone size={24} className="text-primary" />
               <div className="text-left">
-                <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">Phone</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">
+                  Phone
+                </div>
                 <div className="font-semibold">{SITE.phone}</div>
               </div>
             </a>
             <div className="inline-flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-6 py-4">
               <MapPin size={24} className="text-primary" />
               <div className="text-left">
-                <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">Address</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">
+                  Address
+                </div>
                 <div className="font-semibold">
                   {SITE.address.street}, {SITE.address.city}
                 </div>
