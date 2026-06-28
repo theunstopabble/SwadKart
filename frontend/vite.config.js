@@ -3,12 +3,26 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
+function optimizeHtml() {
+  return {
+    name: "optimize-html",
+    enforce: "post",
+    transformIndexHtml(html) {
+      return html.replace(
+        /<link rel="stylesheet" crossorigin href="([^"]+)">/g,
+        '<link rel="preload" href="$1" as="style" onload="this.onload=null;this.rel=\'stylesheet\'"><noscript><link rel="stylesheet" crossorigin href="$1"></noscript>'
+      );
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
     plugins: [
       react(),
       VitePWA({
         registerType: "autoUpdate",
+        injectRegister: null,
         includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
         devOptions: {
           enabled: true,
@@ -87,6 +101,7 @@ export default defineConfig(() => {
           ],
         },
       }),
+      optimizeHtml(),
     ],
     // ⚡ SPEED OPTIMIZATION: Default Vite Chunking
     build: {
