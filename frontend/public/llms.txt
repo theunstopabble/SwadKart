@@ -18,14 +18,20 @@ SwadKart is a production-grade multi-vendor food delivery platform with a 4-role
 - AI: Groq LLM, Web Speech API
 - Infrastructure: Vercel (frontend), Render (backend)
 
-## Core Pages
-- Home: https://swadkart.vercel.app/
-- Restaurants: https://swadkart.vercel.app/restaurants
-- Cart: https://swadkart.vercel.app/cart
-- Orders: https://swadkart.vercel.app/orders
-- Profile: https://swadkart.vercel.app/profile
-- Contact: https://swadkart.vercel.app/contact
-- FAQ: https://swadkart.vercel.app/faq
-- About: https://swadkart.vercel.app/about
-- SwadPass: https://swadkart.vercel.app/swadpass
-- Rewards: https://swadkart.vercel.app/rewards
+## Pages
+- [Home](https://swadkart.vercel.app/)
+- [Restaurants](https://swadkart.vercel.app/restaurants)
+- [Cart](https://swadkart.vercel.app/cart)
+- [Orders](https://swadkart.vercel.app/orders)
+- [Profile](https://swadkart.vercel.app/profile)
+- [Contact](https://swadkart.vercel.app/contact)
+- [FAQ](https://swadkart.vercel.app/faq)
+- [About](https://swadkart.vercel.app/about)
+- [SwadPass](https://swadkart.vercel.app/swadpass)
+- [Rewards](https://swadkart.vercel.app/rewards)
+- [Login](https://swadkart.vercel.app/login)
+- [Register](https://swadkart.vercel.app/register)
+
+## External
+- [GitHub Repository](https://github.com/theunstopabble/swadkart)
+- [Sitemap](https://swadkart.vercel.app/sitemap.xml)
