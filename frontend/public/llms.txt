@@ -1,0 +1,31 @@
+# SwadKart
+
+SwadKart is a production-grade multi-vendor food delivery platform with a 4-role ecosystem: customers, restaurants, delivery drivers, and admins. Built with React 19, Node.js 22, Express 5, MongoDB, Socket.IO, and Redis.
+
+## Key Features
+- AI chatbot with Groq LLM for food recommendations
+- Voice search in English and Hindi
+- Real-time GPS order tracking
+- Biometric authentication (WebAuthn)
+- Razorpay payments
+- PWA with offline support
+- Group ordering and table reservations
+- SwadPass subscription program
+
+## Tech Stack
+- Frontend: React 19, Vite, Tailwind CSS, PWA
+- Backend: Node.js 22, Express 5, MongoDB, Redis
+- AI: Groq LLM, Web Speech API
+- Infrastructure: Vercel (frontend), Render (backend)
+
+## Core Pages
+- Home: https://swadkart.vercel.app/
+- Restaurants: https://swadkart.vercel.app/restaurants
+- Cart: https://swadkart.vercel.app/cart
+- Orders: https://swadkart.vercel.app/orders
+- Profile: https://swadkart.vercel.app/profile
+- Contact: https://swadkart.vercel.app/contact
+- FAQ: https://swadkart.vercel.app/faq
+- About: https://swadkart.vercel.app/about
+- SwadPass: https://swadkart.vercel.app/swadpass
+- Rewards: https://swadkart.vercel.app/rewards

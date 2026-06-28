@@ -36,3 +36,4 @@ Allow: /
 Disallow: /admin/
 
 Sitemap: https://swadkart.vercel.app/sitemap.xml
+LLMs: https://swadkart.vercel.app/llms.txt
