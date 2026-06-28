@@ -395,7 +395,7 @@ Contributions are welcome! Please follow these steps:
 
 <div align="center">
 
-**Author:** [Gautam Kumar](https://gautam-kr.vercel.app/) — Jagannath University, Jaipur, Rajasthan, India
+**Author:** [Gautam Kumar](https://gautam-kr.vercel.app/) — Full-Stack Developer | Solo-shipped 4 SaaS Products | AI Integration
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/gautamkr62)
 [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/theunstopabble)
