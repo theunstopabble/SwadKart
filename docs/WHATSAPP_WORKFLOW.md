@@ -41,6 +41,8 @@ Every WhatsApp notification is gated by user preferences. **All flags default to
 ### Schema (`backend/models/userModel.js`)
 
 ```js
+phone:              { type: String, default: null },         // Sparse unique index
+phoneVerified:      { type: Boolean, default: false },      // Must verify via WhatsApp OTP
 whatsappNotifications: {
   orders:     { type: Boolean, default: false },  // Order confirmations, status, delivery alerts
   promotions: { type: Boolean, default: false },  // Coupon/promo broadcasts
@@ -48,13 +50,50 @@ whatsappNotifications: {
 }
 ```
 
-### Opt-In Flow
+### Phone Verified Guard
+
+Every outbound user notification checks `user.phoneVerified` before sending. Even if a phone number exists, no WhatsApp message is delivered until the user has proven ownership via OTP.
+
+| Function | Guard |
+|----------|-------|
+| `sendOrderConfirmation()` | `if (!user?.phoneVerified) return;` |
+| `sendStatusUpdate()` | `if (!user?.phoneVerified) return;` |
+| `sendDriverAssigned()` | `if (!user?.phoneVerified) return;` |
+| `sendOrderCancelled()` | `if (!user?.phoneVerified) return;` |
+| `sendPromotional()` | `if (!user?.phoneVerified) return;` |
+| `sendPhoneOTP()` | *(unguarded — OTP is how they verify)* |
+| `sendDeliveryRequest()` | *(goes to partner, not user)* |
+| `sendRestaurantAlert()` | *(goes to restaurant, not user)* |
+
+### Phone Verification Flow (`PhoneVerificationModal.jsx`)
 
 ```
-User Profile → Settings → WhatsApp Notifications
-  ├─ ☐ Order Updates (orders)
-  ├─ ☐ Promotions & Offers (promotions)
-  └─ ☐ OTP via WhatsApp (otp)
+Two-step modal (shown at checkout or via Profile → Verify Now):
+
+  Step 1: Enter phone number
+    → POST /api/v1/whatsapp/send-otp (auth-protected)
+    → Sends 6-digit OTP via WhatsApp → stored in in-memory Map (5-min TTL)
+    → User sees "Check WhatsApp for OTP"
+
+  Step 2: Enter OTP
+    → POST /api/v1/whatsapp/verify-phone-otp (auth-protected)
+    → Backend sets phone + phoneVerified: true on user document
+    → Redux store updated, modal closes
+```
+
+### Google Auth Phone Flow (`GoogleAuth.jsx`)
+
+```
+User signs in with Google
+  → POST /api/v1/users/google-check
+  ├─ Existing user → login directly
+  └─ New user → Phone modal appears:
+       ├─ Enter phone → POST /api/v1/users/google-register
+       │    phone + phoneVerified: false saved to DB
+       │    User sees yellow warning:
+       │    "⚠️ Make sure it's a genuine WhatsApp number..."
+       │    → Must verify at checkout or in Profile before receiving notifications
+       └─ Skip → phone: null saved → verify at checkout
 ```
 
 ---
@@ -260,14 +299,30 @@ runChatPipeline(input, history, options)
 | `sendTemplate(sessionId, chatId, templateName, vars, logCtx)` | WhatsApp Business template |
 | `sendBulk(sessionId, messages, options)` | Bulk messages |
 
-### Convenience Wrappers (Defined but unused by controllers)
+### Convenience Wrappers (Template-Powered)
 
-| Function | Purpose |
-|----------|---------|
-| `sendOrderConfirmation(order, user, sessionId)` | Formatted order confirmation |
-| `sendStatusUpdate(order, user, newStatus, sessionId)` | Formatted status update |
-| `sendOTP(phone, otp, sessionId)` | Formatted OTP |
-| `sendPromotional(user, coupon, sessionId)` | Formatted coupon offer |
+All wrappers use `whatsappTemplates.js` for consistent formatting (bold, italic, monospace, emoji, dividers).
+
+| Function | Purpose | Template |
+|----------|---------|----------|
+| `sendOrderConfirmation(order, user)` | Full receipt with items, variants, addons, address, total | `getORDER_CONFIRMATION` |
+| `sendStatusUpdate(order, user, newStatus)` | Status change (Preparing/Ready/Out for Delivery/Delivered) | `getORDER_STATUS` |
+| `sendOTP(phone, otp)` | Account verification OTP (10-min valid) | `getOTP` |
+| `sendPhoneOTP(phone, otp)` | Checkout phone verification OTP (5-min valid) | `getPhoneOTP` |
+| `sendPromotional(user, coupon)` | Coupon/discount offer | `getPROMOTIONAL` |
+| `sendDriverAssigned(order, user, partner)` | Delivery partner name + contact | `getDRIVER_ASSIGNED` |
+| `sendOrderCancelled(order, user, reason)` | Cancel reason + refund note | `getORDER_CANCELLED` |
+| `sendDeliveryRequest(order, partner)` | Partner assignment with items + drop location | `getDELIVERY_REQUEST` |
+| `sendRestaurantAlert(order, restaurantName)` | Kitchen order notification with items to prepare | `getRESTAURANT_ALERT` |
+
+### WhatsApp Templates (`whatsappTemplates.js`)
+
+| Template | Formatting |
+|----------|------------|
+| `*bold*`, `_italic_`, `~strike~`, `` `code` `` | Standard WhatsApp markdown |
+| `─────────────────────` | `WA_SEPARATOR` divider lines |
+| `esc(str)` | Escapes `* _ ~ `` ` to prevent markdown injection |
+| All user content | Passed through `esc()` before interpolation |
 
 ---
 
@@ -315,11 +370,13 @@ Exhausted: Updates status → "cancelled"
 
 ### WhatsApp Routes (`whatsappRoutes.js`)
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/api/v1/whatsapp/webhook` | Inbound webhook from OpenWA |
-| `GET` | `/api/v1/whatsapp/health` | Health check (lists sessions) |
-| `GET` | `/api/v1/whatsapp/metrics` | 24h/1h metrics by status & type |
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| `POST` | `/api/v1/whatsapp/webhook` | HMAC | Inbound webhook from OpenWA |
+| `GET` | `/api/v1/whatsapp/health` | — | Health check (lists sessions) |
+| `GET` | `/api/v1/whatsapp/metrics` | — | 24h/1h metrics by status & type |
+| `POST` | `/api/v1/whatsapp/send-otp` | Bearer | Sends 6-digit WhatsApp OTP, stores in memory Map (5-min TTL) |
+| `POST` | `/api/v1/whatsapp/verify-phone-otp` | Bearer | Verifies OTP, saves phone + sets `phoneVerified: true` |
 
 ---
 
@@ -401,8 +458,11 @@ When `OPENWA_ISOLATE_SESSIONS=true` (default), incoming webhooks create a **sepa
 |----------|-----------|
 | **Fire-and-forget** | WhatsApp failures never block the main API |
 | **User opt-in (default false)** | Privacy-first; no spam without consent |
+| **phoneVerified guard** | Prevents random number entry — user must prove ownership via OTP before receiving notifications |
+| **No OTP at Google signup** | Reduces signup friction; user can skip phone or enter unverified, verify later at checkout or in Profile |
 | **MongoDB retry queue** | No Redis dependency (Render free tier limitation) |
 | **Baileys over whatsapp-web.js** | Baileys is pure JS — no Chrome needed, fits 512MB |
 | **Shared chatbot pipeline** | Web + WhatsApp use same intent/tool engine |
 | **HMAC-SHA256 webhook** | Verifies webhooks actually came from OpenWA |
 | **60s dedup window** | Prevents double-processing if OpenWA retries |
+| **Professional WhatsApp templates** | `whatsappTemplates.js` — formatted messages (bold, italic, dividers) matching email quality |
