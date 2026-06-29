@@ -20,23 +20,15 @@ router.post("/send-otp", protect, async (req, res) => {
       return res.status(400).json({ message: "Phone already linked to another account." });
     }
     const otp = crypto.randomInt(100000, 999999).toString();
-    const { sendText } = await import("../services/whatsapp/whatsappService.js");
+    const { sendPhoneOTP } = await import("../services/whatsapp/whatsappService.js");
     try {
-      await sendText(
-        process.env.OPENWA_DEFAULT_SESSION || "swadkart-bot-3",
-        `91${phone}@c.us`,
-        `🔐 Your SwadKart phone verification OTP is: ${otp}. Valid for 5 minutes.`
-      );
+      await sendPhoneOTP(phone, otp);
     } catch (sendErr) {
       if (sendErr.response?.status === 429 || sendErr.message?.includes("429")) {
         console.warn("[send-otp] OpenWA rate limited, retrying in 15s...");
         await new Promise((r) => setTimeout(r, 15000));
-        const { sendText: sendText2 } = await import("../services/whatsapp/whatsappService.js");
-        await sendText2(
-          process.env.OPENWA_DEFAULT_SESSION || "swadkart-bot-3",
-          `91${phone}@c.us`,
-          `🔐 Your SwadKart phone verification OTP is: ${otp}. Valid for 5 minutes.`
-        );
+        const { sendPhoneOTP: sendOTP2 } = await import("../services/whatsapp/whatsappService.js");
+        await sendOTP2(phone, otp);
         return res.json({ message: "OTP sent to WhatsApp", expiresIn: 300 });
       }
       throw sendErr;

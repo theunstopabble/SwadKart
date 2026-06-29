@@ -2,6 +2,7 @@ import axios from "axios";
 import whatsappConfig, { ensureEnabled } from "../../config/whatsapp.js";
 import { logOutbound, logInbound, updateMessageStatus } from "./whatsappLogger.js";
 import { enqueueRetry } from "./whatsappRetryQueue.js";
+import * as T from "./whatsappTemplates.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -256,31 +257,48 @@ function toChatId(phone) {
 }
 
 export async function sendOrderConfirmation(order, user, sessionId = DEFAULT_SESSION) {
+  const text = T.getORDER_CONFIRMATION(order, order.isPaid);
   const orderRef = order._id.toString().slice(-6).toUpperCase();
-  const items = order.orderItems?.slice(0, 3).map((i) => `• ${i.name} x${i.qty}`).join("\n") || "";
-  const total = order.totalPrice?.toFixed(2) || "0.00";
-  const text = `✅ *Order Confirmed!* 🎉\n\nOrder #${orderRef}\n\n${items}${order.orderItems?.length > 3 ? `\n…and ${order.orderItems.length - 3} more` : ""}\n\n💰 Total: ₹${total}\n📍 Delivery: ${order.shippingAddress?.city || ""}\n⏱️ ETA: ${order.estimatedDeliveryAt ? new Date(order.estimatedDeliveryAt).toLocaleTimeString() : "soon"}\n\nTrack your order in the SwadKart app!`;
   return sendText(sessionId, toChatId(user.phone), text, { user: user._id, order: order._id, phone: user.phone, metadata: { type: "order_confirmation", orderRef } });
 }
 
 export async function sendStatusUpdate(order, user, newStatus, sessionId = DEFAULT_SESSION) {
+  const text = T.getORDER_STATUS(order, newStatus);
   const orderRef = order._id.toString().slice(-6).toUpperCase();
-  const statusEmojis = { Preparing: "👨‍🍳", Ready: "📦", "Out for Delivery": "🛵", Delivered: "✅", Cancelled: "❌" };
-  const emoji = statusEmojis[newStatus] || "📋";
-  const text = `${emoji} *Order Update*\n\nOrder #${orderRef} is now: *${newStatus}*${newStatus === "Out for Delivery" ? "\nYour delivery partner is on the way!" : ""}${newStatus === "Delivered" ? "\nEnjoy your meal! 🍽️" : ""}`;
   return sendText(sessionId, toChatId(user.phone), text, { user: user._id, order: order._id, phone: user.phone, metadata: { type: "status_update", orderRef, newStatus } });
 }
 
 export async function sendOTP(phone, otp, sessionId = DEFAULT_SESSION) {
-  const text = `🔐 *SwadKart Verification*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this code with anyone.`;
+  const text = T.getOTP(otp);
   return sendText(sessionId, toChatId(phone), text, { phone, metadata: { type: "otp" } });
 }
 
+export async function sendPhoneOTP(phone, otp, sessionId = DEFAULT_SESSION) {
+  const text = T.getPhoneOTP(otp);
+  return sendText(sessionId, toChatId(phone), text, { phone, metadata: { type: "phone_otp" } });
+}
+
 export async function sendPromotional(user, coupon, sessionId = DEFAULT_SESSION) {
-  const code = coupon.code || "";
-  const discount = coupon.discountPercentage || 0;
-  const minOrder = coupon.minOrderValue || 0;
-  const validTill = coupon.expirationDate ? new Date(coupon.expirationDate).toLocaleDateString() : "soon";
-  const text = `🎉 *Exclusive Offer Just for You!*\n\nUse code: *${code}*\nGet *${discount}% OFF*\nMin order: ₹${minOrder}\nValid till: ${validTill}\n\nOrder now on SwadKart!`;
-  return sendText(sessionId, toChatId(user.phone), text, { user: user._id, phone: user.phone, metadata: { type: "promotional", couponCode: code } });
+  const text = T.getPROMOTIONAL(coupon);
+  return sendText(sessionId, toChatId(user.phone), text, { user: user._id, phone: user.phone, metadata: { type: "promotional", couponCode: coupon.code } });
+}
+
+export async function sendDriverAssigned(order, user, partner, sessionId = DEFAULT_SESSION) {
+  const text = T.getDRIVER_ASSIGNED(order, partner);
+  return sendText(sessionId, toChatId(user.phone), text, { user: user._id, order: order._id, phone: user.phone, metadata: { type: "driver_assigned", partnerId: partner._id } });
+}
+
+export async function sendOrderCancelled(order, user, reason, sessionId = DEFAULT_SESSION) {
+  const text = T.getORDER_CANCELLED(order, reason);
+  return sendText(sessionId, toChatId(user.phone), text, { user: user._id, order: order._id, phone: user.phone, metadata: { type: "order_cancelled", reason } });
+}
+
+export async function sendDeliveryRequest(order, partner, sessionId = DEFAULT_SESSION) {
+  const text = T.getDELIVERY_REQUEST(order, partner);
+  return sendText(sessionId, toChatId(partner.phone), text, { user: partner._id, order: order._id, phone: partner.phone, metadata: { type: "delivery_request" } });
+}
+
+export async function sendRestaurantAlert(order, restaurantName, sessionId = DEFAULT_SESSION) {
+  const text = T.getRESTAURANT_ALERT(order, restaurantName);
+  return sendText(sessionId, toChatId(order.restaurantPhone), text, { order: order._id, phone: order.restaurantPhone, metadata: { type: "restaurant_alert", restaurantName } });
 }
