@@ -32,7 +32,7 @@ const PhoneVerificationModal = ({ onClose, onVerified }) => {
     try {
       const res = await fetch(`${BASEURL}/api/v1/whatsapp/send-otp`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
         credentials: "include",
         body: JSON.stringify({ phone }),
       });
@@ -59,7 +59,7 @@ const PhoneVerificationModal = ({ onClose, onVerified }) => {
     try {
       const res = await fetch(`${BASEURL}/api/v1/whatsapp/verify-phone-otp`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
         credentials: "include",
         body: JSON.stringify({ otp }),
       });
