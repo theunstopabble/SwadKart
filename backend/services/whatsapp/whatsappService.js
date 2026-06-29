@@ -71,7 +71,7 @@ async function logSend(sessionId, chatId, body, msgType, start, result, error, l
     order: logCtx?.order || null,
     metadata: logCtx?.metadata || {},
   });
-  if (error) {
+  if (error && !logCtx?.suppressRetry) {
     enqueueRetry({
       direction: "outbound",
       messageType: msgType,

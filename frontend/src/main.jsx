@@ -20,30 +20,49 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common["X-Requested-With"] = "XMLHttpRequest";
 
-// 🌐 Global fetch patch: inject X-Requested-With header into all backend API calls
-// (CSRF middleware requires this header for non-GET, non-exempt routes)
+function addAuthHeader(headers = {}) {
+  if (!headers.Authorization) {
+    const token = localStorage.getItem("jwt");
+    if (token) {
+      return { ...headers, Authorization: `Bearer ${token}` };
+    }
+  }
+  return headers;
+}
+
+// 🌐 Global fetch patch: inject X-Requested-With + Bearer token into all backend API calls
 const BASEURL = import.meta.env.VITE_API_URL || "";
 const origFetch = window.fetch;
 window.fetch = async (url, options = {}) => {
-  if (
-    options.credentials === "include" &&
-    options.method &&
-    options.method !== "GET" &&
-    (!options.headers || !options.headers["X-Requested-With"])
-  ) {
-    const urlStr = typeof url === "string" ? url : url instanceof Request ? url.url : "";
-    if (urlStr.startsWith("/api") || (BASEURL && urlStr.startsWith(BASEURL))) {
-      options = {
-        ...options,
-        headers: {
-          ...options.headers,
-          "X-Requested-With": "XMLHttpRequest",
-        },
-      };
-    }
+  const urlStr = typeof url === "string" ? url : url instanceof Request ? url.url : "";
+  const isBackendUrl = urlStr.startsWith("/api") || (BASEURL && urlStr.startsWith(BASEURL));
+
+  if (options.method && options.method !== "GET" && isBackendUrl && !urlStr.startsWith("https://nominatim")) {
+    const headers = addAuthHeader(options.headers || {});
+    if (!headers["X-Requested-With"]) headers["X-Requested-With"] = "XMLHttpRequest";
+    options = { ...options, headers };
   }
+
+  // Also inject token for GET requests when credentials: "include" (needed for auth)
+  if ((!options.method || options.method === "GET") && isBackendUrl && !urlStr.startsWith("https://nominatim")) {
+    const headers = addAuthHeader(options.headers || {});
+    options = { ...options, headers };
+  }
+
   return origFetch(url, options);
 };
+
+// 🛡️ Inject Bearer token into all axios requests automatically
+axios.interceptors.request.use((config) => {
+  if (!config.headers?.Authorization) {
+    const token = localStorage.getItem("jwt");
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

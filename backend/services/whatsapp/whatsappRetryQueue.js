@@ -45,15 +45,16 @@ async function processFailedMessages() {
 
       try {
         let result;
+        const retryCtx = { suppressRetry: true };
         switch (log.messageType) {
           case "image":
-            result = await sendImage(log.sessionId || "default", log.chatId, log.metadata?.url || "", "");
+            result = await sendImage(log.sessionId || "default", log.chatId, log.metadata?.url || "", "", retryCtx);
             break;
           case "document":
-            result = await sendDocument(log.sessionId || "default", log.chatId, log.metadata?.url || "", log.metadata?.filename || "", "");
+            result = await sendDocument(log.sessionId || "default", log.chatId, log.metadata?.url || "", log.metadata?.filename || "", "", retryCtx);
             break;
           default:
-            result = await sendText(log.sessionId || "default", log.chatId, log.body || "");
+            result = await sendText(log.sessionId || "default", log.chatId, log.body || "", retryCtx);
         }
 
         const newMsgId = result?.messageId || "";

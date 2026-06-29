@@ -305,6 +305,7 @@ app.use(safeMongoSanitize);
 // ==========================================
 const csrfExemptPaths = [
   "/api/v1/payment/webhook",
+  "/api/v1/whatsapp/webhook",
   "/api/v1/users/contact-support",
   "/api/v1/users/google-check",
   "/api/v1/users/google-register",
