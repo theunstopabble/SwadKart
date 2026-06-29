@@ -5,12 +5,8 @@ dotenv.config();
 const isProduction = process.env.NODE_ENV === "production";
 const isConfigured = !!(process.env.OPENWA_BASE_URL && process.env.OPENWA_API_KEY);
 
-if (!isConfigured && isProduction) {
-  throw new Error("Missing WhatsApp/OpenWA env vars: OPENWA_BASE_URL, OPENWA_API_KEY");
-}
-
-if (!isConfigured && !isProduction) {
-  console.log("⚡ OpenWA not configured — WhatsApp features are disabled in dev");
+if (!isConfigured) {
+  console.log("⚡ OpenWA not configured — WhatsApp features are disabled. Set OPENWA_BASE_URL and OPENWA_API_KEY to enable.");
 }
 
 if (isConfigured && !process.env.OPENWA_API_KEY.startsWith("owa_k1_")) {
