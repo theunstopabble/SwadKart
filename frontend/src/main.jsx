@@ -18,6 +18,32 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 // 🛡️ SECURITY FIX: Globally allow HttpOnly cookies cross-origin
 axios.defaults.withCredentials = true;
+axios.defaults.headers.common["X-Requested-With"] = "XMLHttpRequest";
+
+// 🌐 Global fetch patch: inject X-Requested-With header into all backend API calls
+// (CSRF middleware requires this header for non-GET, non-exempt routes)
+const BASEURL = import.meta.env.VITE_API_URL || "";
+const origFetch = window.fetch;
+window.fetch = async (url, options = {}) => {
+  if (
+    options.credentials === "include" &&
+    options.method &&
+    options.method !== "GET" &&
+    (!options.headers || !options.headers["X-Requested-With"])
+  ) {
+    const urlStr = typeof url === "string" ? url : url instanceof Request ? url.url : "";
+    if (urlStr.startsWith("/api") || (BASEURL && urlStr.startsWith(BASEURL))) {
+      options = {
+        ...options,
+        headers: {
+          ...options.headers,
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      };
+    }
+  }
+  return origFetch(url, options);
+};
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
