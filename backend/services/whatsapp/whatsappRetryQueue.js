@@ -72,6 +72,10 @@ async function processFailedMessages() {
           },
         );
       } catch (err) {
+        if (err.response?.status === 429) {
+          console.warn("[whatsappRetryQueue] Rate limited, stopping retries for this cycle");
+          break;
+        }
         await WhatsAppLog.findOneAndUpdate(
           { _id: log._id },
           {
@@ -84,6 +88,8 @@ async function processFailedMessages() {
           },
         );
       }
+
+      await new Promise((r) => setTimeout(r, 3000));
     }
   } catch (err) {
     console.error("[whatsappRetryQueue] Processing error:", err.message);
