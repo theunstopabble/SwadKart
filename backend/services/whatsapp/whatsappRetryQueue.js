@@ -34,7 +34,7 @@ async function processFailedMessages() {
       direction: "outbound",
       status: "failed",
       createdAt: { $gte: cutoff },
-    }).lean();
+    }).lean().limit(20);
 
     for (const log of failed) {
       const retryCount = (log.metadata?.retryCount || 0) + 1;

@@ -18,6 +18,11 @@ function api() {
 }
 
 const sessionNameCache = new Map();
+let sessionNameCacheTimer = null;
+function resetSessionCache() {
+  sessionNameCache.clear();
+  sessionNameCacheTimer = null;
+}
 
 async function resolveSessionId(nameOrId) {
   if (!nameOrId || UUID_REGEX.test(nameOrId)) return nameOrId;
@@ -28,6 +33,7 @@ async function resolveSessionId(nameOrId) {
     const match = sessions.find((s) => s.name === nameOrId);
     if (match) {
       sessionNameCache.set(nameOrId, match.id);
+      if (!sessionNameCacheTimer) sessionNameCacheTimer = setTimeout(resetSessionCache, 5 * 60 * 1000);
       return match.id;
     }
   } catch {}
