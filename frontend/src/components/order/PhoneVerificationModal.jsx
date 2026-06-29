@@ -5,7 +5,7 @@ import { setCredentials } from "../../redux/userSlice";
 import { BASEURL } from "../../config";
 import { Phone, ArrowRight, RotateCcw, X } from "lucide-react";
 
-const PhoneVerificationModal = ({ userInfo, onClose, onVerified }) => {
+const PhoneVerificationModal = ({ onClose, onVerified }) => {
   const [step, setStep] = useState("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");

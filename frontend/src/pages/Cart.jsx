@@ -403,9 +403,8 @@ const Cart = () => {
 
     {showPhoneModal && (
       <PhoneVerificationModal
-        userInfo={userInfo}
         onClose={() => setShowPhoneModal(false)}
-        onVerified={(updatedUser) => {
+        onVerified={() => {
           setShowPhoneModal(false);
           navigate("/shipping");
         }}
