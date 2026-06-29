@@ -364,7 +364,7 @@ swadkart/
 | Component | Platform      | URL                                                |
 | --------- | ------------- | -------------------------------------------------- |
 | Frontend  | Vercel        | [swadkart.vercel.app](https://swadkart.vercel.app) |
-| Backend   | Render        | `swadkart-backend.onrender.com`                    |
+| Backend   | Render        | `swadkart-5wtf.onrender.com`                    |
 | Database  | MongoDB Atlas | Cluster (M0 Free Tier compatible)                  |
 | Cache     | Redis Cloud   | Optional — in-memory fallback                      |
 | Images    | Cloudinary    | Auto-optimized delivery                            |

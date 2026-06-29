@@ -122,7 +122,7 @@ Google Search Console should report Page indexing PASSED, HTTPS PASSED, LCP unde
 - AggregateRating 4.8 / 1,250 reflects an aspirational trust anchor; back-fit once real review data exists.
 - AI-bot allowlists signal intent but cannot guarantee inclusion in any specific LLM training cycle.
 - geo.position uses Jagannath University campus as a Jaipur centroid; replace with registered business address once finalized.
-- Phone / email in schemas are contact placeholders - verify with reception before public launch.
+- Contact email: `swadkartt@gmail.com` — already live across schemas.
 
 ---
 
