@@ -7,11 +7,25 @@ import { logOutbound, logInbound } from "./whatsappLogger.js";
 
 function verifySignature(rawBody, signature) {
   if (!whatsappConfig.webhookSecret) return true;
-  const expected = crypto
-    .createHmac("sha256", whatsappConfig.webhookSecret)
-    .update(rawBody)
-    .digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  if (!signature) {
+    console.warn("[webhook] Missing signature header, skipping verification");
+    return false;
+  }
+  let expected;
+  try {
+    expected = crypto
+      .createHmac("sha256", whatsappConfig.webhookSecret)
+      .update(rawBody)
+      .digest("hex");
+  } catch {
+    return false;
+  }
+  if (signature.length !== expected.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false;
+  }
 }
 
 function extractPhone(chatId) {
