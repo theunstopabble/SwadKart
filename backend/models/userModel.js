@@ -18,6 +18,7 @@ const userSchema = mongoose.Schema(
       minlength: 6,
     },
     phone: { type: String, default: null },
+    phoneVerified: { type: Boolean, default: false },
     role: {
       type: String,
       required: true,

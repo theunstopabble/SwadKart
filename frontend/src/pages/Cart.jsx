@@ -124,7 +124,7 @@ const Cart = () => {
   const checkoutHandler = () => {
     if (cartItems.length === 0) return toast.error("Cart is empty");
     if (!userInfo) return navigate("/login?redirect=/shipping");
-    if (!userInfo.phone) {
+    if (!userInfo.phone || !userInfo.phoneVerified) {
       setShowPhoneModal(true);
       return;
     }

@@ -16,10 +16,14 @@ import {
   Gift,
   Copy,
   Users,
+  Phone,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { setCredentials, updateUserProfile } from "../redux/userSlice";
 import { registerBiometric } from "../utils/biometricService";
 import { BASEURL } from "../config";
+import PhoneVerificationModal from "../components/order/PhoneVerificationModal";
 
 const Profile = () => {
   const [name, setName] = useState("");
@@ -28,6 +32,8 @@ const Profile = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [description, setDescription] = useState("");
   const [localMsg, setLocalMsg] = useState(null);
+
+  const [showPhoneVerify, setShowPhoneVerify] = useState(false);
 
   // 🔐 Biometric State (Industry Standard)
   const [bioEnabled, setBioEnabled] = useState(false);
@@ -405,6 +411,42 @@ const Profile = () => {
               </p>
             </div>
 
+            {/* 📞 PHONE VERIFICATION */}
+            <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl ${userInfo?.phoneVerified ? "bg-green-500/20 text-green-400" : "bg-gray-800 text-gray-400"}`}>
+                    {userInfo?.phoneVerified ? <CheckCircle size={24} /> : <Phone size={24} />}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white">Phone Number</h3>
+                    <p className="text-xs text-gray-500">
+                      {userInfo?.phone ? `${userInfo.phone.slice(0, 5)}*****` : "Not set"}
+                    </p>
+                  </div>
+                </div>
+                {userInfo?.phoneVerified ? (
+                  <span className="flex items-center gap-1 text-green-400 text-[10px] font-black uppercase tracking-wider">
+                    <CheckCircle size={12} /> Verified
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setShowPhoneVerify(true)}
+                    className="bg-primary hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all"
+                  >
+                    Verify Now
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-600 px-1">
+                {userInfo?.phoneVerified
+                  ? "Your phone is verified. You'll receive order updates on WhatsApp."
+                  : userInfo?.phone
+                    ? "Phone not yet verified. Verify to receive WhatsApp order updates."
+                    : "No phone number set. Add one to receive delivery updates via WhatsApp."}
+              </p>
+            </div>
+
             {/* 💳 SWAD WALLET */}
             <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
               <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/30 transition-all"></div>
@@ -547,6 +589,18 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {showPhoneVerify && (
+        <PhoneVerificationModal
+          onClose={() => setShowPhoneVerify(false)}
+          onVerified={(updatedUser) => {
+            dispatch(setCredentials(updatedUser));
+            setShowPhoneVerify(false);
+            setLocalMsg("Phone verified successfully! 🎉");
+            setTimeout(() => setLocalMsg(null), 3000);
+          }}
+        />
+      )}
     </div>
   );
 };

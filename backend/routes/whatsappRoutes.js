@@ -57,7 +57,7 @@ router.post("/verify-phone-otp", protect, async (req, res) => {
     }
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { phone: String(pending.phone) },
+      { phone: String(pending.phone), phoneVerified: true },
       { returnDocument: "after" }
     ).select("-password");
     deleteOTP(req.user._id);

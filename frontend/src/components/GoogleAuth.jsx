@@ -180,6 +180,10 @@ const GoogleAuth = () => {
                 />
               </div>
 
+              <p className="text-[9px] text-yellow-500/70 font-bold uppercase tracking-widest text-center leading-relaxed">
+                ⚠️ Make sure it's a genuine WhatsApp number linked to your account for delivery updates
+              </p>
+
               <button
                 onClick={handleFinalRegister}
                 disabled={loading}

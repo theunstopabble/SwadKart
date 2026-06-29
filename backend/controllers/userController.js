@@ -451,6 +451,7 @@ export const googleRegister = async (req, res, next) => {
       name,
       email: String(email),
       phone,
+      phoneVerified: false,
       image,
       password: crypto.randomBytes(32).toString("hex"),
       isVerified: true,

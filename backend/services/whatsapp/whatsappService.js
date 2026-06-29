@@ -257,12 +257,14 @@ function toChatId(phone) {
 }
 
 export async function sendOrderConfirmation(order, user, sessionId = DEFAULT_SESSION) {
+  if (!user?.phoneVerified) return;
   const text = T.getORDER_CONFIRMATION(order, order.isPaid);
   const orderRef = order._id.toString().slice(-6).toUpperCase();
   return sendText(sessionId, toChatId(user.phone), text, { user: user._id, order: order._id, phone: user.phone, metadata: { type: "order_confirmation", orderRef } });
 }
 
 export async function sendStatusUpdate(order, user, newStatus, sessionId = DEFAULT_SESSION) {
+  if (!user?.phoneVerified) return;
   const text = T.getORDER_STATUS(order, newStatus);
   const orderRef = order._id.toString().slice(-6).toUpperCase();
   return sendText(sessionId, toChatId(user.phone), text, { user: user._id, order: order._id, phone: user.phone, metadata: { type: "status_update", orderRef, newStatus } });
@@ -279,16 +281,19 @@ export async function sendPhoneOTP(phone, otp, sessionId = DEFAULT_SESSION) {
 }
 
 export async function sendPromotional(user, coupon, sessionId = DEFAULT_SESSION) {
+  if (!user?.phoneVerified) return;
   const text = T.getPROMOTIONAL(coupon);
   return sendText(sessionId, toChatId(user.phone), text, { user: user._id, phone: user.phone, metadata: { type: "promotional", couponCode: coupon.code } });
 }
 
 export async function sendDriverAssigned(order, user, partner, sessionId = DEFAULT_SESSION) {
+  if (!user?.phoneVerified) return;
   const text = T.getDRIVER_ASSIGNED(order, partner);
   return sendText(sessionId, toChatId(user.phone), text, { user: user._id, order: order._id, phone: user.phone, metadata: { type: "driver_assigned", partnerId: partner._id } });
 }
 
 export async function sendOrderCancelled(order, user, reason, sessionId = DEFAULT_SESSION) {
+  if (!user?.phoneVerified) return;
   const text = T.getORDER_CANCELLED(order, reason);
   return sendText(sessionId, toChatId(user.phone), text, { user: user._id, order: order._id, phone: user.phone, metadata: { type: "order_cancelled", reason } });
 }
