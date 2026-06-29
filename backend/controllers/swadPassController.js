@@ -110,7 +110,7 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
       swadPassExpiry: expiry,
       swadPassStartedAt: now,
     },
-    { new: true }
+    { returnDocument: "after" }
   ).select("hasSwadPass swadPassType swadPassExpiry swadPassStartedAt");
 
   res.json({

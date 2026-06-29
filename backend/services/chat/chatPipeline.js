@@ -235,7 +235,7 @@ async function checkEscalation(sessionId, currentSentiment, recentMessages) {
       const updated = await Conversation.findOneAndUpdate(
         { sessionId, escalationFlag: { $ne: true } },
         { $set: { escalationFlag: true } },
-        { new: true }
+        { returnDocument: "after" }
       );
       return updated?.escalationFlag || false;
     }

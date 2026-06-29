@@ -148,7 +148,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       const updated = await Product.findOneAndUpdate(
         { _id: item.product, countInStock: { $gte: item.qty } },
         { $inc: { countInStock: -item.qty } },
-        { session, new: true },
+        { session, returnDocument: "after" },
       );
       if (!updated) {
         const product = dbProducts.find(
@@ -294,7 +294,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
             },
           },
         },
-        { new: true, session },
+        { returnDocument: "after", session },
       );
       if (!buyer) throw new Error("Insufficient Wallet Balance.");
       orderIsPaid = true;
@@ -673,7 +673,7 @@ export const updateOrderStatus = async (req, res) => {
             },
           },
           { $set: { isAvailable: false } },
-          { new: true },
+          { returnDocument: "after" },
         );
 
         if (nearestPartner) {
@@ -974,7 +974,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
             },
           },
         },
-        { new: true, session },
+        { returnDocument: "after", session },
       );
       if (!refundedBuyer) throw new Error("User not found for refund.");
       order.refundStatus = "Processed";

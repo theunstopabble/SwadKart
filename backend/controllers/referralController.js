@@ -118,7 +118,7 @@ export const processReferralReward = async (refereeId, orderId) => {
   const referral = await Referral.findOneAndUpdate(
     { referee: refereeId, status: "pending" },
     { $set: { status: "completed", firstOrder: orderId } },
-    { new: true },
+    { returnDocument: "after" },
   ).populate("referrer", "swadCoins");
 
   if (!referral) return;

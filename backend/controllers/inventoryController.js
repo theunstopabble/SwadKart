@@ -75,7 +75,7 @@ export const bulkRestock = asyncHandler(async (req, res) => {
           ...(qty > 0 ? { lastRestocked: new Date() } : {}),
         },
       },
-      { new: true },
+      { returnDocument: "after" },
     );
 
     if (!updated) {

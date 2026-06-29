@@ -73,7 +73,7 @@ export async function appendMessages({ sessionId, userId, messages }) {
         update,
         {
           upsert: true,
-          new: true,
+          returnDocument: "after",
           setDefaultsOnInsert: true,
         }
       );

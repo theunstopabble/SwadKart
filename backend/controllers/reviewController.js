@@ -53,7 +53,7 @@ export const createProductReview = async (req, res) => {
         $push: { reviews: review },
         $inc: { numReviews: 1 },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!result) {

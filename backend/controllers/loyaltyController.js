@@ -68,7 +68,7 @@ export const redeemCoins = asyncHandler(async (req, res) => {
   const updatedUser = await User.findOneAndUpdate(
     { _id: req.user._id, swadCoins: { $gte: coins } },
     { $inc: { swadCoins: -coins } },
-    { new: true },
+    { returnDocument: "after" },
   );
 
   if (!updatedUser) {
@@ -100,7 +100,7 @@ export const awardCoinsToUser = async (userId, amount, type, description, orderI
   const updatedUser = await User.findByIdAndUpdate(
     userId,
     { $inc: { swadCoins: amount } },
-    { new: true },
+    { returnDocument: "after" },
   );
 
   if (updatedUser) {
@@ -149,7 +149,7 @@ export const adminAdjustCoins = asyncHandler(async (req, res) => {
     const updated = await User.findOneAndUpdate(
       { _id: userId, swadCoins: { $gte: Math.abs(coins) } },
       { $inc: { swadCoins: coins } },
-      { new: true },
+      { returnDocument: "after" },
     );
     if (!updated) {
       res.status(400);
@@ -171,7 +171,7 @@ export const adminAdjustCoins = asyncHandler(async (req, res) => {
   const updated = await User.findOneAndUpdate(
     { _id: userId },
     { $inc: { swadCoins: coins } },
-    { new: true },
+    { returnDocument: "after" },
   );
 
   await CoinTransaction.create({

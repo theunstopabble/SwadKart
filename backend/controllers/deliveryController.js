@@ -78,7 +78,7 @@ export const assignDeliveryPartner = async (req, res) => {
     const partner = await User.findOneAndUpdate(
       { _id: deliveryPartnerId, role: "delivery_partner", isAvailable: true },
       { $set: { isAvailable: false } },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!partner) {
       return res.status(400).json({ message: "Delivery partner is not available or not found" });

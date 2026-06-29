@@ -159,7 +159,7 @@ export async function execute({ orderId, userId }) {
           cancellationReason: "Cancelled via chatbot",
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
 
     let writeTimer;
