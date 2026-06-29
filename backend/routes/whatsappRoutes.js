@@ -28,8 +28,16 @@ router.post("/send-otp", protect, async (req, res) => {
         `🔐 Your SwadKart phone verification OTP is: ${otp}. Valid for 5 minutes.`
       );
     } catch (sendErr) {
-      if (sendErr.response?.status === 429) {
-        return res.status(429).json({ message: "Too many requests. Please wait a minute and try again." });
+      if (sendErr.response?.status === 429 || sendErr.message?.includes("429")) {
+        console.warn("[send-otp] OpenWA rate limited, retrying in 15s...");
+        await new Promise((r) => setTimeout(r, 15000));
+        const { sendText: sendText2 } = await import("../services/whatsapp/whatsappService.js");
+        await sendText2(
+          process.env.OPENWA_DEFAULT_SESSION || "swadkart-bot-3",
+          `91${phone}@c.us`,
+          `🔐 Your SwadKart phone verification OTP is: ${otp}. Valid for 5 minutes.`
+        );
+        return res.json({ message: "OTP sent to WhatsApp", expiresIn: 300 });
       }
       throw sendErr;
     }

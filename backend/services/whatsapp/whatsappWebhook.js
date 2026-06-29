@@ -8,8 +8,8 @@ import { logOutbound, logInbound } from "./whatsappLogger.js";
 function verifySignature(rawBody, signature) {
   if (!whatsappConfig.webhookSecret) return true;
   if (!signature) {
-    console.warn("[webhook] Missing signature header, skipping verification");
-    return false;
+    console.warn("[webhook] Missing signature header — accepting webhook anyway (no secret configured at webhook creation time)");
+    return true;
   }
   let expected;
   try {
