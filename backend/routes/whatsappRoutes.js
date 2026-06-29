@@ -1,8 +1,63 @@
 import express from "express";
+import crypto from "crypto";
 import { parseWebhookPayload, handleWebhookEvent } from "../services/whatsapp/whatsappWebhook.js";
 import WhatsAppLog from "../models/whatsappLogModel.js";
+import User from "../models/userModel.js";
+import { setOTP, getOTP, deleteOTP } from "../utils/otpStore.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+router.post("/send-otp", protect, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(String(phone))) {
+      return res.status(400).json({ message: "Invalid Indian phone number." });
+    }
+    const phoneExists = await User.findOne({ phone: String(phone) });
+    if (phoneExists) {
+      return res.status(400).json({ message: "Phone already linked to another account." });
+    }
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const { sendText } = await import("../services/whatsapp/whatsappService.js");
+    await sendText(
+      process.env.OPENWA_DEFAULT_SESSION || "swadkart-bot-3",
+      `91${phone}@c.us`,
+      `🔐 Your SwadKart phone verification OTP is: ${otp}. Valid for 5 minutes.`
+    );
+    setOTP(req.user._id, { phone: String(phone), otp });
+    res.json({ message: "OTP sent to WhatsApp", expiresIn: 300 });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to send OTP. Try again." });
+  }
+});
+
+router.post("/verify-phone-otp", protect, async (req, res) => {
+  try {
+    const { otp } = req.body;
+    const pending = getOTP(req.user._id);
+    if (!pending) {
+      return res.status(400).json({ message: "OTP expired. Request a new one." });
+    }
+    if (pending.otp !== String(otp)) {
+      return res.status(400).json({ message: "Invalid OTP." });
+    }
+    const existing = await User.findOne({ phone: String(pending.phone) });
+    if (existing) {
+      return res.status(400).json({ message: "Phone already linked to another account." });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { phone: String(pending.phone) },
+      { new: true }
+    ).select("-password");
+    deleteOTP(req.user._id);
+    res.json({ message: "Phone verified successfully!", user });
+  } catch (err) {
+    res.status(500).json({ message: "Verification failed." });
+  }
+});
 
 router.post("/webhook", async (req, res) => {
   try {

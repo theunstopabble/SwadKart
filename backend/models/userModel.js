@@ -17,7 +17,7 @@ const userSchema = mongoose.Schema(
       required: [true, "Please add a password"],
       minlength: 6,
     },
-    phone: { type: String, required: [true, "Please add a phone number"], unique: true },
+    phone: { type: String, default: null },
     role: {
       type: String,
       required: true,
@@ -201,6 +201,7 @@ userSchema.post("save", function (doc) {
 
 // 🚀 PERFORMANCE FIX (STEP 1): Indexing
 // Email index is auto-created by unique: true in schema definition above
+userSchema.index({ phone: 1 }, { unique: true, sparse: true });
 userSchema.index({ role: 1 });
 userSchema.index({ otpExpires: 1 }, { expireAfterSeconds: 0 });
 userSchema.index({ resetPasswordExpire: 1 }, { expireAfterSeconds: 0 });

@@ -427,22 +427,24 @@ export const googleRegister = async (req, res, next) => {
     const { name, email: rawEmail, image, phone: rawPhone } = req.body;
     const email = sanitizeEmail(rawEmail);
 
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(String(rawPhone))) {
-      return res.status(400).json({ message: "Invalid Indian phone number." });
-    }
-
-    const phone = sanitizePhone(rawPhone);
-    const phoneExists = await User.findOne({ phone: String(phone) });
-    if (phoneExists) {
-      res.status(400);
-      throw new Error("Phone number is already associated with another account");
-    }
-
     const emailExists = await User.findOne({ email: String(email) });
     if (emailExists) {
       res.status(400);
       throw new Error("Email is already registered. Please login instead.");
+    }
+
+    let phone = null;
+    if (rawPhone) {
+      const phoneRegex = /^[6-9]\d{9}$/;
+      if (!phoneRegex.test(String(rawPhone))) {
+        return res.status(400).json({ message: "Invalid Indian phone number." });
+      }
+      phone = sanitizePhone(rawPhone);
+      const phoneExists = await User.findOne({ phone: String(phone) });
+      if (phoneExists) {
+        res.status(400);
+        throw new Error("Phone number is already associated with another account");
+      }
     }
 
     const user = await User.create({

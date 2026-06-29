@@ -23,7 +23,7 @@ export const setCache = async (key, data, ttl = 3600, tagPrefix) => {
         await redisClient.setEx(key, ttl, JSON.stringify(data));
         if (tagPrefix) {
             const tagKey = TAG_PREFIX + tagPrefix;
-            await redisClient.sadd(tagKey, key);
+            await redisClient.sAdd(tagKey, key);
             await redisClient.expire(tagKey, Math.max(ttl, 3600));
         }
     } catch (error) {
@@ -45,7 +45,7 @@ export const invalidateByTag = async (tagPrefix) => {
     try {
         const tagKey = TAG_PREFIX + tagPrefix;
         // Get all keys tagged with this prefix
-        const keys = await redisClient.smembers(tagKey);
+        const keys = await redisClient.sMembers(tagKey);
         if (keys && keys.length > 0) {
             await redisClient.del(...keys);
         }

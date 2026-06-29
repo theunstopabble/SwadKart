@@ -15,6 +15,7 @@ import { toast } from "react-hot-toast";
 // Config & Components
 import { BASEURL } from "../config";
 import CouponSection from "../components/order/CouponSection";
+import PhoneVerificationModal from "../components/order/PhoneVerificationModal";
 import axios from "axios";
 
 const Cart = () => {
@@ -32,6 +33,7 @@ const Cart = () => {
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [loading, setLoading] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
 
   // --- 3. Calculations ---
   const itemsPrice = cartItems.reduce(
@@ -121,8 +123,12 @@ const Cart = () => {
 
   const checkoutHandler = () => {
     if (cartItems.length === 0) return toast.error("Cart is empty");
-    // Redirect logic
-    navigate(userInfo ? "/shipping" : "/login?redirect=/shipping");
+    if (!userInfo) return navigate("/login?redirect=/shipping");
+    if (!userInfo.phone) {
+      setShowPhoneModal(true);
+      return;
+    }
+    navigate("/shipping");
   };
 
   const applyCouponHandler = async (codeOverride) => {
@@ -184,9 +190,10 @@ const Cart = () => {
     toast.success("Coupon Removed");
   };
 
-  // --- 6. Render: Empty Cart State ---
-  if (cartItems.length === 0) {
-    return (
+  // --- 6. Render ---
+  return (
+    <>
+    {cartItems.length === 0 ? (
       <div className="min-h-screen bg-black text-white flex flex-col justify-center items-center pt-20">
         <ShoppingBag size={80} className="text-gray-800 mb-6" />
         <h2 className="text-3xl font-extrabold italic uppercase mb-2">
@@ -202,12 +209,8 @@ const Cart = () => {
           Browse Menu
         </Link>
       </div>
-    );
-  }
-
-  // --- 7. Render: Main Cart UI ---
-  return (
-    <div className="min-h-screen bg-black text-white pt-20 px-4 md:px-10 pb-20 font-sans">
+    ) : (
+      <div className="min-h-screen bg-black text-white pt-20 px-4 md:px-10 pb-20 font-sans">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -396,6 +399,19 @@ const Cart = () => {
         </div>
       </div>
     </div>
+    )}
+
+    {showPhoneModal && (
+      <PhoneVerificationModal
+        userInfo={userInfo}
+        onClose={() => setShowPhoneModal(false)}
+        onVerified={(updatedUser) => {
+          setShowPhoneModal(false);
+          navigate("/shipping");
+        }}
+      />
+    )}
+    </>
   );
 };
 

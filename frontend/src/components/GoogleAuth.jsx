@@ -86,11 +86,7 @@ const GoogleAuth = () => {
     }
   };
 
-  const handleFinalRegister = async () => {
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-      return toast.error("Please enter a valid 10-digit Indian phone number");
-    }
+  const registerWithPhone = async (phone) => {
     setLoading(true);
     try {
       const res = await fetch(`${BASEURL}/api/v1/users/google-register`, {
@@ -101,7 +97,7 @@ const GoogleAuth = () => {
           name: tempGoogleUser.name,
           email: tempGoogleUser.email,
           image: tempGoogleUser.image,
-          phone: phoneNumber,
+          phone,
         }),
       });
       if (res.ok) {
@@ -119,6 +115,18 @@ const GoogleAuth = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFinalRegister = async () => {
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      return toast.error("Please enter a valid 10-digit Indian phone number");
+    }
+    registerWithPhone(phoneNumber);
+  };
+
+  const skipPhone = () => {
+    registerWithPhone(null);
   };
 
   return (
@@ -184,6 +192,14 @@ const GoogleAuth = () => {
                     Complete Setup <ArrowRight size={16} />
                   </>
                 )}
+              </button>
+
+              <button
+                onClick={skipPhone}
+                disabled={loading}
+                className="w-full text-gray-500 hover:text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-colors"
+              >
+                Skip — Add Phone Later
               </button>
             </div>
           </div>
