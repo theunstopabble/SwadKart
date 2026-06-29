@@ -1,6 +1,5 @@
 import express from "express";
 import multer from "multer";
-import { storage } from "../config/cloudinary.js";
 import { contactSupport } from "../controllers/supportController.js";
 import { testEmailDelivery } from "../controllers/diagnosticController.js";
 
@@ -39,14 +38,8 @@ import { validate } from "../middleware/validationMiddleware.js";
 
 const router = express.Router();
 
-const IMAGE_MIME_WHITELIST = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const profileUpload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    IMAGE_MIME_WHITELIST.includes(file.mimetype)
-      ? cb(null, true)
-      : cb(new Error("Only JPEG, PNG, WebP, GIF allowed"), false);
-  },
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 

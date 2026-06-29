@@ -8,6 +8,7 @@ import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
+import { v2 as cloudinary } from "cloudinary";
 import { sanitizeEmail, sanitizePhone, sanitizeObjectId } from "../utils/sanitize.js";
 
 // =================================================================
@@ -63,7 +64,12 @@ export const updateUserProfile = async (req, res, next) => {
         user.description = req.body.description;
       }
       if (req.file) {
-        user.image = req.file.path || req.file.secure_url || req.file.url;
+        const b64 = Buffer.from(req.file.buffer).toString("base64");
+        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+        const result = await cloudinary.uploader.upload(dataURI, {
+          folder: "swadkart_profiles",
+        });
+        user.image = result.secure_url;
       }
       const updatedUser = await user.save();
       const token = generateToken(res, updatedUser._id, updatedUser.tokenVersion); // Refreshes HttpOnly cookie
