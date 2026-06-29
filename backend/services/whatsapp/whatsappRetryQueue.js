@@ -1,0 +1,103 @@
+import WhatsAppLog from "../../models/whatsappLogModel.js";
+import { sendText, sendImage, sendDocument } from "./whatsappService.js";
+import { updateMessageStatus } from "./whatsappLogger.js";
+
+const MAX_RETRIES = 3;
+const RETRY_INTERVAL_MS = 30 * 1000;
+const isProduction = process.env.NODE_ENV === "production";
+let intervalHandle = null;
+
+function scheduleNext() {
+  if (intervalHandle) return;
+  if (!isProduction) {
+    console.log("[whatsappRetryQueue] Retry queue active every 30s");
+  }
+  intervalHandle = setInterval(processFailedMessages, RETRY_INTERVAL_MS);
+  if (intervalHandle.unref) intervalHandle.unref();
+}
+
+export function startRetryQueue() {
+  scheduleNext();
+}
+
+export function stopRetryQueue() {
+  if (intervalHandle) {
+    clearInterval(intervalHandle);
+    intervalHandle = null;
+  }
+}
+
+async function processFailedMessages() {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const failed = await WhatsAppLog.find({
+      direction: "outbound",
+      status: "failed",
+      createdAt: { $gte: cutoff },
+    }).lean();
+
+    for (const log of failed) {
+      const retryCount = (log.metadata?.retryCount || 0) + 1;
+      if (retryCount > MAX_RETRIES) {
+        await updateMessageStatus(log.messageId, "cancelled", "Max retries exceeded");
+        continue;
+      }
+
+      try {
+        let result;
+        switch (log.messageType) {
+          case "image":
+            result = await sendImage(log.sessionId || "default", log.chatId, log.metadata?.url || "", "");
+            break;
+          case "document":
+            result = await sendDocument(log.sessionId || "default", log.chatId, log.metadata?.url || "", log.metadata?.filename || "", "");
+            break;
+          default:
+            result = await sendText(log.sessionId || "default", log.chatId, log.body || "");
+        }
+
+        const newMsgId = result?.messageId || "";
+        await updateMessageStatus(log.messageId, "sent");
+        await WhatsAppLog.findOneAndUpdate(
+          { _id: log._id },
+          {
+            $set: {
+              messageId: newMsgId || log.messageId,
+              status: "sent",
+              error: null,
+              "metadata.retryCount": retryCount,
+              "metadata.retriedAt": new Date().toISOString(),
+            },
+          },
+        );
+      } catch (err) {
+        await WhatsAppLog.findOneAndUpdate(
+          { _id: log._id },
+          {
+            $set: {
+              status: "failed",
+              error: err.message,
+              "metadata.retryCount": retryCount,
+              "metadata.retriedAt": new Date().toISOString(),
+            },
+          },
+        );
+      }
+    }
+  } catch (err) {
+    console.error("[whatsappRetryQueue] Processing error:", err.message);
+  }
+}
+
+export async function enqueueRetry(logEntry) {
+  try {
+    await WhatsAppLog.create({
+      ...logEntry,
+      status: "failed",
+      metadata: { ...logEntry.metadata, retryCount: 0, queuedAt: new Date().toISOString() },
+    });
+    scheduleNext();
+  } catch (err) {
+    console.error("[whatsappRetryQueue] Enqueue error:", err.message);
+  }
+}

@@ -45,6 +45,21 @@ export const createCoupon = async (req, res) => {
       // Removed initialization of usedBy array
     });
 
+    // 💬 WhatsApp promo broadcast to opted-in users (non-blocking)
+    try {
+      const { sendText } = await import("../services/whatsapp/whatsappService.js");
+      const optedInUsers = await User.find({
+        "whatsappNotifications.promotions": true,
+        phone: { $exists: true, $ne: "" },
+      }).select("phone").lean();
+      const msg = `🎉 New Coupon: ${coupon.code} — ${coupon.discountPercentage}% off! Min order: ₹${coupon.minOrderValue}. Valid till ${new Date(coupon.expirationDate).toLocaleDateString()}`;
+      for (const u of optedInUsers) {
+        sendText("default", `91${u.phone}@c.us`, msg).catch(() => {});
+      }
+    } catch (waErr) {
+      console.error("💬 WhatsApp coupon broadcast error (non-blocking):", waErr.message);
+    }
+
     res.status(201).json(coupon);
   } catch (error) {
     res.status(400).json({ message: error.message });

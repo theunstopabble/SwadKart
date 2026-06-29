@@ -54,6 +54,8 @@ import inventoryForecastRoutes from "./routes/inventoryForecastRoutes.js";
 import driverEarningsRoutes from "./routes/driverEarningsRoutes.js";
 import reservationRoutes from "./routes/reservationRoutes.js";
 import gdprRoutes from "./routes/gdprRoutes.js";
+import whatsappRoutes from "./routes/whatsappRoutes.js";
+import { startRetryQueue, stopRetryQueue } from "./services/whatsapp/whatsappRetryQueue.js";
 
 // ============================================================
 // 🔒 PRODUCTION ENVIRONMENT VALIDATION
@@ -103,8 +105,19 @@ const httpServer = createServer(app);
 app.set("trust proxy", 1);
 
 // --- 📏 Body Parser Limits (prevent DoS) ---
-// 🛡️ Razorpay webhook needs RAW body (must be BEFORE express.json())
+// 🛡️ Webhooks needing RAW body (must be BEFORE express.json())
 app.use("/api/v1/payment/webhook", express.raw({ type: "application/json", limit: "10kb" }));
+app.use("/api/v1/whatsapp/webhook", express.raw({ type: "application/json", limit: "10kb" }));
+
+// 🛡️ WhatsApp webhook rate limiter (60 requests/min per IP)
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: "Too many webhook requests, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/v1/whatsapp/webhook", webhookLimiter);
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
@@ -473,6 +486,7 @@ app.use("/api/v1/inventory-forecast", inventoryForecastRoutes);
 app.use("/api/v1/driver-earnings", driverEarningsRoutes);
 app.use("/api/v1/reservations", reservationRoutes);
 app.use("/api/v1/user/gdpr", gdprRoutes);
+app.use("/api/v1/whatsapp", whatsappRoutes);
 
 // --- 📂 Static Files ---
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -515,6 +529,9 @@ const server = httpServer.listen(PORT, () => {
 
   // 🧹 Schedule 90-day conversation cleanup job (Requirement 7.7)
   scheduleCleanup();
+
+  // 💬 Start WhatsApp retry queue for failed messages
+  startRetryQueue();
 });
 
 // --- 🛡️ Graceful Shutdown ---
