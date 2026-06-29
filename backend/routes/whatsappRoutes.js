@@ -21,14 +21,22 @@ router.post("/send-otp", protect, async (req, res) => {
     }
     const otp = crypto.randomInt(100000, 999999).toString();
     const { sendText } = await import("../services/whatsapp/whatsappService.js");
-    await sendText(
-      process.env.OPENWA_DEFAULT_SESSION || "swadkart-bot-3",
-      `91${phone}@c.us`,
-      `🔐 Your SwadKart phone verification OTP is: ${otp}. Valid for 5 minutes.`
-    );
+    try {
+      await sendText(
+        process.env.OPENWA_DEFAULT_SESSION || "swadkart-bot-3",
+        `91${phone}@c.us`,
+        `🔐 Your SwadKart phone verification OTP is: ${otp}. Valid for 5 minutes.`
+      );
+    } catch (sendErr) {
+      if (sendErr.response?.status === 429) {
+        return res.status(429).json({ message: "Too many requests. Please wait a minute and try again." });
+      }
+      throw sendErr;
+    }
     setOTP(req.user._id, { phone: String(phone), otp });
     res.json({ message: "OTP sent to WhatsApp", expiresIn: 300 });
   } catch (err) {
+    console.error("[send-otp] Error:", err.message);
     res.status(500).json({ message: "Failed to send OTP. Try again." });
   }
 });
