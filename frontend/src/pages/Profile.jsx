@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { toast } from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import {
@@ -19,6 +20,7 @@ import {
   Phone,
   CheckCircle,
   XCircle,
+  Camera,
 } from "lucide-react";
 import { setCredentials, updateUserProfile } from "../redux/userSlice";
 import { registerBiometric } from "../utils/biometricService";
@@ -34,6 +36,47 @@ const Profile = () => {
   const [localMsg, setLocalMsg] = useState(null);
 
   const [showPhoneVerify, setShowPhoneVerify] = useState(false);
+
+  // 📸 Profile Image Upload
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+      toast.error("Only JPEG, PNG, WebP, GIF allowed");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB");
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
+    uploadImage(file);
+  };
+
+  const uploadImage = async (file) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await axios.put(`${BASEURL}/api/v1/users/profile`, formData, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setImagePreview(null);
+      dispatch(setCredentials(res.data));
+      toast.success("Profile picture updated!");
+    } catch (err) {
+      setImagePreview(null);
+      toast.error(err.response?.data?.message || "Failed to upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // 🔐 Biometric State (Industry Standard)
   const [bioEnabled, setBioEnabled] = useState(false);
@@ -61,6 +104,9 @@ const Profile = () => {
       }
     };
     if (userInfo) fetchFreshProfile();
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -332,10 +378,13 @@ const Profile = () => {
             {/* Profile Card */}
             <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-8 flex flex-col items-center text-center relative overflow-hidden shadow-2xl">
               <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/20 to-transparent"></div>
-              <div className="relative w-20 h-20 sm:w-28 sm:h-28 bg-black rounded-full border-4 border-gray-800 flex items-center justify-center text-2xl sm:text-4xl font-black text-primary mb-4 shadow-xl uppercase">
-                {userInfo?.image ? (
+              <div
+                className="relative w-20 h-20 sm:w-28 sm:h-28 bg-black rounded-full border-4 border-gray-800 flex items-center justify-center text-2xl sm:text-4xl font-black text-primary mb-4 shadow-xl uppercase cursor-pointer group overflow-hidden"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {imagePreview || userInfo?.image ? (
                   <img
-                    src={userInfo.image}
+                    src={imagePreview || userInfo.image}
                     alt="Profile"
                     onError={(e) => {
                       e.target.style.display = "none";
@@ -345,6 +394,20 @@ const Profile = () => {
                 ) : (
                   userInfo?.name?.charAt(0) || "U"
                 )}
+                <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {uploading ? (
+                    <span className="text-white text-xs font-bold animate-pulse">Uploading...</span>
+                  ) : (
+                    <Camera className="text-white" size={22} />
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleImageSelect}
+                />
               </div>
               <h2 className="text-2xl font-black italic tracking-tighter text-white">
                 {userInfo?.name}

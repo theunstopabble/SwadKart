@@ -1,4 +1,6 @@
 import express from "express";
+import multer from "multer";
+import { storage } from "../config/cloudinary.js";
 import { contactSupport } from "../controllers/supportController.js";
 import { testEmailDelivery } from "../controllers/diagnosticController.js";
 
@@ -36,6 +38,17 @@ import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 import { validate } from "../middleware/validationMiddleware.js";
 
 const router = express.Router();
+
+const IMAGE_MIME_WHITELIST = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const profileUpload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    IMAGE_MIME_WHITELIST.includes(file.mimetype)
+      ? cb(null, true)
+      : cb(new Error("Only JPEG, PNG, WebP, GIF allowed"), false);
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 // =================================================================
 // 🌍 PUBLIC ROUTES (No Auth Required)
@@ -76,7 +89,14 @@ router.get(
 router
   .route("/profile")
   .get(protect, getUserProfile)
-  .put(protect, updateUserProfile);
+  .put(protect, (req, res, next) => {
+    profileUpload.single("image")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ message: err.message });
+      }
+      next();
+    });
+  }, updateUserProfile);
 
 // 🔐 Biometric Status (Industry Standard Sync)
 router

@@ -62,6 +62,9 @@ export const updateUserProfile = async (req, res, next) => {
       if (req.body.description !== undefined) {
         user.description = req.body.description;
       }
+      if (req.file) {
+        user.image = req.file.path || req.file.secure_url || req.file.url;
+      }
       const updatedUser = await user.save();
       const token = generateToken(res, updatedUser._id, updatedUser.tokenVersion); // Refreshes HttpOnly cookie
 
