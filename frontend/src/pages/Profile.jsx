@@ -330,6 +330,7 @@ const Profile = () => {
                   />
                   <input
                     type="password"
+                    autoComplete="new-password"
                     className="w-full bg-black border border-gray-700 text-white rounded-lg pl-10 pr-4 py-3.5 focus:border-primary focus:outline-none"
                     placeholder="Enter new password"
                     value={password}
@@ -349,6 +350,7 @@ const Profile = () => {
                   />
                   <input
                     type="password"
+                    autoComplete="new-password"
                     className="w-full bg-black border border-gray-700 text-white rounded-lg pl-10 pr-4 py-3.5 focus:border-primary focus:outline-none"
                     placeholder="Confirm new password"
                     value={confirmPassword}
