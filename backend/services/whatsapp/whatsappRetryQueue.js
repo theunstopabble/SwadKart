@@ -93,6 +93,7 @@ export async function enqueueRetry(logEntry) {
   try {
     await WhatsAppLog.create({
       ...logEntry,
+      direction: logEntry.direction || "outbound",
       status: "failed",
       metadata: { ...logEntry.metadata, retryCount: 0, queuedAt: new Date().toISOString() },
     });

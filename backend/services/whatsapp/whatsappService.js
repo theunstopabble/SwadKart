@@ -3,6 +3,8 @@ import whatsappConfig, { ensureEnabled } from "../../config/whatsapp.js";
 import { logOutbound, logInbound, updateMessageStatus } from "./whatsappLogger.js";
 import { enqueueRetry } from "./whatsappRetryQueue.js";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function api() {
   ensureEnabled();
   return axios.create({
@@ -13,6 +15,23 @@ function api() {
     },
     timeout: whatsappConfig.requestTimeout,
   });
+}
+
+const sessionNameCache = new Map();
+
+async function resolveSessionId(nameOrId) {
+  if (!nameOrId || UUID_REGEX.test(nameOrId)) return nameOrId;
+  if (sessionNameCache.has(nameOrId)) return sessionNameCache.get(nameOrId);
+  try {
+    const { data } = await api().get("/sessions");
+    const sessions = Array.isArray(data) ? data : [];
+    const match = sessions.find((s) => s.name === nameOrId);
+    if (match) {
+      sessionNameCache.set(nameOrId, match.id);
+      return match.id;
+    }
+  } catch {}
+  return nameOrId;
 }
 
 async function retry(fn, attempts = whatsappConfig.maxRetries) {
@@ -54,6 +73,7 @@ async function logSend(sessionId, chatId, body, msgType, start, result, error, l
   });
   if (error) {
     enqueueRetry({
+      direction: "outbound",
       messageType: msgType,
       sessionId,
       chatId,
@@ -108,45 +128,48 @@ export async function deleteSession(sessionId) {
 
 export async function sendText(sessionId, chatId, text, logCtx = {}) {
   const start = Date.now();
+  const sid = await resolveSessionId(sessionId);
   try {
     const { data } = await retry(async () => {
-      const res = await api().post(`/sessions/${sessionId}/messages/send-text`, { chatId, text });
+      const res = await api().post(`/sessions/${sid}/messages/send-text`, { chatId, text });
       return res.data;
     });
-    logSend(sessionId, chatId, text, "text", start, data, null, logCtx);
+    logSend(sid, chatId, text, "text", start, data, null, logCtx);
     return data;
   } catch (error) {
-    logSend(sessionId, chatId, text, "text", start, null, error, logCtx);
+    logSend(sid, chatId, text, "text", start, null, error, logCtx);
     throw error;
   }
 }
 
 export async function sendImage(sessionId, chatId, url, caption = "", logCtx = {}) {
   const start = Date.now();
+  const sid = await resolveSessionId(sessionId);
   try {
     const { data } = await retry(async () => {
-      const res = await api().post(`/sessions/${sessionId}/messages/send-image`, { chatId, url, caption });
+      const res = await api().post(`/sessions/${sid}/messages/send-image`, { chatId, url, caption });
       return res.data;
     });
-    logSend(sessionId, chatId, caption, "image", start, data, null, { ...logCtx, url, metadata: { ...logCtx.metadata, url } });
+    logSend(sid, chatId, caption, "image", start, data, null, { ...logCtx, url, metadata: { ...logCtx.metadata, url } });
     return data;
   } catch (error) {
-    logSend(sessionId, chatId, caption, "image", start, null, error, { ...logCtx, url, metadata: { ...logCtx.metadata, url } });
+    logSend(sid, chatId, caption, "image", start, null, error, { ...logCtx, url, metadata: { ...logCtx.metadata, url } });
     throw error;
   }
 }
 
 export async function sendDocument(sessionId, chatId, url, filename, caption = "", logCtx = {}) {
   const start = Date.now();
+  const sid = await resolveSessionId(sessionId);
   try {
     const { data } = await retry(async () => {
-      const res = await api().post(`/sessions/${sessionId}/messages/send-document`, { chatId, url, filename, caption });
+      const res = await api().post(`/sessions/${sid}/messages/send-document`, { chatId, url, filename, caption });
       return res.data;
     });
-    logSend(sessionId, chatId, filename, "document", start, data, null, { ...logCtx, url, filename, metadata: { ...logCtx.metadata, url, filename } });
+    logSend(sid, chatId, filename, "document", start, data, null, { ...logCtx, url, filename, metadata: { ...logCtx.metadata, url, filename } });
     return data;
   } catch (error) {
-    logSend(sessionId, chatId, filename, "document", start, null, error, { ...logCtx, url, filename, metadata: { ...logCtx.metadata, url, filename } });
+    logSend(sid, chatId, filename, "document", start, null, error, { ...logCtx, url, filename, metadata: { ...logCtx.metadata, url, filename } });
     throw error;
   }
 }
