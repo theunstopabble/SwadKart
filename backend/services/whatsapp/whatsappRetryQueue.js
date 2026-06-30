@@ -29,6 +29,13 @@ export function stopRetryQueue() {
 
 async function processFailedMessages() {
   try {
+    // Clean stale entries older than 1 hour
+    const staleCutoff = new Date(Date.now() - 60 * 60 * 1000);
+    await WhatsAppLog.updateMany(
+      { direction: "outbound", status: "failed", createdAt: { $lt: staleCutoff } },
+      { $set: { status: "cancelled", error: "Stale — not retried" } },
+    );
+
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const failed = await WhatsAppLog.find({
       direction: "outbound",
@@ -45,7 +52,7 @@ async function processFailedMessages() {
 
       try {
         let result;
-        const retryCtx = { suppressRetry: true };
+        const retryCtx = { suppressRetry: true, suppressLog: true };
         switch (log.messageType) {
           case "image":
             result = await sendImage(log.sessionId || "default", log.chatId, log.metadata?.url || "", "", retryCtx);
@@ -73,7 +80,18 @@ async function processFailedMessages() {
         );
       } catch (err) {
         if (err.response?.status === 429) {
-          console.warn("[whatsappRetryQueue] Rate limited, stopping retries for this cycle");
+          console.warn("[whatsappRetryQueue] Rate limited — marking entry as rate_limited");
+          await WhatsAppLog.findOneAndUpdate(
+            { _id: log._id },
+            {
+              $set: {
+                status: "rate_limited",
+                error: "Rate limited",
+                "metadata.retryCount": retryCount,
+                "metadata.retriedAt": new Date().toISOString(),
+              },
+            },
+          );
           break;
         }
         await WhatsAppLog.findOneAndUpdate(

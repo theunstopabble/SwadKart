@@ -64,20 +64,22 @@ function extractPhone(chatId) {
 async function logSend(sessionId, chatId, body, msgType, start, result, error, logCtx) {
   const durationMs = Date.now() - start;
   const phone = logCtx?.phone || extractPhone(chatId);
-  logOutbound({
-    messageType: msgType,
-    sessionId,
-    chatId,
-    phone,
-    messageId: result?.messageId || "",
-    body: body || "",
-    status: error ? "failed" : "sent",
-    error: error?.message || null,
-    durationMs,
-    user: logCtx?.user || null,
-    order: logCtx?.order || null,
-    metadata: logCtx?.metadata || {},
-  });
+  if (!logCtx?.suppressLog) {
+    logOutbound({
+      messageType: msgType,
+      sessionId,
+      chatId,
+      phone,
+      messageId: result?.messageId || "",
+      body: body || "",
+      status: error ? "failed" : "sent",
+      error: error?.message || null,
+      durationMs,
+      user: logCtx?.user || null,
+      order: logCtx?.order || null,
+      metadata: logCtx?.metadata || {},
+    });
+  }
   if (error && !logCtx?.suppressRetry) {
     enqueueRetry({
       direction: "outbound",

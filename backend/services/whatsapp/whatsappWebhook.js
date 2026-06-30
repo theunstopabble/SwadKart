@@ -5,10 +5,15 @@ import SupportMessage from "../../models/supportMessageModel.js";
 import whatsappConfig from "../../config/whatsapp.js";
 import { logOutbound, logInbound } from "./whatsappLogger.js";
 
+let _missingSigWarned = false;
 function verifySignature(rawBody, signature) {
   if (!whatsappConfig.webhookSecret) return true;
   if (!signature) {
-    console.warn("[webhook] Missing signature header — accepting webhook anyway (no secret configured at webhook creation time)");
+    if (!_missingSigWarned) {
+      console.warn("[webhook] Missing signature header — accepting webhook anyway (no secret configured at webhook creation time)");
+      _missingSigWarned = true;
+      setTimeout(() => { _missingSigWarned = false; }, 60000);
+    }
     return true;
   }
   let expected;
