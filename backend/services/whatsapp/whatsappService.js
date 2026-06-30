@@ -81,17 +81,21 @@ async function logSend(sessionId, chatId, body, msgType, start, result, error, l
     });
   }
   if (error && !logCtx?.suppressRetry) {
-    enqueueRetry({
-      direction: "outbound",
-      messageType: msgType,
-      sessionId,
-      chatId,
-      phone,
-      body: body || "",
-      user: logCtx?.user || null,
-      order: logCtx?.order || null,
-      metadata: { ...logCtx?.metadata, url: logCtx?.url, filename: logCtx?.filename, error: error.message },
-    });
+    const metaType = logCtx?.metadata?.type;
+    const isOTP = metaType === "otp" || metaType === "phone_otp";
+    if (!isOTP) {
+      enqueueRetry({
+        direction: "outbound",
+        messageType: msgType,
+        sessionId,
+        chatId,
+        phone,
+        body: body || "",
+        user: logCtx?.user || null,
+        order: logCtx?.order || null,
+        metadata: { ...logCtx?.metadata, url: logCtx?.url, filename: logCtx?.filename, error: error.message },
+      });
+    }
   }
 }
 
@@ -274,7 +278,7 @@ export async function sendStatusUpdate(order, user, newStatus, sessionId = DEFAU
 
 export async function sendOTP(phone, otp, sessionId = DEFAULT_SESSION) {
   const text = T.getOTP(otp);
-  return sendText(sessionId, toChatId(phone), text, { phone, metadata: { type: "otp" } });
+  return sendText(sessionId, toChatId(phone), text, { phone, metadata: { type: "otp" }, suppressRetry: true });
 }
 
 export async function sendPhoneOTP(phone, otp, sessionId = DEFAULT_SESSION, extraCtx = {}) {

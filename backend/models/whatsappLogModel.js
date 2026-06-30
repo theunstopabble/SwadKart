@@ -19,7 +19,7 @@ const whatsappLogSchema = mongoose.Schema(
     body: { type: String, maxlength: 500 },
     status: {
       type: String,
-      enum: ["pending", "sent", "delivered", "read", "failed", "cancelled"],
+      enum: ["pending", "sent", "delivered", "read", "failed", "cancelled", "rate_limited"],
       default: "pending",
     },
     error: { type: String, default: null },

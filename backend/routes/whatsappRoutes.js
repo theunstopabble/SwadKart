@@ -29,6 +29,7 @@ router.post("/send-otp", protect, async (req, res) => {
         await new Promise((r) => setTimeout(r, 15000));
         const { sendPhoneOTP: sendOTP2 } = await import("../services/whatsapp/whatsappService.js");
         await sendOTP2(phone, otp, "default", { suppressRetry: true });
+        setOTP(req.user._id, { phone: String(phone), otp });
         return res.json({ message: "OTP sent to WhatsApp", expiresIn: 300 });
       }
       throw sendErr;
