@@ -29,6 +29,14 @@ export function stopRetryQueue() {
 
 async function processFailedMessages() {
   try {
+    const OTP_TYPES = ["otp", "phone_otp"];
+
+    // Bulk-cancel all OTP failed entries — they expire in 5 min, never retry
+    await WhatsAppLog.updateMany(
+      { direction: "outbound", status: "failed", "metadata.type": { $in: OTP_TYPES } },
+      { $set: { status: "cancelled", error: "OTP expired — not retried" } },
+    );
+
     // Clean stale entries older than 1 hour
     const staleCutoff = new Date(Date.now() - 60 * 60 * 1000);
     await WhatsAppLog.updateMany(
@@ -44,6 +52,12 @@ async function processFailedMessages() {
     }).lean().limit(20);
 
     for (const log of failed) {
+      // NEVER retry OTPs — they expire in 5 minutes
+      if (OTP_TYPES.includes(log.metadata?.type)) {
+        await updateMessageStatus(log.messageId, "cancelled", "OTP expired — not retried");
+        continue;
+      }
+
       const retryCount = (log.metadata?.retryCount || 0) + 1;
       if (retryCount > MAX_RETRIES) {
         await updateMessageStatus(log.messageId, "cancelled", "Max retries exceeded");
@@ -92,8 +106,9 @@ async function processFailedMessages() {
               },
             },
           );
-          break;
+          continue;
         }
+        // Non-429 error (timeout, network, etc.) — mark failed but let next cycle retry
         await WhatsAppLog.findOneAndUpdate(
           { _id: log._id },
           {

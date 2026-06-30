@@ -68,14 +68,15 @@ router.post("/verify-phone-otp", protect, async (req, res) => {
 });
 
 router.post("/webhook", async (req, res) => {
+  // ACK immediately — OpenWA has short timeout; async processing prevents retry storms
+  res.status(200).json({ received: true });
+
   try {
     const rawBody = req.body;
     const { event, sessionId, data } = parseWebhookPayload(rawBody, req.headers);
-    const result = await handleWebhookEvent(event, sessionId, data);
-    return res.status(200).json(result);
+    await handleWebhookEvent(event, sessionId, data);
   } catch (err) {
-    const status = err.statusCode || 500;
-    return res.status(status).json({ error: err.message });
+    console.error("[webhook] Async processing error:", err.message);
   }
 });
 
