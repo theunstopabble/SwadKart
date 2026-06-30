@@ -277,9 +277,9 @@ export async function sendOTP(phone, otp, sessionId = DEFAULT_SESSION) {
   return sendText(sessionId, toChatId(phone), text, { phone, metadata: { type: "otp" } });
 }
 
-export async function sendPhoneOTP(phone, otp, sessionId = DEFAULT_SESSION) {
+export async function sendPhoneOTP(phone, otp, sessionId = DEFAULT_SESSION, extraCtx = {}) {
   const text = T.getPhoneOTP(otp);
-  return sendText(sessionId, toChatId(phone), text, { phone, metadata: { type: "phone_otp" } });
+  return sendText(sessionId, toChatId(phone), text, { ...extraCtx, phone, metadata: { ...extraCtx.metadata, type: "phone_otp" } });
 }
 
 export async function sendPromotional(user, coupon, sessionId = DEFAULT_SESSION) {
