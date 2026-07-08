@@ -24,13 +24,14 @@ router.post("/send-otp", protect, async (req, res) => {
     const otp = crypto.randomInt(100000, 999999).toString();
     const { sendPhoneOTP } = await import("../services/whatsapp/whatsappService.js");
     try {
-      await sendPhoneOTP(phone, otp, "default", { suppressRetry: true });
+      await sendPhoneOTP(phone, otp, undefined, { suppressRetry: true });
     } catch (sendErr) {
+      console.error("[send-otp] OpenWA error:", sendErr.response?.data || sendErr.message);
       if (sendErr.response?.status === 429 || sendErr.message?.includes("429")) {
         console.warn("[send-otp] OpenWA rate limited, retrying in 15s...");
         await new Promise((r) => setTimeout(r, 15000));
         const { sendPhoneOTP: sendOTP2 } = await import("../services/whatsapp/whatsappService.js");
-        await sendOTP2(phone, otp, "default", { suppressRetry: true });
+        await sendOTP2(phone, otp, undefined, { suppressRetry: true });
         setOTP(req.user._id, { phone: String(phone), otp });
         return res.json({ message: "OTP sent to WhatsApp", expiresIn: 300 });
       }

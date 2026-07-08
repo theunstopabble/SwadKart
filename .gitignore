@@ -120,6 +120,7 @@ graphify-out
 audit-findings.json
 DEPLOYMENT_WHATSAPP.md
 backend/scripts/generate-openwa-key.js
+skills/
 qr.png
 qr2.png
 nul
