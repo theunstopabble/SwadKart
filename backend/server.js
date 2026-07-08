@@ -56,6 +56,7 @@ import reservationRoutes from "./routes/reservationRoutes.js";
 import gdprRoutes from "./routes/gdprRoutes.js";
 import whatsappRoutes from "./routes/whatsappRoutes.js";
 import { startRetryQueue, stopRetryQueue } from "./services/whatsapp/whatsappRetryQueue.js";
+import { ensureSessionReady } from "./services/whatsapp/whatsappService.js";
 
 // ============================================================
 // 🔒 PRODUCTION ENVIRONMENT VALIDATION
@@ -535,6 +536,10 @@ const server = httpServer.listen(PORT, () => {
 
   // 💬 Start WhatsApp retry queue for failed messages
   startRetryQueue();
+
+  // 📱 WhatsApp session health check every 3 minutes (free-tier auto-reconnect)
+  ensureSessionReady().catch(() => {});
+  setInterval(() => ensureSessionReady().catch(() => {}), 3 * 60 * 1000);
 });
 
 // --- 🛡️ Graceful Shutdown ---
