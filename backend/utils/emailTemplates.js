@@ -400,6 +400,24 @@ export const getUserDriverAssignedTemplate = (order, partner) => {
 };
 
 // Order Cancelled
+// Phone Confirmation
+export const getPhoneConfirmationTemplate = (phone, name) => {
+  const content = `
+    <div style="text-align: center;">
+      <h2 style="font-size: 24px; margin-bottom: 10px;">Phone Number Added</h2>
+      <p>Hi <strong>${esc(name)}</strong>, your phone number has been linked to your SwadKart account.</p>
+      
+      <div style="background: #f0fdf4; color: #16a34a; font-size: 28px; font-weight: 800; letter-spacing: 2px; padding: 20px; margin: 30px 0; border-radius: 12px; border: 2px dashed #bbf7d0; display: inline-block; min-width: 200px;">
+        ${esc(phone)}
+      </div>
+      
+      <p style="font-size: 14px; color: #6b7280;">This number will be used by your delivery partner for order coordination.</p>
+      <p style="font-size: 13px; color: #9ca3af; margin-top: 5px;">If you didn't add this number, please contact support immediately.</p>
+    </div>
+  `;
+  return wrapEmail(content, "Phone Number Confirmed");
+};
+
 export const getOrderCancelledTemplate = (order, reason) => {
   const content = `
     <div style="text-align: center;">

@@ -6,6 +6,7 @@ import Product from "../models/productModel.js";
 import CouponUsage from "../models/couponUsageModel.js";
 import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
+import { getPhoneConfirmationTemplate } from "../utils/emailTemplates.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import { v2 as cloudinary } from "cloudinary";
@@ -503,6 +504,12 @@ export const verifyPhone = async (req, res) => {
     user.phone = String(phone);
     user.phoneVerified = true;
     await user.save();
+
+    sendEmail({
+      email: user.email,
+      subject: "Phone Number Confirmed — SwadKart",
+      html: getPhoneConfirmationTemplate(user.phone, user.name),
+    }).catch((err) => console.error("[verifyPhone] Email send failed:", err.message));
 
     const safeUser = user.toObject();
     delete safeUser.password;
