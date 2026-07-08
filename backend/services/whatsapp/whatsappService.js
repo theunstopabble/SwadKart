@@ -255,7 +255,7 @@ export async function sendPairingCode(sessionId, phoneNumber) {
 
 // ─── High-Level Convenience Methods ──────────────────────────────
 
-const DEFAULT_SESSION = "default";
+const DEFAULT_SESSION = whatsappConfig.defaultSession;
 
 function toChatId(phone) {
   const p = String(phone).replace(/^\+/, "");
