@@ -26,7 +26,8 @@ router.post("/send-otp", protect, async (req, res) => {
     try {
       await sendPhoneOTP(phone, otp, undefined, { suppressRetry: true });
     } catch (sendErr) {
-      console.error("[send-otp] OpenWA error:", sendErr.response?.data || sendErr.message);
+      const errData = sendErr.response?.data;
+      console.error("[send-otp] OpenWA error:", errData || sendErr.message);
       if (sendErr.response?.status === 429 || sendErr.message?.includes("429")) {
         console.warn("[send-otp] OpenWA rate limited, retrying in 15s...");
         await new Promise((r) => setTimeout(r, 15000));
@@ -34,6 +35,10 @@ router.post("/send-otp", protect, async (req, res) => {
         await sendOTP2(phone, otp, undefined, { suppressRetry: true });
         setOTP(req.user._id, { phone: String(phone), otp });
         return res.json({ message: "OTP sent to WhatsApp", expiresIn: 300 });
+      }
+      const msg = errData?.message || sendErr.message || "";
+      if (msg.includes("restricted") || msg.includes("ban") || msg.includes("rate")) {
+        return res.status(503).json({ message: "WhatsApp number temporarily restricted. Try again later or use another method." });
       }
       throw sendErr;
     }
