@@ -141,7 +141,7 @@ export async function deleteSession(sessionId) {
 
 export async function sendText(sessionId, chatId, text, logCtx = {}) {
   const start = Date.now();
-  const sid = await resolveSessionId(sessionId);
+  let sid = await resolveSessionId(sessionId);
   try {
     const { data } = await retry(async () => {
       const res = await api().post(`/sessions/${sid}/messages/send-text`, { chatId, text });
@@ -150,6 +150,18 @@ export async function sendText(sessionId, chatId, text, logCtx = {}) {
     logSend(sid, chatId, text, "text", start, data, null, logCtx);
     return data;
   } catch (error) {
+    if (error.response?.data?.message?.includes("not active") || error.message?.includes("not active")) {
+      resetSessionCache();
+      sid = await resolveSessionId(sessionId);
+      try {
+        const { data } = await api().post(`/sessions/${sid}/messages/send-text`, { chatId, text });
+        logSend(sid, chatId, text, "text", start, data, null, logCtx);
+        return data;
+      } catch (retryErr) {
+        logSend(sid, chatId, text, "text", start, null, retryErr, logCtx);
+        throw retryErr;
+      }
+    }
     logSend(sid, chatId, text, "text", start, null, error, logCtx);
     throw error;
   }
