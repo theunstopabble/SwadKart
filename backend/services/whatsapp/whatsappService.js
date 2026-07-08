@@ -295,7 +295,8 @@ export async function ensureSessionReady(sessionNameOrId = whatsappConfig.defaul
 const DEFAULT_SESSION = whatsappConfig.defaultSession;
 
 function toChatId(phone) {
-  const p = String(phone).replace(/^\+/, "");
+  let p = String(phone).replace(/^\+/, "").replace(/@[cgs]\.us$/, "");
+  if (/^\d{10}$/.test(p)) p = "91" + p;
   return p.includes("@") ? p : `${p}@c.us`;
 }
 

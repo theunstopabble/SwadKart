@@ -47,6 +47,7 @@ router.post("/send-otp", protect, async (req, res) => {
       throw sendErr;
     }
     setOTP(req.user._id, { phone: String(phone), otp });
+    console.log("[send-otp] OTP sent to", phone);
     res.json({ message: "OTP sent to WhatsApp", expiresIn: 300 });
   } catch (err) {
     console.error("[send-otp] Error:", err.message);
