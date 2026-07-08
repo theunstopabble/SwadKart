@@ -1,6 +1,6 @@
 ﻿#### E - Experience
 
-- `<meta name="author" content="Gautam Kumar - Full-Stack Developer | Solo-shipped 4 SaaS Products | AI Integration
+- `<meta name="author" content="Gautam Kumar - Full-Stack Developer | Solo-shipped SaaS Products | AI Integration
 " />`
 - Founder profile linked under Organization schema (`sameAs` array)
 - Public code repository URL in `codeRepository`

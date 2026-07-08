@@ -177,7 +177,7 @@ export default function About() {
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto text-lg">
               SwadKart was designed, developed, and deployed by a passionate
-              Full-Stack Developer | Solo-shipped 4 SaaS Products | AI Integration
+              Full-Stack Developer | Solo-shipped SaaS Products | AI Integration
               integration .
             </p>
           </div>
@@ -196,7 +196,7 @@ export default function About() {
                   Gautam Kumar
                 </h3>
                 <p className="text-primary font-semibold mb-4">
-                  Full-Stack Developer | Solo-shipped 4 SaaS Products | AI Integration
+                  Full-Stack Developer | Solo-shipped SaaS Products | AI Integration
                   integration
                 </p>
                 <p className="text-gray-400 leading-relaxed mb-6">
