@@ -15,10 +15,12 @@ router.post("/send-otp", protect, async (req, res) => {
     if (!phoneRegex.test(String(phone))) {
       return res.status(400).json({ message: "Invalid Indian phone number." });
     }
-    const phoneExists = await User.findOne({ phone: String(phone) });
-    if (phoneExists) {
+    // Allow self-verification: only block if another user has ALREADY verified this phone
+    const verifiedOwner = await User.findOne({ phone: String(phone), _id: { $ne: req.user._id }, phoneVerified: true }).select("_id");
+    if (verifiedOwner) {
       return res.status(400).json({ message: "Phone already linked to another account." });
     }
+    // If user already has this phone (unverified), mark it for update
     const otp = crypto.randomInt(100000, 999999).toString();
     const { sendPhoneOTP } = await import("../services/whatsapp/whatsappService.js");
     try {
@@ -52,7 +54,8 @@ router.post("/verify-phone-otp", protect, async (req, res) => {
     if (pending.otp !== String(otp)) {
       return res.status(400).json({ message: "Invalid OTP." });
     }
-    const existing = await User.findOne({ phone: String(pending.phone) });
+    // Allow self-verification: only block if another user has ALREADY verified this phone
+    const existing = await User.findOne({ phone: String(pending.phone), _id: { $ne: req.user._id }, phoneVerified: true });
     if (existing) {
       return res.status(400).json({ message: "Phone already linked to another account." });
     }
