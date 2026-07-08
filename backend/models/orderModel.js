@@ -176,10 +176,6 @@ const orderSchema = mongoose.Schema(
     cancelledAt: { type: Date },
     cancellationReason: { type: String },
 
-    // 💬 WHATSAPP ORDER THREAD (OpenWA)
-    whatsappSessionId: { type: String, default: null },
-    whatsappMessageId: { type: String, default: null },
-    whatsappOrderNote: { type: String, default: null },
   },
   {
     timestamps: true,

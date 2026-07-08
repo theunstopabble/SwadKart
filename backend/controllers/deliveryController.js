@@ -120,21 +120,6 @@ export const assignDeliveryPartner = async (req, res) => {
       console.log("Driver email notification failed.");
     }
 
-    // 💬 WhatsApp notify customer + driver (non-blocking)
-    try {
-      const { sendText } = await import("../services/whatsapp/whatsappService.js");
-      const orderRef = updatedOrder._id.toString().slice(-6).toUpperCase();
-      const customer = order.user;
-      if (customer?.whatsappNotifications?.orders && customer.phone) {
-        sendText("default", `91${customer.phone}@c.us`, `🛵 Delivery partner assigned for order #${orderRef}.`).catch(() => {});
-      }
-      if (partner?.whatsappNotifications?.orders && partner.phone) {
-        sendText("default", `91${partner.phone}@c.us`, `🛵 New delivery task: Order #${orderRef}. Pickup and deliver to customer.`).catch(() => {});
-      }
-    } catch (waErr) {
-      console.error("💬 WhatsApp assignment error (non-blocking):", waErr.message);
-    }
-
     res.json(updatedOrder);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -301,17 +286,6 @@ export const updateOrderToDelivered = async (req, res) => {
       );
     } catch (notifErr) {
       console.error("🔔 Delivery notification error (non-blocking):", notifErr.message);
-    }
-
-    // 💬 WhatsApp delivery confirmation (non-blocking)
-    try {
-      const deliveredUser = await User.findById(order.user).select("phone whatsappNotifications").lean();
-      if (deliveredUser?.whatsappNotifications?.orders && deliveredUser.phone) {
-        const { sendText } = await import("../services/whatsapp/whatsappService.js");
-        sendText("default", `91${deliveredUser.phone}@c.us`, `✅ Delivered! Your SwadKart order #${updatedOrder._id.toString().slice(-6).toUpperCase()} has arrived. Enjoy your meal! 🍽️`).catch(() => {});
-      }
-    } catch (waErr) {
-      console.error("💬 WhatsApp delivery notification error (non-blocking):", waErr.message);
     }
 
     res.json(updatedOrder);

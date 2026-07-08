@@ -505,10 +505,10 @@ const Profile = () => {
               </div>
               <p className="text-[10px] text-gray-600 px-1">
                 {userInfo?.phoneVerified
-                  ? "Your phone is verified. You'll receive order updates on WhatsApp."
+                  ? "Your phone is verified. Delivery partner can reach you for order updates."
                   : userInfo?.phone
-                    ? "Phone not yet verified. Verify to receive WhatsApp order updates."
-                    : "No phone number set. Add one to receive delivery updates via WhatsApp."}
+                    ? "Phone not yet verified. Verify to receive order updates."
+                    : "No phone number set. Add one for delivery coordination."}
               </p>
             </div>
 

@@ -86,13 +86,6 @@ const userSchema = mongoose.Schema(
     // 🔔 FCM PUSH NOTIFICATIONS
     fcmToken: { type: String },
 
-    // 💬 WHATSAPP NOTIFICATIONS (OpenWA)
-    whatsappNotifications: {
-      orders: { type: Boolean, default: false },
-      promotions: { type: Boolean, default: false },
-      otp: { type: Boolean, default: false },
-    },
-
     // 🪙 SWADCOINS LOYALTY SYSTEM
     swadCoins: { type: Number, default: 0, min: 0 },
 

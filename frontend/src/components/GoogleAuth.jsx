@@ -180,8 +180,8 @@ const GoogleAuth = () => {
                 />
               </div>
 
-              <p className="text-[9px] text-yellow-500/70 font-bold uppercase tracking-widest text-center leading-relaxed">
-                ⚠️ Make sure it's a genuine WhatsApp number linked to your account for delivery updates
+              <p className="text-[9px] text-gray-500/70 font-bold uppercase tracking-widest text-center leading-relaxed">
+                Your phone number helps the delivery partner reach you
               </p>
 
               <button

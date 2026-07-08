@@ -457,21 +457,6 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       }
     }
 
-    // 💬 WhatsApp order confirmation (non-blocking)
-    try {
-      const waUser = await User.findById(req.user._id).select("phone whatsappNotifications").lean();
-      if (waUser?.whatsappNotifications?.orders && waUser.phone) {
-        const { sendText } = await import("../services/whatsapp/whatsappService.js");
-        sendText(
-          "default",
-          `91${waUser.phone}@c.us`,
-          `✅ Order Confirmed! Your SwadKart order #${createdOrder._id.toString().slice(-6).toUpperCase()} of ₹${createdOrder.totalPrice} is placed.`,
-        ).catch(() => {});
-      }
-    } catch (waErr) {
-      console.error("💬 WhatsApp order confirmation error (non-blocking):", waErr.message);
-    }
-
     res.status(201).json(createdOrder);
   } catch (error) {
     // 🚨 If anything fails (like stock finishes), abort the entire transaction
@@ -611,7 +596,7 @@ export const updateOrderStatus = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate(
       "user",
-      "fcmToken _id phone whatsappNotifications",
+      "fcmToken _id phone",
     );
     if (!order) return res.status(404).json({ message: "Order not found" });
 
@@ -732,21 +717,6 @@ export const updateOrderStatus = async (req, res) => {
         // Fallback: Notify all (without OTP)
         req.io.emit("newDeliveryTask", safeOrder);
       }
-    }
-
-    // 💬 WhatsApp status update (non-blocking)
-    try {
-      const statusUser = order.user;
-      if (statusUser?.whatsappNotifications?.orders && statusUser.phone) {
-        const { sendText } = await import("../services/whatsapp/whatsappService.js");
-        sendText(
-          "default",
-          `91${statusUser.phone}@c.us`,
-          `📦 Order Update: Your SwadKart order #${updatedOrder._id.toString().slice(-6).toUpperCase()} is now: ${status}`,
-        ).catch(() => {});
-      }
-    } catch (waErr) {
-      console.error("💬 WhatsApp status update error (non-blocking):", waErr.message);
     }
 
     res.json(updatedOrder);

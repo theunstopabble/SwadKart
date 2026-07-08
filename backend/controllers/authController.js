@@ -64,16 +64,6 @@ export const registerUser = async (req, res, next) => {
             html: getOtpTemplate(otp),
           });
 
-          // 💬 WhatsApp OTP (non-blocking)
-          try {
-            if (userExists.whatsappNotifications?.otp && userExists.phone) {
-              const { sendText } = await import("../services/whatsapp/whatsappService.js");
-              sendText("default", `91${userExists.phone}@c.us`, `🔐 Your SwadKart OTP is: ${otp}. Valid for 10 minutes.`).catch(() => {});
-            }
-          } catch (waErr) {
-            console.error("💬 WhatsApp OTP error (non-blocking):", waErr.message);
-          }
-
           return res.status(200).json({
             message: `OTP Resent to Email!`,
             email: userExists.email,
@@ -110,16 +100,6 @@ export const registerUser = async (req, res, next) => {
           subject: `🔐 ${otp} is your Verification Code`,
           html: getOtpTemplate(otp),
         });
-
-        // 💬 WhatsApp OTP (non-blocking)
-        try {
-          if (user.whatsappNotifications?.otp && user.phone) {
-            const { sendText } = await import("../services/whatsapp/whatsappService.js");
-            sendText("default", `91${user.phone}@c.us`, `🔐 Your SwadKart OTP is: ${otp}. Valid for 10 minutes.`).catch(() => {});
-          }
-        } catch (waErr) {
-          console.error("💬 WhatsApp OTP error (non-blocking):", waErr.message);
-        }
 
         return res.status(201).json({
           message: `OTP sent to Email!`,

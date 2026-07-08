@@ -30,6 +30,7 @@ import {
   subscribeToNewsletter,
   googleCheck,
   googleRegister,
+  verifyPhone,
 } from "../controllers/userController.js";
 
 // Middleware Import
@@ -135,6 +136,9 @@ router.post(
   authorizeRoles("admin"),
   testEmailDelivery,
 );
+
+// Phone Verification (Firebase Phone Auth)
+router.post("/verify-phone", protect, verifyPhone);
 
 // =================================================================
 // 🆔 DYNAMIC ID ROUTES (MUST BE AT THE END)

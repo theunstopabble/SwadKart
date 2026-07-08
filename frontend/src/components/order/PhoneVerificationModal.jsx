@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { useDispatch } from "react-redux";
 import { setCredentials } from "../../redux/userSlice";
-import { BASEURL } from "../../config";
+import { auth } from "../../utils/firebaseConfig";
+import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { Phone, ArrowRight, RotateCcw, X } from "lucide-react";
+import { BASEURL } from "../../config";
 
 const PhoneVerificationModal = ({ onClose, onVerified }) => {
   const [step, setStep] = useState("phone");
@@ -11,7 +13,18 @@ const PhoneVerificationModal = ({ onClose, onVerified }) => {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const confirmationRef = useRef(null);
+  const recaptchaRef = useRef(null);
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    return () => {
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
+      }
+    };
+  }, []);
 
   const startCooldown = () => {
     setCooldown(30);
@@ -26,26 +39,32 @@ const PhoneVerificationModal = ({ onClose, onVerified }) => {
   const sendOTP = async () => {
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phoneRegex.test(phone)) {
-      return toast.error("Please enter a valid 10-digit Indian phone number");
+      return toast.error("Enter a valid 10-digit Indian phone number");
     }
     setLoading(true);
     try {
-      const res = await fetch(`${BASEURL}/api/v1/whatsapp/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
-        credentials: "include",
-        body: JSON.stringify({ phone }),
-      });
-      if (res.ok) {
-        toast.success("OTP sent to your WhatsApp!");
-        setStep("otp");
-        startCooldown();
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+          size: "invisible",
+        });
+      }
+      const phoneNumber = `+91${phone}`;
+      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier);
+      confirmationRef.current = confirmationResult;
+      toast.success("OTP sent via SMS!");
+      setStep("otp");
+      startCooldown();
+    } catch (err) {
+      console.error("Firebase phone auth error:", err);
+      if (err.code === "auth/too-many-requests") {
+        toast.error("Too many requests. Try again later.");
+      } else if (err.code === "auth/invalid-phone-number") {
+        toast.error("Invalid phone number.");
+      } else if (err.code === "auth/quota-exceeded") {
+        toast.error("SMS quota exceeded.");
       } else {
-        const err = await res.json();
         toast.error(err.message || "Failed to send OTP");
       }
-    } catch {
-      toast.error("Network error");
     } finally {
       setLoading(false);
     }
@@ -53,15 +72,21 @@ const PhoneVerificationModal = ({ onClose, onVerified }) => {
 
   const verifyOTP = async () => {
     if (!otp || otp.length < 4) {
-      return toast.error("Enter the OTP received on WhatsApp");
+      return toast.error("Enter the OTP received via SMS");
     }
     setLoading(true);
     try {
-      const res = await fetch(`${BASEURL}/api/v1/whatsapp/verify-phone-otp`, {
+      if (!confirmationRef.current) {
+        toast.error("Session expired. Request a new OTP.");
+        setStep("phone");
+        return;
+      }
+      await confirmationRef.current.confirm(otp);
+      const res = await fetch(`${BASEURL}/api/v1/users/verify-phone`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ otp }),
+        body: JSON.stringify({ phone }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -70,10 +95,18 @@ const PhoneVerificationModal = ({ onClose, onVerified }) => {
         onVerified(data.user);
       } else {
         const err = await res.json();
-        toast.error(err.message || "Invalid OTP");
+        toast.error(err.message || "Failed to save phone");
       }
-    } catch {
-      toast.error("Network error");
+    } catch (err) {
+      console.error("OTP verify error:", err);
+      if (err.code === "auth/code-expired") {
+        toast.error("OTP expired. Request a new one.");
+        setStep("phone");
+      } else if (err.code === "auth/invalid-verification-code") {
+        toast.error("Invalid OTP. Try again.");
+      } else {
+        toast.error("Verification failed. Try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -92,7 +125,7 @@ const PhoneVerificationModal = ({ onClose, onVerified }) => {
         <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-8">
           {step === "phone"
             ? "Required for delivery updates"
-            : "Check WhatsApp for the OTP"}
+            : "Check SMS for the OTP"}
         </p>
 
         {step === "phone" ? (
@@ -115,6 +148,7 @@ const PhoneVerificationModal = ({ onClose, onVerified }) => {
             >
               {loading ? "Sending..." : <>Send OTP <ArrowRight size={16} /></>}
             </button>
+            <div id="recaptcha-container" ref={recaptchaRef}></div>
           </div>
         ) : (
           <div className="space-y-4">

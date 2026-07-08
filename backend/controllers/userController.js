@@ -477,3 +477,38 @@ export const googleRegister = async (req, res, next) => {
     next(error);
   }
 };
+
+// Phone Verification (called after Firebase Phone Auth succeeds on client)
+export const verifyPhone = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(String(phone))) {
+      return res.status(400).json({ message: "Invalid Indian phone number." });
+    }
+
+    // Check if phone already linked to another verified user
+    const existing = await User.findOne({
+      phone: String(phone),
+      phoneVerified: true,
+      _id: { $ne: req.user._id },
+    }).select("_id");
+    if (existing) {
+      return res.status(400).json({ message: "Phone already linked to another account." });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.phone = String(phone);
+    user.phoneVerified = true;
+    await user.save();
+
+    const safeUser = user.toObject();
+    delete safeUser.password;
+    return res.json({ message: "Phone verified successfully", user: safeUser });
+  } catch (err) {
+    console.error("[verifyPhone] Error:", err.message);
+    res.status(500).json({ message: "Failed to verify phone." });
+  }
+};
