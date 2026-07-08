@@ -22,7 +22,11 @@ router.post("/send-otp", protect, async (req, res) => {
     }
     // If user already has this phone (unverified), mark it for update
     const otp = crypto.randomInt(100000, 999999).toString();
-    const { sendPhoneOTP } = await import("../services/whatsapp/whatsappService.js");
+    const { sendPhoneOTP, ensureSessionReady } = await import("../services/whatsapp/whatsappService.js");
+    const sessionReady = await ensureSessionReady();
+    if (!sessionReady) {
+      return res.status(503).json({ message: "WhatsApp session not connected. Scan QR code from the admin dashboard first." });
+    }
     try {
       await sendPhoneOTP(phone, otp, undefined, { suppressRetry: true });
     } catch (sendErr) {

@@ -265,6 +265,31 @@ export async function sendPairingCode(sessionId, phoneNumber) {
   return data;
 }
 
+// ─── Session Health ──────────────────────────────────────────────
+
+export async function ensureSessionReady(sessionNameOrId = whatsappConfig.defaultSession) {
+  let sid = await resolveSessionId(sessionNameOrId);
+  try {
+    const session = await getSession(sid);
+    if (session.status === "ready") return true;
+    if (session.status === "qr_ready" || session.status === "initializing") {
+      try {
+        await startSession(sid);
+        await new Promise((r) => setTimeout(r, 2000));
+        const updated = await getSession(sid);
+        if (updated.status === "ready") return true;
+      } catch {}
+    }
+    if (session.status === "failed" || session.status === "created") {
+      try {
+        await startSession(sid);
+        await new Promise((r) => setTimeout(r, 1000));
+      } catch {}
+    }
+  } catch {}
+  return false;
+}
+
 // ─── High-Level Convenience Methods ──────────────────────────────
 
 const DEFAULT_SESSION = whatsappConfig.defaultSession;
