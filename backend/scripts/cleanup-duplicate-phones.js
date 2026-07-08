@@ -3,7 +3,10 @@
 import mongoose from "mongoose";
 import User from "../models/userModel.js";
 import { config } from "dotenv";
-config();
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, "../.env") });
 
 async function main() {
   await mongoose.connect(process.env.MONGO_URI);
@@ -39,8 +42,12 @@ async function main() {
     console.log(`  Kept phone on ${keep.name} (${keep.email}, ${keep.role})`);
   }
 
-  // Rebuild sparse index to ensure consistency
-  await User.collection.dropIndex("phone_1");
+  // Ensure sparse unique index exists (ignore if already present)
+  try {
+    await User.collection.dropIndex("phone_1");
+  } catch {
+    // Index may not exist — that's OK
+  }
   await User.collection.createIndex({ phone: 1 }, { unique: true, sparse: true });
   console.log("\nPhone index rebuilt.");
 
