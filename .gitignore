@@ -119,6 +119,7 @@ graphify-out
 .graphifyignore
 audit-findings.json
 DEPLOYMENT_WHATSAPP.md
+backend/scripts/generate-openwa-key.js
 qr.png
 qr2.png
 nul
