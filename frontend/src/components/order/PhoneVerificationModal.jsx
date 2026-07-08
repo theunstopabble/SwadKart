@@ -5,8 +5,8 @@ import { setCredentials } from "../../redux/userSlice";
 import { Phone, ArrowRight, X, CheckCircle } from "lucide-react";
 import { BASEURL } from "../../config";
 
-const PhoneVerificationModal = ({ onClose, onVerified }) => {
-  const [phone, setPhone] = useState("");
+const PhoneVerificationModal = ({ onClose, onVerified, initialPhone = "" }) => {
+  const [phone, setPhone] = useState(initialPhone);
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
 
@@ -48,10 +48,10 @@ const PhoneVerificationModal = ({ onClose, onVerified }) => {
         </button>
 
         <h2 className="text-2xl font-black italic uppercase text-white mb-2">
-          Add Your <span className="text-primary">Phone</span>
+          {initialPhone ? "Update Your" : "Add Your"} <span className="text-primary">Phone</span>
         </h2>
         <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-8">
-          Required for delivery coordination
+          {initialPhone ? "Change your number below" : "Required for delivery coordination"}
         </p>
 
         <div className="space-y-4">

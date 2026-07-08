@@ -491,9 +491,17 @@ const Profile = () => {
                   </div>
                 </div>
                 {userInfo?.phoneVerified ? (
-                  <span className="flex items-center gap-1 text-green-400 text-[10px] font-black uppercase tracking-wider">
-                    <CheckCircle size={12} /> Verified
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-green-400 text-[10px] font-black uppercase tracking-wider">
+                      <CheckCircle size={12} /> Verified
+                    </span>
+                    <button
+                      onClick={() => setShowPhoneVerify(true)}
+                      className="text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 border border-gray-700 hover:border-gray-500 rounded-xl transition-all"
+                    >
+                      Update
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={() => setShowPhoneVerify(true)}
@@ -657,6 +665,7 @@ const Profile = () => {
 
       {showPhoneVerify && (
         <PhoneVerificationModal
+          initialPhone={userInfo?.phone || ""}
           onClose={() => setShowPhoneVerify(false)}
           onVerified={(updatedUser) => {
             dispatch(setCredentials(updatedUser));
