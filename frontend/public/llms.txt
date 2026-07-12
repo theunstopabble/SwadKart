@@ -35,3 +35,9 @@ SwadKart is a production-grade multi-vendor food delivery platform with a 4-role
 ## External
 - [GitHub Repository](https://github.com/theunstopabble/swadkart)
 - [Sitemap](https://swadkart.vercel.app/sitemap.xml)
+
+## Author
+- Name: Gautam Kumar
+- Origin: Sitamarhi, Bihar, India
+- Current: Jaipur, Rajasthan, India
+- Portfolio: https://gautam-kr.vercel.app

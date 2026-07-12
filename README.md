@@ -418,7 +418,7 @@ If you find SwadKart useful, please consider giving it a **star** ⭐ on GitHub 
 
 <br />
 
-_Built with ❤️ by [Gautam Kumar](https://gautam-kr.vercel.app/) at Jagannath University, Jaipur_
+_Built with ❤️ by [Gautam Kumar](https://gautam-kr.vercel.app/) (from Sitamarhi, Bihar) at Jagannath University, Jaipur_
 
 </div>
 

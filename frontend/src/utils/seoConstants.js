@@ -74,3 +74,10 @@ export const PAGE_PATHS = {
   terms: "/terms",
   swadpass: "/swadpass",
 };
+
+export const AUTHOR_INFO = {
+  name: "Gautam Kumar",
+  origin: "Sitamarhi, Bihar, India",
+  current: "Jaipur, Rajasthan, India",
+  portfolio: "https://gautam-kr.vercel.app",
+};
