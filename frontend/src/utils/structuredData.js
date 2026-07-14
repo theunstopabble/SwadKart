@@ -129,6 +129,20 @@ export const webApplicationSchema = () => ({
     "@type": "Offer",
     price: "0",
     priceCurrency: SITE.currency,
+    shippingDetails: {
+      "@type": "OfferShippingDetails",
+      shippingRate: { "@type": "MonetaryAmount", value: "0", currency: SITE.currency },
+      deliveryTime: {
+        "@type": "ShippingDeliveryTime",
+        handlingTime: { "@type": "QuantitativeValue", minValue: "0", maxValue: "0", unitCode: "DAY" },
+        transitTime: { "@type": "QuantitativeValue", minValue: "0", maxValue: "0", unitCode: "DAY" },
+      },
+    },
+    hasMerchantReturnPolicy: {
+      "@type": "MerchantReturnPolicy",
+      applicableCountry: "IN",
+      returnPolicyCategory: "https://schema.org/MerchantReturnNotPermitted",
+    },
   },
   softwareVersion: "1.0.2",
   codeRepository: "https://github.com/theunstopabble/swadkart",
@@ -248,6 +262,20 @@ export const menuItemSchema = ({ name, description, image, price, currency = "IN
     seller: {
       "@type": "FoodEstablishment",
       name: restaurantName || SITE.name,
+    },
+    shippingDetails: {
+      "@type": "OfferShippingDetails",
+      shippingRate: { "@type": "MonetaryAmount", value: "0", currency },
+      deliveryTime: {
+        "@type": "ShippingDeliveryTime",
+        handlingTime: { "@type": "QuantitativeValue", minValue: "0", maxValue: "1", unitCode: "DAY" },
+        transitTime: { "@type": "QuantitativeValue", minValue: "0", maxValue: "1", unitCode: "DAY" },
+      },
+    },
+    hasMerchantReturnPolicy: {
+      "@type": "MerchantReturnPolicy",
+      applicableCountry: "IN",
+      returnPolicyCategory: "https://schema.org/MerchantReturnNotPermitted",
     },
   },
 });
