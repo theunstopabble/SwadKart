@@ -35,10 +35,10 @@ export default defineConfig(() => {
           clientsClaim: true,
 
           // Cache static files
-          globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+          globPatterns: ["**/*.{js,css,html,ico,png,svg,xml}"],
 
-          // 👇 Prevent SW from handling API or Socket requests (Fixes the loop issue)
-          navigateFallbackDenylist: [/^\/api/, /^\/socket.io/],
+          // 👇 Prevent SW from handling non-page requests (API, Socket, static XML/TXT)
+          navigateFallbackDenylist: [/^\/api/, /^\/socket.io/, /^\/sitemap\.xml$/, /^\/robots\.txt$/],
 
           runtimeCaching: [
             {
