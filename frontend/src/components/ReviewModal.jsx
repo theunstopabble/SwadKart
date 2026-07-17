@@ -135,10 +135,10 @@ const ReviewModal = ({ isOpen, onClose, orderItems }) => {
                 >
                   <Star
                     size={42}
-                    fill={(hover || rating) >= star ? "#ff4757" : "none"}
+                    fill={(hover || rating) >= star ? "#ff6b6b" : "none"}
                     className={
                       (hover || rating) >= star
-                        ? "text-primary drop-shadow-[0_0_8px_rgba(255,71,87,0.5)]"
+                        ? "text-primary drop-shadow-[0_0_8px_rgba(255,107,107,0.5)]"
                         : "text-gray-700"
                     }
                     strokeWidth={(hover || rating) >= star ? 0 : 2}

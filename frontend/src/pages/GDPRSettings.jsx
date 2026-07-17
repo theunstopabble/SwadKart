@@ -106,7 +106,7 @@ const GDPRSettings = () => {
               <button
                 onClick={handleExport}
                 disabled={exporting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-red-600 rounded-lg font-medium transition disabled:opacity-50"
               >
                 {exporting ? (
                   <Loader className="animate-spin" size={18} />

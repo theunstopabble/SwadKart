@@ -87,7 +87,7 @@ const Footer = () => {
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         {/* --- TOP SECTION: NEWSLETTER --- */}
-        <div className="flex flex-col items-center bg-[#0d1117] p-8 md:p-12 rounded-[2.5rem] border border-gray-800 mb-16 shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col items-center bg-gray-900 p-8 md:p-12 rounded-[2.5rem] border border-gray-800 mb-16 shadow-2xl relative overflow-hidden">
           <div className="text-center max-w-2xl mb-10">
             <h3 className="text-3xl md:text-4xl font-extrabold uppercase tracking-tight mb-4 leading-tight">
               SUBSCRIBE TO <span className="text-primary">SWAD</span> NEWS 📰
@@ -100,7 +100,7 @@ const Footer = () => {
 
           <form
             onSubmit={handleSubscribe}
-            className="flex items-center bg-[#000] border border-gray-700 rounded-full w-full overflow-hidden focus-within:border-[#ef4444] transition-all"
+            className="flex items-center bg-black border border-gray-700 rounded-full w-full overflow-hidden focus-within:border-primary transition-all"
           >
             <input
               type="email"
@@ -112,7 +112,7 @@ const Footer = () => {
             <button
               type="submit"
               disabled={loading}
-              className="bg-[#ef4444] hover:bg-red-600 text-white font-bold px-4 py-3 h-full transition-all shrink-0 disabled:opacity-50"
+              className="bg-primary hover:bg-red-600 text-white font-bold px-4 py-3 h-full transition-all shrink-0 disabled:opacity-50"
             >
               {loading ? "..." : "Subscribe"}
             </button>

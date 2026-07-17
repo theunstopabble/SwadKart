@@ -36,15 +36,18 @@ const GroupOrders = () => {
       );
       // axios throws on non-2xx; auth errors handled in catch
       setOrders(Array.isArray(res.data) ? res.data : res.data?.data || []);
-    } catch {
+    } catch (err) {
       setOrders([]);
+      if (err.response?.status !== 401) {
+        toast.error("Failed to load group orders");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!userInfo) return;
+    if (!userInfo) { setLoading(false); return; }
     fetchOrders();
   }, [userInfo]);
 
@@ -118,7 +121,7 @@ const GroupOrders = () => {
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg font-medium transition"
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-red-600 rounded-lg font-medium transition"
           >
             {showForm ? <X size={18} /> : <Plus size={18} />}
             {showForm ? "Close" : "Create Group"}
@@ -181,7 +184,7 @@ const GroupOrders = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2 bg-primary hover:bg-red-600 rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
             >
               {submitting ? (
                 <Loader className="animate-spin" size={18} />

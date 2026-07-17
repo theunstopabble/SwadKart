@@ -149,7 +149,7 @@ const AnalyticsForecast = () => {
             <h3 className="text-lg font-bold text-white">Order Volume Forecast</h3>
             <p className="text-xs text-gray-400">Hourly patterns and day-of-week analysis</p>
           </div>
-          <button onClick={fetchOrderForecast} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded-lg text-xs font-bold">
+          <button onClick={fetchOrderForecast} className="bg-primary hover:bg-red-600 text-white px-4 py-1 rounded-lg text-xs font-bold">
             {loading ? "..." : "Load"}
           </button>
         </div>

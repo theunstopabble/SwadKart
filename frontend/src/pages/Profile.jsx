@@ -294,7 +294,7 @@ const Profile = () => {
                     readOnly
                     title="Email cannot be changed. Contact support."
                   />
-                  <p className="text-xs text-gray-600 mt-1 pl-1">
+                  <p className="text-xs text-gray-400 mt-1 pl-1">
                     ⚠️ Email cannot be changed directly.
                   </p>
                 </div>
@@ -429,7 +429,7 @@ const Profile = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`p-3 rounded-xl ${isBiometricSupported ? "bg-gray-800 text-primary" : "bg-gray-800/50 text-gray-600"}`}
+                    className={`p-3 rounded-xl ${isBiometricSupported ? "bg-gray-800 text-primary" : "bg-gray-800/50 text-gray-400"}`}
                   >
                     <Fingerprint size={24} />
                   </div>
@@ -459,7 +459,7 @@ const Profile = () => {
                     ></div>
                   </button>
                 ) : (
-                  <div className="flex items-center gap-1 text-gray-600">
+                  <div className="flex items-center gap-1 text-gray-400">
                     <AlertTriangle size={14} />
                     <span className="text-[10px] font-bold uppercase">
                       Unsupported
@@ -467,7 +467,7 @@ const Profile = () => {
                   </div>
                 )}
               </div>
-              <p className="text-[10px] text-gray-600 mt-4 px-1">
+              <p className="text-[10px] text-gray-400 mt-4 px-1">
                 {!isBiometricSupported
                   ? "This device doesn't support biometric authentication."
                   : bioEnabled
@@ -511,7 +511,7 @@ const Profile = () => {
                   </button>
                 )}
               </div>
-              <p className="text-[10px] text-gray-600 px-1">
+              <p className="text-[10px] text-gray-400 px-1">
                 {userInfo?.phoneVerified
                   ? "Your phone is verified. Delivery partner can reach you for order updates."
                   : userInfo?.phone
@@ -540,7 +540,7 @@ const Profile = () => {
 
               {/* Transactions Mini List */}
               <div className="space-y-3 relative z-10">
-                <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest mb-2">
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                   Recent Activity
                 </p>
                 {userInfo?.walletTransactions &&
@@ -577,7 +577,7 @@ const Profile = () => {
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-600 italic text-center py-4">
+                  <p className="text-xs text-gray-400 italic text-center py-4">
                     No transactions yet.
                   </p>
                 )}

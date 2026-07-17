@@ -296,7 +296,7 @@ const PlaceOrder = () => {
             email: userInfo.email,
             contact: cart.shippingAddress.phone,
           },
-          theme: { color: "#ef4444" },
+          theme: { color: "#ff6b6b" },
           modal: {
             ondismiss: () => {
               // User closed Razorpay modal without completing payment

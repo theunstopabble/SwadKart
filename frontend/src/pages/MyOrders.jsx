@@ -43,6 +43,8 @@ const MyOrders = () => {
                 (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
               ),
             );
+          } else {
+            toast.error("Failed to load orders");
           }
         } catch {
           toast.error("Failed to load orders");

@@ -88,7 +88,7 @@ const SwadPass = () => {
           }
         },
         prefill: {},
-        theme: { color: "#ff4757" },
+        theme: { color: "#ff6b6b" },
         modal: { ondismiss: () => setActionLoading(false) },
       };
 
@@ -221,7 +221,7 @@ const SwadPass = () => {
               <button
                 onClick={handleSubscribe}
                 disabled={actionLoading}
-                className="mt-2 px-8 py-3 bg-orange-500 hover:bg-orange-600 rounded-lg font-medium transition flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
+                className="mt-2 px-8 py-3 bg-primary hover:bg-red-600 rounded-lg font-medium transition flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
               >
                 {actionLoading ? <Loader className="animate-spin" size={18} /> : <Crown size={18} />}
                 Subscribe Now

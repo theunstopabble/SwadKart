@@ -22,7 +22,7 @@ const MySubscriptions = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userInfo) return;
+    if (!userInfo) { setLoading(false); return; }
     fetch(`${BASEURL}/api/v1/subscriptions/my`, { credentials: "include" })
       .then((r) => {
         if (!r.ok) throw new Error("fetch failed");
@@ -33,6 +33,7 @@ const MySubscriptions = () => {
       })
       .catch(() => {
         setSubs([]);
+        toast.error("Failed to load subscriptions");
       })
       .finally(() => {
         setLoading(false);

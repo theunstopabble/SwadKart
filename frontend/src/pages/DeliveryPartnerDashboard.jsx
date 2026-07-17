@@ -77,9 +77,9 @@ const DeliveryPartnerDashboard = () => {
         icon: "🛵",
         style: {
           borderRadius: "15px",
-          background: "#111827",
+          background: "#0f172a",
           color: "#fff",
-          border: "1px solid #3b82f6",
+          border: "1px solid #ff6b6b",
         },
       });
       fetchRef.current();

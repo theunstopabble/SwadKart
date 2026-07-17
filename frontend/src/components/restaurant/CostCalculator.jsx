@@ -288,7 +288,7 @@ const CostCalculator = () => {
                 </button>
               ) : (
                 <>
-                  <button onClick={updateItemCost} disabled={loading} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-xl text-sm transition-colors">
+                  <button onClick={updateItemCost} disabled={loading} className="flex-1 bg-primary hover:bg-red-600 text-white font-bold py-2 rounded-xl text-sm transition-colors">
                     {loading ? "Saving..." : "Save Changes"}
                   </button>
                   <button onClick={() => setEditMode(false)} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 rounded-xl text-sm transition-colors">

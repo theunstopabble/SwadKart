@@ -185,9 +185,9 @@ const RestaurantOwnerDashboard = () => {
             icon: "🍕",
             style: {
               borderRadius: "12px",
-              background: "#111827",
+              background: "#0f172a",
               color: "#fff",
-              border: "1px solid #ef4444",
+              border: "1px solid #ff6b6b",
             },
           },
         );

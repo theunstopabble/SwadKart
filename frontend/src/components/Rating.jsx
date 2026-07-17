@@ -1,6 +1,6 @@
 import { Star, StarHalf } from "lucide-react";
 
-const Rating = ({ value = 0, text, color = "#facc15" }) => {
+const Rating = ({ value = 0, text, color = "#ff9f43" }) => {
   return (
     <div className="flex items-center gap-1">
       {[1, 2, 3, 4, 5].map((index) => (

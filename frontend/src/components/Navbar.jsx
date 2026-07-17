@@ -135,7 +135,7 @@ const Navbar = () => {
                 {userInfo.role === "delivery_partner" && (
                   <Link
                     to="/delivery/dashboard"
-                    className="hover:text-primary transition-colors font-medium text-blue-400"
+                    className="hover:text-primary transition-colors font-medium text-gray-300"
                   >
                     {t("deliveryDashboard")}
                   </Link>
@@ -369,7 +369,7 @@ const Navbar = () => {
                 {userInfo.role === "delivery_partner" && (
                   <Link
                     to="/delivery/dashboard"
-                    className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-bold text-blue-400 hover:bg-gray-800"
+                    className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-bold text-gray-300 hover:bg-gray-800"
                     onClick={closeMenu}
                   >
                     <Truck size={18} /> {t("deliveryDashboard")}
@@ -398,28 +398,28 @@ const Navbar = () => {
                   <>
                     <Link
                       to="/swadpass"
-                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-yellow-400 hover:bg-gray-800"
+                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800"
                       onClick={closeMenu}
                     >
                       <Crown size={18} /> SwadPass
                     </Link>
                     <Link
                       to="/rewards"
-                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-purple-400 hover:bg-gray-800"
+                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800"
                       onClick={closeMenu}
                     >
                       <Trophy size={18} /> Rewards
                     </Link>
                     <Link
                       to="/reservations"
-                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-orange-400 hover:bg-gray-800"
+                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800"
                       onClick={closeMenu}
                     >
                       <Calendar size={18} /> Reservations
                     </Link>
                     <Link
                       to="/group-orders"
-                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-blue-400 hover:bg-gray-800"
+                      className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800"
                       onClick={closeMenu}
                     >
                       <Users size={18} /> Group Orders

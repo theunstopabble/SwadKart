@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASEURL } from "../config";
+import { toast } from "react-hot-toast";
 import { Flame, Award, Trophy, Loader, Star } from "lucide-react";
 
 const Gamification = () => {
@@ -24,13 +25,16 @@ const Gamification = () => {
           totalOrders: data.totalOrders ?? 0,
           badges: data.badges || [],
         });
-      } catch {
+      } catch (err) {
         setStats({
           currentStreak: 0,
           longestStreak: 0,
           totalOrders: 0,
           badges: [],
         });
+        if (err.response?.status !== 401) {
+          toast.error("Failed to load rewards data");
+        }
       } finally {
         setLoading(false);
       }

@@ -9,6 +9,7 @@ import {
   Tag,
   Users as UsersIcon,
   Flame,
+  Loader,
 } from "lucide-react";
 import { BASEURL } from "../config";
 
@@ -26,6 +27,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
 
   // --- CENTRALIZED DATA STATES ---
+  const [pageLoading, setPageLoading] = useState(true);
   const [orders, setOrders] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
@@ -102,10 +104,19 @@ const AdminDashboard = () => {
       if (userInfo?.role === "admin") {
         await fetchAllData();
       }
+      setPageLoading(false);
     };
 
     loadDashboardData();
   }, [userInfo, fetchAllData]);
+
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <Loader className="animate-spin text-primary" size={40} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white pt-20 pb-10 px-4 md:px-10 font-sans">
