@@ -310,7 +310,6 @@ swadkart/
 │   ├── tests/
 │   │   └── properties/     # Property-based tests (fast-check)
 │   ├── utils/              # Token generators, email templates, cache helpers
-│   ├── workers/            # BullMQ email worker
 │   └── server.js           # Express app entry point
 │
 ├── frontend/
