@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, FileText, HelpCircle, Shield, Info } from "lucide-react";
+import { ArrowLeft, FileText, HelpCircle, Shield, Newspaper, Cookie } from "lucide-react";
 
 const InfoPage = () => {
   const { type } = useParams();
@@ -44,6 +44,49 @@ const InfoPage = () => {
         "🔒 End-to-end encryption",
         "🔒 No data selling",
         "🔒 Secure payment gateways",
+      ],
+    },
+    blog: {
+      title: "SwadKart Blog",
+      icon: <Newspaper size={40} className="text-primary" />,
+      text: "Latest updates, features, and stories from the SwadKart platform.",
+      sections: [
+        {
+          title: "🚀 SwadKart v1.0 — AI-Powered Food Delivery is Here",
+          date: "Jan 2025",
+          content:
+            "SwadKart launched as a production-grade multi-vendor food delivery platform featuring a Groq LLM chatbot, voice search in English & Hindi, real-time GPS tracking via Socket.IO, biometric authentication with WebAuthn, and secure Razorpay payments. The platform supports 4 roles: Admin, Restaurant Owner, Delivery Partner, and Customer.",
+        },
+        {
+          title: "🎯 SwadPass Subscription & Gamification",
+          date: "Mar 2025",
+          content:
+            "Introduced SwadPass — a premium subscription tier with free delivery, exclusive discounts, and priority support. Also launched gamification features including daily streaks, SwadCoins rewards, achievement badges, and leaderboards to enhance user engagement and retention.",
+        },
+        {
+          title: "🤖 AI Chatbot with Groq Llama 3.3",
+          date: "Jun 2025",
+          content:
+            "Integrated Groq's Llama 3.3 LLM for intelligent food recommendations, order assistance, and natural language search. The chatbot understands context, remembers preferences, and provides personalized suggestions across 30+ API routes and 14 MongoDB models.",
+        },
+        {
+          title: "🌐 PWA + Offline Support Deployed",
+          date: "Sep 2025",
+          content:
+            "SwadKart became a fully installable Progressive Web App with Workbox service worker, offline support, push notifications, and background sync. Users can browse restaurants and view cached menus even without an internet connection.",
+        },
+      ],
+    },
+    cookie: {
+      title: "Cookie Policy",
+      icon: <Cookie size={40} className="text-primary" />,
+      text: "SwadKart uses cookies and similar technologies to enhance your browsing experience, analyze traffic, and personalize content.",
+      details: [
+        "🍪 Essential Cookies: Required for authentication, session management, and secure checkout. These cannot be disabled.",
+        "📊 Analytics Cookies: Help us understand how you use the platform to improve features and performance.",
+        "🎯 Preference Cookies: Remember your language selection, location preferences, and theme settings.",
+        "🔒 No Third-Party Tracking: We do not use cookies for advertising or sell your data to third parties.",
+        "⚙️ Manage Cookies: You can control cookies through your browser settings at any time.",
       ],
     },
     help: {
@@ -134,6 +177,31 @@ const InfoPage = () => {
                 </li>
               ))}
             </ul>
+          )}
+
+          {data.sections && (
+            <div className="space-y-8">
+              {data.sections.map((section, idx) => (
+                <div
+                  key={idx}
+                  className="bg-black/40 p-6 rounded-2xl border border-gray-800 hover:border-primary/20 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <h3 className="font-extrabold text-white text-lg">
+                      {section.title}
+                    </h3>
+                    {section.date && (
+                      <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider whitespace-nowrap">
+                        {section.date}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-400 leading-relaxed text-sm md:text-base">
+                    {section.content}
+                  </p>
+                </div>
+              ))}
+            </div>
           )}
 
           {data.questions && (

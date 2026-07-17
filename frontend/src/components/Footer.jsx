@@ -200,7 +200,7 @@ const Footer = () => {
                 { name: "Help Center", path: "/page/help" },
                 { name: "Terms of Service", path: "/page/terms" },
                 { name: "Privacy Policy", path: "/page/privacy" },
-                { name: "Cookie Policy", path: "/page/privacy" },
+                { name: "Cookie Policy", path: "/page/cookie" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
