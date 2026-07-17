@@ -18,7 +18,7 @@ import {
 const GroupOrders = () => {
   const { userInfo } = useSelector((state) => state.user);
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!userInfo);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     restaurant: "",
@@ -47,7 +47,7 @@ const GroupOrders = () => {
   };
 
   useEffect(() => {
-    if (!userInfo) { setLoading(false); return; }
+    if (!userInfo) return;
     fetchOrders();
   }, [userInfo]);
 

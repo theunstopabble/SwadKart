@@ -35,8 +35,6 @@ body {
   /* 🚫 Mobile Click Highlight Hatao */
   -webkit-tap-highlight-color: transparent;
   
-  /* 🚫 Text Selection Band (App feel) */
-  user-select: none; 
 }
 
 /* Input boxes me text select karne do */

@@ -19,10 +19,10 @@ import { toast } from "react-hot-toast";
 const MySubscriptions = () => {
   const { userInfo } = useSelector((state) => state.user);
   const [subs, setSubs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!userInfo);
 
   useEffect(() => {
-    if (!userInfo) { setLoading(false); return; }
+    if (!userInfo) return;
     fetch(`${BASEURL}/api/v1/subscriptions/my`, { credentials: "include" })
       .then((r) => {
         if (!r.ok) throw new Error("fetch failed");
