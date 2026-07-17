@@ -283,6 +283,7 @@ const Cart = () => {
                     <button
                       onClick={() => addToCartHandler(item, item.qty - 1)}
                       disabled={item.qty === 1}
+                      aria-label={`Decrease quantity of ${item.name}`}
                       className="p-3 text-gray-500 hover:text-white hover:bg-gray-800 disabled:opacity-20 transition-all"
                     >
                       <Minus size={18} />
@@ -292,6 +293,7 @@ const Cart = () => {
                     </span>
                     <button
                       onClick={() => addToCartHandler(item, item.qty + 1)}
+                      aria-label={`Increase quantity of ${item.name}`}
                       className="p-3 text-gray-500 hover:text-white hover:bg-gray-800 transition-all"
                     >
                       <Plus size={18} />
@@ -300,6 +302,7 @@ const Cart = () => {
 
                   <button
                     onClick={() => removeFromCartHandler(item.cartUniqueId)}
+                    aria-label={`Remove ${item.name} from cart`}
                     className="p-3 bg-red-500/5 text-red-500 border border-red-500/10 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
                   >
                     <Trash2 size={18} />

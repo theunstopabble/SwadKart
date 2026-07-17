@@ -67,6 +67,7 @@ const VoiceSearch = ({ setSearchTerm }) => {
         onClick={() => setLang(lang === "en-IN" ? "hi-IN" : "en-IN")}
         className="p-2 rounded-full text-[10px] font-bold text-gray-400 hover:text-primary transition-colors"
         title={lang === "en-IN" ? "Switch to Hindi" : "Switch to English"}
+        aria-label={lang === "en-IN" ? "Switch to Hindi" : "Switch to English"}
       >
         <Globe size={14} />
       </button>
