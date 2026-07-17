@@ -170,6 +170,7 @@ export default function About() {
                   Full-Stack Developer | Solo-shipped SaaS Products | AI Integration
                 </p>
                 <p className="text-gray-400 leading-relaxed mb-6">
+                  From Sitamarhi, Bihar — currently based in Jaipur, Rajasthan.
                   A B.Tech Computer Science student at Jagannath University,
                   Jaipur, with expertise in React, Node.js, AI/ML (Groq LLM),
                   and cloud-native infrastructure. SwadKart is his flagship
