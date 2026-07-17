@@ -29,7 +29,7 @@ const DeliveryPartnerDashboard = lazy(
 );
 const InfoPage = lazy(() => import("./pages/InfoPage"));
 const Contact = lazy(() => import("./pages/Contact"));
-const FAQ = lazy(() => import("./pages/FAQ"));
+
 const About = lazy(() => import("./pages/About"));
 const SwadPass = lazy(() => import("./pages/SwadPass"));
 const Gamification = lazy(() => import("./pages/Gamification"));
@@ -276,7 +276,7 @@ function App() {
                   element={<ResetPassword />}
                 />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/faq" element={<FAQ />} />
+                <Route path="/faq" element={<Navigate to="/page/faq" replace />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/page/about-us" element={<Navigate to="/about" replace />} />
                 <Route path="/page/blog" element={<Navigate to="/" replace />} />
