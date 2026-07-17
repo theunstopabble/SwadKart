@@ -279,6 +279,7 @@ function App() {
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/page/about-us" element={<Navigate to="/about" replace />} />
+                <Route path="/page/blog" element={<Navigate to="/" replace />} />
                 <Route path="/page/:type" element={<InfoPage />} />
 
                 {/* User Protected Routes */}
