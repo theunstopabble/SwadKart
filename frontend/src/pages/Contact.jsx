@@ -7,7 +7,7 @@ import { toJsonLd, contactPageSchema, breadcrumbSchema } from "../utils/structur
 
 const Contact = () => {
   const supportEmail =
-    import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
+    import.meta.env.VITE_SUPPORT_EMAIL || "swadkartt@gmail.com";
   const supportPhone = "+91 98765 43210";
 
   const [formData, setFormData] = useState({
