@@ -15,10 +15,28 @@
     </image:image>
   </url>
   <url>
-    <loc>https://swadkart.vercel.app/login</loc>
-    <lastmod>2026-06-18</lastmod>
+    <loc>https://swadkart.vercel.app/about</loc>
+    <lastmod>2026-06-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/contact</loc>
+    <lastmod>2026-06-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/restaurants</loc>
+    <lastmod>2026-06-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/search</loc>
+    <lastmod>2026-06-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>
   <url>
     <loc>https://swadkart.vercel.app/register</loc>
@@ -27,10 +45,10 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://swadkart.vercel.app/restaurants</loc>
+    <loc>https://swadkart.vercel.app/login</loc>
     <lastmod>2026-06-18</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.95</priority>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://swadkart.vercel.app/cart</loc>
@@ -39,38 +57,20 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://swadkart.vercel.app/orders</loc>
-    <lastmod>2026-06-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.75</priority>
-  </url>
-  <url>
     <loc>https://swadkart.vercel.app/profile</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://swadkart.vercel.app/contact</loc>
-    <lastmod>2026-06-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://swadkart.vercel.app/faq</loc>
+    <loc>https://swadkart.vercel.app/orders</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-  <url>
-    <loc>https://swadkart.vercel.app/about</loc>
-    <lastmod>2026-06-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.75</priority>
   </url>
   <url>
     <loc>https://swadkart.vercel.app/swadpass</loc>
-    <lastmod>2026-06-18</lastmod>
+    <lastmod>2026-06-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.75</priority>
   </url>
@@ -80,5 +80,52 @@
     <changefreq>weekly</changefreq>
     <priority>0.65</priority>
   </url>
+  <url>
+    <loc>https://swadkart.vercel.app/group-orders</loc>
+    <lastmod>2026-06-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/reservations</loc>
+    <lastmod>2026-06-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/gamification</loc>
+    <lastmod>2026-06-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/page/faq</loc>
+    <lastmod>2026-06-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/page/terms</loc>
+    <lastmod>2026-06-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/page/privacy</loc>
+    <lastmod>2026-06-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/page/cookie</loc>
+    <lastmod>2026-06-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://swadkart.vercel.app/page/help</loc>
+    <lastmod>2026-06-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
 </urlset>
-
