@@ -7,16 +7,6 @@ const InfoPage = () => {
 
   // 📝 DATA STORE: Theme consistent icons and text
   const contentData = {
-    "about-us": {
-      title: "About SwadKart",
-      icon: <Info size={40} className="text-primary" />,
-      text: "SwadKart is Jaipur's fastest growing food delivery platform. Started with a vision to deliver hot and fresh food within minutes, we partner with the best local restaurants to bring you authentic taste.",
-      details: [
-        "🚀 Started in 2024",
-        "📍 HQ: Jaipur, Rajasthan",
-        "🍔 500+ Restaurant Partners",
-      ],
-    },
     faq: {
       title: "Frequently Asked Questions",
       icon: <HelpCircle size={40} className="text-primary" />,
