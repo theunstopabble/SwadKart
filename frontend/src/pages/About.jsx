@@ -4,7 +4,6 @@ import {
   Zap,
   Smartphone,
   Award,
-  MapPin,
   Mail,
   ExternalLink,
   Github,
@@ -207,27 +206,21 @@ export default function About() {
           <p className="text-gray-400 mb-8">
             Have questions, feedback, or partnership inquiries?
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <span className="inline-flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-6 py-4">
-              <Mail size={24} className="text-primary" />
+          <div className="flex justify-center">
+            <a
+              href={`mailto:${SITE.email}`}
+              className="inline-flex items-center justify-center gap-3 bg-white/5 border border-white/10 hover:border-primary/30 rounded-2xl px-8 py-5 transition-all duration-300 group"
+            >
+              <Mail size={24} className="text-primary group-hover:scale-110 transition-transform" />
               <div className="text-left">
                 <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">
                   Email
                 </div>
-                <div className="font-semibold">{SITE.email}</div>
-              </div>
-            </span>
-            <span className="inline-flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-6 py-4">
-              <MapPin size={24} className="text-primary" />
-              <div className="text-left">
-                <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">
-                  Location
-                </div>
-                <div className="font-semibold">
-                  {SITE.address.street}, {SITE.address.city}
+                <div className="font-semibold group-hover:text-primary transition-colors">
+                  {SITE.email}
                 </div>
               </div>
-            </span>
+            </a>
           </div>
         </div>
       </section>
