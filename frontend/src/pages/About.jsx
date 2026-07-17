@@ -209,7 +209,7 @@ export default function About() {
           </p>
           <div className="flex justify-center">
             <a
-              href={`mailto:${import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com"}`}
+              href={`mailto:${SITE.inboxEmail}`}
               className="inline-flex items-center justify-center gap-3 bg-white/5 border border-white/10 hover:border-primary/30 rounded-2xl px-8 py-5 transition-all duration-300 group"
             >
               <Mail size={24} className="text-primary group-hover:scale-110 transition-transform" />
@@ -218,7 +218,7 @@ export default function About() {
                   Email
                 </div>
                 <div className="font-semibold group-hover:text-primary transition-colors">
-                  support@swadkart.com
+                  {SITE.email}
                 </div>
               </div>
             </a>

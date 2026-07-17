@@ -13,17 +13,12 @@ import {
   Heart,
 } from "lucide-react";
 import { BASEURL } from "../config";
+import { SITE } from "../utils/seoConstants";
 
 const Footer = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 👇 CONFIGURATION: Change these to update footer info centrally
-  // In Vite/React, frontend env vars usually need 'VITE_' prefix.
-  // Using a fallback here ensures it looks professional immediately.
-  const SUPPORT_EMAIL =
-    import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
-  const DISPLAY_EMAIL = "support@swadkart.com";
   const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE || "+91 98765 43210";
 
   const socialLinks = [
@@ -260,10 +255,10 @@ const Footer = () => {
                   <Mail size={18} />
                 </div>
                 <a
-                  href={`mailto:${SUPPORT_EMAIL}`}
+                  href={`mailto:${SITE.inboxEmail}`}
                   className="group-hover:text-gray-300 transition-colors"
                 >
-                  {DISPLAY_EMAIL}
+                  {SITE.email}
                 </a>
               </li>
             </ul>

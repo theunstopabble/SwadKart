@@ -1,6 +1,7 @@
 import React from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, FileText, HelpCircle, Shield, Newspaper, Cookie } from "lucide-react";
+import { SITE } from "../utils/seoConstants";
 
 const InfoPage = () => {
   const { type } = useParams();
@@ -95,7 +96,7 @@ const InfoPage = () => {
       text: "Need support? Our team is available 24/7.",
       details: [
         `📞 Call: ${import.meta.env.VITE_SUPPORT_PHONE || "+91 12345 67890"}`,
-        "📧 Email: support@swadkart.com",
+        <>📧 Email: <a href={`mailto:${SITE.inboxEmail}`} className="text-primary hover:underline">{SITE.email}</a></>,
         "💬 Chat Support: Coming Soon",
       ],
     },

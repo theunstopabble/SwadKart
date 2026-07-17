@@ -14,6 +14,7 @@ export const SITE = {
   foundingDate: "2025-01-01",
   phone: "+91-80058-11122",
   email: "support@swadkart.com",
+  inboxEmail: "swadkartt@gmail.com",
   address: {
     street: "Jagannath University, Jaipur Campus",
     city: "Jaipur",

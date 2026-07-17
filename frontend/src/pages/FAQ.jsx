@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, HelpCircle } from "lucide-react";
 import PageSEO from "../components/SEO/PageSEO";
+import { SITE } from "../utils/seoConstants";
 import { toJsonLd, faqPageSchema } from "../utils/structuredData";
 
 const faqItems = [
@@ -51,8 +52,15 @@ const faqItems = [
   },
   {
     question: "How do I contact SwadKart customer support?",
-    answer:
-      "You can reach our support team 24/7 via email at support@swadkart.com or through the Contact page. Premium SwadPass members get fast-track support with priority response.",
+    answer: (
+      <>
+        You can reach our support team 24/7 via email at{" "}
+        <a href={`mailto:${SITE.inboxEmail}`} className="text-primary hover:underline">
+          {SITE.email}
+        </a>{" "}
+        or through the Contact page. Premium SwadPass members get fast-track support with priority response.
+      </>
+    ),
   },
 ];
 

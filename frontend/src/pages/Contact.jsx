@@ -2,13 +2,11 @@ import React, { useState } from "react";
 import { Mail, MapPin, Send, Clock, Headphones, Phone } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASEURL } from "../config";
+import { SITE } from "../utils/seoConstants";
 import PageSEO from "../components/SEO/PageSEO";
 import { toJsonLd, contactPageSchema, breadcrumbSchema } from "../utils/structuredData";
 
 const Contact = () => {
-  const supportEmail =
-    import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
-  const displayEmail = "support@swadkart.com";
   const supportPhone = "+91 98765 43210";
 
   const [formData, setFormData] = useState({
@@ -100,10 +98,10 @@ const Contact = () => {
                     Email Inquiry
                   </p>
                   <a
-                    href={`mailto:${supportEmail}`}
+                    href={`mailto:${SITE.inboxEmail}`}
                     className="text-sm font-bold text-gray-300 hover:text-white transition-colors"
                   >
-                    {displayEmail}
+                    {SITE.email}
                   </a>
                 </div>
               </div>
