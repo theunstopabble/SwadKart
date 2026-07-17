@@ -23,6 +23,7 @@ const Footer = () => {
   // Using a fallback here ensures it looks professional immediately.
   const SUPPORT_EMAIL =
     import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
+  const DISPLAY_EMAIL = "support@swadkart.com";
   const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE || "+91 98765 43210";
 
   const socialLinks = [
@@ -258,12 +259,11 @@ const Footer = () => {
                 <div className="p-2.5 bg-gray-900 rounded-xl group-hover:bg-primary group-hover:text-white transition-colors duration-300 border border-gray-800">
                   <Mail size={18} />
                 </div>
-                {/* ✅ FIXED: Uses Variable now */}
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}
                   className="group-hover:text-gray-300 transition-colors"
                 >
-                  {SUPPORT_EMAIL}
+                  {DISPLAY_EMAIL}
                 </a>
               </li>
             </ul>
