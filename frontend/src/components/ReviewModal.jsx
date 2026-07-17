@@ -86,7 +86,7 @@ const ReviewModal = ({ isOpen, onClose, orderItems }) => {
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[9999] flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-800 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl overflow-hidden relative">
+      <div className="bg-gray-900 border border-gray-800 w-full max-w-md rounded-[2.5rem] p-6 sm:p-8 shadow-2xl overflow-hidden relative">
         {!isFinished ? (
           <div className="animate-in fade-in zoom-in duration-300">
             {/* Header */}

@@ -338,7 +338,7 @@ const RestaurantOwnerDashboard = () => {
         </header>
 
         {/* --- TABS --- */}
-        <div className="flex bg-gray-900/50 p-1.5 rounded-2xl mb-12 border border-gray-800 shadow-inner max-w-md">
+        <div className="flex overflow-x-auto bg-gray-900/50 p-1.5 rounded-2xl mb-12 border border-gray-800 shadow-inner max-w-md">
           {[
             { id: "overview", label: "Analytics", icon: LayoutDashboard },
             { id: "menu", label: "Menu Lab", icon: Utensils },
@@ -367,7 +367,7 @@ const RestaurantOwnerDashboard = () => {
           </div>
         ) : activeTab === "calculators" ? (
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
-            <div className="flex bg-gray-900/50 p-1.5 rounded-2xl mb-8 border border-gray-800 shadow-inner max-w-2xl">
+            <div className="flex overflow-x-auto bg-gray-900/50 p-1.5 rounded-2xl mb-8 border border-gray-800 shadow-inner max-w-2xl">
               {[
                 { id: "cost", label: "Cost" },
                 { id: "pricing", label: "Pricing" },
