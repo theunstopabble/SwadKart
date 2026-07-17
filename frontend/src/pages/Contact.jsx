@@ -7,7 +7,8 @@ import { toJsonLd, contactPageSchema, breadcrumbSchema } from "../utils/structur
 
 const Contact = () => {
   const supportEmail =
-    import.meta.env.VITE_SUPPORT_EMAIL || "swadkartt@gmail.com";
+    import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com";
+  const displayEmail = "support@swadkart.com";
   const supportPhone = "+91 98765 43210";
 
   const [formData, setFormData] = useState({
@@ -102,7 +103,7 @@ const Contact = () => {
                     href={`mailto:${supportEmail}`}
                     className="text-sm font-bold text-gray-300 hover:text-white transition-colors"
                   >
-                    {supportEmail}
+                    {displayEmail}
                   </a>
                 </div>
               </div>

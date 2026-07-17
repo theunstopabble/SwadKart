@@ -13,7 +13,7 @@ export const SITE = {
   currency: "INR",
   foundingDate: "2025-01-01",
   phone: "+91-80058-11122",
-  email: "swadkartt@gmail.com",
+  email: "support@swadkart.com",
   address: {
     street: "Jagannath University, Jaipur Campus",
     city: "Jaipur",

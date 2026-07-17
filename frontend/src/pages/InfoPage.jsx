@@ -52,7 +52,7 @@ const InfoPage = () => {
       text: "Need support? Our team is available 24/7.",
       details: [
         `📞 Call: ${import.meta.env.VITE_SUPPORT_PHONE || "+91 12345 67890"}`,
-        `📧 Email: ${import.meta.env.VITE_SUPPORT_EMAIL || "swadkartt@gmail.com"}`,
+        `📧 Email: ${import.meta.env.VITE_SUPPORT_EMAIL || "support@swadkart.com"}`,
         "💬 Chat Support: Coming Soon",
       ],
     },
