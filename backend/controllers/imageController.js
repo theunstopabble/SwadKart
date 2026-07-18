@@ -99,6 +99,7 @@ export const generateThumbnail = async (req, res) => {
 
   try {
     // Fetch image (timeout 10s, max 5MB, up to 3 redirects)
+    // codeql[js/request-forgery] — validated: allowlist + DNS resolve + private-IP check above
     const response = await axios.get(url, {
       responseType: "arraybuffer",
       timeout: 10000,
