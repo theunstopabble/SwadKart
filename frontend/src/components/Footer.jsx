@@ -87,12 +87,12 @@ const Footer = () => {
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         {/* --- TOP SECTION: NEWSLETTER --- */}
-        <div className="flex flex-col items-center bg-gray-900 p-8 md:p-12 rounded-[2.5rem] border border-gray-800 mb-16 shadow-2xl relative overflow-hidden">
-          <div className="text-center max-w-2xl mb-10">
+        <div className="flex flex-col items-center bg-gray-900 p-8 md:p-12 rounded-2xl md:rounded-[2.5rem] border border-gray-800 mb-10 sm:mb-16 shadow-2xl relative overflow-hidden">
+          <div className="text-center max-w-2xl mb-6 md:mb-10">
             <h3 className="text-3xl md:text-4xl font-extrabold uppercase tracking-tight mb-4 leading-tight">
-              SUBSCRIBE TO <span className="text-primary">SWAD</span> NEWS 📰
+              SUBSCRIBE TO <span className="text-primary">SWAD</span> NEWS <span className="inline-block">📰</span>
             </h3>
-            <p className="text-gray-400 text-sm font-medium">
+            <p className="text-gray-400 text-xs sm:text-sm font-medium px-2 sm:px-6">
               Get the latest updates, secret menu offers, and special promos
               delivered to your inbox.
             </p>
@@ -104,15 +104,15 @@ const Footer = () => {
           >
             <input
               type="email"
-              placeholder="Enter your email address..."
-              className="flex-1 bg-transparent px-4 py-3 text-gray-300 outline-none min-w-0"
+              placeholder="Enter your email"
+              className="flex-1 bg-transparent px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-gray-300 outline-none min-w-0"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
             <button
               type="submit"
               disabled={loading}
-              className="bg-primary hover:bg-red-600 text-white font-bold px-4 py-3 h-full transition-all shrink-0 disabled:opacity-50"
+              className="bg-primary hover:bg-red-600 text-white font-bold px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm h-full transition-all shrink-0 disabled:opacity-50"
             >
               {loading ? "..." : "Subscribe"}
             </button>
