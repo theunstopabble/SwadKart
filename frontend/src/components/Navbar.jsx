@@ -95,7 +95,7 @@ const Navbar = () => {
           {/* ======================= LOGO ======================= */}
           <Link
             to="/"
-            className="text-2xl font-extrabold text-primary tracking-tight flex items-center"
+            className="text-xl md:text-2xl font-extrabold text-primary tracking-tight flex items-center"
             onClick={closeMenu}
           >
             Swad<span className="text-white">Kart</span>
@@ -301,18 +301,17 @@ const Navbar = () => {
           </div>
 
           {/* ======================= 📱 MOBILE MENU BUTTONS ======================= */}
-          {/* Cart + Install Button + Hamburger */}
-          <div className="flex items-center gap-3 md:hidden">
-            {/* 👇 INSTALL APP BUTTON (Mobile Position: Before Cart) */}
+          {/* Cart + Install + Hamburger */}
+          <div className="flex items-center gap-1 md:hidden">
             <InstallPWA />
 
             <Link
               to="/cart"
-              className="relative p-2"
+              className="relative p-1"
               onClick={closeMenu}
               aria-label={t("cart")}
             >
-              <ShoppingCart size={22} className="text-gray-300" />
+              <ShoppingCart size={20} className="text-gray-300" />
               {cartItems.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold w-4 h-4 flex items-center justify-center rounded-full">
                   {cartItems.reduce((acc, item) => acc + item.qty, 0)}
@@ -322,11 +321,24 @@ const Navbar = () => {
 
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-300 hover:text-white focus:outline-none p-2"
+              className="text-gray-300 hover:text-white focus:outline-none p-2 active:scale-90 transition-transform"
               aria-label={isOpen ? "Close menu" : "Open menu"}
               aria-expanded={isOpen}
             >
-              {isOpen ? <X size={28} /> : <Menu size={28} />}
+              <div className="relative w-6 h-6 flex items-center justify-center">
+                <Menu
+                  size={24}
+                  className={`absolute transition-all duration-300 ${
+                    isOpen ? "opacity-0 rotate-90 scale-75" : "opacity-100 rotate-0 scale-100"
+                  }`}
+                />
+                <X
+                  size={24}
+                  className={`absolute transition-all duration-300 ${
+                    isOpen ? "opacity-100 rotate-0 scale-100" : "opacity-0 -rotate-90 scale-75"
+                  }`}
+                />
+              </div>
             </button>
           </div>
         </div>
@@ -334,7 +346,13 @@ const Navbar = () => {
 
       {/* ======================= 📱 MOBILE MENU DROPDOWN ======================= */}
       {isOpen && (
-          <div className="md:hidden bg-gray-900 border-b border-gray-800 animate-fade-in-down shadow-2xl max-h-[80vh] overflow-y-auto">
+        <>
+        {/* Backdrop overlay */}
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden animate-in fade-in duration-200"
+          onClick={closeMenu}
+        />
+          <div className="relative z-50 md:hidden bg-gray-900 border-b border-gray-800 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-top-2 duration-200">
           <div className="px-4 pt-2 pb-6 space-y-2">
             <Link
               to="/"
@@ -386,16 +404,19 @@ const Navbar = () => {
                   </Link>
                 )}
 
+                <div className="border-t border-gray-800 my-2" />
+
                 <Link
                   to="/profile"
-                  className="block px-3 py-3 rounded-md text-base font-medium hover:bg-gray-800 hover:text-primary"
+                  className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium hover:bg-gray-800 hover:text-primary"
                   onClick={closeMenu}
                 >
-                  {t("profile")} ({userInfo.name || "User"})
+                  <User size={18} /> {t("profile")} ({userInfo.name || "User"})
                 </Link>
 
                 {userInfo.role === "user" && (
                   <>
+                    <div className="border-t border-gray-800 my-2" />
                     <Link
                       to="/swadpass"
                       className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800"
@@ -427,6 +448,8 @@ const Navbar = () => {
                   </>
                 )}
 
+                <div className="border-t border-gray-800 my-2" />
+
                 <Link
                   to="/privacy"
                   className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-400 hover:bg-gray-800"
@@ -444,6 +467,8 @@ const Navbar = () => {
                   </div>
                 </div>
 
+                <div className="border-t border-gray-800 my-2" />
+
                 {/* 🔔 Notifications in Mobile Menu */}
                 <div className="flex items-center gap-2 px-3 py-3 rounded-md text-base font-medium text-gray-300">
                   <Bell size={18} />
@@ -454,6 +479,8 @@ const Navbar = () => {
                     </span>
                   )}
                 </div>
+
+                <div className="border-t border-gray-800 my-2" />
 
                 <button
                   onClick={logoutHandler}
@@ -482,6 +509,7 @@ const Navbar = () => {
             )}
           </div>
         </div>
+        </>
       )}
     </nav>
   );

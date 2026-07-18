@@ -22,10 +22,10 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const RestaurantMenu = lazy(() => import("./pages/RestaurantMenu"));
 const RestaurantOwnerDashboard = lazy(
-  () => import("./pages/RestaurantOwnerDashboard"),
+ () => import("./pages/RestaurantOwnerDashboard"),
 );
 const DeliveryPartnerDashboard = lazy(
-  () => import("./pages/DeliveryPartnerDashboard"),
+ () => import("./pages/DeliveryPartnerDashboard"),
 );
 const InfoPage = lazy(() => import("./pages/InfoPage"));
 const Contact = lazy(() => import("./pages/Contact"));
@@ -47,9 +47,9 @@ const ChatBot = lazy(() => import("./components/ChatBot"));
 
 // 🌀 Loading Spinner Component
 const PageLoader = () => (
-  <div className="flex h-screen w-full items-center justify-center bg-black text-primary">
-    <Loader className="animate-spin" size={48} />
-  </div>
+ <div className="flex h-screen w-full items-center justify-center bg-black text-primary">
+ <Loader className="animate-spin" size={48} />
+ </div>
 );
 
 // Helpers & Services (lazy-loaded for initial bundle reduction)
@@ -59,327 +59,327 @@ import { getSocket } from "./utils/socket";
 
 // ✨ ScrollToTop Helper
 const ScrollToTop = () => {
-  const { pathname } = useLocation();
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
-  return null;
+ const { pathname } = useLocation();
+ useEffect(() => {
+ window.scrollTo(0, 0);
+ }, [pathname]);
+ return null;
 };
 
 function App() {
-  const { userInfo } = useSelector((state) => state.user);
-  const dispatch = useDispatch();
+ const { userInfo } = useSelector((state) => state.user);
+ const dispatch = useDispatch();
 
-  // 🔒 BIOMETRIC LOCK STATE (Industry Standard)
-  const [isLocked, setIsLocked] = useState(false);
-  const [unlockAttempts, setUnlockAttempts] = useState(0);
-  const MAX_ATTEMPTS = 3;
+ // 🔒 BIOMETRIC LOCK STATE (Industry Standard)
+ const [isLocked, setIsLocked] = useState(false);
+ const [unlockAttempts, setUnlockAttempts] = useState(0);
+ const MAX_ATTEMPTS = 3;
 
-  // 🔄 Validate session on app load (catches zombie localStorage state)
-  useEffect(() => {
-    if (userInfo) {
-      dispatch(validateSession());
-    }
-    // Intentionally run only on mount; userInfo change handled by validateSession result
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+ // 🔄 Validate session on app load (catches zombie localStorage state)
+ useEffect(() => {
+ if (userInfo) {
+ dispatch(validateSession());
+ }
+ // Intentionally run only on mount; userInfo change handled by validateSession result
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, []);
 
-  // 🔍 Check device capability and lock status on mount
-  useEffect(() => {
-    const checkLockStatus = async () => {
-      // 1. Check device capability first
-      let deviceSupported = false;
-      if (window.PublicKeyCredential) {
-        try {
-          deviceSupported =
-            await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        } catch {
-          deviceSupported = false;
-        }
-      }
+ // 🔍 Check device capability and lock status on mount
+ useEffect(() => {
+ const checkLockStatus = async () => {
+ // 1. Check device capability first
+ let deviceSupported = false;
+ if (window.PublicKeyCredential) {
+ try {
+ deviceSupported =
+ await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+ } catch {
+ deviceSupported = false;
+ }
+ }
 
-      // 2. Only lock if device supports AND localStorage flag is true AND user is logged in
-      const bioEnabled = localStorage.getItem("isBiometricEnabled") === "true";
-      if (deviceSupported && bioEnabled && userInfo) {
-        setIsLocked(true);
-      }
-    };
+ // 2. Only lock if device supports AND localStorage flag is true AND user is logged in
+ const bioEnabled = localStorage.getItem("isBiometricEnabled") === "true";
+ if (deviceSupported && bioEnabled && userInfo) {
+ setIsLocked(true);
+ }
+ };
 
-    checkLockStatus();
-  }, [userInfo]);
+ checkLockStatus();
+ }, [userInfo]);
 
-  useEffect(() => {
-    let handleOrderUpdate = null;
-    let socket = null;
+ useEffect(() => {
+ let handleOrderUpdate = null;
+ let socket = null;
 
-    if (!userInfo) return;
+ if (!userInfo) return;
 
-    const setupSocket = async () => {
-      import("./components/notificationHelper").then(
-        ({ requestNotificationPermission }) => {
-          requestNotificationPermission();
-        },
-      );
+ const setupSocket = async () => {
+ import("./components/notificationHelper").then(
+ ({ requestNotificationPermission }) => {
+ requestNotificationPermission();
+ },
+ );
 
-      socket = getSocket();
-      handleOrderUpdate = (order) => {
-        import("./components/notificationHelper").then(
-          ({ sendNotification }) => {
-            sendNotification(`SwadKart: Order Update! 🛵`, {
-              body: `Your Order #${order._id?.slice(-6).toUpperCase()} is now "${order.orderStatus}".`,
-            });
-          },
-        );
-        const audio = new Audio("/notification.mp3");
-        audio.play().catch(() => {});
-      };
-      socket.on("orderUpdated", handleOrderUpdate);
-    };
+ socket = getSocket();
+ handleOrderUpdate = (order) => {
+ import("./components/notificationHelper").then(
+ ({ sendNotification }) => {
+ sendNotification(`SwadKart: Order Update! 🛵`, {
+ body: `Your Order #${order._id?.slice(-6).toUpperCase()} is now "${order.orderStatus}".`,
+ });
+ },
+ );
+ const audio = new Audio("/notification.mp3");
+ audio.play().catch(() => {});
+ };
+ socket.on("orderUpdated", handleOrderUpdate);
+ };
 
-    setupSocket();
+ setupSocket();
 
-    return () => {
-      if (socket && handleOrderUpdate) {
-        socket.off("orderUpdated", handleOrderUpdate);
-      }
-    };
-  }, [userInfo]);
+ return () => {
+ if (socket && handleOrderUpdate) {
+ socket.off("orderUpdated", handleOrderUpdate);
+ }
+ };
+ }, [userInfo]);
 
-  // 🔓 HANDLER: Unlock App (with retry counter)
-  const handleUnlock = async () => {
-    try {
-      // Dynamic import: biometricService only loaded when lock screen is shown (~5KB saved)
-      const { authenticateBiometric } =
-        await import("./utils/biometricService");
-      const success = await authenticateBiometric();
-      if (success) {
-        setIsLocked(false);
-        setUnlockAttempts(0);
-        toast.success("Welcome back! 🔓", { duration: 2000 }); // ⚡ Faster dismiss
-      }
-    } catch {
-      const newAttempts = unlockAttempts + 1;
-      setUnlockAttempts(newAttempts);
+ // 🔓 HANDLER: Unlock App (with retry counter)
+ const handleUnlock = async () => {
+ try {
+ // Dynamic import: biometricService only loaded when lock screen is shown (~5KB saved)
+ const { authenticateBiometric } =
+ await import("./utils/biometricService");
+ const success = await authenticateBiometric();
+ if (success) {
+ setIsLocked(false);
+ setUnlockAttempts(0);
+ toast.success("Welcome back! 🔓", { duration: 2000 }); // ⚡ Faster dismiss
+ }
+ } catch {
+ const newAttempts = unlockAttempts + 1;
+ setUnlockAttempts(newAttempts);
 
-      if (newAttempts >= MAX_ATTEMPTS) {
-        toast.error("Too many failed attempts. Please login with password.");
-        handleEmergencyLogout();
-      } else {
-        toast.error(
-          `Biometric Failed. ${MAX_ATTEMPTS - newAttempts} attempts left.`,
-        );
-      }
-    }
-  };
+ if (newAttempts >= MAX_ATTEMPTS) {
+ toast.error("Too many failed attempts. Please login with password.");
+ handleEmergencyLogout();
+ } else {
+ toast.error(
+ `Biometric Failed. ${MAX_ATTEMPTS - newAttempts} attempts left.`,
+ );
+ }
+ }
+ };
 
-  // 🚪 HANDLER: Emergency Logout (If user gets stuck or max attempts reached)
-  const handleEmergencyLogout = async () => {
-    try {
-      await axios.post(
-        `${BASEURL}/api/v1/users/logout`,
-        {},
-        { withCredentials: true },
-      );
-    } catch (error) {
-      console.error("Server logout failed during emergency logout", error);
-    }
-    dispatch(logout());
-    setIsLocked(false);
-    setUnlockAttempts(0);
-    toast("Logged out via Secure Lock", { icon: "🛡️" });
-  };
+ // 🚪 HANDLER: Emergency Logout (If user gets stuck or max attempts reached)
+ const handleEmergencyLogout = async () => {
+ try {
+ await axios.post(
+ `${BASEURL}/api/v1/users/logout`,
+ {},
+ { withCredentials: true },
+ );
+ } catch (error) {
+ console.error("Server logout failed during emergency logout", error);
+ }
+ dispatch(logout());
+ setIsLocked(false);
+ setUnlockAttempts(0);
+ toast("Logged out via Secure Lock", { icon: "🛡️" });
+ };
 
-  // 🚀 MAIN APP RENDER & LOCK SCREEN HANDLER
-  return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white flex flex-col justify-between">
-      <ScrollToTop />
+ // 🚀 MAIN APP RENDER & LOCK SCREEN HANDLER
+ return (
+ <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white flex flex-col justify-between">
+ <ScrollToTop />
 
-      {/* 🛑 LOCK SCREEN OVERLAY */}
-      {isLocked ? (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center text-white overflow-hidden">
-          {/* 🎨 Background Image with Blur */}
-          <div
-            className="absolute inset-0 z-0 opacity-40 bg-cover bg-center blur-sm scale-110"
-            style={{
-              backgroundImage:
-                "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=60&fm=webp&auto=format&fit=crop')",
-            }}
-          ></div>
-          <div className="absolute inset-0 z-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
+ {/* 🛑 LOCK SCREEN OVERLAY */}
+ {isLocked ? (
+ <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center text-white overflow-hidden">
+ {/* 🎨 Background Image with Blur */}
+ <div
+ className="absolute inset-0 z-0 opacity-40 bg-cover bg-center blur-sm scale-110"
+ style={{
+ backgroundImage:
+ "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=60&fm=webp&auto=format&fit=crop')",
+ }}
+ ></div>
+ <div className="absolute inset-0 z-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
 
-          {/* 💎 Glass Card */}
-          <div className="z-10 relative bg-white/5 backdrop-blur-md border border-white/10 p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up max-w-sm w-full mx-4">
-            {/* Logo/Icon */}
-            <div className="p-4 bg-primary/20 rounded-full ring-1 ring-primary/50 shadow-[0_0_30px_rgba(239,68,68,0.3)] mb-2">
-              <Lock size={32} className="text-primary" />
-            </div>
+ {/* 💎 Glass Card */}
+ <div className="z-10 relative bg-white/5 backdrop-blur-md border border-white/10 p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up max-w-sm w-full mx-4">
+ {/* Logo/Icon */}
+ <div className="p-4 bg-primary/20 rounded-full ring-1 ring-primary/50 shadow-[0_0_30px_rgba(239,68,68,0.3)] mb-2">
+ <Lock size={32} className="text-primary" />
+ </div>
 
-            <div className="text-center space-y-1">
-              <h1 className="text-3xl font-black italic tracking-tighter">
-                Swad<span className="text-primary">Kart</span>
-              </h1>
-              <p className="text-gray-400 text-xs uppercase tracking-[0.2em] font-medium">
-                Security Active
-              </p>
-            </div>
+ <div className="text-center space-y-1">
+ <h1 className="text-3xl font-black tracking-tighter">
+ Swad<span className="text-primary">Kart</span>
+ </h1>
+ <p className="text-gray-400 text-xs uppercase tracking-[0.2em] font-medium">
+ Security Active
+ </p>
+ </div>
 
-            {/* Visual Separator */}
-            <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent my-2"></div>
+ {/* Visual Separator */}
+ <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent my-2"></div>
 
-            {/* Unlock Button */}
-            <button
-              onClick={handleUnlock}
-              className="flex flex-col items-center justify-center gap-4 group w-full"
-            >
-              <div className="relative">
-                <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/40 transition-all"></div>
-                <div className="w-24 h-24 rounded-full bg-black/50 border border-primary/30 flex items-center justify-center relative z-10 group-active:scale-95 transition-transform duration-200">
-                  <Fingerprint
-                    size={48}
-                    className="text-primary drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
-                  />
-                </div>
-              </div>
-              <span className="text-xs font-bold uppercase tracking-widest text-gray-300 group-hover:text-white transition-colors">
-                Tap to Authenticate
-              </span>
-            </button>
-          </div>
+ {/* Unlock Button */}
+ <button
+ onClick={handleUnlock}
+ className="flex flex-col items-center justify-center gap-4 group w-full"
+ >
+ <div className="relative">
+ <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/40 transition-all"></div>
+ <div className="w-24 h-24 rounded-full bg-black/50 border border-primary/30 flex items-center justify-center relative z-10 group-active:scale-95 transition-transform duration-200">
+ <Fingerprint
+ size={48}
+ className="text-primary drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
+ />
+ </div>
+ </div>
+ <span className="text-xs font-bold uppercase tracking-widest text-gray-300 group-hover:text-white transition-colors">
+ Tap to Authenticate
+ </span>
+ </button>
+ </div>
 
-          {/* Emergency Logout */}
-          <button
-            onClick={handleEmergencyLogout}
-            className="absolute bottom-10 z-20 text-gray-500 hover:text-white text-xs uppercase font-bold tracking-widest flex items-center gap-2 transition-all hover:bg-white/5 px-4 py-2 rounded-full"
-          >
-            <LogOut size={14} /> Use Password Instead
-          </button>
-        </div>
-      ) : (
-        /* 🚀 NORMAL APP CONTENT */
-        <>
-          {/* ✅ FIXED: Navbar ab har page par dikhega */}
-          <Navbar />
+ {/* Emergency Logout */}
+ <button
+ onClick={handleEmergencyLogout}
+ className="absolute bottom-10 z-20 text-gray-500 hover:text-white text-xs uppercase font-bold tracking-widest flex items-center gap-2 transition-all hover:bg-white/5 px-4 py-2 rounded-full"
+ >
+ <LogOut size={14} /> Use Password Instead
+ </button>
+ </div>
+ ) : (
+ /* 🚀 NORMAL APP CONTENT */
+ <>
+ {/* ✅ FIXED: Navbar ab har page par dikhega */}
+ <Navbar />
 
-          <main className="flex-grow">
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Home />} />
-                <Route path="/search" element={<Home />} />
-                <Route path="/restaurant/:id" element={<RestaurantMenu />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/password/forgot" element={<ForgotPassword />} />
-                <Route
-                  path="/password/reset/:token"
-                  element={<ResetPassword />}
-                />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/faq" element={<Navigate to="/page/faq" replace />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/page/about-us" element={<Navigate to="/about" replace />} />
-                <Route path="/page/blog" element={<Navigate to="/" replace />} />
-                <Route path="/page/:type" element={<InfoPage />} />
+ <main className="flex-grow">
+ <Suspense fallback={<PageLoader />}>
+ <Routes>
+ {/* Public Routes */}
+ <Route path="/" element={<Home />} />
+ <Route path="/search" element={<Home />} />
+ <Route path="/restaurant/:id" element={<RestaurantMenu />} />
+ <Route path="/login" element={<Login />} />
+ <Route path="/register" element={<Register />} />
+ <Route path="/cart" element={<Cart />} />
+ <Route path="/password/forgot" element={<ForgotPassword />} />
+ <Route
+ path="/password/reset/:token"
+ element={<ResetPassword />}
+ />
+ <Route path="/contact" element={<Contact />} />
+ <Route path="/faq" element={<Navigate to="/page/faq" replace />} />
+ <Route path="/about" element={<About />} />
+ <Route path="/page/about-us" element={<Navigate to="/about" replace />} />
+ <Route path="/page/blog" element={<Navigate to="/" replace />} />
+ <Route path="/page/:type" element={<InfoPage />} />
 
-                {/* User Protected Routes */}
-                <Route element={<PrivateRoute />}>
-                  <Route path="/shipping" element={<Shipping />} />
-                  <Route path="/payment" element={<Payment />} />
-                  <Route path="/placeorder" element={<PlaceOrder />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/myorders" element={<MyOrders />} />
-                  <Route path="/order/:id" element={<OrderDetails />} />
-                  <Route path="/subscriptions" element={<MySubscriptions />} />
-                  <Route path="/swadpass" element={<SwadPass />} />
-                  <Route path="/rewards" element={<Gamification />} />
-                  <Route path="/reservations" element={<Reservations />} />
-                  <Route path="/group-orders" element={<GroupOrders />} />
-                  <Route path="/privacy" element={<GDPRSettings />} />
-                </Route>
+ {/* User Protected Routes */}
+ <Route element={<PrivateRoute />}>
+ <Route path="/shipping" element={<Shipping />} />
+ <Route path="/payment" element={<Payment />} />
+ <Route path="/placeorder" element={<PlaceOrder />} />
+ <Route path="/profile" element={<Profile />} />
+ <Route path="/myorders" element={<MyOrders />} />
+ <Route path="/order/:id" element={<OrderDetails />} />
+ <Route path="/subscriptions" element={<MySubscriptions />} />
+ <Route path="/swadpass" element={<SwadPass />} />
+ <Route path="/rewards" element={<Gamification />} />
+ <Route path="/reservations" element={<Reservations />} />
+ <Route path="/group-orders" element={<GroupOrders />} />
+ <Route path="/privacy" element={<GDPRSettings />} />
+ </Route>
 
-                {/* Admin Routes */}
-                <Route path="/admin/dashboard" element={<AdminRoute />}>
-                  <Route index element={<AdminDashboard />} />
-                </Route>
-                <Route path="/admin/chatbot-analytics" element={<AdminRoute />}>
-                  <Route index element={<ChatbotAnalytics />} />
-                </Route>
+ {/* Admin Routes */}
+ <Route path="/admin/dashboard" element={<AdminRoute />}>
+ <Route index element={<AdminDashboard />} />
+ </Route>
+ <Route path="/admin/chatbot-analytics" element={<AdminRoute />}>
+ <Route index element={<ChatbotAnalytics />} />
+ </Route>
 
-                {/* Restaurant Owner Routes */}
-                <Route element={<RestaurantRoute />}>
-                  <Route
-                    path="/restaurant/dashboard"
-                    element={<RestaurantOwnerDashboard />}
-                  />
-                  <Route
-                    path="/restaurant-dashboard"
-                    element={<RestaurantOwnerDashboard />}
-                  />
-                </Route>
+ {/* Restaurant Owner Routes */}
+ <Route element={<RestaurantRoute />}>
+ <Route
+ path="/restaurant/dashboard"
+ element={<RestaurantOwnerDashboard />}
+ />
+ <Route
+ path="/restaurant-dashboard"
+ element={<RestaurantOwnerDashboard />}
+ />
+ </Route>
 
-                {/* Delivery Partner Routes */}
-                <Route element={<DeliveryRoute />}>
-                  <Route
-                    path="/delivery/dashboard"
-                    element={<DeliveryPartnerDashboard />}
-                  />
-                  <Route
-                    path="/delivery-dashboard"
-                    element={<DeliveryPartnerDashboard />}
-                  />
-                </Route>
+ {/* Delivery Partner Routes */}
+ <Route element={<DeliveryRoute />}>
+ <Route
+ path="/delivery/dashboard"
+ element={<DeliveryPartnerDashboard />}
+ />
+ <Route
+ path="/delivery-dashboard"
+ element={<DeliveryPartnerDashboard />}
+ />
+ </Route>
 
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-          </main>
+ <Route path="*" element={<Navigate to="/" replace />} />
+ </Routes>
+ </Suspense>
+ </main>
 
-          {/* ✅ FIXED: Footer aur Chatbot ab Admin Panel me bhi dikhenge */}
-          <Suspense fallback={null}>
-            <Footer />
-            <ChatBot />
-          </Suspense>
-        </>
-      )}
-    </div>
-  );
+ {/* ✅ FIXED: Footer aur Chatbot ab Admin Panel me bhi dikhenge */}
+ <Suspense fallback={null}>
+ <Footer />
+ <ChatBot />
+ </Suspense>
+ </>
+ )}
+ </div>
+ );
 }
 
 // 🛡️ ROUTE GUARDS
 const PrivateRoute = () => {
-  const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return <PageLoader />;
-  return userInfo ? <Outlet /> : <Navigate to="/login" replace />;
+ const { userInfo, loading } = useSelector((state) => state.user);
+ if (loading) return <PageLoader />;
+ return userInfo ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const AdminRoute = () => {
-  const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return <PageLoader />;
-  return userInfo && userInfo.role === "admin" ? (
-    <Outlet />
-  ) : (
-    <Navigate to="/login" replace />
-  );
+ const { userInfo, loading } = useSelector((state) => state.user);
+ if (loading) return <PageLoader />;
+ return userInfo && userInfo.role === "admin" ? (
+ <Outlet />
+ ) : (
+ <Navigate to="/login" replace />
+ );
 };
 
 const RestaurantRoute = () => {
-  const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return <PageLoader />;
-  const isAllowed =
-    userInfo &&
-    (userInfo.role === "restaurant_owner" || userInfo.role === "admin");
-  return isAllowed ? <Outlet /> : <Navigate to="/login" replace />;
+ const { userInfo, loading } = useSelector((state) => state.user);
+ if (loading) return <PageLoader />;
+ const isAllowed =
+ userInfo &&
+ (userInfo.role === "restaurant_owner" || userInfo.role === "admin");
+ return isAllowed ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const DeliveryRoute = () => {
-  const { userInfo, loading } = useSelector((state) => state.user);
-  if (loading) return <PageLoader />;
-  const isAllowed =
-    userInfo &&
-    (userInfo.role === "delivery_partner" || userInfo.role === "admin");
+ const { userInfo, loading } = useSelector((state) => state.user);
+ if (loading) return <PageLoader />;
+ const isAllowed =
+ userInfo &&
+ (userInfo.role === "delivery_partner" || userInfo.role === "admin");
 
-  return isAllowed ? <Outlet /> : <Navigate to="/login" replace />;
+ return isAllowed ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default App;

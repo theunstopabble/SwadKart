@@ -10,7 +10,8 @@ import {
   updateOrderStatus,
   updateOrderToPaid,
   cancelOrder,
-  getMyRestaurantOrders, // 👈 NEW: For Restaurant Dashboard (Fixes 403 Error)
+  cancelPendingOrder,
+  getMyRestaurantOrders,
 } from "../controllers/orderController.js";
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 import { fraudDetection } from "../middleware/fraudDetectionMiddleware.js";
@@ -113,6 +114,7 @@ router.put(
 router.get("/myorders", protect, getMyOrders);
 
 router.put("/:id/cancel", protect, cancelOrder);
+router.post("/:id/cancel-pending", protect, cancelPendingOrder);
 
 // ============================================================
 // 🔧 RESTAURANT & ADMIN OPERATIONS

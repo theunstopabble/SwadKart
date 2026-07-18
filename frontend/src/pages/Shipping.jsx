@@ -11,197 +11,197 @@ import AddressMap from "../components/order/AddressMap";
 import AddressForm from "../components/order/AddressForm";
 
 const Shipping = () => {
-  const { shippingAddress } = useSelector((state) => state.cart);
-  const { userInfo } = useSelector((state) => state.user);
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+ const { shippingAddress } = useSelector((state) => state.cart);
+ const { userInfo } = useSelector((state) => state.user);
+ const dispatch = useDispatch();
+ const navigate = useNavigate();
 
-  // --- States ---
-  const [formData, setFormData] = useState({
-    fullName: shippingAddress?.fullName || userInfo?.name || "",
-    address: shippingAddress?.address || "",
-    city: shippingAddress?.city || "",
-    postalCode: shippingAddress?.postalCode || "",
-    state: shippingAddress?.state || "",
-    phone: shippingAddress?.phone || "",
-  });
-  const [addressType, setAddressType] = useState(
-    shippingAddress?.addressType || "Home",
-  );
-  const [mapCenter, setMapCenter] = useState([
-    shippingAddress?.lat || 26.9124,
-    shippingAddress?.lng || 75.7873,
-  ]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loadingLocation, setLoadingLocation] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
+ // --- States ---
+ const [formData, setFormData] = useState({
+ fullName: shippingAddress?.fullName || userInfo?.name || "",
+ address: shippingAddress?.address || "",
+ city: shippingAddress?.city || "",
+ postalCode: shippingAddress?.postalCode || "",
+ state: shippingAddress?.state || "",
+ phone: shippingAddress?.phone || "",
+ });
+ const [addressType, setAddressType] = useState(
+ shippingAddress?.addressType || "Home",
+ );
+ const [mapCenter, setMapCenter] = useState([
+ shippingAddress?.lat || 26.9124,
+ shippingAddress?.lng || 75.7873,
+ ]);
+ const [searchQuery, setSearchQuery] = useState("");
+ const [loadingLocation, setLoadingLocation] = useState(false);
+ const [isSearching, setIsSearching] = useState(false);
 
-  // --- Logic: Fetch Address from Coords ---
-  const abortGeocodeRef = React.useRef(null);
+ // --- Logic: Fetch Address from Coords ---
+ const abortGeocodeRef = React.useRef(null);
 
-  const fetchAddressFromCoords = async (lat, lng) => {
-    abortGeocodeRef.current?.abort();
-    const controller = new AbortController();
-    abortGeocodeRef.current = controller;
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
-        { signal: controller.signal },
-      );
-      if (!res.ok) {
-        console.error("Geocoding Error: non-200 response");
-        return;
-      }
-      const data = await res.json();
-      if (data && data.address) {
-        // 🛠️ FIX: Ensure State is captured correctly from API
-        const stateName = data.address.state || data.address.region || "";
+ const fetchAddressFromCoords = async (lat, lng) => {
+ abortGeocodeRef.current?.abort();
+ const controller = new AbortController();
+ abortGeocodeRef.current = controller;
+ const timeout = setTimeout(() => controller.abort(), 10000);
+ try {
+ const res = await fetch(
+ `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+ { signal: controller.signal },
+ );
+ if (!res.ok) {
+ console.error("Geocoding Error: non-200 response");
+ return;
+ }
+ const data = await res.json();
+ if (data && data.address) {
+ // 🛠️ FIX: Ensure State is captured correctly from API
+ const stateName = data.address.state || data.address.region || "";
 
-        setFormData((prev) => ({
-          ...prev,
-          address: `${data.address.road || data.address.suburb || ""}, ${
-            data.address.neighbourhood || ""
-          }`,
-          city:
-            data.address.city ||
-            data.address.town ||
-            data.address.village ||
-            "",
-          postalCode: data.address.postcode || "",
-          state: stateName, // Updated state
-        }));
-      }
-    } catch {
-      if (controller.signal.aborted) return;
-      console.error("Geocoding Error");
-    } finally {
-      clearTimeout(timeout);
-    }
-  };
+ setFormData((prev) => ({
+ ...prev,
+ address: `${data.address.road || data.address.suburb || ""}, ${
+ data.address.neighbourhood || ""
+ }`,
+ city:
+ data.address.city ||
+ data.address.town ||
+ data.address.village ||
+ "",
+ postalCode: data.address.postcode || "",
+ state: stateName, // Updated state
+ }));
+ }
+ } catch {
+ if (controller.signal.aborted) return;
+ console.error("Geocoding Error");
+ } finally {
+ clearTimeout(timeout);
+ }
+ };
 
-  const abortSearchRef = React.useRef(null);
+ const abortSearchRef = React.useRef(null);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchQuery) return;
-    setIsSearching(true);
-    abortSearchRef.current?.abort();
-    const controller = new AbortController();
-    abortSearchRef.current = controller;
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&countrycodes=in`,
-        { headers: { "User-Agent": "SwadKart/1.0" }, signal: controller.signal },
-      );
-      if (!res.ok) {
-        console.error("Search Error: non-200 response");
-        return;
-      }
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const newPos = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-        setMapCenter(newPos);
-        fetchAddressFromCoords(newPos[0], newPos[1]);
-      }
-    } catch {
-      if (controller.signal.aborted) return;
-      console.error("Search Error");
-    } finally {
-      clearTimeout(timeout);
-      setIsSearching(false);
-    }
-  };
+ const handleSearch = async (e) => {
+ e.preventDefault();
+ if (!searchQuery) return;
+ setIsSearching(true);
+ abortSearchRef.current?.abort();
+ const controller = new AbortController();
+ abortSearchRef.current = controller;
+ const timeout = setTimeout(() => controller.abort(), 10000);
+ try {
+ const res = await fetch(
+ `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&countrycodes=in`,
+ { headers: { "User-Agent": "SwadKart/1.0" }, signal: controller.signal },
+ );
+ if (!res.ok) {
+ console.error("Search Error: non-200 response");
+ return;
+ }
+ const data = await res.json();
+ if (data && data.length > 0) {
+ const newPos = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+ setMapCenter(newPos);
+ fetchAddressFromCoords(newPos[0], newPos[1]);
+ }
+ } catch {
+ if (controller.signal.aborted) return;
+ console.error("Search Error");
+ } finally {
+ clearTimeout(timeout);
+ setIsSearching(false);
+ }
+ };
 
-  const handleCurrentLocation = () => {
-    setLoadingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const newPos = [pos.coords.latitude, pos.coords.longitude];
-        setMapCenter(newPos);
-        fetchAddressFromCoords(newPos[0], newPos[1]);
-        setLoadingLocation(false);
-      },
-      () => {
-        toast.error("Location permission denied");
-        setLoadingLocation(false);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
-    );
-  };
+ const handleCurrentLocation = () => {
+ setLoadingLocation(true);
+ navigator.geolocation.getCurrentPosition(
+ (pos) => {
+ const newPos = [pos.coords.latitude, pos.coords.longitude];
+ setMapCenter(newPos);
+ fetchAddressFromCoords(newPos[0], newPos[1]);
+ setLoadingLocation(false);
+ },
+ () => {
+ toast.error("Location permission denied");
+ setLoadingLocation(false);
+ },
+ { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+ );
+ };
 
-  const submitHandler = (e) => {
-    e.preventDefault();
+ const submitHandler = (e) => {
+ e.preventDefault();
 
-    const updatedFormData = {
-      ...formData,
-      state: formData.state || "Rajasthan",
-    };
-    setFormData(updatedFormData);
+ const updatedFormData = {
+ ...formData,
+ state: formData.state || "Rajasthan",
+ };
+ setFormData(updatedFormData);
 
-    dispatch(
-      saveShippingAddress({
-        ...updatedFormData,
-        country: "India",
-        addressType,
-        lat: mapCenter[0],
-        lng: mapCenter[1],
-      }),
-    );
-    navigate("/payment");
-  };
+ dispatch(
+ saveShippingAddress({
+ ...updatedFormData,
+ country: "India",
+ addressType,
+ lat: mapCenter[0],
+ lng: mapCenter[1],
+ }),
+ );
+ navigate("/payment");
+ };
 
-  return (
-    <div className="min-h-screen bg-black text-white pt-20 px-4 pb-20 font-sans">
-      <CheckoutSteps step1 step2 />
+ return (
+ <div className="min-h-screen bg-black text-white pt-20 px-4 pb-20 font-sans">
+ <CheckoutSteps step1 step2 />
 
-      <div className="max-w-2xl mx-auto mt-10">
-        <header className="mb-10 text-center">
-          <h1 className="text-4xl font-extrabold italic uppercase tracking-tighter flex items-center justify-center gap-3">
-            <MapPin className="text-primary" size={32} /> Delivery{" "}
-            <span className="text-primary">Spot</span>
-          </h1>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] mt-3 pl-2">
-            Pin your location for faster arrival
-          </p>
-        </header>
+ <div className="max-w-2xl mx-auto mt-10">
+ <header className="mb-10 text-center">
+ <h1 className="text-4xl font-extrabold uppercase tracking-tighter flex items-center justify-center gap-3">
+ <MapPin className="text-primary" size={32} /> Delivery{" "}
+ <span className="text-primary">Spot</span>
+ </h1>
+ <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] mt-3 pl-2">
+ Pin your location for faster arrival
+ </p>
+ </header>
 
-        <div className="space-y-10">
-          {/* Map Container */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl overflow-hidden relative transition-all hover:border-gray-700">
-            <AddressMap
-              mapCenter={mapCenter}
-              onMapClick={(lat, lng) => {
-                setMapCenter([lat, lng]);
-                fetchAddressFromCoords(lat, lng);
-              }}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              handleSearch={handleSearch}
-              isSearching={isSearching}
-              handleCurrentLocation={handleCurrentLocation}
-              loadingLocation={loadingLocation}
-            />
-          </div>
+ <div className="space-y-10">
+ {/* Map Container */}
+ <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl overflow-hidden relative transition-all hover:border-gray-700">
+ <AddressMap
+ mapCenter={mapCenter}
+ onMapClick={(lat, lng) => {
+ setMapCenter([lat, lng]);
+ fetchAddressFromCoords(lat, lng);
+ }}
+ searchQuery={searchQuery}
+ setSearchQuery={setSearchQuery}
+ handleSearch={handleSearch}
+ isSearching={isSearching}
+ handleCurrentLocation={handleCurrentLocation}
+ loadingLocation={loadingLocation}
+ />
+ </div>
 
-          <div className="h-[1px] bg-gradient-to-r from-transparent via-gray-800 to-transparent"></div>
+ <div className="h-[1px] bg-gradient-to-r from-transparent via-gray-800 to-transparent"></div>
 
-          {/* Form Container */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl relative transition-all hover:border-gray-700">
-            {/* Note: Ensure AddressForm inputs use bg-black/50 and border-gray-700 to match Login theme */}
-            <AddressForm
-              formData={formData}
-              setFormData={setFormData}
-              onSubmit={submitHandler}
-              addressType={addressType}
-              setAddressType={setAddressType}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+ {/* Form Container */}
+ <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl relative transition-all hover:border-gray-700">
+ {/* Note: Ensure AddressForm inputs use bg-black/50 and border-gray-700 to match Login theme */}
+ <AddressForm
+ formData={formData}
+ setFormData={setFormData}
+ onSubmit={submitHandler}
+ addressType={addressType}
+ setAddressType={setAddressType}
+ />
+ </div>
+ </div>
+ </div>
+ </div>
+ );
 };
 
 export default Shipping;

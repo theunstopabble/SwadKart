@@ -5,122 +5,122 @@ import { BASEURL } from "../../config";
 import { useSelector } from "react-redux";
 
 const SOSButton = () => {
-  const { userInfo } = useSelector((state) => state.user);
-  const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
+ const { userInfo } = useSelector((state) => state.user);
+ const [showModal, setShowModal] = useState(false);
+ const [loading, setLoading] = useState(false);
 
-  const handleSOS = () => {
-    if (!userInfo) {
-      toast.error("Please login to use SOS feature");
-      return;
-    }
+ const handleSOS = () => {
+ if (!userInfo) {
+ toast.error("Please login to use SOS feature");
+ return;
+ }
 
-    setLoading(true);
-    const safetyTimer = setTimeout(() => {
-      setLoading(false);
-      toast.error("GPS request timed out. Try again.");
-    }, 20000);
+ setLoading(true);
+ const safetyTimer = setTimeout(() => {
+ setLoading(false);
+ toast.error("GPS request timed out. Try again.");
+ }, 20000);
 
-    if (!navigator.geolocation) {
-      clearTimeout(safetyTimer);
-      toast.error("GPS not supported");
-      setLoading(false);
-      return;
-    }
+ if (!navigator.geolocation) {
+ clearTimeout(safetyTimer);
+ toast.error("GPS not supported");
+ setLoading(false);
+ return;
+ }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        clearTimeout(safetyTimer);
-        const { latitude, longitude } = position.coords;
+ navigator.geolocation.getCurrentPosition(
+ async (position) => {
+ clearTimeout(safetyTimer);
+ const { latitude, longitude } = position.coords;
 
-        try {
-          const res = await fetch(`${BASEURL}/api/v1/orders/sos`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify({
-              lat: latitude,
-              lng: longitude,
-              address: "Live GPS Location",
-            }),
-          });
+ try {
+ const res = await fetch(`${BASEURL}/api/v1/orders/sos`, {
+ method: "POST",
+ headers: {
+ "Content-Type": "application/json",
+ },
+ credentials: "include",
+ body: JSON.stringify({
+ lat: latitude,
+ lng: longitude,
+ address: "Live GPS Location",
+ }),
+ });
 
-          if (res.ok) {
-            toast.success("SOS SENT! Admin notified.", { duration: 5000 });
-            setShowModal(false);
-          } else {
-            toast.error("SOS Signal Failed");
-          }
-        } catch {
-          toast.error("Network Error");
-        } finally {
-          setLoading(false);
-        }
-      },
-      (err) => {
-        clearTimeout(safetyTimer);
-        if (err.code === err.TIMEOUT) {
-          toast.error("GPS timeout. Try again.");
-        } else {
-          toast.error("GPS Permission Denied");
-        }
-        setLoading(false);
-      },
-      { timeout: 15000, maximumAge: 30000 }
-    );
-  };
+ if (res.ok) {
+ toast.success("SOS SENT! Admin notified.", { duration: 5000 });
+ setShowModal(false);
+ } else {
+ toast.error("SOS Signal Failed");
+ }
+ } catch {
+ toast.error("Network Error");
+ } finally {
+ setLoading(false);
+ }
+ },
+ (err) => {
+ clearTimeout(safetyTimer);
+ if (err.code === err.TIMEOUT) {
+ toast.error("GPS timeout. Try again.");
+ } else {
+ toast.error("GPS Permission Denied");
+ }
+ setLoading(false);
+ },
+ { timeout: 15000, maximumAge: 30000 }
+ );
+ };
 
-  return (
-    <>
-      {/* 🔴 Floating Button */}
-      <button
-        onClick={() => setShowModal(true)}
-        className="fixed bottom-24 right-6 z-[999] bg-red-600 text-white p-4 rounded-full shadow-[0_0_20px_rgba(220,38,38,0.6)] animate-pulse hover:scale-110 transition-transform active:scale-95 border-4 border-red-900"
-      >
-        <Siren size={28} />
-      </button>
+ return (
+ <>
+ {/* 🔴 Floating Button */}
+ <button
+ onClick={() => setShowModal(true)}
+ className="fixed bottom-24 right-6 z-[999] bg-red-600 text-white p-4 rounded-full shadow-[0_0_20px_rgba(220,38,38,0.6)] animate-pulse hover:scale-110 transition-transform active:scale-95 border-4 border-red-900"
+ >
+ <Siren size={28} />
+ </button>
 
-      {/* ⚠️ Confirmation Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-red-900/90 backdrop-blur-sm flex justify-center items-center z-[1000] p-6 animate-in zoom-in duration-200">
-          <div className="bg-black border-2 border-red-500 p-8 rounded-[2rem] text-center w-full max-w-sm shadow-2xl relative">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-white"
-            >
-              <X size={24} />
-            </button>
+ {/* ⚠️ Confirmation Modal */}
+ {showModal && (
+ <div className="fixed inset-0 bg-red-900/90 backdrop-blur-sm flex justify-center items-center z-[1000] p-6 animate-in zoom-in duration-200">
+ <div className="bg-black border-2 border-red-500 p-8 rounded-[2rem] text-center w-full max-w-sm shadow-2xl relative">
+ <button
+ onClick={() => setShowModal(false)}
+ className="absolute top-4 right-4 text-gray-500 hover:text-white"
+ >
+ <X size={24} />
+ </button>
 
-            <AlertTriangle
-              size={60}
-              className="mx-auto text-red-500 mb-6 animate-bounce"
-            />
-            <h2 className="text-3xl font-black text-white uppercase italic mb-2">
-              Emergency?
-            </h2>
-            <p className="text-gray-400 text-sm mb-8">
-              This will alert the Admin & Support team with your live location.
-              Use only in case of danger or accident.
-            </p>
+ <AlertTriangle
+ size={60}
+ className="mx-auto text-red-500 mb-6 animate-bounce"
+ />
+ <h2 className="text-3xl font-black text-white uppercase mb-2">
+ Emergency?
+ </h2>
+ <p className="text-gray-400 text-sm mb-8">
+ This will alert the Admin & Support team with your live location.
+ Use only in case of danger or accident.
+ </p>
 
-            <button
-              onClick={handleSOS}
-              disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase py-4 rounded-xl text-lg tracking-widest shadow-lg shadow-red-600/30 flex justify-center items-center gap-3"
-            >
-              {loading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <>SEND SOS ALERT</>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
+ <button
+ onClick={handleSOS}
+ disabled={loading}
+ className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase py-4 rounded-xl text-lg tracking-widest shadow-lg shadow-red-600/30 flex justify-center items-center gap-3"
+ >
+ {loading ? (
+ <Loader2 className="animate-spin" />
+ ) : (
+ <>SEND SOS ALERT</>
+ )}
+ </button>
+ </div>
+ </div>
+ )}
+ </>
+ );
 };
 
 export default SOSButton;

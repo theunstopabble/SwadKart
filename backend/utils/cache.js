@@ -1,9 +1,11 @@
 import redisClient from '../config/redis.js';
 
+const isProduction = process.env.NODE_ENV === "production";
 const TAG_PREFIX = "cache:tag:";
 
 // Retrieve data from cache based on key
 export const getCache = async (key) => {
+    if (!isProduction) return null;
     try {
         const data = await redisClient.get(key);
         if (data === null) {
@@ -19,6 +21,7 @@ export const getCache = async (key) => {
 
 // Save data to cache and track key under a tag prefix for bulk invalidation
 export const setCache = async (key, data, ttl = 3600, tagPrefix) => {
+    if (!isProduction) return;
     try {
         await redisClient.setEx(key, ttl, JSON.stringify(data));
         if (tagPrefix) {
@@ -33,6 +36,7 @@ export const setCache = async (key, data, ttl = 3600, tagPrefix) => {
 
 // Delete a specific key from cache
 export const clearCache = async (key) => {
+    if (!isProduction) return;
     try {
         await redisClient.del(key);
     } catch (error) {
@@ -42,6 +46,7 @@ export const clearCache = async (key) => {
 
 // Invalidate all cache keys with a given tag prefix
 export const invalidateByTag = async (tagPrefix) => {
+    if (!isProduction) return;
     try {
         const tagKey = TAG_PREFIX + tagPrefix;
         // Get all keys tagged with this prefix

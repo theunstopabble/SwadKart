@@ -154,6 +154,10 @@ export const verifyPayment = async (req, res) => {
       // 2. Mark as Paid
       order.isPaid = true;
       order.paidAt = Date.now();
+      if (order.orderStatus === "Payment Pending") {
+        order.orderStatus = "Placed";
+        order.expiresAt = null;
+      }
       order.paymentResult = {
         id: payment.id,
         status: payment.status,
@@ -306,6 +310,10 @@ export const razorpayWebhook = async (req, res) => {
           if (order && !order.isPaid) {
             order.isPaid = true;
             order.paidAt = Date.now();
+            if (order.orderStatus === "Payment Pending") {
+              order.orderStatus = "Placed";
+              order.expiresAt = null;
+            }
             order.paymentResult = {
               id: paymentData.id,
               status: paymentData.status,

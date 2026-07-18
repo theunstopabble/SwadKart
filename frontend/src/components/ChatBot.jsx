@@ -260,7 +260,7 @@ const ChatBot = () => {
   );
 
   return (
-    <div className={`fixed z-[999] flex flex-col items-end font-sans ${isOpen && isMaximized ? "inset-0" : "bottom-6 right-6"}`}>
+    <div className={`fixed z-[9999] flex flex-col items-end font-sans ${isOpen && isMaximized ? "inset-0" : "bottom-6 right-6"}`}>
       {/* Chat Widget */}
       {isOpen && (
         <div

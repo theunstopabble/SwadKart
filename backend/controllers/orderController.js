@@ -325,6 +325,8 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       payoutStatus: "pending",
       isPaid: orderIsPaid,
       paidAt: orderPaidAt,
+      orderStatus: paymentMethod === "Online" ? "Payment Pending" : "Placed",
+      expiresAt: paymentMethod === "Online" ? new Date(Date.now() + 30 * 60 * 1000) : null,
     });
 
     // ⏰ FEAT-12: Calculate estimated delivery time
@@ -480,6 +482,7 @@ export const getOrderById = async (req, res) => {
         path: "orderItems.product",
         select: "name image category",
       })
+      .populate("orderItems.restaurant", "name")
       .lean();
 
     if (!order) {
@@ -499,7 +502,7 @@ export const getOrderById = async (req, res) => {
     let isRestaurantOwner = false;
     if (req.user.role === "restaurant_owner") {
       const restaurantDoc = await Restaurant.findOne({ owner: req.user._id }).lean();
-      const orderRestaurantId = order.orderItems[0]?.restaurant?.toString();
+      const orderRestaurantId = order.orderItems[0]?.restaurant?._id?.toString();
       if (restaurantDoc && orderRestaurantId === restaurantDoc._id.toString()) {
         isRestaurantOwner = true;
       }
@@ -575,6 +578,7 @@ export const updateOrderToPaid = async (req, res) => {
 // ==========================================
 // Valid status transitions map
 const VALID_TRANSITIONS = {
+  "Payment Pending": ["Placed", "Cancelled"],
   Placed: ["Preparing", "Cancelled"],
   Preparing: ["Ready", "Cancelled"],
   Ready: ["Out for Delivery"],
@@ -737,6 +741,7 @@ export const getMyOrders = async (req, res) => {
     const count = await Order.countDocuments({ user: req.user._id });
 
     const orders = await Order.find({ user: req.user._id })
+      .populate("orderItems.restaurant", "name")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -770,9 +775,10 @@ export const getMyRestaurantOrders = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [orders, total] = await Promise.all([
-      Order.find({ "orderItems.restaurant": restaurant._id })
+      Order.find({ "orderItems.restaurant": restaurant._id, orderStatus: { $ne: "Payment Pending" } })
         .populate("user", "name email")
         .populate("deliveryPartner", "name phone")
+        .populate("orderItems.restaurant", "name")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -805,9 +811,10 @@ export const getOrders = async (req, res) => {
 
     const count = await Order.countDocuments({});
 
-    const orders = await Order.find({})
+    const orders = await Order.find({ orderStatus: { $ne: "Payment Pending" } })
       .populate("user", "id name email")
       .populate("deliveryPartner", "name phone")
+      .populate("orderItems.restaurant", "name")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -989,6 +996,58 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     }
 
     res.json(updatedOrder);
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500);
+    throw new Error(error.message);
+  }
+});
+
+// ==========================================
+// ❌ CANCEL PENDING ONLINE ORDER
+// ==========================================
+export const cancelPendingOrder = asyncHandler(async (req, res) => {
+  const order = await Order.findById(sanitizeObjectId(req.params.id));
+
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  const isOwner = order.user.toString() === req.user._id.toString();
+  if (!isOwner) {
+    res.status(403);
+    throw new Error("Not authorized to cancel this order");
+  }
+
+  if (order.orderStatus !== "Payment Pending") {
+    res.status(400);
+    throw new Error("Only pending orders can be cancelled via this endpoint");
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    for (const item of order.orderItems) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { countInStock: item.qty } },
+        { session },
+      );
+    }
+
+    if (order.couponCode) {
+      await CouponUsage.deleteMany({ order: order._id }).session(session);
+    }
+
+    await Order.findByIdAndDelete(order._id, { session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({ success: true, message: "Pending order cancelled successfully" });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
