@@ -13,10 +13,24 @@ paths-ignore:
   - "**/__mocks__/**"
 
 # Exclude queries that produce false positives for this React+Node codebase
+# or are redundant with ESLint (already run in CI)
 query-filters:
+  # --- Security FPs (not applicable to this codebase) ---
   - exclude:
       id: js/xss-through-dom
   - exclude:
       id: js/clear-text-storage-of-sensitive-data
   - exclude:
       id: js/incomplete-url-substring-sanitization
+
+  # --- Code quality (already caught by ESLint in CI) ---
+  - exclude:
+      id: js/unused-local-variable
+  - exclude:
+      id: js/useless-assignment-to-local
+  - exclude:
+      id: js/trivial-conditional
+  - exclude:
+      id: js/superfluous-trailing-arguments
+  - exclude:
+      id: js/regex/missing-regexp-anchor
