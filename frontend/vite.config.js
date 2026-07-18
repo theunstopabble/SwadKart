@@ -45,7 +45,7 @@ export default defineConfig(() => {
               // API Calls: ALWAYS go to the network (No Cache)
               urlPattern: ({ request, url }) =>
                 request.destination !== "document" &&
-                (url.pathname.startsWith("/api") || url.hostname.includes("onrender.com")),
+                (url.pathname.startsWith("/api") || url.hostname.endsWith(".onrender.com") || url.hostname === "onrender.com"),
               handler: "NetworkOnly",
               options: {
                 fetchOptions: {
@@ -57,15 +57,15 @@ export default defineConfig(() => {
               // Socket.io: WebSocket must use network
               urlPattern: ({ url }) =>
                 url.pathname.startsWith("/socket.io") ||
-                url.hostname.includes("onrender.com"),
+                url.hostname.endsWith(".onrender.com") || url.hostname === "onrender.com",
               handler: "NetworkOnly",
             },
             {
               // External Images (Cloudinary/Maps/Icons): Cache these for speed
               urlPattern: ({ url }) =>
-                url.href.includes("cloudinary") ||
-                url.href.includes("cartocdn") ||
-                url.href.includes("flaticon"),
+                url.hostname === "res.cloudinary.com" ||
+                (url.hostname.endsWith(".cartocdn.com") || url.hostname === "cartocdn.com") ||
+                (url.hostname.endsWith(".flaticon.com") || url.hostname === "flaticon.com"),
               handler: "StaleWhileRevalidate",
               options: {
                 cacheName: "external-assets",

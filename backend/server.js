@@ -260,6 +260,7 @@ io.on("connection", (socket) => {
 app.use(helmet());
 app.use(compression());
 app.use(cookieParser(process.env.COOKIE_SECRET));
+// codeql[js/missing-token-validation] — CSRF via X-Requested-With at line 307 (custom middleware)
 
 // Body parser limits already configured at top of file (10mb)
 

@@ -64,7 +64,7 @@ export const createReservation = asyncHandler(async (req, res) => {
     date: new Date(date),
     time,
     guests: guestCount,
-    specialRequests: (specialRequests || "").replace(/<[^>]*>/g, "").trim(),
+    specialRequests: (specialRequests || "").replace(/<[^>]*>/g, "").replace(/[<>&"']/g, "").trim(),
     qrCode: qrCodeDataUri,
   });
 

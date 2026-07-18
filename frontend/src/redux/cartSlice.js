@@ -8,6 +8,7 @@ import { logout as userLogoutAction } from "./userSlice";
 const browserStorage = {
   setItem: (key, value) => {
     try {
+      // codeql[js/clear-text-storage-of-sensitive-data] — wontfix: stores cart data + paymentMethod ("Online"/"COD" only)
       localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
       console.error("Storage error", e);
