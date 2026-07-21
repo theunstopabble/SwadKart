@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import { TrendingUp, BarChart2, Package, AlertTriangle } from "lucide-react";
 import { BASEURL } from "../../config";
 import { toast } from "react-hot-toast";
@@ -7,6 +8,7 @@ import {
 } from "recharts";
 
 const AnalyticsForecast = () => {
+  const { userInfo } = useSelector((state) => state.user);
   const [projection, setProjection] = useState(null);
   const [forecast, setForecast] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -15,12 +17,15 @@ const AnalyticsForecast = () => {
   const fetchRevenueProjection = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASEURL}/api/v1/analytics-forecast/revenue-projection?days=${days}`, { credentials: "include" });
-      if (!res.ok) throw new Error();
+      const res = await fetch(`${BASEURL}/api/v1/analytics-forecast/revenue-projection?days=${days}`, {
+        credentials: "include",
+        headers: userInfo?._id ? { "x-restaurant-id": userInfo._id } : {},
+      });
+      if (!res.ok) throw new Error("Failed to fetch revenue projection");
       const data = await res.json();
       setProjection(data);
-    } catch (_err) {
-      void _err;
+    } catch {
+      toast.error("Failed to load revenue projection");
     } finally {
       setLoading(false);
     }
@@ -29,16 +34,24 @@ const AnalyticsForecast = () => {
   const fetchOrderForecast = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASEURL}/api/v1/analytics-forecast/order-forecast?days=${days}`, { credentials: "include" });
-      if (!res.ok) throw new Error();
+      const res = await fetch(`${BASEURL}/api/v1/analytics-forecast/order-forecast?days=${days}`, {
+        credentials: "include",
+        headers: userInfo?._id ? { "x-restaurant-id": userInfo._id } : {},
+      });
+      if (!res.ok) throw new Error("Failed to fetch order forecast");
       const data = await res.json();
       setForecast(data);
-    } catch (_err) {
+    } catch {
       toast.error("Failed to load order forecast");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchRevenueProjection();
+    fetchOrderForecast();
+  }, []);
 
   const renderDayVolume = () => {
     if (!forecast?.dayVolume) return null;

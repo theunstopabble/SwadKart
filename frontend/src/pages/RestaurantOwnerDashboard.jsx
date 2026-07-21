@@ -309,18 +309,15 @@ const RestaurantOwnerDashboard = () => {
  <audio ref={audioPlayer} src="/notification.mp3" preload="auto" />
 
  <div className="max-w-7xl mx-auto">
- <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
- <div>
- <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-tighter flex items-center gap-4">
- <span className="bg-primary text-white p-3 rounded-2xl shadow-lg shadow-primary/25 rotate-2">
- 🍳
- </span>
- Kitchen <span className="text-primary">Control</span>
- </h1>
- <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.5em] mt-3 pl-2">
- Manage your orders & culinary lab
- </p>
- </div>
+  <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
+  <div>
+  <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-tighter flex items-center gap-4">
+  Kitchen <span className="text-primary">Dashboard</span>
+  </h1>
+  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.5em] mt-3 pl-2">
+  Manage your restaurant operations
+  </p>
+  </div>
 
  <div className="flex items-center gap-3 bg-gray-900 border border-gray-800 px-6 py-3 rounded-xl shadow-lg">
  <button

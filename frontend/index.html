@@ -114,7 +114,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SwadKart">
   <link rel="apple-touch-icon" href="/pwa-192x192.png">
-  <link rel="manifest" href="/manifest.webmanifest">
 
   <!-- Preconnect & DNS Prefetch -->
   <link rel="preconnect" href="https://res.cloudinary.com" />
@@ -337,13 +336,6 @@
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
-  <script async>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js");
-      });
-    }
-  </script>
 </body>
 
 </html>

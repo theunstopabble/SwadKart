@@ -1,5 +1,5 @@
 import React from "react";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, BarChart3 } from "lucide-react";
 import {
  AreaChart,
  Area,
@@ -12,15 +12,12 @@ import {
 import StatsCards from "./StatsCards";
 
 const AnalyticsSection = ({ stats, graphData }) => {
- // 🛡️ CRASH PROTECTION: Ensure graphData is an array
  const safeGraphData = Array.isArray(graphData) ? graphData : [];
 
  return (
  <div className="space-y-10 animate-in fade-in duration-700">
- {/* Stats Cards Component */}
  <StatsCards stats={stats} />
 
- {/* Revenue Graph Section */}
  <div className="bg-gray-900/50 border border-gray-800 p-8 rounded-[3rem] shadow-2xl">
  <div className="flex justify-between items-center mb-8">
  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
@@ -32,6 +29,13 @@ const AnalyticsSection = ({ stats, graphData }) => {
  </span>
  </div>
 
+ {safeGraphData.length === 0 ? (
+ <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+ <BarChart3 size={48} className="mb-4 opacity-30" />
+ <p className="text-sm font-bold uppercase tracking-wider">No revenue data yet</p>
+ <p className="text-xs mt-2">Orders will appear here once placed</p>
+ </div>
+ ) : (
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <AreaChart data={safeGraphData}>
@@ -78,6 +82,7 @@ const AnalyticsSection = ({ stats, graphData }) => {
  </AreaChart>
  </ResponsiveContainer>
  </div>
+ )}
  </div>
  </div>
  );
