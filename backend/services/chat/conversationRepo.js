@@ -68,7 +68,6 @@ export async function appendMessages({ sessionId, userId, messages }) {
         update.$set = { userId };
       }
 
-      // codeql[js/sql-injection] — sanitized at controller (UUID regex in chatController.js)
       const conversation = await Conversation.findOneAndUpdate(
         { sessionId },
         update,
@@ -102,7 +101,6 @@ export async function appendMessages({ sessionId, userId, messages }) {
  * @returns {Promise<Array<object>>} Last 20 messages or empty array if stale/not found
  */
 export async function loadRecentMessages(sessionId) {
-  // codeql[js/sql-injection] — sanitized at controller (UUID regex in chatController.js)
   const conversation = await Conversation.findOne({ sessionId });
 
   if (!conversation) {

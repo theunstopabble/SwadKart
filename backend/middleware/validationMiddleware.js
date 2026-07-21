@@ -1,19 +1,8 @@
 // Lightweight request validation middleware (zero external deps)
 // Use for critical public endpoints that receive untrusted user input
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[6-9]\d{9}$/;
-
-function isValidEmail(email) {
-  if (typeof email !== "string") return false;
-  const parts = email.split("@");
-  if (parts.length !== 2) return false;
-  const [local, domain] = parts;
-  if (local.length < 1 || domain.length < 4) return false;
-  if (!domain.includes(".")) return false;
-  if (local[0] === "." || local.at(-1) === ".") return false;
-  if (domain[0] === "." || domain.at(-1) === ".") return false;
-  return true;
-}
 
 const validators = {
   register: (body) => {
@@ -21,7 +10,7 @@ const validators = {
     if (!body.name || typeof body.name !== "string" || body.name.trim().length < 2) {
       errors.push("Name must be at least 2 characters");
     }
-    if (!body.email || !isValidEmail(body.email)) {
+    if (!body.email || !EMAIL_REGEX.test(body.email)) {
       errors.push("Valid email is required");
     }
     if (!body.password || typeof body.password !== "string" || body.password.length < 6) {
@@ -34,7 +23,7 @@ const validators = {
   },
   login: (body) => {
     const errors = [];
-    if (!body.email || !isValidEmail(body.email)) {
+    if (!body.email || !EMAIL_REGEX.test(body.email)) {
       errors.push("Valid email is required");
     }
     if (!body.password || typeof body.password !== "string" || body.password.length < 1) {
@@ -44,7 +33,7 @@ const validators = {
   },
   forgotPassword: (body) => {
     const errors = [];
-    if (!body.email || !isValidEmail(body.email)) {
+    if (!body.email || !EMAIL_REGEX.test(body.email)) {
       errors.push("Valid email is required");
     }
     return errors;
@@ -54,7 +43,7 @@ const validators = {
     if (!body.name || typeof body.name !== "string" || body.name.trim().length < 1) {
       errors.push("Name is required");
     }
-    if (!body.email || !isValidEmail(body.email)) {
+    if (!body.email || !EMAIL_REGEX.test(body.email)) {
       errors.push("Valid email is required");
     }
     if (!body.message || typeof body.message !== "string" || body.message.trim().length < 5) {

@@ -14,7 +14,7 @@ export const getCache = async (key) => {
         }
         return JSON.parse(data);
     } catch (error) {
-        console.error("[Cache] ERROR %s:", key, error);
+        console.error(`[Cache] ERROR ${key}:`, error);
         return null;
     }
 };
@@ -30,7 +30,7 @@ export const setCache = async (key, data, ttl = 3600, tagPrefix) => {
             await redisClient.expire(tagKey, Math.max(ttl, 3600));
         }
     } catch (error) {
-        console.error("Redis Set Error for key %s:", key, error);
+        console.error(`Redis Set Error for key ${key}:`, error);
     }
 };
 
@@ -40,7 +40,7 @@ export const clearCache = async (key) => {
     try {
         await redisClient.del(key);
     } catch (error) {
-        console.error("Redis Del Error for key %s:", key, error);
+        console.error(`Redis Del Error for key ${key}:`, error);
     }
 };
 
@@ -57,6 +57,6 @@ export const invalidateByTag = async (tagPrefix) => {
         // Delete the tag set itself
         await redisClient.del(tagKey);
     } catch (error) {
-        console.error("Cache invalidation error for tag %s:", tagPrefix, error);
+        console.error(`Cache invalidation error for tag ${tagPrefix}:`, error);
     }
 };

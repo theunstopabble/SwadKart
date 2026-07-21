@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 /**
- * 🛡️ CodeQL FIX: Input Sanitization Utilities
+ * Input Sanitization Utilities
  * All user inputs MUST pass through these before hitting MongoDB queries.
  */
 
@@ -23,22 +23,9 @@ export const sanitizeObjectId = (id) => {
   return cleanId;
 };
 
-// Validates email is a plain string, not an object with $gt/$ne operators.
-function isValidEmail(email) {
-  if (typeof email !== "string") return false;
-  const parts = email.split("@");
-  if (parts.length !== 2) return false;
-  const [local, domain] = parts;
-  if (local.length < 1 || domain.length < 4) return false;
-  if (!domain.includes(".")) return false;
-  if (local[0] === "." || local.at(-1) === ".") return false;
-  if (domain[0] === "." || domain.at(-1) === ".") return false;
-  return true;
-}
-
 export const sanitizeEmail = (email) => {
   const cleanEmail = sanitizeString(email);
-  if (!cleanEmail || !isValidEmail(cleanEmail)) {
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     throw new Error("Invalid email format");
   }
   return cleanEmail.toLowerCase();

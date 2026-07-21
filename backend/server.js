@@ -259,7 +259,6 @@ io.on("connection", (socket) => {
 // --- 🛡️ Standard Middleware ---
 app.use(helmet());
 app.use(compression());
-// codeql[js/missing-token-validation] — CSRF via X-Requested-With at line 307 (custom middleware)
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
 // Body parser limits already configured at top of file (10mb)
@@ -291,7 +290,7 @@ const safeMongoSanitize = (req, res, next) => {
 app.use(safeMongoSanitize);
 
 // ==========================================
-// 🛡️ SECURITY FIX (CodeQL): Anti-CSRF Middleware
+// Anti-CSRF Middleware
 // ==========================================
 const csrfExemptPaths = [
   "/api/v1/payment/webhook",

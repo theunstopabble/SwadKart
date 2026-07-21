@@ -8,10 +8,9 @@
  */
 
 import { runChatPipeline } from "../services/chat/chatPipeline.js";
+import { sanitizeString } from "../utils/sanitize.js";
 
 const MAX_MESSAGE_LENGTH = 2000;
-
-const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * POST /api/v1/chat — JSON one-shot reply (legacy + non-streaming clients)
@@ -20,8 +19,7 @@ export const chatWithGenie = async (req, res) => {
   try {
     const { message, cartItems } = req.body;
     const userId = req.user ? req.user._id.toString() : null;
-    const rawSessionId = typeof req.body.sessionId === "string" ? req.body.sessionId.trim() : "";
-    const sessionId = UUID_V4_REGEX.test(rawSessionId) ? rawSessionId : null;
+    const sessionId = sanitizeString(req.body.sessionId) || sanitizeString(req.headers["x-session-id"]) || null;
 
     // ─── Validation ────────────────────────────────────────────────
     if (!message || typeof message !== "string" || message.trim().length === 0) {

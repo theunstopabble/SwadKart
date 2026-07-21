@@ -204,7 +204,6 @@ async function callGroqWithRetry({ messages, tools }) {
 async function checkEscalation(sessionId, currentSentiment, recentMessages) {
   try {
     // Sticky: if flag is already set, return true immediately
-    // codeql[js/sql-injection] — sanitized at controller (UUID regex in chatController.js)
     const existing = await Conversation.findOne({ sessionId, escalationFlag: true }).select({ escalationFlag: 1 });
     if (existing?.escalationFlag) return true;
 
@@ -233,7 +232,6 @@ async function checkEscalation(sessionId, currentSentiment, recentMessages) {
 
     if (allNegative) {
       // Set escalation flag (sticky — only set, never clear)
-      // codeql[js/sql-injection] — sanitized at controller (UUID regex in chatController.js)
       const updated = await Conversation.findOneAndUpdate(
         { sessionId, escalationFlag: { $ne: true } },
         { $set: { escalationFlag: true } },
@@ -602,7 +600,6 @@ async function executePipeline({
 
     // Update language on the conversation document
     if (updatedConversation) {
-      // codeql[js/sql-injection] — sanitized at controller (UUID regex in chatController.js)
       await Conversation.findOneAndUpdate(
         { sessionId },
         { $set: { language, lastResponseMs: Date.now() - startTime } }

@@ -36,8 +36,7 @@ router.post("/", protect, (req, res) => {
     }
 
     // 🔍 DEBUGGING: Terminal me check karo ki Cloudinary ne kya bheja
-    // codeql[js/log-injection] — req.file path is user-controlled, use %s
-    console.log("Cloudinary Response path:", req.file.path);
+    console.log("☁️ Cloudinary Response:", req.file);
 
     // 🛠️ SMART FIX: URL kahin bhi ho, hum dhund lenge
     // Cloudinary kabhi 'path', kabhi 'secure_url', kabhi 'url' bhejta hai

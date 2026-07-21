@@ -20,7 +20,6 @@ export const registerUser = async (req, res, next) => {
       throw new Error("🚫 All fields are mandatory!");
     }
 
-    // 🛡️ CodeQL FIX: Sanitize inputs before database queries
     const email = sanitizeEmail(rawEmail);
     const phone = sanitizePhone(rawPhone);
 
@@ -181,7 +180,6 @@ export const verifyEmailAPI = async (req, res, next) => {
 export const loginUser = async (req, res, next) => {
   try {
     const { email: rawEmail, password } = req.body;
-    // 🛡️ CodeQL FIX: Sanitize email before DB query
     const email = sanitizeEmail(rawEmail);
     const user = await User.findOne({ email: String(email) });
 

@@ -1,8 +1,6 @@
 import sharp from "sharp";
 import axios from "axios";
 import path from "path";
-import dns from "dns/promises";
-import net from "net";
 
 // ============================================================
 // 🖼️ SERVERLESS THUMBNAIL GENERATION (FEAT-17)
@@ -20,6 +18,7 @@ import net from "net";
 const ALLOWED_HOSTS = [
   "res.cloudinary.com",
   "images.unsplash.com",
+  "img.freepik.com",
   "placehold.co",
   "b.zmtcdn.com",
   "assets.tmecosys.com",
@@ -29,17 +28,6 @@ const ALLOWED_HOSTS = [
 ];
 
 const MAX_DIM = 2048;
-
-function isPrivateIP(ip) {
-  if (!net.isIPv4(ip)) return true;
-  const parts = ip.split(".").map(Number);
-  if (parts[0] === 10) return true;
-  if (parts[0] === 127) return true;
-  if (parts[0] === 169 && parts[1] === 254) return true;
-  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-  if (parts[0] === 192 && parts[1] === 168) return true;
-  return false;
-}
 
 function isAllowedUrl(url) {
   try {
@@ -61,30 +49,6 @@ export const generateThumbnail = async (req, res) => {
     return res.status(403).json({ message: "URL not in allowlist" });
   }
 
-  // Enforce HTTPS-only
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(url);
-    if (parsedUrl.protocol !== "https:") {
-      return res.status(403).json({ message: "HTTPS only" });
-    }
-  } catch {
-    return res.status(400).json({ message: "Invalid URL" });
-  }
-
-  // DNS resolve + private IP check (prevents DNS rebinding SSRF)
-  try {
-    const addresses = await dns.resolve4(parsedUrl.hostname);
-    for (const addr of addresses) {
-      if (isPrivateIP(addr)) {
-        console.error(`🚫 SSRF blocked: ${parsedUrl.hostname} resolved to private IP ${addr}`);
-        return res.status(403).json({ message: "URL not allowed" });
-      }
-    }
-  } catch {
-    return res.status(403).json({ message: "URL resolution failed" });
-  }
-
   let width = Math.min(Number.parseInt(w, 10) || 300, MAX_DIM);
   let height = h ? Math.min(Number.parseInt(h, 10) || 300, MAX_DIM) : null;
   let quality = Math.min(Number.parseInt(q, 10) || 80, 100);
@@ -98,22 +62,15 @@ export const generateThumbnail = async (req, res) => {
   if (height) height = Math.max(1, height);
 
   try {
-    // Fetch image (timeout 10s, max 5MB, up to 3 redirects)
-    // codeql[js/request-forgery] — validated: allowlist + DNS resolve + private-IP check above
+    // Fetch image (timeout 10s, max 5MB, up to 2 redirects)
     const response = await axios.get(url, {
       responseType: "arraybuffer",
       timeout: 10000,
       maxContentLength: 5 * 1024 * 1024,
-      maxRedirects: 3,
+      maxRedirects: 2,
       beforeRedirect: (redirectedReq) => {
-        try {
-          const targetUrl = new URL(redirectedReq.headers?.location || redirectedReq.href || url);
-          if (!ALLOWED_HOSTS.includes(targetUrl.hostname)) {
-            throw new Error("Redirect target not in allowlist");
-          }
-        } catch (err) {
-          if (err.message === "Redirect target not in allowlist") throw err;
-          throw new Error("Invalid redirect URL");
+        if (!isAllowedUrl(redirectedReq.hostname ? `https://${redirectedReq.hostname}` : redirectedReq.protocol + "//" + redirectedReq.host)) {
+          throw new Error("Redirect target not in allowlist");
         }
       },
       headers: { "User-Agent": "SwadKart-ThumbnailBot/1.0" },
