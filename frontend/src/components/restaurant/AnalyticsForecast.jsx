@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { TrendingUp, BarChart2, Package, AlertTriangle } from "lucide-react";
+import { TrendingUp, BarChart2, Package, AlertTriangle, Loader2 } from "lucide-react";
 import { BASEURL } from "../../config";
 import { toast } from "react-hot-toast";
 import {
@@ -17,9 +17,9 @@ const AnalyticsForecast = () => {
   const fetchRevenueProjection = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASEURL}/api/v1/analytics-forecast/revenue-projection?days=${days}`, {
+      const qs = `days=${days}` + (userInfo?._id ? `&restaurantId=${userInfo._id}` : "");
+      const res = await fetch(`${BASEURL}/api/v1/analytics-forecast/revenue-projection?${qs}`, {
         credentials: "include",
-        headers: userInfo?._id ? { "x-restaurant-id": userInfo._id } : {},
       });
       if (!res.ok) throw new Error("Failed to fetch revenue projection");
       const data = await res.json();
@@ -34,9 +34,9 @@ const AnalyticsForecast = () => {
   const fetchOrderForecast = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASEURL}/api/v1/analytics-forecast/order-forecast?days=${days}`, {
+      const qs = `days=${days}` + (userInfo?._id ? `&restaurantId=${userInfo._id}` : "");
+      const res = await fetch(`${BASEURL}/api/v1/analytics-forecast/order-forecast?${qs}`, {
         credentials: "include",
-        headers: userInfo?._id ? { "x-restaurant-id": userInfo._id } : {},
       });
       if (!res.ok) throw new Error("Failed to fetch order forecast");
       const data = await res.json();
@@ -51,7 +51,7 @@ const AnalyticsForecast = () => {
   useEffect(() => {
     fetchRevenueProjection();
     fetchOrderForecast();
-  }, []);
+  }, [days]);
 
   const renderDayVolume = () => {
     if (!forecast?.dayVolume) return null;
@@ -70,42 +70,42 @@ const AnalyticsForecast = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6">
+        <div className="flex items-center gap-3 mb-4 md:mb-6">
           <div className="p-2 bg-primary/10 rounded-xl">
             <TrendingUp className="text-primary" size={20} />
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-bold text-white">Revenue Projection</h3>
-            <p className="text-xs text-gray-400">30-day historical analysis with 7-day forecast</p>
+            <p className="text-xs text-gray-400">Revenue with 7-day forecast</p>
           </div>
-          <div className="flex items-center gap-2">
-            <select value={days} onChange={(e) => setDays(e.target.value)} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-xs text-white">
+          <div className="flex items-center gap-2 flex-wrap">
+            <select value={days} onChange={(e) => setDays(e.target.value)} className="bg-gray-800 border border-gray-700 rounded-lg px-2 sm:px-3 py-1 text-[10px] sm:text-xs text-white">
               <option value="7">7 days</option>
               <option value="14">14 days</option>
               <option value="30">30 days</option>
               <option value="90">90 days</option>
             </select>
-            <button onClick={fetchRevenueProjection} className="bg-primary hover:bg-primary/80 text-white px-4 py-1 rounded-lg text-xs font-bold">
-              {loading ? "..." : "Load"}
+            <button onClick={fetchRevenueProjection} className="bg-primary hover:bg-primary/80 text-white px-3 sm:px-4 py-1 rounded-lg text-[10px] sm:text-xs font-bold min-w-[44px] flex items-center justify-center">
+              {loading ? <Loader2 className="animate-spin" size={14} /> : "Load"}
             </button>
           </div>
         </div>
 
         {projection && (
           <>
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 mb-6">
               <div className="bg-gray-800 rounded-xl p-4 text-center">
                 <p className="text-xl font-bold text-white">₹{projection.totalRevenue?.toLocaleString()}</p>
                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total Revenue</p>
               </div>
               <div className="bg-green-500/10 rounded-xl p-4 text-center border border-green-500/20">
                 <p className="text-xl font-bold text-green-400">₹{projection.weeklyProjection?.toLocaleString()}</p>
-                <p className="text-[10px] text-green-400 uppercase tracking-wider">7-Day Projected</p>
+                <p className="text-[10px] text-green-400 uppercase tracking-wider">7 Day</p>
               </div>
               <div className="bg-blue-500/10 rounded-xl p-4 text-center border border-blue-500/20">
                 <p className="text-xl font-bold text-blue-400">₹{projection.monthlyProjection?.toLocaleString()}</p>
-                <p className="text-[10px] text-blue-400 uppercase tracking-wider">30-Day Projected</p>
+                <p className="text-[10px] text-blue-400 uppercase tracking-wider">30 Day</p>
               </div>
               <div className="bg-gray-800 rounded-xl p-4 text-center">
                 <p className="text-xl font-bold text-white">₹{projection.avgOrderValue?.toLocaleString()}</p>
@@ -114,7 +114,7 @@ const AnalyticsForecast = () => {
             </div>
 
             {projection.dailyRevenue?.length > 0 && (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={projection.dailyRevenue}>
                   <defs>
                     <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
@@ -132,43 +132,58 @@ const AnalyticsForecast = () => {
             )}
 
             {projection.projected7Days?.length > 0 && (
-              <div className="mt-4 bg-gray-800 rounded-xl p-4">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-3">7-Day Forecast</p>
-                <div className="flex gap-2 overflow-x-auto">
-                  {projection.projected7Days.map((day, i) => (
-                    <div key={i} className="flex-shrink-0 bg-gray-700 rounded-xl p-3 text-center min-w-[100px]">
-                      <p className="text-[10px] text-gray-400">{day.date?.split("-").slice(1).join("/")}</p>
-                      <p className="text-sm font-bold text-primary">₹{day.projectedRevenue?.toLocaleString()}</p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                        day.confidence === "high" ? "bg-green-500/20 text-green-400" :
-                        day.confidence === "medium" ? "bg-yellow-500/20 text-yellow-400" :
-                        "bg-gray-500/20 text-gray-400"
-                      }`}>{day.confidence}</span>
-                    </div>
-                  ))}
+                <div className="mt-4 bg-gray-800 rounded-xl p-4">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-3">7-Day Forecast</p>
+                  {/* MOBILE: 2-column grid (hidden on md+) */}
+                  <div className="md:hidden grid grid-cols-2 gap-2">
+                    {projection.projected7Days.map((day, i) => (
+                      <div key={i} className="bg-gray-700 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-gray-400">{day.date?.split("-").slice(1).join("/")}</p>
+                        <p className="text-sm font-bold text-primary">₹{day.projectedRevenue?.toLocaleString()}</p>
+                        <span className={`inline-block text-[9px] px-2 py-0.5 rounded-full mt-1 ${
+                          day.confidence === "high" ? "bg-green-500/20 text-green-400" :
+                          day.confidence === "medium" ? "bg-yellow-500/20 text-yellow-400" :
+                          "bg-gray-500/20 text-gray-400"
+                        }`}>{day.confidence}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* DESKTOP: horizontal scroll (hidden on mobile) */}
+                  <div className="hidden md:flex gap-2 overflow-x-auto">
+                    {projection.projected7Days.map((day, i) => (
+                      <div key={i} className="flex-shrink-0 bg-gray-700 rounded-xl p-3 text-center min-w-[100px]">
+                        <p className="text-[10px] text-gray-400">{day.date?.split("-").slice(1).join("/")}</p>
+                        <p className="text-sm font-bold text-primary">₹{day.projectedRevenue?.toLocaleString()}</p>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                          day.confidence === "high" ? "bg-green-500/20 text-green-400" :
+                          day.confidence === "medium" ? "bg-yellow-500/20 text-yellow-400" :
+                          "bg-gray-500/20 text-gray-400"
+                        }`}>{day.confidence}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
             )}
           </>
         )}
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6">
+        <div className="flex items-center gap-3 mb-4 md:mb-6">
           <div className="p-2 bg-blue-500/10 rounded-xl">
             <BarChart2 className="text-blue-400" size={20} />
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-bold text-white">Order Volume Forecast</h3>
-            <p className="text-xs text-gray-400">Hourly patterns and day-of-week analysis</p>
+            <p className="text-xs text-gray-400">Hourly & day-wise patterns</p>
           </div>
-          <button onClick={fetchOrderForecast} className="bg-primary hover:bg-red-600 text-white px-4 py-1 rounded-lg text-xs font-bold">
-            {loading ? "..." : "Load"}
+          <button onClick={fetchOrderForecast} className="bg-primary hover:bg-red-600 text-white px-3 sm:px-4 py-1 rounded-lg text-[10px] sm:text-xs font-bold min-w-[44px] flex items-center justify-center">
+            {loading ? <Loader2 className="animate-spin" size={14} /> : "Load"}
           </button>
         </div>
 
         {forecast && (
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6">
             <div className="bg-gray-800 rounded-xl p-4 text-center">
               <p className="text-xl font-bold text-white">{forecast.avgDailyOrders}</p>
               <p className="text-[10px] text-gray-400 uppercase tracking-wider">Avg Daily Orders</p>
@@ -187,7 +202,7 @@ const AnalyticsForecast = () => {
         {forecast?.dayVolume && renderDayVolume()}
 
         {forecast?.peakHours?.length > 0 && (
-          <div className="mt-4 flex gap-4">
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 md:gap-4">
             <div className="flex-1 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
               <p className="text-[10px] text-green-400 uppercase tracking-wider">Peak Hours</p>
               <p className="text-sm font-bold text-green-400 mt-1">{forecast.peakHours.map((h) => `${h}:00`).join(", ")}</p>

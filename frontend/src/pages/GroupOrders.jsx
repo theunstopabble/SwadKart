@@ -21,10 +21,11 @@ const GroupOrders = () => {
   const [loading, setLoading] = useState(!!userInfo);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
-    restaurant: "",
+    restaurantId: "",
     expiresAtMinutes: 30,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [joiningId, setJoiningId] = useState(null);
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState("");
 
@@ -59,7 +60,7 @@ const GroupOrders = () => {
       const { data } = await axios.post(
         `${BASEURL}/api/v1/group-orders`,
         {
-          restaurant: form.restaurant,
+          restaurantId: form.restaurantId,
           expiresAt: new Date(
             Date.now() + form.expiresAtMinutes * 60000
           ).toISOString(),
@@ -68,7 +69,7 @@ const GroupOrders = () => {
       );
       setMessage(`Group order created! Code: ${data.inviteCode}`);
       setShowForm(false);
-      setForm({ restaurant: "", expiresAtMinutes: 30 });
+      setForm({ restaurantId: "", expiresAtMinutes: 30 });
       fetchOrders();
     } catch (err) {
       setMessage(err.response?.data?.message || "Failed to create group order");
@@ -78,6 +79,7 @@ const GroupOrders = () => {
   };
 
   const handleJoin = async (inviteCode) => {
+    setJoiningId(inviteCode);
     try {
       await axios.post(
         `${BASEURL}/api/v1/group-orders/join`,
@@ -87,6 +89,8 @@ const GroupOrders = () => {
       fetchOrders();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to join");
+    } finally {
+      setJoiningId(null);
     }
   };
 
@@ -153,9 +157,9 @@ const GroupOrders = () => {
                 <input
                   type="text"
                   required
-                  value={form.restaurant}
+                  value={form.restaurantId}
                   onChange={(e) =>
-                    setForm({ ...form, restaurant: e.target.value })
+                    setForm({ ...form, restaurantId: e.target.value })
                   }
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-orange-500 outline-none"
                   placeholder="Restaurant ID"
@@ -248,12 +252,13 @@ const GroupOrders = () => {
                   {o.members?.length || 1} member
                   {o.members?.length !== 1 ? "s" : ""}
                 </div>
-                {o.status === "open" && (
+                  {o.status === "open" && (
                   <button
                     onClick={() => handleJoin(o.inviteCode)}
-                    className="mt-3 text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1 transition"
+                    disabled={joiningId === o.inviteCode}
+                    className="mt-3 text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1 transition disabled:opacity-50"
                   >
-                    <Link size={14} /> Join this group
+                    <Link size={14} /> {joiningId === o.inviteCode ? "Joining..." : "Join this group"}
                   </button>
                 )}
               </div>

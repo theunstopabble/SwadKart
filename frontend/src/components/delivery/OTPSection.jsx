@@ -10,7 +10,7 @@ const OTPSection = ({ orderId, otpValue, onOtpChange, onVerify }) => {
     setVerifying(true);
     const verifyPromise = onVerify(orderId);
     if (verifyPromise && typeof verifyPromise.then === 'function') {
-      verifyPromise.finally(() => setVerifying(false));
+      verifyPromise.finally(() => setVerifying(false)).catch(() => setVerifying(false));
     } else {
       setVerifying(false);
     }

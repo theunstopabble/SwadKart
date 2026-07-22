@@ -11,6 +11,7 @@ import {
   logoutUser,
   forgotPassword,
   resetPassword,
+  resendOTP,
 } from "../controllers/authController.js";
 
 import {
@@ -32,6 +33,13 @@ import {
   googleRegister,
   verifyPhone,
 } from "../controllers/userController.js";
+
+import {
+  getAllUsersAdmin,
+  updateUserRole,
+  toggleRestaurantApproval,
+  deleteUser,
+} from "../controllers/adminController.js";
 
 // Middleware Import
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
@@ -55,6 +63,7 @@ router.post("/login", validate("login"), loginUser);
 router.post("/logout", logoutUser);
 router.post("/password/forgot", validate("forgotPassword"), forgotPassword);
 router.put("/password/reset/:token", resetPassword);
+router.post("/resend-otp", resendOTP);
 router.post("/contact-support", validate("contactSupport"), contactSupport);
 
 // Google Authentication
@@ -152,5 +161,11 @@ router
 
 // ARCH-01 FIX: Removed duplicate /:id routes — use /admin/user/:id for admin ops
 // The GET /:id route was misleadingly named getRestaurantById but fetched Users
+
+// Orphaned adminController functions wired to routes
+router.get("/admin/users", protect, authorizeRoles("admin"), getAllUsersAdmin);
+router.put("/admin/user/:id/role", protect, authorizeRoles("admin"), updateUserRole);
+router.put("/admin/restaurant/:id/approve", protect, authorizeRoles("admin"), toggleRestaurantApproval);
+router.delete("/admin/user/:id/delete", protect, authorizeRoles("admin"), deleteUser);
 
 export default router;

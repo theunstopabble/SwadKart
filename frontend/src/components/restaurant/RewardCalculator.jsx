@@ -10,6 +10,7 @@ const RewardCalculator = () => {
   const [redeemResult, setRedeemResult] = useState(null);
   const [tiers, setTiers] = useState([]);
   const [breakdown, setBreakdown] = useState(null);
+  const [coinRedeemRate, setCoinRedeemRate] = useState(0.1);
   const [loading, setLoading] = useState(false);
 
   const fetchTiers = async () => {
@@ -37,7 +38,14 @@ const RewardCalculator = () => {
     }
   };
 
-  useEffect(() => { fetchTiers(); fetchBreakdown(); }, []);
+  useEffect(() => {
+    fetchTiers();
+    fetchBreakdown();
+    fetch(`${BASEURL}/api/v1/rewards-calculator/rates`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setCoinRedeemRate(d.redeemRate); })
+      .catch(() => {});
+  }, []);
 
   const calculateEarnings = async () => {
     if (!form.orderAmount) { toast.error("Enter order amount"); return; }
@@ -98,32 +106,32 @@ const RewardCalculator = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-yellow-500/10 rounded-xl">
             <Coins className="text-yellow-400" size={20} />
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">Coin Earning Calculator</h3>
-            <p className="text-xs text-gray-400">Calculate SwadCoins earned per order</p>
+            <p className="text-xs text-gray-400">Coins earned per order</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
           <div>
             <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">Order Amount (₹)</label>
-            <input type="number" value={form.orderAmount} onChange={(e) => setForm({ ...form, orderAmount: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="350" />
+            <input type="number" value={form.orderAmount} onChange={(e) => setForm({ ...form, orderAmount: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="350" />
           </div>
         </div>
 
         <button onClick={calculateEarnings} disabled={loading} className="w-full bg-primary hover:bg-primary/80 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-          {loading ? "Calculating..." : "Calculate Coins Earned"}
+          {loading ? "Calculating..." : "Calculate Coins"}
         </button>
 
         {earnResult && (
           <div className="mt-6">
             <div className="bg-gray-800 rounded-xl p-4 text-center mb-4">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">You Earn</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Coins Earned</p>
               <p className="text-3xl font-black text-yellow-400">{earnResult.earnedCoins} <span className="text-sm font-normal text-yellow-400/70">coins</span></p>
               <p className="text-sm text-gray-300 mt-1">Worth ₹{earnResult.coinsValueRupees}</p>
             </div>
@@ -146,30 +154,30 @@ const RewardCalculator = () => {
         )}
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-green-500/10 rounded-xl">
             <Gift className="text-green-400" size={20} />
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">Coin Redemption Calculator</h3>
-            <p className="text-xs text-gray-400">Calculate discount from coin redemption</p>
+            <p className="text-xs text-gray-400">Discount from coin redemption</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
           <div>
             <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">Coins to Redeem</label>
-            <input type="number" value={redeemForm.coins} onChange={(e) => setRedeemForm({ ...redeemForm, coins: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="500" />
+            <input type="number" value={redeemForm.coins} onChange={(e) => setRedeemForm({ ...redeemForm, coins: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="500" />
           </div>
           <div>
             <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">Order Amount (₹)</label>
-            <input type="number" value={redeemForm.orderAmount} onChange={(e) => setRedeemForm({ ...redeemForm, orderAmount: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="350" />
+            <input type="number" value={redeemForm.orderAmount} onChange={(e) => setRedeemForm({ ...redeemForm, orderAmount: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="350" />
           </div>
         </div>
 
         <button onClick={calculateRedemption} disabled={loading} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-          {loading ? "Calculating..." : "Calculate Redemption"}
+          {loading ? "Calculating..." : "Calculate"}
         </button>
 
         {redeemResult && (
@@ -190,17 +198,17 @@ const RewardCalculator = () => {
       </div>
 
       {tiers.length > 0 && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-purple-500/10 rounded-xl">
               <Award className="text-purple-400" size={20} />
             </div>
             <div>
               <h3 className="text-lg font-bold text-white">Loyalty Tiers</h3>
-              <p className="text-xs text-gray-400">SwadCoins tier system overview</p>
+              <p className="text-xs text-gray-400">Tier system overview</p>
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             {tiers.map((tier) => {
               const colors = getTierColor(tier.name);
               return (
@@ -209,7 +217,7 @@ const RewardCalculator = () => {
                   <h4 className={`text-sm font-bold ${colors.text}`}>{tier.name}</h4>
                   <p className="text-[10px] text-gray-400 mt-1">{tier.minCoins}+ coins</p>
                   <div className="mt-3 space-y-1">
-                    <p className="text-[10px] text-gray-300">{tier.earningRate}x earning</p>
+                    <p className="text-[10px] text-gray-300">{tier.bonusEarning}x earning</p>
                     <p className="text-[10px] text-gray-300">₹{tier.redeemRate * 100}/100 coins</p>
                   </div>
                   <div className="mt-3 pt-3 border-t border-gray-700">
@@ -225,18 +233,18 @@ const RewardCalculator = () => {
       )}
 
       {breakdown && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-white">Your Reward Summary</h3>
             <button onClick={fetchBreakdown} className="text-xs text-primary hover:underline">Refresh</button>
           </div>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-4">
             <div className="bg-gray-800 rounded-xl p-4 text-center">
               <p className="text-xl font-bold text-yellow-400">{breakdown.currentCoins}</p>
               <p className="text-[10px] text-gray-400 uppercase tracking-wider">SwadCoins</p>
             </div>
             <div className="bg-gray-800 rounded-xl p-4 text-center">
-              <p className="text-xl font-bold text-green-400">₹{breakdown.totalCoinsEarned * 0.1}</p>
+              <p className="text-xl font-bold text-green-400">₹{Number((breakdown.totalCoinsEarned * coinRedeemRate).toFixed(2))}</p>
               <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total Earned</p>
             </div>
             <div className="bg-gray-800 rounded-xl p-4 text-center">
@@ -252,8 +260,8 @@ const RewardCalculator = () => {
                   <p className="text-sm text-gray-300">{tx.description}</p>
                   <p className="text-[10px] text-gray-500">{new Date(tx.date).toLocaleDateString()}</p>
                 </div>
-                <span className={`text-sm font-bold ${tx.type === "Credit" ? "text-green-400" : "text-red-400"}`}>
-                  {tx.type === "Credit" ? "+" : "-"}{Math.abs(tx.amount)}
+                <span className={`text-sm font-bold ${["Earn", "Bonus", "Referral"].includes(tx.type) ? "text-green-400" : "text-red-400"}`}>
+                  {["Earn", "Bonus", "Referral"].includes(tx.type) ? "+" : "-"}{Math.abs(tx.amount)}
                 </span>
               </div>
             ))}

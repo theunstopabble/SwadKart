@@ -19,7 +19,7 @@ const Reservations = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
-    restaurant: "",
+    restaurantId: "",
     date: "",
     time: "",
     guests: 2,
@@ -66,8 +66,9 @@ const Reservations = () => {
         { withCredentials: true }
       );
       setMessage("Reservation created successfully!");
+      setTimeout(() => setMessage(""), 5000);
       setShowForm(false);
-      setForm({ restaurant: "", date: "", time: "", guests: 2, specialRequests: "" });
+      setForm({ restaurantId: "", date: "", time: "", guests: 2, specialRequests: "" });
       fetchReservations();
     } catch (err) {
       setMessage(err.response?.data?.message || "Failed to create reservation");
@@ -137,8 +138,8 @@ const Reservations = () => {
                 <input
                   type="text"
                   required
-                  value={form.restaurant}
-                  onChange={(e) => setForm({ ...form, restaurant: e.target.value })}
+                  value={form.restaurantId}
+                  onChange={(e) => setForm({ ...form, restaurantId: e.target.value })}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-orange-500 outline-none"
                   placeholder="Restaurant ID"
                 />

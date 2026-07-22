@@ -23,6 +23,11 @@ export const registerUser = async (req, res, next) => {
     const email = sanitizeEmail(rawEmail);
     const phone = sanitizePhone(rawPhone);
 
+    if (password !== req.body.confirmPassword) {
+      res.status(400);
+      throw new Error("Passwords do not match.");
+    }
+
     // BUG-PHONE FIX: Validate phone format on backend (matches frontend)
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phoneRegex.test(String(phone))) {
@@ -59,7 +64,7 @@ export const registerUser = async (req, res, next) => {
           // 📧 Send User Email
           await sendEmail({
             email: userExists.email,
-          subject: "🔐 Your SwadKart Verification Code",
+          subject: "Your SwadKart Verification Code",
             html: getOtpTemplate(otp),
           });
 
@@ -96,7 +101,7 @@ export const registerUser = async (req, res, next) => {
         // 📧 Send User Email
         await sendEmail({
           email: user.email,
-          subject: `🔐 ${otp} is your Verification Code`,
+          subject: `${otp} is your Verification Code`,
           html: getOtpTemplate(otp),
         });
 
@@ -148,7 +153,7 @@ export const verifyEmailAPI = async (req, res, next) => {
     try {
       await sendEmail({
         email: user.email,
-        subject: "Welcome to the SwadKart Family! 🍕",
+        subject: "Welcome to the SwadKart Family!",
         html: getWelcomeTemplate(user.name),
       });
     } catch (emailError) {
@@ -273,6 +278,39 @@ export const resetPassword = async (req, res, next) => {
     res.json({ message: "Password Updated. You are now logged in.", token });
   } catch (e) {
     next(e);
+  }
+};
+
+// @desc    Resend OTP for email verification
+// @route   POST /api/v1/users/resend-otp
+// @access  Public
+export const resendOTP = async (req, res, next) => {
+  try {
+    const { email: rawEmail } = req.body;
+    if (!rawEmail) {
+      res.status(400);
+      throw new Error("Email is required");
+    }
+    const email = sanitizeEmail(rawEmail);
+    const user = await User.findOne({ email: String(email) });
+    if (!user) {
+      return res.status(404).json({ message: "No account found with this email" });
+    }
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Email already verified. Please login." });
+    }
+    const otp = crypto.randomInt(100000, 999999).toString();
+    user.otp = otp;
+    user.otpExpires = Date.now() + 10 * 60 * 1000;
+    await user.save();
+    await sendEmail({
+      email: user.email,
+      subject: "Your SwadKart Verification Code",
+      html: getOtpTemplate(otp),
+    });
+    res.status(200).json({ message: "OTP resent to email!" });
+  } catch (error) {
+    next(error);
   }
 };
 

@@ -83,17 +83,7 @@ export const protect = asyncHandler(async (req, res, next) => {
   }
 });
 
-// ============================================================
-// 👑 ADMIN MIDDLEWARE
-// ============================================================
-export const admin = (req, res, next) => {
-  if (req.user && (req.user.isAdmin || req.user.role === "admin")) {
-    next();
-  } else {
-    res.status(403); // 403 Forbidden permission issue ke liye behtar hai
-    throw new Error("Not authorized as an admin");
-  }
-};
+// ADMIN MIDDLEWARE REMOVED — use authorizeRoles("admin") instead
 
 // ============================================================
 // 🎭 ROLE AUTHORIZATION (Flexible)
@@ -103,9 +93,7 @@ export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
       res.status(403);
-      throw new Error(
-        `User role '${req.user?.role}' is not authorized to access this route`
-      );
+      throw new Error("Not authorized to access this route");
     }
     next();
   };

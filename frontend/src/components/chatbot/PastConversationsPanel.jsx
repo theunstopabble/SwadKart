@@ -117,15 +117,29 @@ const PastConversationsPanel = ({ isAuthenticated, onSelectConversation, isVisib
           {conversations.map((conv) => (
             <li key={conv._id || conv.sessionId}>
               <button
-                onClick={() => onSelectConversation(conv)}
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`${BASEURL}/api/v1/chat/history/${conv.id}`, {
+                      credentials: "include",
+                    });
+                    if (res.ok) {
+                      const full = await res.json();
+                      onSelectConversation(full);
+                    } else {
+                      onSelectConversation(conv);
+                    }
+                  } catch {
+                    onSelectConversation(conv);
+                  }
+                }}
                 className="w-full text-left px-4 py-2.5 hover:bg-gray-900/50 transition-colors group"
                 aria-label={`Load conversation from ${conv.updatedAt ? new Date(conv.updatedAt).toLocaleDateString() : "unknown date"}`}
               >
                 <div className="flex items-center gap-2">
                   <MessageSquare size={12} className="text-gray-600 group-hover:text-primary shrink-0" aria-hidden="true" />
                   <span className="text-xs text-gray-400 group-hover:text-gray-200 truncate">
-                    {conv.messages && conv.messages.length > 0
-                      ? conv.messages[0].content?.slice(0, 50) || "Conversation"
+                    {conv.lastMessage
+                      ? conv.lastMessage.slice(0, 50)
                       : "Conversation"}
                   </span>
                   <span className="ml-auto text-[10px] text-gray-600 shrink-0">

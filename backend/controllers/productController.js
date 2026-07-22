@@ -1,6 +1,6 @@
 import Product from "../models/productModel.js";
 import Restaurant from "../models/restaurantModel.js"; // Required import
-import { getCache, setCache, clearCache } from "../utils/cache.js";
+import { getCache, setCache, clearCache, invalidateByTag } from "../utils/cache.js";
 import asyncHandler from "express-async-handler";
 import { sanitizeObjectId, sanitizeString } from "../utils/sanitize.js";
 
@@ -84,7 +84,7 @@ export const getProductsByRestaurant = asyncHandler(async (req, res) => {
   const cacheKey = `menu_rest_${actualRestaurantId}`;
   let products = await getCache(cacheKey);
   if (!products) {
-    products = await Product.find({ restaurant: actualRestaurantId }).lean();
+    products = await Product.find({ restaurant: actualRestaurantId }).sort({ orderIndex: 1 }).lean();
     await setCache(cacheKey, products, 3600);
   }
   res.status(200).json(products);
@@ -148,8 +148,8 @@ export const createProduct = asyncHandler(async (req, res) => {
       restaurant: restaurant._id, // Actual Restaurant ID from Database
       user: req.user._id, // Created By (Admin/User)
 
-      countInStock: countInStock || 100,
-      isAvailable: true,
+      countInStock: countInStock !== undefined ? countInStock : 0,
+      isAvailable: (countInStock !== undefined ? countInStock : 0) > 0,
       variants: variants || [],
       addons: addons || [],
     });
@@ -157,7 +157,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     const createdProduct = await product.save();
 
     // Invalidating cache with correct ID
-    await clearCache(`menu_rest_${restaurant._id}`);
+    await invalidateByTag("products:restaurant");
 
     res.status(201).json(createdProduct);
   } catch (error) {
@@ -174,9 +174,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
     if (product) {
       // SECURITY Check
-      const isOwner =
-        product.user && product.user.toString() === req.user._id.toString();
       const isAdmin = req.user.role === "admin";
+      const restaurant = await Restaurant.findById(product.restaurant).select("owner").lean();
+      const isOwner = restaurant && restaurant.owner.toString() === req.user._id.toString();
 
       if (!isAdmin && !isOwner) {
         return res
@@ -227,7 +227,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
       const updatedProduct = await product.save();
 
       // Fixed Variable Shadowing (already fetched above)
-      await clearCache(`menu_rest_${product.restaurant}`);
+      await invalidateByTag("products:restaurant");
 
       if (req.io) req.io.emit("productUpdated", updatedProduct);
       res.json(updatedProduct);
@@ -240,21 +240,21 @@ export const updateProduct = asyncHandler(async (req, res) => {
 }); // Fixed Syntax Error
 
 // @desc    Delete a product
-export const deleteProduct = async (req, res) => {
+export const deleteProduct = asyncHandler(async (req, res) => {
   try {
     const productId = sanitizeObjectId(req.params.id);
     const product = await Product.findById(productId);
     if (product) {
-      const isOwner =
-        product.user && product.user.toString() === req.user._id.toString();
       const isAdmin = req.user.role === "admin";
+      const restaurantDoc = await Restaurant.findById(product.restaurant).select("owner").lean();
+      const isOwner = restaurantDoc && restaurantDoc.owner.toString() === req.user._id.toString();
 
       if (isAdmin || isOwner) {
         const restaurantId = product.restaurant;
         await product.deleteOne();
 
         // Clear cache on delete as well
-        await clearCache(`menu_rest_${restaurantId}`);
+        await invalidateByTag("products:restaurant");
 
         res.json({ message: "Product removed" });
       } else {
@@ -266,10 +266,10 @@ export const deleteProduct = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+});
 
 // @desc    Toggle Product Availability
-export const toggleProductStock = async (req, res) => {
+export const toggleProductStock = asyncHandler(async (req, res) => {
   try {
     const productId = sanitizeObjectId(req.params.id);
     const product = await Product.findById(productId);
@@ -279,17 +279,15 @@ export const toggleProductStock = async (req, res) => {
     }
 
     const isAdmin = req.user.role === "admin";
-    const isOwner =
-      product.user && product.user.toString() === req.user._id.toString();
+    const restaurantDoc = await Restaurant.findById(product.restaurant).select("owner").lean();
+    const isOwner = restaurantDoc && restaurantDoc.owner.toString() === req.user._id.toString();
 
     if (isAdmin || isOwner) {
-      const previousStock = product.countInStock;
-      product.countInStock = previousStock > 0 ? 0 : 100;
-      product.isAvailable = product.countInStock > 0;
+      product.isAvailable = !product.isAvailable;
       const updatedProduct = await product.save();
 
       // Clear cache on stock change
-      await clearCache(`menu_rest_${product.restaurant}`);
+      await invalidateByTag("products:restaurant");
 
       if (req.io) {
         req.io.emit("productUpdated", updatedProduct);
@@ -305,7 +303,53 @@ export const toggleProductStock = async (req, res) => {
     console.error("Toggle Error:", error);
     res.status(500).json({ message: error.message });
   }
-};
+});
+
+// @desc    Batch-reorder menu items (drag-and-drop)
+// @route   PUT /api/v1/products/reorder
+// @access  Private (restaurant_owner, admin)
+export const reorderProducts = asyncHandler(async (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: "Items array is required" });
+  }
+
+  const isAdmin = req.user.role === "admin";
+  let restaurantId;
+
+  if (!isAdmin) {
+    const restaurant = await Restaurant.findOne({ owner: req.user._id }).lean();
+    if (!restaurant) {
+      return res.status(404).json({ message: "Restaurant not found" });
+    }
+    restaurantId = restaurant._id.toString();
+  }
+
+  const bulkOps = [];
+  for (const item of items) {
+    if (!item._id || typeof item.orderIndex !== "number") continue;
+    if (!isAdmin) {
+      const product = await Product.findById(item._id).select("restaurant").lean();
+      if (!product || product.restaurant.toString() !== restaurantId) continue;
+    }
+    bulkOps.push({
+      updateOne: {
+        filter: { _id: item._id },
+        update: { $set: { orderIndex: item.orderIndex } },
+      },
+    });
+  }
+
+  if (bulkOps.length === 0) {
+    return res.status(400).json({ message: "No valid items to reorder" });
+  }
+
+  await Product.bulkWrite(bulkOps);
+  await invalidateByTag("products:restaurant");
+
+  if (req.io) req.io.emit("menuReordered", { items });
+  res.json({ message: "Menu order updated", updated: bulkOps.length });
+});
 
 // ============================================================
 // REVIEW SYSTEM
@@ -341,7 +385,7 @@ export const createProductReview = async (req, res) => {
       await product.save();
 
       // Optional: Clear cache when reviews are updated
-      await clearCache(`menu_rest_${product.restaurant}`);
+      await invalidateByTag("products:restaurant");
 
       res.status(201).json({ message: "Review added" });
     } else {

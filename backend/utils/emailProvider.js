@@ -35,6 +35,8 @@ const isFreeEmailProvider = (host) => {
   return FREE_PROVIDER_HINTS.some((p) => h.includes(p));
 };
 
+let transporter = null;
+
 /**
  * Send one transactional email using Brevo REST API or SMTP fallback.
  * This module is used both by the BullMQ worker and by the direct-send
@@ -108,7 +110,7 @@ const sendEmailWithProvider = async (options) => {
       console.error(`❌ [Brevo] Failed to send to ${redactedEmail}:`, message);
 
       // If no SMTP fallback is configured, rethrow the Brevo error
-      if (!process.env.SMTP_HOST || !process.env.SMTP_PASSWORD) {
+      if (!process.env.SMTP_HOST || !process.env.SMTP_PASSWORD || !process.env.SMTP_MAIL) {
         throw brevoErr;
       }
 
@@ -135,20 +137,22 @@ const sendEmailWithProvider = async (options) => {
       ? authUser
       : sender.email;
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure: port === 465,
-      auth: {
-        user: authUser,
-        pass: process.env.SMTP_PASSWORD,
-      },
-      tls: {
-        rejectUnauthorized: process.env.NODE_ENV === "production",
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-    });
+    if (!transporter) {
+      transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port,
+        secure: port === 465,
+        auth: {
+          user: authUser,
+          pass: process.env.SMTP_PASSWORD,
+        },
+        tls: {
+          rejectUnauthorized: process.env.NODE_ENV === "production",
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+      });
+    }
 
     const info = await transporter.sendMail({
       from: `"${sender.name}" <${fromEmail}>`,

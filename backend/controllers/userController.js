@@ -10,7 +10,7 @@ import { getPhoneConfirmationTemplate } from "../utils/emailTemplates.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import { v2 as cloudinary } from "cloudinary";
-import { sanitizeEmail, sanitizePhone, sanitizeObjectId } from "../utils/sanitize.js";
+import { sanitizeString, sanitizeEmail, sanitizePhone, sanitizeObjectId } from "../utils/sanitize.js";
 
 // =================================================================
 // 👤 1. USER PROFILE OPERATIONS (Self)
@@ -41,7 +41,9 @@ export const updateUserProfile = async (req, res, next) => {
         });
       }
 
-      user.name = req.body.name || user.name;
+      if (req.body.name) {
+        user.name = sanitizeString(req.body.name) || user.name;
+      }
       if (req.body.email) {
         user.email = sanitizeEmail(req.body.email);
       }
@@ -53,8 +55,18 @@ export const updateUserProfile = async (req, res, next) => {
           throw new Error("Invalid Indian phone number.");
         }
         user.phone = cleanPhone;
+        user.phoneVerified = false;
       }
       if (req.body.password) {
+        if (!req.body.currentPassword) {
+          res.status(400);
+          throw new Error("Current password is required to set a new password.");
+        }
+        const isMatch = await user.matchPassword(req.body.currentPassword);
+        if (!isMatch) {
+          res.status(400);
+          throw new Error("Current password is incorrect.");
+        }
         if (req.body.password.length < 6) {
           res.status(400);
           throw new Error("Password must be at least 6 characters.");
@@ -62,7 +74,7 @@ export const updateUserProfile = async (req, res, next) => {
         user.password = req.body.password;
       }
       if (req.body.description !== undefined) {
-        user.description = req.body.description;
+        user.description = sanitizeString(req.body.description) || "";
       }
       if (req.file) {
         const b64 = Buffer.from(req.file.buffer).toString("base64");
@@ -385,7 +397,7 @@ export const subscribeToNewsletter = async (req, res) => {
     // Notify Admin safely
     await sendEmail({
       email: adminEmail, // ✅ Only uses .env variable now
-      subject: "🔔 New Newsletter Subscriber!",
+      subject: "New Newsletter Subscriber!",
       html: `
         <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px; max-width: 600px; background-color: #f9f9f9;">
           <h2 style="color: #ef4444;">New Subscriber Alert! 🚀</h2>
@@ -404,8 +416,8 @@ export const subscribeToNewsletter = async (req, res) => {
   } catch (error) {
     console.error("Newsletter Error:", error.message);
     return res
-      .status(200)
-      .json({ message: "Success! You are now subscribed. 🚀" });
+      .status(500)
+      .json({ message: "Subscription failed. Please try again later." });
   }
 };
 

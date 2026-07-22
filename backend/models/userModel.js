@@ -166,30 +166,30 @@ userSchema.methods.getResetPasswordToken = function () {
 userSchema.post("save", function (doc) {
   const isNewUser = doc.createdAt.getTime() === doc.updatedAt.getTime();
   if (isNewUser) {
-    setTimeout(async () => {
+    (async () => {
       try {
         const adminMail = process.env.SMTP_MAIL;
         if (!adminMail) return;
 
         await sendEmail({
           email: adminMail,
-          subject: "🆕 New User Registration Alert - SwadKart",
+          subject: "New User Registration Alert - SwadKart",
           html: `
             <div style="font-family: sans-serif; border: 2px solid #ef4444; padding: 25px; border-radius: 15px; background-color: #000; color: #fff; max-width: 600px;">
-              <h1 style="color: #ef4444; text-align: center;">New Entry Detected! 🚀</h1>
+              <h1 style="color: #ef4444; text-align: center;">New Entry Detected</h1>
               <div style="background: #111; padding: 20px; border-radius: 10px; border: 1px solid #333; line-height: 1.8;">
-                <p><strong>👤 Name:</strong> ${doc.name}</p>
-                <p><strong>📧 Email:</strong> ${doc.email}</p>
-                <p><strong>🛡️ Role:</strong> ${doc.role}</p>
-                <p><strong>📞 Phone:</strong> ${doc.phone || "N/A"}</p>
+                <p><strong>Name:</strong> ${doc.name}</p>
+                <p><strong>Email:</strong> ${doc.email}</p>
+                <p><strong>Role:</strong> ${doc.role}</p>
+                <p><strong>Phone:</strong> ${doc.phone || "N/A"}</p>
               </div>
             </div>
           `,
         });
       } catch (error) {
-        console.error("❌ Admin Alert Failed:", error.message);
+        console.error("Admin Alert Failed:", error.message);
       }
-    }, 1000);
+    })();
   }
 });
 
@@ -197,8 +197,8 @@ userSchema.post("save", function (doc) {
 // Email index is auto-created by unique: true in schema definition above
 userSchema.index({ phone: 1 }, { unique: true, sparse: true });
 userSchema.index({ role: 1 });
-userSchema.index({ otpExpires: 1 }, { expireAfterSeconds: 0 });
-userSchema.index({ resetPasswordExpire: 1 }, { expireAfterSeconds: 0 });
+// TTL indexes removed — OTP and resetPasswordExpire are cleared in code on use
+// Background cleanup job handles stale unverified accounts instead
 
 // 🛰️ GEOSPATIAL FIX (STEP 1): 2dsphere index for location queries
 userSchema.index({ currentLocation: "2dsphere" });

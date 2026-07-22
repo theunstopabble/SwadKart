@@ -13,13 +13,6 @@ export const createProductReview = async (req, res) => {
 
   try {
     const productId = sanitizeObjectId(req.params.id);
-    const product = await Product.findById(productId);
-
-    if (!product) {
-      return res
-        .status(404)
-        .json({ message: "Dish not found in kitchen records." });
-    }
 
     // 🛡️ 1. SECURITY PROTOCOL: Verified Purchase Check
     // User must have a delivered and paid order containing this product
@@ -47,33 +40,33 @@ export const createProductReview = async (req, res) => {
       avatar: req.user.image || "",
     };
 
-    const result = await Product.findOneAndUpdate(
-      { _id: productId, "reviews.user": { $ne: req.user._id } },
-      {
-        $push: { reviews: review },
-        $inc: { numReviews: 1 },
-      },
-      { returnDocument: "after" }
-    );
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Dish not found in kitchen records." });
+    }
 
-    if (!result) {
+    const alreadyReviewed = product.reviews.find(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+    if (alreadyReviewed) {
       return res.status(400).json({
         message: "Identity Match: You have already reviewed this dish.",
       });
     }
 
-    // Calculate Average Rating with 1 decimal precision
-    const totalRating = result.reviews.reduce(
+    product.reviews.push(review);
+    product.numReviews = product.reviews.length;
+    const totalRating = product.reviews.reduce(
       (acc, item) => item.rating + acc,
       0
     );
-    result.rating = Number((totalRating / result.reviews.length).toFixed(1));
-    await result.save();
+    product.rating = Number((totalRating / product.reviews.length).toFixed(1));
+    await product.save();
 
     res.status(201).json({
       message: "Taste Protocol: Your feedback has been recorded! ⭐",
-      rating: result.rating,
-      numReviews: result.numReviews,
+      rating: product.rating,
+      numReviews: product.numReviews,
     });
   } catch (error) {
     console.error("Review Error:", error.message);

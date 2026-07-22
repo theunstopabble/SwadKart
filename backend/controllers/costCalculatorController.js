@@ -37,7 +37,7 @@ export const calculateItemCost = asyncHandler(async (req, res) => {
     packagingCost: product.packagingCost || 5,
     totalCost: Number(totalCost.toFixed(2)),
     foodCostPercentage: product.foodCostPercentage || 30,
-    targetMargin: product.marginTarget || 25,
+    marginTarget: product.marginTarget || 25,
     suggestedPrice: Number(suggestedPrice.toFixed(2)),
     currentPrice: product.price,
     priceDifference: Number((suggestedPrice - product.price).toFixed(2)),

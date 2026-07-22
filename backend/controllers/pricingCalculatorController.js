@@ -49,7 +49,12 @@ export const calculateCommission = asyncHandler(async (req, res) => {
 });
 
 export const getCommissionBreakdown = asyncHandler(async (req, res) => {
-  const { restaurantId, startDate, endDate } = req.query;
+  let { restaurantId, startDate, endDate } = req.query;
+
+  if (!restaurantId && req.user.role === "restaurant_owner") {
+    const owned = await Restaurant.findOne({ owner: req.user._id }).select("_id").lean();
+    if (owned) restaurantId = owned._id.toString();
+  }
 
   const safeRestaurantId = restaurantId && mongoose.Types.ObjectId.isValid(restaurantId)
     ? new mongoose.Types.ObjectId(restaurantId) : null;
@@ -133,7 +138,7 @@ export const calculatePricingTiers = asyncHandler(async (req, res) => {
     { name: "Standard (25% margin)", price: Number((rawCost / 0.75).toFixed(2)), margin: 25 },
     { name: "Premium (35% margin)", price: Number((rawCost / 0.65).toFixed(2)), margin: 35 },
     { name: "Competitive (15% margin)", price: Number((rawCost / 0.85).toFixed(2)), margin: 15 },
-    { name: "With Surge (1.5x)", price: Number((rawBase * 1.5).toFixed(2)), margin: surgeMargin },
+    { name: `With Surge (${surgeMultiplier}x)`, price: Number((rawBase * 1.5).toFixed(2)), margin: surgeMargin },
   ];
 
   res.json({

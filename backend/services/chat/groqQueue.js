@@ -106,18 +106,21 @@ async function getCurrentRpmCount() {
 }
 
 /**
- * Enqueue an item into the Redis-backed FIFO queue.
+ * Enqueue an item into the Redis-backed FIFO queue using LPUSH.
  * Returns true if enqueued, false if queue is full.
  */
 async function enqueueRedis(item) {
   try {
-    const raw = await withTimeout(cacheClient.get(QUEUE_KEY), REDIS_TIMEOUT_MS);
-    const queue = raw ? JSON.parse(raw) : [];
-    if (queue.length >= QUEUE_CAP) {
-      return false;
+    const serialized = JSON.stringify(item);
+    const len = await withTimeout(cacheClient.lPush(QUEUE_KEY, serialized), REDIS_TIMEOUT_MS);
+    if (len > QUEUE_CAP) {
+      // Trim excess and remove the item we just added
+      await withTimeout(cacheClient.lTrim(QUEUE_KEY, 0, QUEUE_CAP - 1), REDIS_TIMEOUT_MS);
+      // Check if ours got trimmed — pop from end
+      const last = await withTimeout(cacheClient.rPop(QUEUE_KEY), REDIS_TIMEOUT_MS);
+      if (last === serialized) return false;
     }
-    queue.push(item);
-    await withTimeout(cacheClient.setEx(QUEUE_KEY, 300, JSON.stringify(queue)), REDIS_TIMEOUT_MS);
+    await withTimeout(cacheClient.expire(QUEUE_KEY, 300), REDIS_TIMEOUT_MS);
     return true;
   } catch {
     return false;
@@ -125,22 +128,14 @@ async function enqueueRedis(item) {
 }
 
 /**
- * Dequeue the oldest item from the Redis-backed FIFO queue.
+ * Dequeue the oldest item from the Redis-backed FIFO queue using RPOP.
  * Returns the item or null if empty/unavailable.
  */
 async function dequeueRedis() {
   try {
-    const raw = await withTimeout(cacheClient.get(QUEUE_KEY), REDIS_TIMEOUT_MS);
+    const raw = await withTimeout(cacheClient.rPop(QUEUE_KEY), REDIS_TIMEOUT_MS);
     if (!raw) return null;
-    const queue = JSON.parse(raw);
-    if (queue.length === 0) return null;
-    const item = queue.shift();
-    if (queue.length > 0) {
-      await withTimeout(cacheClient.setEx(QUEUE_KEY, 300, JSON.stringify(queue)), REDIS_TIMEOUT_MS);
-    } else {
-      await withTimeout(cacheClient.del(QUEUE_KEY), REDIS_TIMEOUT_MS);
-    }
-    return item;
+    return JSON.parse(raw);
   } catch {
     return null;
   }

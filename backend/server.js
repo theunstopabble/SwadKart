@@ -105,7 +105,7 @@ app.set("trust proxy", 1);
 
 // --- 📏 Body Parser Limits (prevent DoS) ---
 // 🛡️ Webhooks needing RAW body (must be BEFORE express.json())
-app.use("/api/v1/payment/webhook", express.raw({ type: "application/json", limit: "10kb" }));
+app.use("/api/v1/payment/webhook", express.raw({ type: "application/json", limit: "100kb" }));
 
 
 app.use(express.json({ limit: "1mb" }));
@@ -216,6 +216,11 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("leaveOrder", (id) => {
+    socket.leave(id);
+    console.log(`👋 Socket ${socket.id} left room ${id}`);
+  });
+
   // 📍 FEAT-25: Driver Real-time Tracking
   socket.on("updateLocation", async ({ orderId, lat, lng, heading, speed }) => {
     try {
@@ -234,13 +239,22 @@ io.on("connection", (socket) => {
         updatedAt: new Date(),
       };
 
-      // Persist to DB (fire-and-forget, don't block socket)
-      Order.updateOne(
-        { _id: orderId },
-        { $set: { driverLocation: locationData } },
-      ).catch((e) => console.error(`[server] Driver location DB update failed for order ${orderId}:`, e.message));
-
-      // Fire-and-forget is intentional — socket handler must not block
+      // Persist to DB with retry (3 attempts, 200ms apart)
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await Order.updateOne(
+            { _id: orderId },
+            { $set: { driverLocation: locationData } },
+          );
+          break;
+        } catch (e) {
+          if (attempt === 3) {
+            console.error(`[server] Driver location DB update failed for order ${orderId} after 3 attempts:`, e.message);
+          } else {
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+      }
 
       // Broadcast to order room (customer + any admins watching)
       io.to(orderId).emit("driverLocationUpdate", locationData);
@@ -294,6 +308,14 @@ app.use(safeMongoSanitize);
 // ==========================================
 const csrfExemptPaths = [
   "/api/v1/payment/webhook",
+  "/api/v1/users/register",
+  "/api/v1/users/login",
+  "/api/v1/users/logout",
+  "/api/v1/users/verify-email",
+  "/api/v1/users/verify-phone",
+  "/api/v1/users/resend-otp",
+  "/api/v1/users/password/forgot",
+  "/api/v1/users/password/reset",
   "/api/v1/users/contact-support",
   "/api/v1/users/google-check",
   "/api/v1/users/google-register",
@@ -310,7 +332,7 @@ const csrfProtection = (req, res, next) => {
   }
 
   // Exempt specific public endpoints from CSRF (webhooks, contact form)
-  if (csrfExemptPaths.some((path) => req.path.startsWith(path))) {
+  if (csrfExemptPaths.some((path) => path === "/api/v1/orders" ? req.path === path : req.path.startsWith(path))) {
     return next();
   }
 

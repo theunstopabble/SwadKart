@@ -7,14 +7,15 @@ import CouponUsage from "../models/couponUsageModel.js";
 import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
 import { sanitizeObjectId } from "../utils/sanitize.js";
-import Razorpay from "razorpay";
 import crypto from "crypto";
+import { getRazorpayInstance } from "./paymentController.js";
 import { sendPush } from "../utils/pushNotification.js";
 import sendEmail from "../utils/sendEmail.js";
 import {
   getOrderConfirmationTemplate,
   getAdminOrderAlertTemplate,
   getRestaurantOrderAlertTemplate,
+  getOrderCancelledTemplate,
 } from "../utils/emailTemplates.js";
 import getAdminEmail from "../utils/getAdminEmail.js";
 import { awardCoinsToUser } from "./loyaltyController.js";
@@ -144,6 +145,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 
     // Decrement stock atomically
     // BUG-06 FIX: Atomic stock decrement with floor guard — prevents negative stock
+    const stockUpdatedProducts = [];
     for (const item of orderItems) {
       const updated = await Product.findOneAndUpdate(
         { _id: item.product, countInStock: { $gte: item.qty } },
@@ -160,12 +162,14 @@ export const addOrderItems = asyncHandler(async (req, res) => {
       }
       // 📦 FEAT-14: Smart Inventory Auto-Disable
       if (updated.countInStock === 0 && updated.autoDisable === true) {
+        updated.isAvailable = false;
         await Product.findByIdAndUpdate(
           item.product,
           { isAvailable: false },
           { session },
         );
       }
+      stockUpdatedProducts.push(updated);
     }
 
     // SERVER-SIDE PRICE RECALCULATION (never trust frontend prices)
@@ -385,77 +389,91 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     // 7. NON-BLOCKING: Email & Socket notifications for COD/Wallet orders
     // Online orders get notified inside paymentController.verifyPayment instead
     if (paymentMethod !== "Online") {
-      try {
-        // Populate user data for email template
-        const populatedOrder = await Order.findById(createdOrder._id)
-          .populate("user", "name email")
-          .lean();
+      const populatedOrder = await Order.findById(createdOrder._id)
+        .populate("user", "name email")
+        .lean();
 
-        if (populatedOrder && populatedOrder.user && populatedOrder.user.email) {
-          // 📧 Customer: Order Confirmation
+      if (populatedOrder && populatedOrder.user && populatedOrder.user.email) {
+        // 📧 Customer: Order Confirmation
+        try {
           await sendEmail({
             email: populatedOrder.user.email,
-            subject: `SwadKart: Order Confirmed! ✅ #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
+            subject: `SwadKart: Order Confirmed! #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
             html: getOrderConfirmationTemplate(
               populatedOrder,
               paymentMethod === "Wallet",
             ),
           });
+        } catch (emailErr) {
+          console.error("📧 Customer confirmation email failed:", emailErr.message);
+        }
 
-          // 📧 Admin: New Order Alert
+        // 📧 Admin: New Order Alert
+        try {
           const adminEmail = await getAdminEmail();
           if (adminEmail) {
             await sendEmail({
               email: adminEmail,
-              subject: `🔔 New ${paymentMethod} Order #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
+              subject: `New ${paymentMethod} Order #${createdOrder._id.toString().slice(-6).toUpperCase()}`,
               html: getAdminOrderAlertTemplate(populatedOrder),
             });
           }
+        } catch (emailErr) {
+          console.error("📧 Admin alert email failed:", emailErr.message);
+        }
 
-          // 📧 Restaurant: Kitchen Alert
-          const restaurantId = createdOrder.orderItems[0]?.restaurant;
-          if (restaurantId) {
+        // 📧 Restaurant: Kitchen Alert
+        const restaurantId = createdOrder.orderItems[0]?.restaurant;
+        if (restaurantId) {
+          try {
             const restro = await Restaurant.findById(restaurantId).populate("owner");
             if (restro?.owner?.email && !restro.owner.email.includes("@dummy")) {
               await sendEmail({
                 email: restro.owner.email,
-                subject: `🔔 New Order for ${restro.name}`,
+                subject: `New Order for ${restro.name}`,
                 html: getRestaurantOrderAlertTemplate(populatedOrder, restro.name),
               });
             }
-            // 🔔 Socket: Real-time notification to restaurant dashboard
-            if (req.io && restro?.owner) {
-              req.io
-                .to(restro.owner._id.toString())
-                .emit("newOrderReceived", populatedOrder);
-            }
+          } catch (emailErr) {
+            console.error("📧 Restaurant alert email failed:", emailErr.message);
+          }
 
-            // 🔥 FEAT-20: Push Notifications (non-blocking)
-            try {
+          // 🔔 Socket: Real-time notification to restaurant dashboard
+          if (req.io && restro?.owner) {
+            req.io
+              .to(restro.owner._id.toString())
+              .emit("newOrderReceived", populatedOrder);
+          }
+
+          // 🔥 FEAT-20: Push Notifications (non-blocking)
+          try {
+            await createNotification(
+              req.user._id,
+              "Order Confirmed",
+              `Your order #${createdOrder._id.toString().slice(-6).toUpperCase()} is confirmed!`,
+              "order",
+              { orderId: createdOrder._id.toString(), totalPrice: createdOrder.totalPrice },
+            );
+            if (restro?.owner?._id) {
               await createNotification(
-                req.user._id,
-                "Order Confirmed",
-                `Your order #${createdOrder._id.toString().slice(-6).toUpperCase()} is confirmed!`,
+                restro.owner._id,
+                "New Order Received",
+                `New order worth ₹${createdOrder.totalPrice} from ${populatedOrder.user?.name || "a customer"}`,
                 "order",
                 { orderId: createdOrder._id.toString(), totalPrice: createdOrder.totalPrice },
               );
-              if (restro?.owner?._id) {
-                await createNotification(
-                  restro.owner._id,
-                  "New Order Received",
-                  `New order worth ₹${createdOrder.totalPrice} from ${populatedOrder.user?.name || "a customer"}`,
-                  "order",
-                  { orderId: createdOrder._id.toString(), totalPrice: createdOrder.totalPrice },
-                );
-              }
-            } catch (notifErr) {
-              console.error("🔔 Push notification error (non-blocking):", notifErr.message);
             }
+          } catch (notifErr) {
+            console.error("🔔 Push notification error (non-blocking):", notifErr.message);
           }
         }
-      } catch (emailErr) {
-        // Non-blocking: log but don't fail the order
-        console.error("📧 Post-order notification error (non-blocking):", emailErr.message);
+      }
+    }
+
+    // 🔔 Socket: Real-time stock updates to all viewers
+    if (req.io && stockUpdatedProducts.length > 0) {
+      for (const prod of stockUpdatedProducts) {
+        req.io.emit("productUpdated", prod);
       }
     }
 
@@ -924,10 +942,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
       // 🛡️ SECURITY FIX: Initiate Razorpay refund for Online payments
       if (order.paymentMethod === "Online" && order.paymentResult?.id) {
         try {
-          const instance = new Razorpay({
-            key_id: process.env.RAZORPAY_KEY_ID,
-            key_secret: process.env.RAZORPAY_KEY_SECRET,
-          });
+          const instance = getRazorpayInstance();
           await instance.payments.refund(order.paymentResult.id, {
             amount: Math.round(order.totalPrice * 100),
           });
@@ -995,6 +1010,29 @@ export const cancelOrder = asyncHandler(async (req, res) => {
       req.io.to(order.user.toString()).emit("orderUpdated", updatedOrder);
     }
 
+    // 🔔 Socket: Real-time stock restore to all viewers
+    if (req.io) {
+      for (const item of order.orderItems) {
+        const restored = await Product.findById(item.product).select("name countInStock isAvailable image price").lean();
+        if (restored) req.io.emit("productUpdated", restored);
+      }
+    }
+
+    // 7. 📧 Send cancellation email (non-blocking)
+    try {
+      const user = await User.findById(order.user).lean();
+      if (user?.email) {
+        const cancelReason = req.body?.reason?.trim() || "Cancelled by request";
+        await sendEmail({
+          email: user.email,
+          subject: `SwadKart: Order Cancelled #${updatedOrder._id.toString().slice(-6).toUpperCase()}`,
+          html: getOrderCancelledTemplate(updatedOrder, cancelReason),
+        });
+      }
+    } catch (emailErr) {
+      console.error("📧 Cancellation email failed:", emailErr.message);
+    }
+
     res.json(updatedOrder);
   } catch (error) {
     await session.abortTransaction();
@@ -1046,6 +1084,14 @@ export const cancelPendingOrder = asyncHandler(async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    // 🔔 Socket: Real-time stock restore to all viewers
+    if (req.io) {
+      for (const item of order.orderItems) {
+        const restored = await Product.findById(item.product).select("name countInStock isAvailable image price").lean();
+        if (restored) req.io.emit("productUpdated", restored);
+      }
+    }
 
     res.json({ success: true, message: "Pending order cancelled successfully" });
   } catch (error) {

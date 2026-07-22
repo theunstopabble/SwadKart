@@ -33,11 +33,11 @@ const StatsCards = ({ stats }) => {
  ];
 
  return (
- <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
  {cards.map((card, i) => (
  <div
  key={i}
- className="bg-gray-900/80 p-6 rounded-3xl border border-gray-800 flex justify-between items-center shadow-lg hover:border-gray-700 transition-all hover:-translate-y-1"
+  className="bg-gray-900/80 p-4 sm:p-6 rounded-2xl md:rounded-3xl border border-gray-800 flex justify-between items-center shadow-lg hover:border-gray-700 transition-all hover:-translate-y-1"
  >
  <div>
  <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">
@@ -49,7 +49,7 @@ const StatsCards = ({ stats }) => {
  </div>
 
  <div
- className={`p-4 rounded-2xl ${card.bg} ${card.border} border ${card.color} shadow-inner`}
+  className={`p-3 md:p-4 rounded-2xl ${card.bg} ${card.border} border ${card.color} shadow-inner`}
  >
  <card.icon size={28} />
  </div>

@@ -1,5 +1,6 @@
 import asyncHandler from "express-async-handler";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import Reservation from "../models/reservationModel.js";
 import Restaurant from "../models/restaurantModel.js";
 import QRCode from "qrcode";
@@ -27,6 +28,12 @@ export const createReservation = asyncHandler(async (req, res) => {
     throw new Error("Guests must be an integer between 1 and 20");
   }
 
+  const reservationDate = new Date(`${date}T${time}`);
+  if (reservationDate <= new Date()) {
+    res.status(400);
+    throw new Error("Reservation must be in the future");
+  }
+
   const restaurantId = sanitizeObjectId(rawRestaurantId);
   const restaurant = await Restaurant.findById(restaurantId);
   if (!restaurant) {
@@ -34,17 +41,13 @@ export const createReservation = asyncHandler(async (req, res) => {
     throw new Error("Restaurant not found");
   }
 
-  // Check for conflicting reservations — atomic upsert
-  const existing = await Reservation.findOneAndUpdate(
-    {
-      restaurant: restaurantId,
-      date: new Date(date),
-      time,
-      status: { $in: ["pending", "confirmed"] },
-    },
-    { $setOnInsert: { _id: new (await import("mongoose")).Types.ObjectId() } },
-    { upsert: true }
-  );
+  // Check for conflicting reservations — unique compound index handles atomicity
+  const existing = await Reservation.findOne({
+    restaurant: restaurantId,
+    date: new Date(date),
+    time,
+    status: { $in: ["pending", "confirmed"] },
+  });
 
   if (existing) {
     res.status(409);

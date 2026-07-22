@@ -94,7 +94,7 @@ export const testEmailDelivery = async (req, res) => {
     try {
       await sendEmail({
         email: target,
-        subject: "🧪 SwadKart Email Diagnostic Test",
+        subject: "SwadKart Email Diagnostic Test",
         html: `
           <div style="font-family: sans-serif; padding: 20px;">
             <h2 style="color: #ff4757;">Email Diagnostic ✅</h2>

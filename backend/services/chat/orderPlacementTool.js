@@ -91,11 +91,9 @@ export async function executeOrderPlacement({
     }
 
     // Gate 5: Write to shared User.cartItems (visible to frontend profile)
-    // Merge: remove existing entry for same product, then add updated entry
+    // Atomic: single update removes old entry and adds new one
     await User.findByIdAndUpdate(userId, {
       $pull: { cartItems: { product: productId } },
-    });
-    await User.findByIdAndUpdate(userId, {
       $push: { cartItems: { product: productId, quantity } },
     });
 

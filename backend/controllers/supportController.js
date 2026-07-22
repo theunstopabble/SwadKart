@@ -34,7 +34,7 @@ export const contactSupport = async (req, res, next) => {
 
     await sendEmail({
       email: adminEmail,
-      subject: `📩 SwadKart Support: ${escapeHtml(subject)}`,
+      subject: `SwadKart Support: ${escapeHtml(subject)}`,
       html: `
         <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 25px; border-radius: 10px; background-color: #fdfdfd;">
           <h2 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px;">New Support Inquiry</h2>

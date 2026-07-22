@@ -30,21 +30,19 @@ const AdminDashboard = () => {
  const [pageLoading, setPageLoading] = useState(true);
  const [orders, setOrders] = useState([]);
  const [restaurants, setRestaurants] = useState([]);
- const [deliveryPartners, setDeliveryPartners] = useState([]);
- const [, setCoupons] = useState([]);
+  const [deliveryPartners, setDeliveryPartners] = useState([]);
 
- // --- FETCH ALL DATA ---
- // ADMIN-02 FIX: Per-section error isolation + reduced order limit to prevent Render timeout
- const fetchAllData = useCallback(async () => {
- if (!userInfo) return;
- const fetchOptions = { credentials: "include" };
+  // --- FETCH ALL DATA ---
+  // ADMIN-02 FIX: Per-section error isolation + reduced order limit to prevent Render timeout
+  const fetchAllData = useCallback(async () => {
+  if (!userInfo) return;
+  const fetchOptions = { credentials: "include" };
 
- const results = await Promise.allSettled([
- fetch(`${BASEURL}/api/v1/restaurants/admin/all`, fetchOptions),
- fetch(`${BASEURL}/api/v1/orders?limit=50&page=1`, fetchOptions),
- fetch(`${BASEURL}/api/v1/users/delivery-partners`, fetchOptions),
- fetch(`${BASEURL}/api/v1/coupons`, fetchOptions),
- ]);
+  const results = await Promise.allSettled([
+  fetch(`${BASEURL}/api/v1/restaurants/admin/all`, fetchOptions),
+  fetch(`${BASEURL}/api/v1/orders?limit=50&page=1`, fetchOptions),
+  fetch(`${BASEURL}/api/v1/users/delivery-partners`, fetchOptions),
+  ]);
 
  // 1. Restaurants
  if (results[0].status === "fulfilled") {
@@ -85,19 +83,7 @@ const AdminDashboard = () => {
  console.error("Partners fetch error:", results[2].reason?.message);
  }
 
- // 4. Coupons
- if (results[3].status === "fulfilled") {
- const res = results[3].value;
- if (res.ok) {
- const data = await res.json();
- setCoupons(Array.isArray(data) ? data : data.data || []);
- } else {
- console.warn("Coupons fetch failed:", res.status);
- }
- } else {
- console.error("Coupons fetch error:", results[3].reason?.message);
- }
- }, [userInfo]);
+  }, [userInfo]);
 
  useEffect(() => {
  const loadDashboardData = async () => {

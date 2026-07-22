@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { Lock, Save, Loader } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASEURL } from "../config";
+import { setCredentials } from "../redux/userSlice";
 
 const ResetPassword = () => {
   const { token } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -44,8 +47,14 @@ const ResetPassword = () => {
       const data = await res.json();
 
       if (res.ok) {
-        toast.success("✅ Password updated! Redirecting to Login...");
-        setTimeout(() => navigate("/login"), 2000);
+        if (data.token) {
+          dispatch(setCredentials({ ...data, token: data.token }));
+          toast.success("✅ Password updated! You are now logged in.");
+          navigate("/");
+        } else {
+          toast.success("✅ Password updated! Redirecting to Login...");
+          setTimeout(() => navigate("/login"), 2000);
+        }
       } else {
         toast.error(data.message || "❌ Invalid or Expired Token");
       }

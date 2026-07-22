@@ -35,7 +35,8 @@ const Profile = () => {
  const [description, setDescription] = useState("");
  const [localMsg, setLocalMsg] = useState(null);
 
- const [showPhoneVerify, setShowPhoneVerify] = useState(false);
+  const [showPhoneVerify, setShowPhoneVerify] = useState(false);
+  const [coinRates, setCoinRates] = useState(null);
 
  // 📸 Profile Image Upload
  const [imagePreview, setImagePreview] = useState(null);
@@ -107,10 +108,17 @@ const Profile = () => {
  return () => {
  if (imagePreview) URL.revokeObjectURL(imagePreview);
  };
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
- // 🔍 Check Device Capability + Fetch Server Status
+  useEffect(() => {
+    fetch(`${BASEURL}/api/v1/rewards-calculator/rates`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setCoinRates(d); })
+      .catch(() => {});
+  }, []);
+
+  // 🔍 Check Device Capability + Fetch Server Status
  useEffect(() => {
  const checkBiometricCapability = async () => {
  try {
@@ -597,9 +605,9 @@ const Profile = () => {
  <h3 className="text-4xl font-black text-white tracking-tighter">
  {userInfo?.swadCoins || 0}
  </h3>
- <p className="text-[9px] text-amber-400 mt-1">
- 100 coins = ₹10 off your next order
- </p>
+  <p className="text-[9px] text-amber-400 mt-1">
+  {coinRates ? coinRates.redeemDescription : "100 coins = ₹10 off your next order"}
+  </p>
  </div>
  <div className="p-3 bg-gray-800 rounded-2xl text-amber-500 border border-amber-700/30">
  <Coins size={24} />
@@ -608,7 +616,7 @@ const Profile = () => {
  <div className="flex gap-2">
  <div className="bg-gray-800/50 rounded-xl p-3 flex-1 text-center">
  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Earn Rate</p>
- <p className="text-sm font-black text-white">₹10 = 1 coin</p>
+  <p className="text-sm font-black text-white">{coinRates ? coinRates.earnDescription : "₹10 = 1 coin"}</p>
  </div>
  <div className="bg-gray-800/50 rounded-xl p-3 flex-1 text-center">
  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">First Order</p>

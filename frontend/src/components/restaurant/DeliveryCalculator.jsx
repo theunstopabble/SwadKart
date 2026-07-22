@@ -4,7 +4,7 @@ import { BASEURL } from "../../config";
 import { toast } from "react-hot-toast";
 
 const DeliveryCalculator = () => {
-  const [form, setForm] = useState({ distanceKm: "", orderSubtotal: "", isSurgeActive: false, hasSwadPass: false });
+  const [form, setForm] = useState({ distanceKm: "", orderSubtotal: "", isSurgeActive: false, hasSwadPass: false, vehicleType: "scooter" });
   const [routeResult, setRouteResult] = useState(null);
   const [feeResult, setFeeResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -64,14 +64,14 @@ const DeliveryCalculator = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-green-500/10 rounded-xl">
             <MapPin className="text-green-400" size={20} />
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">Delivery Fee Calculator</h3>
-            <p className="text-xs text-gray-400">Distance-based, surge-aware delivery pricing</p>
+            <p className="text-xs text-gray-400">Delivery fee with surge pricing</p>
           </div>
         </div>
 
@@ -83,7 +83,7 @@ const DeliveryCalculator = () => {
               step="0.1"
               value={form.distanceKm}
               onChange={(e) => setForm({ ...form, distanceKm: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:outline-none"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-white text-sm focus:border-primary focus:outline-none"
               placeholder="3.5"
             />
           </div>
@@ -93,13 +93,13 @@ const DeliveryCalculator = () => {
               type="number"
               value={form.orderSubtotal}
               onChange={(e) => setForm({ ...form, orderSubtotal: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:outline-none"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-white text-sm focus:border-primary focus:outline-none"
               placeholder="250"
             />
           </div>
         </div>
 
-        <div className="flex gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
           <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
             <input
               type="checkbox"
@@ -107,7 +107,7 @@ const DeliveryCalculator = () => {
               onChange={(e) => setForm({ ...form, isSurgeActive: e.target.checked })}
               className="w-4 h-4 accent-primary"
             />
-            Surge Active
+            ⚡ Surge
           </label>
           <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
             <input
@@ -116,7 +116,7 @@ const DeliveryCalculator = () => {
               onChange={(e) => setForm({ ...form, hasSwadPass: e.target.checked })}
               className="w-4 h-4 accent-primary"
             />
-            SwadPass Member
+            🛡️ SwadPass
           </label>
         </div>
 
@@ -125,7 +125,7 @@ const DeliveryCalculator = () => {
           disabled={loading}
           className="w-full bg-primary hover:bg-primary/80 text-white font-bold py-3 rounded-xl text-sm transition-colors"
         >
-          {loading ? "Calculating..." : "Calculate Fee"}
+          {loading ? "Calculating..." : "Calculate"}
         </button>
 
         {feeResult && (
@@ -163,44 +163,44 @@ const DeliveryCalculator = () => {
         )}
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-blue-500/10 rounded-xl">
             <Navigation className="text-blue-400" size={20} />
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">Route Fee Estimator</h3>
-            <p className="text-xs text-gray-400">Calculate fees by vehicle type and route</p>
+            <p className="text-xs text-gray-400">Vehicle & route-based pricing</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4">
           <div>
             <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">Pickup Lat</label>
-            <input type="number" step="any" value={form.pickupLat || ""} onChange={(e) => setForm({ ...form, pickupLat: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="28.6139" />
+            <input type="number" step="any" value={form.pickupLat || ""} onChange={(e) => setForm({ ...form, pickupLat: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="28.6139" />
           </div>
           <div>
             <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">Pickup Lng</label>
-            <input type="number" step="any" value={form.pickupLng || ""} onChange={(e) => setForm({ ...form, pickupLng: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="77.2090" />
+            <input type="number" step="any" value={form.pickupLng || ""} onChange={(e) => setForm({ ...form, pickupLng: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="77.2090" />
           </div>
           <div>
             <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">Drop Lat</label>
-            <input type="number" step="any" value={form.dropLat || ""} onChange={(e) => setForm({ ...form, dropLat: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="28.6304" />
+            <input type="number" step="any" value={form.dropLat || ""} onChange={(e) => setForm({ ...form, dropLat: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="28.6304" />
           </div>
           <div>
             <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">Drop Lng</label>
-            <input type="number" step="any" value={form.dropLng || ""} onChange={(e) => setForm({ ...form, dropLng: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="77.2177" />
+            <input type="number" step="any" value={form.dropLng || ""} onChange={(e) => setForm({ ...form, dropLng: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-white text-sm focus:border-primary focus:outline-none" placeholder="77.2177" />
           </div>
         </div>
 
         <div className="mb-4">
           <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">Vehicle Type</label>
-          <div className="flex gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {["bicycle", "scooter", "bike"].map((type) => (
               <button
                 key={type}
                 onClick={() => setForm({ ...form, vehicleType: type })}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors ${
+                className={`py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors ${
                   form.vehicleType === type ? "bg-primary text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                 }`}
               >
@@ -211,7 +211,7 @@ const DeliveryCalculator = () => {
         </div>
 
         <button onClick={calculateRoute} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-          {loading ? "Calculating..." : "Calculate Route Fee"}
+          {loading ? "Calculating..." : "Calculate Route"}
         </button>
 
         {routeResult && (

@@ -5,10 +5,9 @@ import User from "../models/userModel.js";
 import { calculateSurgeMultiplier } from "./surgePricingController.js";
 
 export const calculateDeliveryFee = asyncHandler(async (req, res) => {
-  let { distanceKm, isSurgeActive, orderSubtotal, baseFee = 40 } = req.body;
-  let hasSwadPass = false;
+  let { distanceKm, isSurgeActive, orderSubtotal, baseFee = 40, hasSwadPass } = req.body;
 
-  if (req.user) {
+  if (hasSwadPass === undefined && req.user) {
     const user = await User.findById(req.user._id).select("hasSwadPass swadPassExpiry").lean();
     hasSwadPass = !!(user?.hasSwadPass && user?.swadPassExpiry && new Date(user.swadPassExpiry) > new Date());
   }

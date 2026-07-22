@@ -171,17 +171,56 @@ const ChatBot = () => {
   }, [input, files, isLoading, isStreaming, sendMessage, sessionId, cartItems]);
 
   /**
-   * Handle quick-action chip click — reuse handleSend by setting input.
+   * Handle quick-action chip click — directly send the message.
    */
-  const handleChipClick = useCallback((chipText) => {
-    setInput(chipText);
-  }, []);
+  const handleChipClick = useCallback(async (chipText) => {
+    if (isLoading || isStreaming) return;
+    setInput("");
+    setChipsDisabled(true);
 
-  useEffect(() => {
-    if (input && !isLoading && !isStreaming) {
-      handleSend();
+    setMessages((prev) => [
+      ...prev,
+      { text: chipText, sender: "user" },
+    ]);
+
+    setMessages((prev) => [
+      ...prev,
+      { text: "", sender: "bot", isStreaming: true },
+    ]);
+
+    setIsLoading(true);
+
+    try {
+      const result = await sendMessage(chipText, sessionId, cartItems);
+
+      setMessages((prev) => {
+        const withoutStreaming = prev.filter((m) => !m.isStreaming);
+        return [
+          ...withoutStreaming,
+          {
+            text: result.text || "My taste buds are confused! Can you say that again? 🍛",
+            sender: "bot",
+            error: !!result.error,
+          },
+        ];
+      });
+    } catch {
+      setMessages((prev) => {
+        const withoutStreaming = prev.filter((m) => !m.isStreaming);
+        return [
+          ...withoutStreaming,
+          {
+            text: "🧞‍♂️ Genie is out of magic! Please check your internet.",
+            sender: "bot",
+            error: true,
+          },
+        ];
+      });
+    } finally {
+      setIsLoading(false);
+      setChipsDisabled(false);
     }
-  }, [input]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sendMessage, sessionId, cartItems, isLoading, isStreaming]);
 
   /**
    * Start a new chat session.

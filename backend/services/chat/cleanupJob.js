@@ -1,4 +1,7 @@
 import Conversation from "../../models/conversationModel.js";
+import Order from "../../models/orderModel.js";
+import GroupOrder from "../../models/groupOrderModel.js";
+import Product from "../../models/productModel.js";
 
 // =================================================
 // 🧹 CLEANUP JOB — 90-day conversation TTL sweep
@@ -22,6 +25,55 @@ let intervalId = null;
  *
  * @returns {Promise<{ skipped: boolean, deletedCount?: number }>}
  */
+/**
+ * Cleans up expired unpaid orders and group orders.
+ * - Orders: status "pending", older than 60 min → cancel + restore stock
+ * - Group orders: expiresAt < now → mark as expired
+ */
+async function cleanupExpiredOrders() {
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000);
+
+  // Cancel expired unpaid orders & restore stock
+  const expiredOrders = await Order.find({
+    status: "pending",
+    createdAt: { $lt: cutoff },
+  }).lean();
+
+  for (const order of expiredOrders) {
+    if (order.items && order.items.length > 0) {
+      for (const item of order.items) {
+        if (item.product) {
+          await Product.findByIdAndUpdate(item.product, {
+            $inc: { countInStock: item.quantity || 1 },
+          });
+        }
+      }
+    }
+  }
+
+  const orderResult = await Order.updateMany(
+    { status: "pending", createdAt: { $lt: cutoff } },
+    { $set: { status: "cancelled", cancelledAt: new Date() } }
+  );
+
+  // Expire stale group orders
+  const groupResult = await GroupOrder.updateMany(
+    { expiresAt: { $lt: new Date() }, status: "active" },
+    { $set: { status: "expired" } }
+  );
+
+  const orderCount = orderResult.modifiedCount || 0;
+  const groupCount = groupResult.modifiedCount || 0;
+
+  if (orderCount || groupCount) {
+    console.log(
+      `[CleanupJob] Expired: ${orderCount} order(s), ${groupCount} group order(s).`
+    );
+  }
+
+  return { orderCount, groupCount };
+}
+
 export async function runCleanup() {
   try {
     const now = Date.now();
@@ -33,11 +85,30 @@ export async function runCleanup() {
 
     const cutoffDate = new Date(now - NINETY_DAYS_MS);
 
-    const result = await Conversation.deleteMany({
-      updatedAt: { $lt: cutoffDate },
-    });
+    const [conversationResult, expiredResult] = await Promise.allSettled([
+      Conversation.deleteMany({ updatedAt: { $lt: cutoffDate } }),
+      cleanupExpiredOrders(),
+    ]);
 
-    const deletedCount = result.deletedCount || 0;
+    const deletedCount =
+      conversationResult.status === "fulfilled"
+        ? conversationResult.value.deletedCount || 0
+        : 0;
+
+    if (conversationResult.status === "rejected") {
+      console.error(
+        "[CleanupJob] Conversation cleanup error:",
+        conversationResult.reason.message
+      );
+    }
+
+    if (expiredResult.status === "rejected") {
+      console.error(
+        "[CleanupJob] Expired order cleanup error:",
+        expiredResult.reason.message
+      );
+    }
+
     lastRunAt = now;
 
     console.log(

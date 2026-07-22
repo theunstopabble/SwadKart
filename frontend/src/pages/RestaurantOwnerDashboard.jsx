@@ -47,16 +47,17 @@ const RestaurantOwnerDashboard = () => {
  // Partner Selection State
  const [selectedPartner, setSelectedPartner] = useState({});
 
- const [newItem, setNewItem] = useState({
- name: "",
- price: "",
- description: "",
- category: "",
- image: "",
- isVeg: "true",
- variants: [],
- addons: [],
- });
+  const [newItem, setNewItem] = useState({
+  name: "",
+  price: "",
+  description: "",
+  category: "",
+  image: "",
+  isVeg: "true",
+  countInStock: 0,
+  variants: [],
+  addons: [],
+  });
 
  const audioPlayer = useRef(null);
  const socketRef = useRef(null);
@@ -112,8 +113,8 @@ const RestaurantOwnerDashboard = () => {
  ),
  safeJson(
  fetch(
- `${BASEURL}/api/v1/products/restaurant`,
- getFetchOptions("GET", null, { 'x-restaurant-id': userInfo._id }),
+  `${BASEURL}/api/v1/products/restaurant/${userInfo?._id}`,
+  getFetchOptions(),
  ),
  ),
  safeJson(
@@ -128,7 +129,7 @@ const RestaurantOwnerDashboard = () => {
  ]);
 
  // 🛡️ CRASH PROTECTION: Ensure data is strictly an array
- const safeOrders = Array.isArray(dOrders) ? dOrders : [];
+  const safeOrders = Array.isArray(dOrders) ? dOrders : (dOrders?.orders || []);
  const safeMenu = Array.isArray(dMenu) ? dMenu : [];
  const safePartners = Array.isArray(dPartners) ? dPartners : [];
  const safeGraph = Array.isArray(dGraph) ? dGraph : [];
@@ -209,8 +210,8 @@ const RestaurantOwnerDashboard = () => {
  getFetchOptions("PATCH"),
  );
  if (res.ok) {
- // ROD-02 FIX: move toast.success INSIDE the if(res.ok) block and add try-catch
- toast.success("Stock status updated");
+  // ROD-02 FIX: move toast.success INSIDE the if(res.ok) block and add try-catch
+  toast.success("Stock toggled");
  fetchData();
  }
  } catch {
@@ -269,8 +270,8 @@ const RestaurantOwnerDashboard = () => {
  : `${BASEURL}/api/v1/products`;
 
  const safePrice = (val) => {
- const n = parseFloat(val);
- return isNaN(n) ? 0 : n;
+  const n = parseFloat(val);
+  return isNaN(n) || n < 0 ? 0 : n;
  };
 
  const payload = {
@@ -291,20 +292,45 @@ const RestaurantOwnerDashboard = () => {
  const res = await fetch(url, getFetchOptions(method, payload));
  if (res.ok) {
  const data = await res.json();
- toast.success(data?.message || "Item added successfully");
+  toast.success(data?.message || (isEditing ? "Item updated successfully" : "Item added successfully"));
  setShowModal(false);
  fetchData();
  } else {
  const err = await res.json().catch(() => ({}));
  toast.error(err?.message || "Update failed");
  }
- } catch {
- // ROD-04 FIX: wrap entire fetch in try-catch
- toast.error("Network error saving item");
- }
- };
+  } catch {
+    // ROD-04 FIX: wrap entire fetch in try-catch
+    toast.error("Network error saving item");
+  }
+  };
 
- return (
+  // Drag-and-Drop Reorder Handler
+  const handleReorder = async (items) => {
+    const reordered = items.map((item, i) => ({
+      _id: item._id,
+      orderIndex: i,
+    }));
+    try {
+      const res = await fetch(
+        `${BASEURL}/api/v1/products/reorder`,
+        getFetchOptions("PUT", { items: reordered }),
+      );
+      if (res.ok) {
+        setMenuItems(items);
+        toast.success("Menu order saved \u2705");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.message || "Failed to reorder");
+        fetchData();
+      }
+    } catch {
+      toast.error("Network error saving order");
+      fetchData();
+    }
+  };
+
+  return (
  <div className="min-h-screen bg-black text-white pt-20 pb-12 px-4 md:px-8 font-sans">
  <audio ref={audioPlayer} src="/notification.mp3" preload="auto" />
 
@@ -334,26 +360,51 @@ const RestaurantOwnerDashboard = () => {
  </div>
  </header>
 
- {/* --- TABS --- */}
- <div className="flex overflow-x-auto bg-gray-900/50 p-1.5 rounded-2xl mb-12 border border-gray-800 shadow-inner max-w-md">
- {[
- { id: "overview", label: "Analytics", icon: LayoutDashboard },
- { id: "menu", label: "Menu Lab", icon: Utensils },
- { id: "calculators", label: "Calculators", icon: Calculator },
- ].map((tab) => (
- <button
- key={tab.id}
- onClick={() => setActiveTab(tab.id)}
- className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-xl font-extrabold text-[10px] uppercase tracking-[0.2em] transition-all duration-300 ${
- activeTab === tab.id
- ? `bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]`
- : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
- }`}
- >
- <tab.icon size={18} /> {tab.label}
- </button>
- ))}
-</div>
+  {/* --- TABS --- */}
+  {/* MOBILE: grid box layout (md:hidden) */}
+  <div className="md:hidden bg-gray-900/60 rounded-2xl p-3 mb-6">
+    <div className="grid grid-cols-3 gap-2">
+      {[
+        { id: "overview", label: "Analytics", icon: LayoutDashboard },
+        { id: "menu", label: "Menu Lab", icon: Utensils },
+        { id: "calculators", label: "Calculators", icon: Calculator },
+      ].map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => setActiveTab(tab.id)}
+          className={`flex-col md:flex-row items-center gap-1 md:gap-2 px-3 py-3 rounded-xl font-black text-[9px] uppercase md:tracking-[0.2em] tracking-[0.05em] transition-all ${
+            activeTab === tab.id
+              ? "bg-primary text-white shadow-lg shadow-primary/20"
+              : "bg-black/40 text-gray-500 hover:text-white hover:bg-gray-800"
+          }`}
+        >
+          <tab.icon size={14} />
+          <span>{tab.label}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+  {/* DESKTOP: horizontal bar (hidden on mobile) */}
+  <div className="hidden md:flex gap-2 mb-10 border-b border-gray-800 pb-4 no-scrollbar">
+    {[
+      { id: "overview", label: "Analytics", icon: LayoutDashboard },
+      { id: "menu", label: "Menu Lab", icon: Utensils },
+      { id: "calculators", label: "Calculators", icon: Calculator },
+    ].map((tab) => (
+      <button
+        key={tab.id}
+        onClick={() => setActiveTab(tab.id)}
+        className={`flex items-center gap-2 px-6 py-4 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all whitespace-nowrap border shrink-0 ${
+          activeTab === tab.id
+            ? "bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-105"
+            : "bg-gray-900 border-gray-800 text-gray-500 hover:text-white hover:border-gray-700"
+        }`}
+      >
+        <tab.icon size={16} />
+        <span>{tab.label}</span>
+      </button>
+    ))}
+  </div>
 
  {loading ? (
  <div className="flex flex-col items-center justify-center py-32">
@@ -364,28 +415,54 @@ const RestaurantOwnerDashboard = () => {
  </div>
  ) : activeTab === "calculators" ? (
  <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
- <div className="flex overflow-x-auto bg-gray-900/50 p-1.5 rounded-2xl mb-8 border border-gray-800 shadow-inner max-w-2xl">
- {[
- { id: "cost", label: "Cost" },
- { id: "pricing", label: "Pricing" },
- { id: "delivery", label: "Delivery" },
- { id: "rewards", label: "Rewards" },
- { id: "forecast", label: "Forecast" },
- { id: "inventory", label: "Inventory" },
- ].map((tab) => (
- <button
- key={tab.id}
- onClick={() => setActiveCalcTab(tab.id)}
- className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-[9px] uppercase tracking-wider transition-all duration-300 ${
- activeCalcTab === tab.id
- ? "bg-primary text-white shadow-lg shadow-primary/20"
- : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
- }`}
- >
- {tab.label}
- </button>
- ))}
- </div>
+  {/* MOBILE: grid box layout (md:hidden) */}
+  <div className="md:hidden bg-gray-900/60 rounded-2xl p-3 mb-6">
+    <div className="grid grid-cols-3 gap-2">
+      {[
+        { id: "cost", label: "Cost" },
+        { id: "pricing", label: "Pricing" },
+        { id: "delivery", label: "Delivery" },
+        { id: "rewards", label: "Your Coins" },
+        { id: "forecast", label: "Forecast" },
+        { id: "inventory", label: "Inventory" },
+      ].map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => setActiveCalcTab(tab.id)}
+          className={`px-3 py-3 rounded-xl font-black text-[9px] uppercase md:tracking-[0.2em] tracking-[0.05em] transition-all ${
+            activeCalcTab === tab.id
+              ? "bg-primary text-white shadow-lg shadow-primary/20"
+              : "bg-black/40 text-gray-500 hover:text-white hover:bg-gray-800"
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  </div>
+  {/* DESKTOP: horizontal bar (hidden on mobile) */}
+  <div className="hidden md:flex gap-2 mb-8 no-scrollbar">
+    {[
+      { id: "cost", label: "Cost" },
+      { id: "pricing", label: "Pricing" },
+      { id: "delivery", label: "Delivery" },
+      { id: "rewards", label: "Your Coins" },
+      { id: "forecast", label: "Forecast" },
+      { id: "inventory", label: "Inventory" },
+    ].map((tab) => (
+      <button
+        key={tab.id}
+        onClick={() => setActiveCalcTab(tab.id)}
+        className={`px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all whitespace-nowrap border shrink-0 ${
+          activeCalcTab === tab.id
+            ? "bg-primary border-primary text-white shadow-lg shadow-primary/20"
+            : "bg-gray-900 border-gray-800 text-gray-500 hover:text-white hover:border-gray-700"
+        }`}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
  <div className="mb-6">
  {activeCalcTab === "cost" && <CostCalculator />}
  {activeCalcTab === "pricing" && <PricingCalculator />}
@@ -398,8 +475,8 @@ const RestaurantOwnerDashboard = () => {
  ) : activeTab === "overview" ? (
  <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 space-y-12">
  <AnalyticsSection stats={stats} graphData={graphData} />
- <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
- <LiveOrders
+  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6 shadow-2xl">
+  <LiveOrders
  orders={orders}
  deliveryPartners={deliveryPartners}
  selectedPartner={selectedPartner}
@@ -412,52 +489,66 @@ const RestaurantOwnerDashboard = () => {
  ) : (
  <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
- <MenuManagement
- menuItems={menuItems}
- handleToggleStock={handleToggleStock}
- handleDeleteItem={async (id) => {
- if (window.confirm("Permanent removal from menu?")) {
- try {
- const res = await fetch(
- `${BASEURL}/api/v1/products/${id}`,
- getFetchOptions("DELETE"),
- );
- if (res.ok) {
- const data = await res.json();
- toast.success(data?.message || "Dish Erased");
- fetchData();
- } else {
- const err = await res.json().catch(() => ({}));
- toast.error(err?.message || "Failed to delete dish");
- }
- } catch {
- toast.error("Network error deleting dish");
- }
- }
- }}
- openAddModal={() => {
- setIsEditing(false);
- setNewItem({
- name: "",
- price: "",
- description: "",
- category: "",
- image: "",
- isVeg: "true",
- variants: [],
- addons: [],
- });
- setShowModal(true);
- }}
+          <MenuManagement
+            menuItems={menuItems}
+            setMenuItems={setMenuItems}
+            handleReorder={handleReorder}
+            handleToggleStock={handleToggleStock}
+  handleDeleteItem={async (item) => {
+  const id = typeof item === "string" ? item : item._id;
+  const name = typeof item === "string" ? "this item" : item.name;
+  if (window.confirm(`Delete "${name}" from menu? This cannot be undone.`)) {
+  try {
+  const res = await fetch(
+  `${BASEURL}/api/v1/products/${id}`,
+  getFetchOptions("DELETE"),
+  );
+  if (res.ok) {
+  const data = await res.json();
+  toast.success(data?.message || "Dish deleted");
+  fetchData();
+  } else {
+  const err = await res.json().catch(() => ({}));
+  toast.error(err?.message || "Failed to delete dish");
+  }
+  } catch {
+  toast.error("Network error deleting dish");
+  }
+  }
+  }}
+  openAddModal={() => {
+  setIsEditing(false);
+  setNewItem({
+  name: "",
+  price: "",
+  description: "",
+  category: "",
+  image: "",
+  isVeg: "true",
+  countInStock: 0,
+  variants: [],
+  addons: [],
+  });
+  setShowModal(true);
+  }}
  openEditModal={(item) => {
  setIsEditing(true);
  setEditId(item._id);
- setNewItem({
- ...item,
- isVeg: item.isVeg ? "true" : "false",
- variants: item.variants || [],
- addons: item.addons || [],
- });
+  setNewItem({
+  _id: item._id,
+  name: item.name,
+  price: item.price,
+  description: item.description,
+  category: item.category,
+  image: item.image,
+  countInStock: item.countInStock,
+  isAvailable: item.isAvailable,
+  isVeg: item.isVeg === true ? "true" : "false",
+  variants: item.variants || [],
+  addons: item.addons || [],
+  scheduleEnabled: item.scheduleEnabled,
+  schedule: item.schedule,
+  });
  setShowModal(true);
  }}
  />

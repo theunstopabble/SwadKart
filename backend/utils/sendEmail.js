@@ -3,6 +3,8 @@ dotenv.config();
 
 const isProduction = process.env.NODE_ENV === "production";
 
+const stripHtml = (html) => html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+
 /**
  * Send an email directly via emailProvider (Brevo / SMTP).
  * BullMQ / Redis intentionally not used here — Redis is reserved for
@@ -16,13 +18,17 @@ const isProduction = process.env.NODE_ENV === "production";
  * @param {string} [options.html]
  */
 const sendEmail = async (options) => {
+  const opts = { ...options };
+  if (opts.html && !opts.message) {
+    opts.message = stripHtml(opts.html);
+  }
   const envLabel = isProduction ? "PROD" : "DEV";
-  const redacted = options.email.split("@")[0].slice(0, 2) + "***@" + options.email.split("@")[1];
-  console.log(`📧 [${envLabel}] Sending email to: ${redacted} | ${options.subject}`);
+  const redacted = opts.email.split("@")[0].slice(0, 2) + "***@" + opts.email.split("@")[1];
+  console.log(`📧 [${envLabel}] Sending email to: ${redacted} | ${opts.subject}`);
 
   try {
     const { default: sendEmailWithProvider } = await import("./emailProvider.js");
-    return await sendEmailWithProvider(options);
+    return await sendEmailWithProvider(opts);
   } catch (error) {
     console.error("❌ sendEmail failed:", error.message);
     throw error;

@@ -9,6 +9,7 @@
  */
 
 import crypto from "crypto";
+import { callGroq } from "./groqQueue.js";
 
 /**
  * The fixed set of valid intent labels.
@@ -73,7 +74,7 @@ export async function classifyIntent(message, { redis, groq }) {
   let rawLabel = "unknown";
   try {
     const completion = await Promise.race([
-      groq.chat.completions.create({
+      callGroq(() => groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages: [
           {
@@ -87,7 +88,7 @@ export async function classifyIntent(message, { redis, groq }) {
         ],
         max_tokens: 10,
         temperature: 0,
-      }),
+      })),
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Groq timeout")), 2000)
       ),

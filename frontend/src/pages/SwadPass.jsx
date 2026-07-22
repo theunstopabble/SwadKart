@@ -93,7 +93,6 @@ const SwadPass = () => {
       };
 
       const rzp = new window.Razorpay(options);
-      rzp.on("modal_closed", () => setActionLoading(false));
       rzp.open();
     } catch (e) {
       setMessage(e.response?.data?.message || "Subscription failed");

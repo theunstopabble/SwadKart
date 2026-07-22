@@ -54,7 +54,7 @@ const groupOrderSchema = new mongoose.Schema(
 
 // inviteCode already has index: true + unique: true in schema field definition
 groupOrderSchema.index({ host: 1, status: 1 });
-groupOrderSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// TTL removed — expired group orders transition to "cancelled" in the cleanup job instead
 
 const GroupOrder = mongoose.model("GroupOrder", groupOrderSchema);
 export default GroupOrder;

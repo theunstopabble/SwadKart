@@ -10,6 +10,8 @@
  * Requirements: 8.1, 8.2, 8.3
  */
 
+import { callGroq } from "./groqQueue.js";
+
 /**
  * Clamp a sentiment value to the closed interval [-1.0, 1.0].
  *
@@ -45,7 +47,7 @@ export async function analyzeSentiment(message, { groq }) {
       sentimentTimer = setTimeout(() => reject(new Error("Sentiment analysis timeout")), 3000);
     });
     const completion = await Promise.race([
-      groq.chat.completions.create({
+      callGroq(() => groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages: [
           {
@@ -60,7 +62,7 @@ export async function analyzeSentiment(message, { groq }) {
         ],
         max_tokens: 10,
         temperature: 0,
-      }),
+      })),
       sentimentTimeoutPromise,
     ]).finally(() => clearTimeout(sentimentTimer));
 

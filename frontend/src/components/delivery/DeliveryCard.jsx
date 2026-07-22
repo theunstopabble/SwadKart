@@ -27,16 +27,22 @@ const DeliveryCard = ({ order, onAction }) => {
  #{order._id ? order._id.slice(-6) : "------"}
  </h3>
  </div>
- {/* Status badge — field is deliveryStatus (not status); values: Assigned, Accepted, etc. */}
- <div
- className={`shrink-0 px-3 sm:px-4 py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-widest border ${
- order.deliveryStatus === "Assigned"
- ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20 animate-pulse"
- : "bg-blue-500/10 text-blue-500 border-blue-500/20"
- }`}
- >
- {order.deliveryStatus}
- </div>
+  {/* Status badge — field is deliveryStatus (not status); values: Assigned, Accepted, Rejected, Out for Delivery, Delivered */}
+  <div
+  className={`shrink-0 px-3 sm:px-4 py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-widest border ${
+  order.deliveryStatus === "Assigned"
+  ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20 animate-pulse"
+  : order.deliveryStatus === "Accepted"
+  ? "bg-green-500/10 text-green-500 border-green-500/20"
+  : order.deliveryStatus === "Rejected"
+  ? "bg-red-500/10 text-red-500 border-red-500/20"
+  : order.deliveryStatus === "Delivered"
+  ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+  : "bg-gray-500/10 text-gray-500 border-gray-500/20"
+  }`}
+  >
+  {order.deliveryStatus}
+  </div>
  </div>
 
  {/* Customer Info */}

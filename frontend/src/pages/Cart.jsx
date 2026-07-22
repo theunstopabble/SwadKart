@@ -87,7 +87,7 @@ const Cart = () => {
  fetch(`${BASEURL}/api/v1/coupons/validate`, {
  method: "POST",
  headers: { "Content-Type": "application/json" },
- body: JSON.stringify({ code: savedCoupon, orderTotal: cartTotal }),
+  body: JSON.stringify({ code: savedCoupon, orderAmount: cartTotal }),
  credentials: "include",
  signal: abort.signal,
  }).then((res) => {

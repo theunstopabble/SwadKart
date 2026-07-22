@@ -123,16 +123,14 @@ export async function execute({ userId }, { orderQueryTimeoutMs = 3000 } = {}) {
     }
 
     // Gate 5: Write to shared User.cartItems
-    // Merge: remove existing entries for the same products, then add updated ones
+    // Atomic: single update removes old entries and adds new ones
     const productIds = addedItems.map((item) => item.product);
-    await User.findByIdAndUpdate(userId, {
-      $pull: { cartItems: { product: { $in: productIds } } },
-    });
     const cartItems = addedItems.map((item) => ({
       product: item.product,
       quantity: item.quantity,
     }));
     await User.findByIdAndUpdate(userId, {
+      $pull: { cartItems: { product: { $in: productIds } } },
       $push: { cartItems: { $each: cartItems } },
     });
 

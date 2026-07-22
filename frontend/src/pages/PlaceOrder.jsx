@@ -297,23 +297,27 @@ const PlaceOrder = () => {
  contact: cart.shippingAddress.phone,
  },
  theme: { color: "#ff6b6b" },
- modal: {
- ondismiss: async () => {
- if (isMounted.current) setIsProcessing(false);
- try {
- await fetch(`${BASEURL}/api/v1/orders/${dbData._id}/cancel-pending`, {
- method: "POST",
- credentials: "include",
- });
- } catch {
- // Non-blocking — TTL will clean up if this fails
- }
- toast.error(
- "Payment cancelled — order removed.",
- { icon: "⚠️", duration: 4000 },
- );
- },
- },
+  modal: {
+  ondismiss: async () => {
+  if (isMounted.current) setIsProcessing(false);
+  try {
+  const checkRes = await fetch(`${BASEURL}/api/v1/orders/${dbData._id}`, {
+  credentials: "include",
+  });
+  if (checkRes.ok) {
+  const current = await checkRes.json();
+  if (current.isPaid) return;
+  }
+  await fetch(`${BASEURL}/api/v1/orders/${dbData._id}/cancel-pending`, {
+  method: "POST",
+  credentials: "include",
+  });
+  toast.error("Payment cancelled — order removed.", { icon: "⚠️", duration: 4000 });
+  } catch {
+  // Silent — order will be cleaned up by background job
+  }
+  },
+  },
  };
  const rzp = new window.Razorpay(options);
  rzp.open();

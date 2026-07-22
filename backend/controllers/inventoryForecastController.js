@@ -1,9 +1,15 @@
 import asyncHandler from "express-async-handler";
 import Product from "../models/productModel.js";
 import Order from "../models/orderModel.js";
+import Restaurant from "../models/restaurantModel.js";
 
 export const getInventoryForecast = asyncHandler(async (req, res) => {
-  const { restaurantId, days = 7 } = req.query;
+  let { restaurantId, days = 7 } = req.query;
+
+  if (!restaurantId && req.user?.role === "restaurant_owner") {
+    const owned = await Restaurant.findOne({ owner: req.user._id }).select("_id").lean();
+    if (owned) restaurantId = owned._id.toString();
+  }
 
   const filter = restaurantId ? { restaurant: restaurantId } : {};
   const products = await Product.find(filter).populate("restaurant", "name").select("name countInStock lastRestocked category variants");
@@ -58,7 +64,7 @@ export const getInventoryForecast = asyncHandler(async (req, res) => {
   });
 
   const urgentItems = forecasts.filter((f) => f.restockUrgent);
-  const lowStock = forecasts.filter((f) => !f.restockUrgent && f.status !== "healthy");
+  const lowStock = forecasts.filter((f) => !f.restockUrgent && f.status !== "healthy" && f.status !== "out_of_stock");
   const outOfStock = forecasts.filter((f) => f.status === "out_of_stock");
 
   res.json({
@@ -80,7 +86,12 @@ export const getInventoryForecast = asyncHandler(async (req, res) => {
 });
 
 export const getReorderRecommendations = asyncHandler(async (req, res) => {
-  const { restaurantId, threshold = 5 } = req.query;
+  let { restaurantId, threshold = 5 } = req.query;
+
+  if (!restaurantId && req.user?.role === "restaurant_owner") {
+    const owned = await Restaurant.findOne({ owner: req.user._id }).select("_id").lean();
+    if (owned) restaurantId = owned._id.toString();
+  }
 
   const filter = restaurantId ? { restaurant: restaurantId } : {};
   const products = await Product.find(filter).select("name countInStock category restaurant lastRestocked variants").populate("restaurant", "name");

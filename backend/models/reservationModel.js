@@ -27,6 +27,9 @@ const reservationSchema = new mongoose.Schema(
 // Index for looking up reservations by user
 reservationSchema.index({ user: 1 });
 
+// Single-field index for restaurant lookups
+reservationSchema.index({ restaurant: 1 });
+
 // Compound unique index: prevent double booking the same table at the same slot
 reservationSchema.index(
   { restaurant: 1, date: 1, time: 1, tableNumber: 1 },

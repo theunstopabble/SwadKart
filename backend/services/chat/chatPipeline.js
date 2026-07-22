@@ -282,18 +282,18 @@ export async function runChatPipeline({
     signal,
   });
 
+  let timeoutHandle;
+  let abortHandler;
+
   const abortPromise = signal
     ? new Promise((_, reject) => {
-        signal.addEventListener(
-          "abort",
-          () => reject(new Error("pipeline_aborted")),
-          { once: true }
-        );
+        abortHandler = () => reject(new Error("pipeline_aborted"));
+        signal.addEventListener("abort", abortHandler, { once: true });
       })
     : null;
 
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(
+    timeoutHandle = setTimeout(
       () => reject(new Error("pipeline_timeout")),
       PIPELINE_TIMEOUT_MS
     );
@@ -305,12 +305,10 @@ export async function runChatPipeline({
 
   try {
     return await Promise.race(promises);
-  } catch (error) {
-    // Pipeline timed out or failed catastrophically — return fallback
+  } catch {
     const { language: langResult } = detectLanguage(message || "");
     const fallback = buildFallback(langResult);
 
-    // Persist user message on fallback (best-effort)
     try {
       const userMsg = {
         role: "user",
@@ -356,6 +354,11 @@ export async function runChatPipeline({
       escalationFlag: false,
       attachments: attachments || [],
     };
+  } finally {
+    clearTimeout(timeoutHandle);
+    if (signal && abortHandler) {
+      signal.removeEventListener("abort", abortHandler);
+    }
   }
 }
 
@@ -533,8 +536,8 @@ async function executePipeline({
     try {
       completion = await callGroqWithRetry({ messages: currentMessages, tools });
     } catch {
-      // If the follow-up LLM call fails, produce a generic error reply
-      reply = "Sorry, I encountered an issue processing your request. Please try again.";
+      const fallbackReply = buildFallback(language);
+      reply = fallbackReply.reply || "Sorry, I encountered an issue processing your request. Please try again.";
       break;
     }
   }

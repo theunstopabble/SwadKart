@@ -191,7 +191,5 @@ orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ deliveryPartner: 1, deliveryStatus: 1 });
 orderSchema.index({ isPaid: 1, createdAt: -1 });
-orderSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-
 const Order = mongoose.model("Order", orderSchema);
 export default Order;

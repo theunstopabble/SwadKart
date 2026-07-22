@@ -152,6 +152,18 @@ export const calculateReferralReward = asyncHandler(async (req, res) => {
   });
 });
 
+export const getCoinRates = asyncHandler(async (req, res) => {
+  res.json({
+    earnRate: 10,
+    redeemRate: 0.1,
+    earnDescription: "₹10 = 1 coin",
+    redeemDescription: "100 coins = ₹10 off",
+    maxRedeemPerOrder: 5000,
+    firstOrderBonus: 500,
+    referralBonus: 500,
+  });
+});
+
 export const getRewardBreakdown = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 

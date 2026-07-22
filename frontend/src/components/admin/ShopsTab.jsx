@@ -23,7 +23,7 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
  const [showShopModal, setShowShopModal] = useState(false);
  const [showDummyModal, setShowDummyModal] = useState(false);
  const [editingShop, setEditingShop] = useState(null);
- const [isProcessing, setIsProcessing] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
 
  useEffect(() => {
  if (restaurants) setLoading(false);
@@ -66,10 +66,10 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
 
  // --- 🚀 Actions ---
 
- // 1. Approve Restaurant
- const handleApprove = async (id) => {
- try {
- setIsProcessing(true);
+  // 1. Approve Restaurant
+  const handleApprove = async (id) => {
+  try {
+  setProcessingId(id);
  const res = await fetch(
  `${BASEURL}/api/v1/restaurants/${id}/approve`,
  getFetchOptions("PUT"),
@@ -82,13 +82,13 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
  } else {
  toast.error(data.message || "Approval failed.");
  }
- } catch (err) {
- console.error(err);
- toast.error("Handshake failed with server");
- } finally {
- setIsProcessing(false);
- }
- };
+  } catch (err) {
+  console.error(err);
+  toast.error("Handshake failed with server");
+  } finally {
+  setProcessingId(null);
+  }
+  };
 
  // 2. Delete Restaurant (FIXED URL ✅)
  const handleDeleteRestaurant = async (id) => {
@@ -287,10 +287,10 @@ const ShopsTab = ({ restaurants, fetchAllData }) => {
   </div>
   <button
   onClick={() => handleApprove(shop._id)}
-  disabled={isProcessing}
+  disabled={processingId === shop._id}
   className="w-full sm:w-auto bg-primary hover:bg-red-600 text-white px-5 md:px-8 py-3 md:py-4 rounded-2xl font-black text-[9px] md:text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-primary/10 flex items-center justify-center gap-2 active:scale-90 disabled:opacity-50"
   >
-  {isProcessing ? (
+  {processingId === shop._id ? (
   <Loader2 size={14} className="animate-spin" />
   ) : (
   "Authorize"

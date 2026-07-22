@@ -13,6 +13,7 @@ const reviewSchema = mongoose.Schema(
     name: { type: String, required: true },
     rating: { type: Number, required: true },
     comment: { type: String, required: true },
+    avatar: { type: String, default: "" },
   },
   {
     timestamps: true,
@@ -65,7 +66,7 @@ const productSchema = mongoose.Schema(
     // =================================================
     isVeg: { type: Boolean, default: true },
     isRecommended: { type: Boolean, default: false },
-    countInStock: { type: Number, required: true, default: 100 },
+    countInStock: { type: Number, required: true, default: 0 },
     orderIndex: { type: Number, default: 0 },
 
     // 📊 COST & PROFIT CALCULATOR (Enterprise)

@@ -2,6 +2,7 @@ import asyncHandler from "express-async-handler";
 import crypto from "crypto";
 import GroupOrder from "../models/groupOrderModel.js";
 import Order from "../models/orderModel.js";
+import Restaurant from "../models/restaurantModel.js";
 import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // @desc    Create a group order
@@ -12,6 +13,12 @@ export const createGroupOrder = asyncHandler(async (req, res) => {
   if (!restaurantId) {
     res.status(400);
     throw new Error("Restaurant ID is required");
+  }
+
+  const restaurant = await Restaurant.findById(sanitizeObjectId(restaurantId)).select("_id name").lean();
+  if (!restaurant) {
+    res.status(404);
+    throw new Error("Restaurant not found");
   }
 
   const inviteCode = crypto.randomBytes(4).toString("hex").toUpperCase();
@@ -49,11 +56,10 @@ export const joinGroupOrder = asyncHandler(async (req, res) => {
     throw new Error("Group order has expired");
   }
 
-  const alreadyMember = groupOrder.members.some((m) => m.user?.toString() === req.user._id.toString());
-  if (!alreadyMember) {
-    groupOrder.members.push({ user: req.user._id, name: req.user.name || "Guest", items: [] });
-    await groupOrder.save();
-  }
+  await GroupOrder.updateOne(
+    { _id: groupOrder._id, "members.user": { $ne: req.user._id } },
+    { $push: { members: { user: req.user._id, name: req.user.name || "Guest", items: [] } } }
+  );
 
   res.json(groupOrder);
 });

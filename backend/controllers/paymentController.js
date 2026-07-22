@@ -18,7 +18,7 @@ dotenv.config();
 
 // Singleton Razorpay Instance
 let razorpayInstance = null;
-const getRazorpayInstance = () => {
+export const getRazorpayInstance = () => {
   if (!razorpayInstance) {
     razorpayInstance = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID,
@@ -196,27 +196,35 @@ export const verifyPayment = async (req, res) => {
       }
 
       // 5. Email Dispatch (Non-blocking)
-      try {
-        // User confirmation email (optional — user may not have email on file)
-        if (order.user && order.user.email) {
+      // 📧 Customer: Payment confirmation
+      if (order.user && order.user.email) {
+        try {
           await sendEmail({
             email: order.user.email,
-            subject: `SwadKart: Payment Received! ✅ Order #${order._id.toString().slice(-6)}`,
+            subject: `SwadKart: Payment Received! Order #${order._id.toString().slice(-6)}`,
             html: getOrderConfirmationTemplate(updatedOrder, true),
           });
+        } catch (err) {
+          console.error("📧 Customer payment email failed:", err.message);
         }
+      }
 
-        // Admin revenue alert (always send if admin email is configured)
+      // 📧 Admin: Revenue alert
+      try {
         const adminEmail = await getAdminEmail();
         if (adminEmail) {
           await sendEmail({
             email: adminEmail,
-            subject: `💰 Revenue Alert: Order #${order._id.toString().slice(-6)}`,
+            subject: `Revenue Alert: Order #${order._id.toString().slice(-6)}`,
             html: getAdminOrderAlertTemplate(updatedOrder),
           });
         }
+      } catch (err) {
+        console.error("📧 Admin revenue email failed:", err.message);
+      }
 
-        // Restaurant owner alert (always send if valid email exists)
+      // 📧 Restaurant: New paid order notification
+      try {
         const restaurantId = order.orderItems[0].restaurant;
         const restro = await Restaurant.findById(restaurantId).populate("owner");
         if (
@@ -225,7 +233,7 @@ export const verifyPayment = async (req, res) => {
         ) {
           await sendEmail({
             email: restro.owner.email,
-            subject: `💰 New Paid Order for ${restro.name}`,
+                    subject: `New Paid Order for ${restro.name}`,
             html: getRestaurantOrderAlertTemplate(
               updatedOrder,
               restro.name,
@@ -233,7 +241,7 @@ export const verifyPayment = async (req, res) => {
           });
         }
       } catch (err) {
-        console.error("Alert System Delay:", err.message);
+        console.error("📧 Restaurant payment email failed:", err.message);
       }
 
       res
@@ -290,8 +298,8 @@ export const razorpayWebhook = async (req, res) => {
       // Parse body if it was raw Buffer
       const body = Buffer.isBuffer(req.body) ? JSON.parse(rawBody) : req.body;
 
-      // Process only if payment is captured
-      if (body.event === "payment.captured") {
+      // Process payment.captured events
+      if (body.event === "payment.captured" || body.event === "payment.authorized") {
         const paymentData = body.payload.payment.entity;
 
         const rawOrderId = paymentData.notes ? paymentData.notes.orderId : null;
@@ -305,31 +313,37 @@ export const razorpayWebhook = async (req, res) => {
         }
 
         if (orderId) {
-          const order = await Order.findById(orderId);
+          // Atomic update — only apply if order exists and is not already paid
+          const updated = await Order.findOneAndUpdate(
+            { _id: orderId, isPaid: false },
+            {
+              $set: {
+                isPaid: true,
+                paidAt: new Date(),
+                orderStatus: "Placed",
+                expiresAt: null,
+                "paymentResult.id": paymentData.id,
+                "paymentResult.status": paymentData.status,
+                "paymentResult.update_time": paymentData.created_at,
+                "paymentResult.email_address": paymentData.email,
+              },
+            },
+            { new: true }
+          );
 
-          if (order && !order.isPaid) {
-            order.isPaid = true;
-            order.paidAt = Date.now();
-            if (order.orderStatus === "Payment Pending") {
-              order.orderStatus = "Placed";
-              order.expiresAt = null;
-            }
-            order.paymentResult = {
-              id: paymentData.id,
-              status: paymentData.status,
-              update_time: paymentData.created_at,
-              email_address: paymentData.email,
-            };
+          if (!updated) {
+            console.log(`Webhook: Order ${orderId} already paid or not found — skipped.`);
+            return res.status(200).json({ status: "ok" });
+          }
 
-            await order.save();
             // NEW-07 FIX: Atomic CouponUsage via upsert on webhook
-            if (order.couponCode) {
+            if (updated.couponCode) {
               try {
-                const coupon = await Coupon.findOne({ code: order.couponCode.toUpperCase() });
+                const coupon = await Coupon.findOne({ code: updated.couponCode.toUpperCase() });
                 if (coupon) {
                   await CouponUsage.findOneAndUpdate(
-                    { user: order.user, coupon: coupon._id },
-                    { $setOnInsert: { user: order.user, coupon: coupon._id, order: order._id } },
+                    { user: updated.user, coupon: coupon._id },
+                    { $setOnInsert: { user: updated.user, coupon: coupon._id, order: updated._id } },
                     { upsert: true }
                   );
                 }
@@ -340,9 +354,55 @@ export const razorpayWebhook = async (req, res) => {
               }
             }
 
+            // Notifications (non-blocking)
+            const populatedOrder = await Order.findById(updated._id).populate("user");
+
+            // 📧 Customer: Payment confirmation
+            if (populatedOrder.user?.email) {
+              try {
+                await sendEmail({
+                  email: populatedOrder.user.email,
+                  subject: `SwadKart: Payment Received! Order #${populatedOrder._id.toString().slice(-6)}`,
+                  html: getOrderConfirmationTemplate(populatedOrder, true),
+                });
+              } catch (err) {
+                console.error("📧 Webhook customer email failed:", err.message);
+              }
+            }
+
+            // 📧 Admin: Revenue alert
+            try {
+              const adminEmail = await getAdminEmail();
+              if (adminEmail) {
+                await sendEmail({
+                  email: adminEmail,
+                  subject: `Revenue Alert: Order #${populatedOrder._id.toString().slice(-6)}`,
+                  html: getAdminOrderAlertTemplate(populatedOrder),
+                });
+              }
+            } catch (err) {
+              console.error("📧 Webhook admin email failed:", err.message);
+            }
+
+            // 📧 Restaurant: New paid order
+            const restaurantId = populatedOrder.orderItems[0]?.restaurant;
+            if (restaurantId) {
+              try {
+                const restro = await Restaurant.findById(restaurantId).populate("owner");
+                if (restro?.owner?.email && !restro.owner.email.includes("@dummy")) {
+                  await sendEmail({
+                    email: restro.owner.email,
+            subject: `New Paid Order for ${restro.name}`,
+                    html: getRestaurantOrderAlertTemplate(populatedOrder, restro.name),
+                  });
+                }
+              } catch (err) {
+                console.error("📧 Webhook restaurant email failed:", err.message);
+              }
+            }
+
             console.log(`✅ Webhook Success: Order ${orderId} marked as PAID.`);
           }
-        }
       } else if (body.event === "payment.failed") {
         const paymentData = body.payload.payment.entity;
         const failureReason = paymentData.error_description || "Unknown error";

@@ -111,13 +111,13 @@ export const assignDeliveryPartner = async (req, res) => {
     try {
       await sendEmail({
         email: partner.email,
-        subject: `🛵 New Delivery Task Assigned: #${order._id
+        subject: `New Delivery Task: #${order._id
           .toString()
           .slice(-6)}`,
         html: getDeliveryRequestTemplate(updatedOrder, partner),
       });
     } catch (err) {
-      console.log("Driver email notification failed.");
+      console.error("Driver email notification failed.");
     }
 
     res.json(updatedOrder);
@@ -159,7 +159,7 @@ export const updateDeliveryAction = async (req, res) => {
         try {
           await sendEmail({
             email: user.email,
-            subject: `🛵 Your SwadKart order is Out for Delivery!`,
+            subject: `Your SwadKart order is Out for Delivery!`,
             html: getUserDriverAssignedTemplate(
               order,
               req.user,
@@ -167,7 +167,7 @@ export const updateDeliveryAction = async (req, res) => {
             ),
           });
         } catch (err) {
-          console.log("Customer notification email failed.");
+          console.error("Customer notification email failed.");
         }
       }
     } else {

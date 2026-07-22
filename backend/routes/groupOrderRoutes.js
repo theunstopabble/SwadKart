@@ -1,5 +1,6 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
+import GroupOrder from "../models/groupOrderModel.js";
 import {
   createGroupOrder,
   joinGroupOrder,
@@ -14,8 +15,7 @@ router.post("/", protect, createGroupOrder);
 router.post("/join", protect, joinGroupOrder);
 router.get("/my", protect, async (req, res, next) => {
   try {
-    const groupOrderModel = (await import("../models/groupOrderModel.js")).default;
-    const orders = await groupOrderModel.find({
+    const orders = await GroupOrder.find({
       $or: [{ host: req.user._id }, { "members.user": req.user._id }],
     }).sort({ createdAt: -1 });
     res.json(orders);

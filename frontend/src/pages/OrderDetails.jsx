@@ -67,23 +67,23 @@ const OrderDetails = () => {
  }
  };
 
- if (userInfo) {
- fetchOrder();
- const socket = getSocket();
- if (socket) socket.emit("joinOrder", id);
- const handleOrderUpdate = (updatedOrder) => {
- if (updatedOrder._id === id) {
- setOrder(updatedOrder);
- toast.success(`Protocol Update: ${updatedOrder.orderStatus}`, {
- icon: "🛵",
- });
- }
- };
- socket.on("orderUpdated", handleOrderUpdate);
- return () => {
- socket.off("orderUpdated", handleOrderUpdate);
- };
- }
+  if (userInfo) {
+  fetchOrder();
+  const socket = getSocket();
+  const handleOrderUpdate = (updatedOrder) => {
+  if (updatedOrder._id === id) {
+  setOrder(updatedOrder);
+  toast.success(`Protocol Update: ${updatedOrder.orderStatus}`, {
+  icon: "🛵",
+  });
+  }
+  };
+  socket.on("orderUpdated", handleOrderUpdate);
+  if (socket) socket.emit("joinOrder", id);
+  return () => {
+  socket.off("orderUpdated", handleOrderUpdate);
+  };
+  }
  }, [id, userInfo]);
 
  if (loading)

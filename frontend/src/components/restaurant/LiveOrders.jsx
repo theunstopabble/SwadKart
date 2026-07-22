@@ -49,7 +49,7 @@ const LiveOrders = ({
  activeOrders.map((order) => (
  <div
  key={order._id}
- className="bg-gray-900 border border-gray-800 rounded-3xl p-6 hover:border-primary/30 transition-all shadow-xl relative overflow-hidden"
+  className="bg-gray-900 border border-gray-800 rounded-2xl md:rounded-3xl p-4 sm:p-6 hover:border-primary/30 transition-all shadow-xl relative overflow-hidden"
  >
  {/* Status Badge */}
  <div className="absolute top-0 right-0 bg-gray-800 px-4 py-2 rounded-bl-2xl text-xs font-black uppercase tracking-widest text-primary border-l border-b border-gray-700">
@@ -65,55 +65,90 @@ const LiveOrders = ({
  <Printer size={16} />
  </button>
 
- {/* Header: ID & Address */}
- <div className="flex justify-between mb-4 border-b border-gray-800 pb-4">
- <div>
- <h3 className="text-xl font-black flex items-center gap-2">
- #{order._id ? order._id.substring(0, 6).toUpperCase() : "------"}
- </h3>
- <div className="mt-3 space-y-2 text-sm">
- <p className="text-white font-bold flex items-center gap-2">
- <User size={14} className="text-primary" />{" "}
- {order.shippingAddress?.fullName}
- </p>
- <p className="text-gray-400 flex items-start gap-2 text-xs">
- <MapPin size={14} className="text-primary shrink-0" />{" "}
- {order.shippingAddress?.address}
- </p>
- </div>
- </div>
- </div>
+  {/* Header: ID, Time, Price, Payment */}
+  <div className="flex justify-between items-start mb-4 border-b border-gray-800 pb-4">
+  <div className="flex-1 min-w-0">
+  <div className="flex items-center gap-2 flex-wrap">
+  <h3 className="text-xl font-black">
+  #{order._id ? order._id.substring(0, 6).toUpperCase() : "------"}
+  </h3>
+  {order.createdAt && (
+  <span className="text-[10px] text-gray-500 font-bold flex items-center gap-1">
+  <Clock size={12} /> {new Date(order.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+  </span>
+  )}
+  </div>
+  <div className="flex flex-wrap gap-2 mt-2">
+  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+  order.isPaid ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
+  }`}>
+  {order.isPaid ? `Paid` : "Unpaid"}
+  {order.paymentMethod && ` (${order.paymentMethod})`}
+  </span>
+  {order.totalPrice > 0 && (
+  <span className="text-[10px] font-bold text-primary">
+  ₹{order.totalPrice.toLocaleString("en-IN")}
+  </span>
+  )}
+  </div>
+  </div>
+  </div>
 
- {/* 📋 ORDER ITEMS */}
- <div className="space-y-3 mb-6 bg-black/40 p-4 rounded-xl border border-gray-800">
+  {/* Customer Info */}
+  <div className="mb-4 space-y-2 text-sm">
+  <p className="text-white font-bold flex items-center gap-2">
+  <User size={14} className="text-primary" />{" "}
+  {order.shippingAddress?.fullName}
+  </p>
+  {order.shippingAddress?.phone && (
+  <p className="text-gray-400 flex items-center gap-2 text-xs">
+  <Phone size={14} className="text-primary shrink-0" />{" "}
+  {order.shippingAddress.phone}
+  </p>
+  )}
+  <p className="text-gray-400 flex items-start gap-2 text-xs">
+  <MapPin size={14} className="text-primary shrink-0" />{" "}
+  {[
+  order.shippingAddress?.address,
+  order.shippingAddress?.city,
+  order.shippingAddress?.state,
+  ].filter(Boolean).join(", ")}
+  {order.shippingAddress?.postalCode && ` - ${order.shippingAddress.postalCode}`}
+  </p>
+  </div>
+
+  <hr className="border-gray-800/50 my-4" />
+
+  {/* 📋 ORDER ITEMS */}
+   <div className="space-y-3 mb-6 bg-black/40 p-3 sm:p-4 rounded-xl border border-gray-800">
  {(order.orderItems || []).map((item) => (
  <div
  key={item._id}
- className="flex justify-between items-start text-sm"
- >
- <div>
- <span className="font-bold text-white">
- {item.qty}x {item.name}
- </span>
- {/* Variant */}
- {item.selectedVariant?.name && (
- <div className="text-[10px] text-gray-400 uppercase tracking-wide">
- Size: {item.selectedVariant.name}
- </div>
- )}
- {/* Addons */}
- {item.selectedAddons &&
- item.selectedAddons.length > 0 && (
- <div className="text-[10px] text-primary mt-0.5">
- +{" "}
- {item.selectedAddons.map((a) => a.name).join(", ")}
- </div>
- )}
- </div>
- {/* Price column */}
- <span className="text-xs font-bold text-primary whitespace-nowrap">
- ₹{item.price} × {item.qty} = ₹{item.price * item.qty}
- </span>
+  className="flex flex-col sm:flex-row justify-between items-start text-sm gap-1 sm:gap-0"
+  >
+  <div className="min-w-0 flex-1">
+  <span className="font-bold text-white break-words">
+  {item.qty}x {item.name}
+  </span>
+  {/* Variant */}
+  {item.selectedVariant?.name && (
+  <div className="text-[10px] text-gray-400 uppercase tracking-wide">
+  Size: {item.selectedVariant.name}
+  </div>
+  )}
+  {/* Addons */}
+  {item.selectedAddons &&
+  item.selectedAddons.length > 0 && (
+  <div className="text-[10px] text-primary mt-0.5">
+  +{" "}
+  {item.selectedAddons.map((a) => a.name).join(", ")}
+  </div>
+  )}
+  </div>
+  {/* Price column */}
+  <span className="text-xs font-bold text-primary shrink-0">
+  ₹{item.price} × {item.qty} = ₹{item.price * item.qty}
+  </span>
  </div>
  ))}
  </div>
@@ -142,9 +177,9 @@ const LiveOrders = ({
 
  {/* Step 3: Assign Driver (When Ready) */}
  {order.orderStatus === "Ready" && !order.deliveryPartner && (
- <div className="flex gap-2">
- <select
- className="flex-1 bg-black border border-gray-700 text-white p-3 rounded-xl text-xs outline-none focus:border-primary"
+  <div className="flex flex-col sm:flex-row gap-2">
+  <select
+  className="w-full sm:flex-1 bg-black border border-gray-700 text-white p-3 rounded-xl text-xs outline-none focus:border-primary"
  onChange={(e) =>
  setSelectedPartner({
  ...selectedPartner,
@@ -161,10 +196,10 @@ const LiveOrders = ({
  </select>
  <button
  onClick={() => handleAssignPartner(order._id)}
- className="bg-primary hover:bg-red-600 text-white px-4 rounded-xl font-bold text-xs transition-all"
- >
- Assign
- </button>
+  className="w-full sm:w-auto bg-primary hover:bg-red-600 text-white px-4 rounded-xl font-bold text-xs transition-all"
+  >
+  Assign
+  </button>
  </div>
  )}
 

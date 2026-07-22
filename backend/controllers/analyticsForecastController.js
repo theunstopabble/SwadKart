@@ -4,13 +4,21 @@ import Order from "../models/orderModel.js";
 import Restaurant from "../models/restaurantModel.js";
 
 const validateRestaurantAccess = async (restaurantId, user) => {
-  if (!restaurantId) return null;
+  if (!restaurantId) {
+    if (user.role === "restaurant_owner") {
+      const owned = await Restaurant.findOne({ owner: user._id }).select("_id").lean();
+      if (owned) return owned._id;
+    }
+    return null;
+  }
   if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
     throw Object.assign(new Error("Invalid restaurant ID"), { status: 400 });
   }
   if (user.role === "restaurant_owner") {
     const restaurant = await Restaurant.findById(restaurantId).select("owner").lean();
     if (!restaurant || restaurant.owner?.toString() !== user._id.toString()) {
+      const owned = await Restaurant.findOne({ owner: user._id }).select("_id").lean();
+      if (owned) return owned._id;
       throw Object.assign(new Error("Not authorized"), { status: 403 });
     }
   }
@@ -96,7 +104,7 @@ export const getOrderVolumeForecast = asyncHandler(async (req, res) => {
   const safeRestaurantId = await validateRestaurantAccess(restaurantId, req.user);
   const daysNum = parseDays(days);
 
-  const matchFilter = {};
+  const matchFilter = { orderStatus: { $ne: "Cancelled" } };
   if (safeRestaurantId) matchFilter["orderItems.restaurant"] = safeRestaurantId;
 
   const now = new Date();

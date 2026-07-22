@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Calculator, TrendingUp, IndianRupee, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Calculator, TrendingUp, IndianRupee, AlertTriangle, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { BASEURL } from "../../config";
 import { toast } from "react-hot-toast";
 
@@ -89,6 +89,7 @@ const CostCalculator = () => {
     switch (status) {
       case "healthy": return "text-green-400 bg-green-500/10 border-green-500/20";
       case "low": return "text-red-400 bg-red-500/10 border-red-500/20";
+      case "high": return "text-purple-400 bg-purple-500/10 border-purple-500/20";
       case "underpriced": return "text-yellow-400 bg-yellow-500/10 border-yellow-500/20";
       case "overpriced": return "text-blue-400 bg-blue-500/10 border-blue-500/20";
       default: return "text-gray-400 bg-gray-500/10 border-gray-500/20";
@@ -99,6 +100,7 @@ const CostCalculator = () => {
     switch (status) {
       case "healthy": return <CheckCircle size={14} className="text-green-400" />;
       case "low": return <XCircle size={14} className="text-red-400" />;
+      case "high": return <TrendingUp size={14} className="text-purple-400" />;
       default: return <AlertTriangle size={14} className="text-yellow-400" />;
     }
   };
@@ -108,19 +110,19 @@ const CostCalculator = () => {
   );
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-orange-500/10 rounded-xl">
           <Calculator className="text-orange-400" size={20} />
         </div>
         <div>
           <h3 className="text-lg font-bold text-white">Food Cost Calculator</h3>
-          <p className="text-xs text-gray-400">Enterprise-grade ingredient & margin analysis</p>
+          <p className="text-xs text-gray-400">Cost & margin analysis</p>
         </div>
       </div>
 
       {summary && (
-        <div className="grid grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3 mb-6">
           <div className="bg-gray-800 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-white">{summary.total}</p>
             <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total Items</p>
@@ -150,11 +152,73 @@ const CostCalculator = () => {
           placeholder="Search items..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-sm text-white placeholder-gray-500 focus:border-primary focus:outline-none"
+          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 sm:px-4 py-2.5 sm:py-2 text-sm text-white placeholder-gray-500 focus:border-primary focus:outline-none"
         />
       </div>
 
-      <div className="overflow-x-auto">
+      {loading && (
+        <div className="flex justify-center py-8">
+          <Loader2 className="animate-spin text-primary" size={24} />
+        </div>
+      )}
+
+      {filteredAnalysis.length === 0 && !loading && (
+        <div className="text-center py-8">
+          <p className="text-sm text-gray-500">No items found</p>
+        </div>
+      )}
+
+      {/* MOBILE: vertical cards (hidden on md+) */}
+      <div className="md:hidden space-y-3">
+        {filteredAnalysis.map((item) => (
+          <div key={item.productId} className="bg-gray-800/50 border border-gray-800 rounded-xl p-3 sm:p-4 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-white truncate">{item.name}</p>
+                <p className="text-[10px] text-gray-500 truncate">{item.restaurant}</p>
+              </div>
+              <span className={`shrink-0 size-2.5 rounded-full mt-1.5 ${item.actualMargin > 20 ? "bg-green-400" : item.actualMargin > 10 ? "bg-yellow-400" : "bg-red-400"}`} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Current</span>
+                <span className="font-bold text-white">₹{item.currentPrice}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Cost</span>
+                <span className="font-bold text-gray-300">₹{item.totalCost}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Suggested</span>
+                <span className="font-bold text-primary">₹{item.suggestedPrice}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Margin</span>
+                <span className={`font-bold ${item.actualMargin > 20 ? "text-green-400" : item.actualMargin > 10 ? "text-yellow-400" : "text-red-400"}`}>
+                  {item.actualMargin}%
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-gray-800">
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${getStatusColor(item.status)}`}>
+                {getStatusIcon(item.status)}
+                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+              </span>
+              <button
+                onClick={() => { fetchItemCost(item.productId); setEditMode(false); }}
+                className="text-[11px] font-bold text-primary hover:text-primary/80 transition-colors"
+              >
+                Details →
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* DESKTOP: table (hidden on mobile) */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr className="text-[10px] uppercase text-gray-500 tracking-widest border-b border-gray-800">
@@ -213,7 +277,7 @@ const CostCalculator = () => {
 
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h4 className="text-lg font-bold text-white">{selectedProduct.productName}</h4>
@@ -222,7 +286,7 @@ const CostCalculator = () => {
               <button onClick={() => setSelectedProduct(null)} className="text-gray-500 hover:text-white text-xl">&times;</button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
               <div className="bg-gray-800 rounded-xl p-4">
                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">Ingredient Cost</p>
                 <p className="text-xl font-bold text-white">₹{selectedProduct.ingredientCost}</p>
@@ -262,17 +326,17 @@ const CostCalculator = () => {
                 <button onClick={addIngredient} className="text-xs text-primary hover:underline">+ Add Ingredient</button>
               </div>
               {(editMode ? editingIngredients : selectedProduct.ingredients || []).map((ing, idx) => (
-                <div key={idx} className="flex gap-2 mb-2 items-center">
+                <div key={idx} className="flex flex-wrap sm:flex-nowrap gap-2 mb-2 items-center">
                   {editMode ? (
                     <>
-                      <input value={ing.name} onChange={(e) => updateIngredient(idx, "name", e.target.value)} placeholder="Name" className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white" />
-                      <input type="number" value={ing.quantity} onChange={(e) => updateIngredient(idx, "quantity", parseFloat(e.target.value))} className="w-16 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white" />
-                      <input value={ing.unit} onChange={(e) => updateIngredient(idx, "unit", e.target.value)} placeholder="Unit" className="w-16 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white" />
-                      <input type="number" value={ing.unitCost} onChange={(e) => updateIngredient(idx, "unitCost", parseFloat(e.target.value))} placeholder="Cost" className="w-20 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white" />
-                      <button onClick={() => removeIngredient(idx)} className="text-red-400 text-sm">×</button>
+                      <input value={ing.name} onChange={(e) => updateIngredient(idx, "name", e.target.value)} placeholder="Name" className="flex-1 min-w-[60px] bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white" />
+                      <input type="number" value={ing.quantity} onChange={(e) => updateIngredient(idx, "quantity", parseFloat(e.target.value))} className="w-full sm:w-16 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white" />
+                      <input value={ing.unit} onChange={(e) => updateIngredient(idx, "unit", e.target.value)} placeholder="Unit" className="w-full sm:w-16 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white" />
+                      <input type="number" value={ing.unitCost} onChange={(e) => updateIngredient(idx, "unitCost", parseFloat(e.target.value))} placeholder="Unit cost" className="w-full sm:w-20 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white" />
+                      <button onClick={() => removeIngredient(idx)} className="text-red-400 text-sm shrink-0">×</button>
                     </>
                   ) : (
-                    <div className="flex-1 flex justify-between text-xs text-gray-300 py-1 border-b border-gray-800">
+                    <div className="w-full sm:flex-1 flex justify-between text-xs text-gray-300 py-1 border-b border-gray-800">
                       <span>{ing.name} ({ing.quantity} {ing.unit})</span>
                       <span>₹{(ing.quantity * ing.unitCost).toFixed(2)}</span>
                     </div>

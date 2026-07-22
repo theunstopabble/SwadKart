@@ -17,6 +17,7 @@ export const createSubscription = asyncHandler(async (req, res) => {
     startDate,
     endDate,
     autoRenew,
+    restaurant,
   } = req.body;
 
   if (!planType || !planName || !pricing?.perMealPrice || !pricing?.totalPrice || !startDate) {
@@ -43,6 +44,7 @@ export const createSubscription = asyncHandler(async (req, res) => {
     preferences: preferences || { isVeg: true, spiceLevel: "medium", allergies: [], notes: "" },
     items: items || [],
     pricing,
+    restaurant: restaurant || null,
     status: "active",
     startDate: start,
     endDate: endDate || null,

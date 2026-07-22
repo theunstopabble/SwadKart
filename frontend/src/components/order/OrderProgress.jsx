@@ -7,8 +7,9 @@ import {
 } from "lucide-react";
 
 const OrderProgress = ({ currentStatus, statusSteps }) => {
- const safeSteps = Array.isArray(statusSteps) ? statusSteps : [];
- const currentIndex = safeSteps.indexOf(currentStatus);
+  const safeSteps = Array.isArray(statusSteps) ? statusSteps : [];
+  const steps = safeSteps;
+  const currentIndex = steps.indexOf(currentStatus);
 
  const getIcon = (index) => {
  const icons = [
@@ -24,7 +25,7 @@ const OrderProgress = ({ currentStatus, statusSteps }) => {
  return (
  <div className="bg-gray-950 p-10 rounded-[3rem] border border-gray-900 mb-8 shadow-2xl">
  <div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-10 relative">
- {statusSteps.map((step, index) => {
+  {steps.map((step, index) => {
  const isCompleted = index <= currentIndex;
  const isCurrent = index === currentIndex;
  return (
@@ -63,7 +64,7 @@ const OrderProgress = ({ currentStatus, statusSteps }) => {
  <div
  className="h-full bg-primary transition-all duration-1000"
  style={{
- width: statusSteps.length > 1 ? `${(currentIndex / (statusSteps.length - 1)) * 100}%` : "100%",
+  width: steps.length > 1 ? `${(currentIndex / (steps.length - 1)) * 100}%` : "100%",
  }}
  ></div>
  </div>

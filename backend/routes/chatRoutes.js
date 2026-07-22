@@ -6,7 +6,7 @@ import { listConversations, getConversation } from "../controllers/chatHistoryCo
 import { getSuggestions } from "../controllers/chatSuggestionsController.js";
 import { getChatbotAnalytics } from "../controllers/chatAnalyticsController.js";
 import { checkRateLimits } from "../services/chat/rateLimiter.js";
-import { optionalAuth, protect, admin } from "../middleware/authMiddleware.js";
+import { optionalAuth, protect, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 const adminRouter = express.Router();
@@ -107,7 +107,7 @@ router.post(
 adminRouter.get(
   "/chatbot-analytics",
   protect,
-  admin,
+  authorizeRoles("admin"),
   getChatbotAnalytics
 );
 

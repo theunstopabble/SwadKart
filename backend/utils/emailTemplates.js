@@ -8,7 +8,7 @@ const BRAND_GRAY = "#9ca3af"; // Light text
 const BG_COLOR = "#f3f4f6"; // Modern Light Grey Background
 
 // 👇 YOUR FRONTEND URL (Dynamic based on Environment)
-const FRONTEND_URL = process.env.FRONTEND_URL;
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://swadkart.vercel.app";
 
 // =================================================================
 // 🏗️ 1. BASE LAYOUT (WRAPPER)
@@ -89,7 +89,7 @@ const wrapEmail = (content, title = "Notification") => {
           <p>
             <a href="${FRONTEND_URL}">Visit Website</a> • 
             <a href="mailto:${
-              esc(process.env.SMTP_MAIL || "support@swadkart.com")
+              esc(process.env.SUPPORT_EMAIL || process.env.SMTP_MAIL || "support@swadkart.com")
             }">Contact Support</a>
           </p>
         </div>
@@ -149,7 +149,7 @@ export const getResetPasswordTemplate = (resetUrl) => {
         <a href="${esc(resetUrl)}" class="btn">Reset Password</a>
       </div>
       
-      <p style="font-size: 13px; color: #9ca3af;">This link expires in 1 hour. If you didn't ask for this, you can safely ignore this email.</p>
+      <p style="font-size: 13px; color: #9ca3af;">This link expires in 10 minutes. If you didn't ask for this, you can safely ignore this email.</p>
     </div>
   `;
   return wrapEmail(content, "Reset Password");
@@ -179,11 +179,11 @@ export const getOrderConfirmationTemplate = (order, isPaid) => {
       let metaHtml = "";
       // Variants
       if (item.selectedVariant) {
-        metaHtml += `<span>Size: ${item.selectedVariant.name}</span>`;
+        metaHtml += `<span>Size: ${esc(item.selectedVariant.name)}</span>`;
       }
       // Addons
       if (item.selectedAddons && item.selectedAddons.length > 0) {
-        const addonNames = item.selectedAddons.map((a) => a.name).join(", ");
+        const addonNames = item.selectedAddons.map((a) => esc(a.name)).join(", ");
         metaHtml += `<span>+ ${addonNames}</span>`;
       }
 
@@ -246,10 +246,10 @@ export const getAdminOrderAlertTemplate = (order) => {
     .map((item) => {
       let meta = "";
       if (item.selectedVariant)
-        meta += ` <span style="color:#6b7280; font-size:12px;">(${item.selectedVariant.name})</span>`;
+        meta += ` <span style="color:#6b7280; font-size:12px;">(${esc(item.selectedVariant.name)})</span>`;
       if (item.selectedAddons && item.selectedAddons.length > 0) {
         meta += `<div style="font-size:12px; color:#10b981; margin-left:20px;">+ ${item.selectedAddons
-          .map((a) => a.name)
+          .map((a) => esc(a.name))
           .join(", ")}</div>`;
       }
       return `<li style="margin-bottom: 8px;"><strong>${esc(item.name)}</strong> x ${item.qty}${meta}</li>`;
@@ -291,10 +291,10 @@ export const getRestaurantOrderAlertTemplate = (order, restaurantName) => {
     .map((item) => {
       let meta = "";
       if (item.selectedVariant)
-        meta += `<br><span style="color:#6b7280; font-size:13px; font-weight:bold;">👉 Size: ${item.selectedVariant.name}</span>`;
+        meta += `<br><span style="color:#6b7280; font-size:13px; font-weight:bold;">👉 Size: ${esc(item.selectedVariant.name)}</span>`;
       if (item.selectedAddons && item.selectedAddons.length > 0) {
         meta += `<br><span style="color:#10b981; font-size:13px; font-weight:bold;">👉 Extras: ${item.selectedAddons
-          .map((a) => a.name)
+          .map((a) => esc(a.name))
           .join(", ")}</span>`;
       }
       return `<li style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #e5e7eb;">
@@ -377,19 +377,23 @@ export const getDeliveryRequestTemplate = (order, partner) => {
 };
 
 // Driver Assigned
-export const getUserDriverAssignedTemplate = (order, partner) => {
+export const getUserDriverAssignedTemplate = (order, partner, deliveryOTP) => {
   const content = `
     <div style="text-align: center;">
       <h2 style="color: ${BRAND_RED};">On The Way! 🛵</h2>
       <p>Good news! Your food has been picked up.</p>
-      
+      ${
+        deliveryOTP
+          ? `<p style="font-size:14px; color:#6b7280;">Share OTP <strong>${esc(deliveryOTP)}</strong> with your delivery partner to confirm delivery.</p>`
+          : ""
+      }
       <div style="margin: 30px auto; max-width: 300px; text-align: center;">
         <div style="width: 80px; height: 80px; background: #e5e7eb; border-radius: 50%; margin: 0 auto 15px auto; display: flex; align-items: center; justify-content: center; font-size: 30px;">👤</div>
         <h3 style="margin: 0;">${esc(partner.name)}</h3>
         <p style="font-size: 14px; color: #6b7280; margin-top: 5px;">is your delivery partner</p>
         
         <div style="margin-top: 15px;">
-          <a href="tel:${esc(partner.phone)}" style="background: #f3f4f6; color: ${BRAND_DARK}; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; border: 1px solid #d1d5db;">📞 Call Driver</a>
+          <a href="tel:${esc(partner?.phone || 'N/A')}" style="background: #f3f4f6; color: ${BRAND_DARK}; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; border: 1px solid #d1d5db;">📞 Call Driver</a>
         </div>
       </div>
 

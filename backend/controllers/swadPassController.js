@@ -1,5 +1,6 @@
 import asyncHandler from "express-async-handler";
 import crypto from "crypto";
+import Razorpay from "razorpay";
 import User from "../models/userModel.js";
 
 const SWADPASS_PRICES = {
@@ -73,8 +74,7 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
     throw new Error("Payment verification failed. Invalid signature.");
   }
 
-  // 🛡️ Fetch payment from Razorpay to verify amount and status
-  const Razorpay = (await import("razorpay")).default;
+  // 🛡️ Fetch payment from Razorpay to verify amount, status, and order ownership
   const instance = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -98,9 +98,29 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
     throw new Error("Payment amount mismatch — possible tampering.");
   }
 
+  // 🛡️ Verify Razorpay order ownership — prevent payment replay attack
+  try {
+    const order = await instance.orders.fetch(razorpay_order_id);
+    if (!order || order.notes?.user_id !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error("Order ownership verification failed — possible replay attack.");
+    }
+  } catch {
+    res.status(502);
+    throw new Error("Payment gateway unreachable. Please retry.");
+  }
+
   const now = new Date();
   const expiry = new Date();
-  expiry.setDate(expiry.getDate() + (type === "monthly" ? 30 : 365));
+
+  // Check if user already has an active subscription — extend it instead
+  const currentUser = await User.findById(req.user._id).select("hasSwadPass swadPassExpiry");
+  if (currentUser?.hasSwadPass && currentUser?.swadPassExpiry && currentUser.swadPassExpiry > now) {
+    expiry.setTime(currentUser.swadPassExpiry.getTime());
+    expiry.setDate(expiry.getDate() + (type === "monthly" ? 30 : 365));
+  } else {
+    expiry.setDate(expiry.getDate() + (type === "monthly" ? 30 : 365));
+  }
 
   const updatedUser = await User.findByIdAndUpdate(
     req.user._id,
