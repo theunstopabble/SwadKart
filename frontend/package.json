@@ -17,7 +17,7 @@
     "@reduxjs/toolkit": "^2.11.2",
     "@simplewebauthn/browser": "^13.2.2",
     "@vercel/analytics": "^1.6.1",
-    "axios": "^1.13.5",
+    "axios": "^1.20.0",
     "canvas-confetti": "^1.9.4",
     "firebase": "^12.7.0",
     "i18next": "^26.0.8",
@@ -44,7 +44,9 @@
   },
   "overrides": {
     "serialize-javascript": "^7.0.3",
-    "@rollup/plugin-terser": "^1.0.0"
+    "@rollup/plugin-terser": "^1.0.0",
+    "@grpc/grpc-js": "^1.14.5",
+    "js-yaml": "^4.3.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -62,6 +64,6 @@
     "tailwindcss": "^3.4.1",
     "vite": "^7.2.4",
     "vite-plugin-pwa": "^0.19.8",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.11"
   }
 }
