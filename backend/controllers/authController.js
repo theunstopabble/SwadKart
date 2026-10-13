@@ -35,14 +35,13 @@ export const registerUser = async (req, res, next) => {
       throw new Error("Invalid Indian phone number.");
     }
 
-    // --- Scenario A: Check Phone Duplicity FIRST (prevents hijacking) ---
+    // --- Scenario A: Check Phone Duplicity (prevents hijacking) ---
+    const userExists = await User.findOne({ email: String(email) });
     const phoneExists = await User.findOne({ phone: String(phone) });
-    if (phoneExists) {
+    if (phoneExists && (phoneExists.isVerified || (userExists && !phoneExists._id.equals(userExists._id)))) {
       res.status(400);
       throw new Error("Phone number already used.");
     }
-
-    const userExists = await User.findOne({ email: String(email) });
 
     // --- Scenario B: User Exists but Not Verified (Resend OTP) ---
     if (userExists) {
@@ -222,8 +221,9 @@ export const forgotPassword = async (req, res, next) => {
       return res.json({ message: "If that email exists, a reset link has been sent." });
     }
 
-    if (user.resetPasswordExpire && user.resetPasswordExpire > Date.now()) {
-      return res.status(429).json({ message: "A reset link was already sent recently. Please check your email or wait." });
+    // 60-second cooldown to prevent spamming
+    if (user.resetPasswordExpire && (user.resetPasswordExpire - Date.now() > 9 * 60 * 1000)) {
+      return res.status(429).json({ message: "A reset link was already sent recently. Please check your email or wait 1 minute." });
     }
 
     const resetToken = user.getResetPasswordToken();
@@ -236,11 +236,19 @@ export const forgotPassword = async (req, res, next) => {
     const resetUrl = `${
       process.env.FRONTEND_URL || "https://swadkart.vercel.app"
     }/password/reset/${resetToken}`;
-    await sendEmail({
-      email: user.email,
-      subject: "Password Reset",
-      html: getResetPasswordTemplate(resetUrl),
-    });
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Password Reset",
+        html: getResetPasswordTemplate(resetUrl),
+      });
+    } catch (emailErr) {
+      // Roll back token if email failed so user isn't locked out
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      throw emailErr;
+    }
     res.json({ message: "Email sent" });
   } catch (e) {
     next(e);
@@ -267,6 +275,10 @@ export const resetPassword = async (req, res, next) => {
       res.status(400);
       throw new Error("Password must be at least 6 characters");
     }
+    if (req.body.confirmPassword && req.body.password !== req.body.confirmPassword) {
+      res.status(400);
+      throw new Error("Passwords do not match");
+    }
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -275,7 +287,10 @@ export const resetPassword = async (req, res, next) => {
 
     // BUG-14 FIX: Auto-login user after successful password reset
     const token = generateToken(res, user._id, user.tokenVersion);
-    res.json({ message: "Password Updated. You are now logged in.", token });
+    const safeUser = user.toObject();
+    delete safeUser.password;
+    safeUser.token = token;
+    res.json(safeUser);
   } catch (e) {
     next(e);
   }

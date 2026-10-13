@@ -139,8 +139,10 @@ const Profile = () => {
  );
  setBioEnabled(data.isBiometricEnabled);
  if (data.isBiometricEnabled && data.hasCredentials) {
- localStorage.setItem("isBiometricEnabled", "true");
- }
+              localStorage.setItem("isBiometricEnabled", "true");
+            } else {
+              localStorage.removeItem("isBiometricEnabled");
+            }
  } catch (err) {
  console.error("Biometric Check Error:", err);
  }
@@ -191,7 +193,10 @@ const Profile = () => {
  config,
  );
  localStorage.removeItem("isBiometricEnabled");
- setBioEnabled(false);
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          sessionStorage.removeItem("biometricUnlocked");
+        }
+        setBioEnabled(false);
  setLocalMsg("Fingerprint Login Disabled 🔒");
  } else {
  // ENABLE: Register biometric first, then update server
@@ -209,7 +214,10 @@ const Profile = () => {
 
  // 3. Set localStorage for app lock
  localStorage.setItem("isBiometricEnabled", "true");
- setBioEnabled(true);
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          sessionStorage.setItem("biometricUnlocked", "true");
+        }
+        setBioEnabled(true);
  setLocalMsg("Fingerprint Registered Successfully! 🚀");
  }
  } catch (err) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   User,
@@ -35,12 +35,22 @@ const Register = () => {
   const [timer, setTimer] = useState(0);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const { userInfo } = useSelector((state) => state.user);
 
   useEffect(() => {
     if (userInfo) navigate("/");
   }, [navigate, userInfo]);
+
+  useEffect(() => {
+    if (location.state?.email) {
+      setEmail(location.state.email);
+      if (location.state.resendOtp) {
+        setOtpSent(true);
+      }
+    }
+  }, [location.state]);
 
   useEffect(() => {
     let interval;
@@ -71,7 +81,14 @@ const Register = () => {
       const res = await fetch(`${BASEURL}/api/v1/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password, referralCode: referralCode || undefined }),
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
+          password,
+          confirmPassword,
+          referralCode: referralCode.trim() || undefined,
+        }),
       });
       const data = await res.json();
 
@@ -101,7 +118,7 @@ const Register = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -110,6 +127,9 @@ const Register = () => {
         return;
       }
       toast.success("🎉 Welcome to SwadKart!");
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        sessionStorage.setItem("biometricUnlocked", "true");
+      }
       dispatch(setCredentials(data));
       navigate("/");
     } catch {
@@ -201,7 +221,7 @@ const Register = () => {
                     className="block w-full pl-11 pr-4 py-3.5 bg-black/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all sm:text-sm"
                     value={field.val}
                     onChange={(e) => field.set(e.target.value)}
-                    required
+                    required={field.placeholder !== "Referral Code (Optional)"}
                     maxLength={
                       field.placeholder === "Phone Number" ? 10 : undefined
                     }
@@ -295,7 +315,7 @@ const Register = () => {
                     const res = await fetch(`${BASEURL}/api/v1/users/resend-otp`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ email }),
+                      body: JSON.stringify({ email: email.trim().toLowerCase() }),
                     });
                     const data = await res.json();
                     if (res.ok) {

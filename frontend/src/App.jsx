@@ -85,28 +85,39 @@ function App() {
  }, []);
 
  // 🔍 Check device capability and lock status on mount
- useEffect(() => {
- const checkLockStatus = async () => {
- // 1. Check device capability first
- let deviceSupported = false;
- if (window.PublicKeyCredential) {
- try {
- deviceSupported =
- await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
- } catch {
- deviceSupported = false;
- }
- }
+  useEffect(() => {
+    const checkLockStatus = async () => {
+      // 0. If already unlocked in this session, do not prompt again
+      if (
+        typeof window !== "undefined" &&
+        window.sessionStorage &&
+        sessionStorage.getItem("biometricUnlocked") === "true"
+      ) {
+        return;
+      }
 
- // 2. Only lock if device supports AND localStorage flag is true AND user is logged in
- const bioEnabled = localStorage.getItem("isBiometricEnabled") === "true";
- if (deviceSupported && bioEnabled && userInfo) {
- setIsLocked(true);
- }
- };
+      // 1. Check device capability first
+      let deviceSupported = false;
+      if (window.PublicKeyCredential) {
+        try {
+          deviceSupported =
+            await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        } catch {
+          deviceSupported = false;
+        }
+      }
 
- checkLockStatus();
- }, [userInfo]);
+      // 2. Only lock if device supports AND localStorage flag is true AND user is logged in
+      const bioEnabled = localStorage.getItem("isBiometricEnabled") === "true";
+      if (deviceSupported && bioEnabled && userInfo) {
+        setIsLocked(true);
+      }
+    };
+
+    if (userInfo?._id) {
+      checkLockStatus();
+    }
+  }, [userInfo?._id]);
 
  useEffect(() => {
  let handleOrderUpdate = null;
@@ -153,7 +164,10 @@ function App() {
  await import("./utils/biometricService");
  const success = await authenticateBiometric();
  if (success) {
- setIsLocked(false);
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          sessionStorage.setItem("biometricUnlocked", "true");
+        }
+        setIsLocked(false);
  setUnlockAttempts(0);
  toast.success("Welcome back! 🔓", { duration: 2000 }); // ⚡ Faster dismiss
  }
@@ -183,8 +197,11 @@ function App() {
  } catch (error) {
  console.error("Server logout failed during emergency logout", error);
  }
- dispatch(logout());
- setIsLocked(false);
+ if (typeof window !== "undefined" && window.sessionStorage) {
+      sessionStorage.removeItem("biometricUnlocked");
+    }
+    dispatch(logout());
+    setIsLocked(false);
  setUnlockAttempts(0);
  toast("Logged out via Secure Lock", { icon: "🛡️" });
  };

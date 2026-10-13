@@ -112,6 +112,9 @@ const userSlice = createSlice({
       }
       state.userInfo = payload;
       localStorage.setItem("userInfo", JSON.stringify(payload));
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        sessionStorage.setItem("biometricUnlocked", "true");
+      }
     },
     logout: (state) => {
       state.userInfo = null;
@@ -120,6 +123,9 @@ const userSlice = createSlice({
       localStorage.removeItem("couponDiscount");
       localStorage.removeItem("appliedCoupon");
       localStorage.removeItem("isBiometricEnabled");
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        sessionStorage.removeItem("biometricUnlocked");
+      }
       disconnectSocket();
     },
   },

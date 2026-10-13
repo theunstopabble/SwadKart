@@ -32,23 +32,34 @@ const Login = () => {
     setLoading(true);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
       const res = await fetch(`${BASEURL}/api/v1/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
+        body: JSON.stringify({ email: cleanEmail, password }),
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: "Login failed" }));
-        toast.error(err.message || "Invalid Email or Password");
+        if (err.message && err.message.toLowerCase().includes("not verified")) {
+          toast.error("Email not verified! Redirecting to verify OTP...", { duration: 3000 });
+          setTimeout(() => {
+            navigate("/register", { state: { email: cleanEmail, resendOtp: true } });
+          }, 1200);
+        } else {
+          toast.error(err.message || "Invalid Email or Password");
+        }
         setLoading(false);
         return;
       }
       const data = await res.json();
 
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        sessionStorage.setItem("biometricUnlocked", "true");
+      }
       dispatch(setCredentials(data));
 
       try {
@@ -58,6 +69,8 @@ const Login = () => {
         );
         if (bioRes.data?.isBiometricEnabled && bioRes.data?.hasCredentials) {
           localStorage.setItem("isBiometricEnabled", "true");
+        } else {
+          localStorage.removeItem("isBiometricEnabled");
         }
       } catch (_err) {
         void _err;

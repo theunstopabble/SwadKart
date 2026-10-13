@@ -47,8 +47,11 @@ const ResetPassword = () => {
       const data = await res.json();
 
       if (res.ok) {
-        if (data.token) {
-          dispatch(setCredentials({ ...data, token: data.token }));
+        if (data.token && data._id) {
+          if (typeof window !== "undefined" && window.sessionStorage) {
+            sessionStorage.setItem("biometricUnlocked", "true");
+          }
+          dispatch(setCredentials(data));
           toast.success("✅ Password updated! You are now logged in.");
           navigate("/");
         } else {
