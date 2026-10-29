@@ -1,8 +1,7 @@
-import Product from "../models/productModel.js";
-import Restaurant from "../models/restaurantModel.js"; // Required import
-import { getCache, setCache, clearCache, invalidateByTag } from "../utils/cache.js";
+import prisma from "../config/prisma.js";
+import { getCache, setCache, invalidateByTag } from "../utils/cache.js";
 import asyncHandler from "express-async-handler";
-import { sanitizeObjectId, sanitizeString } from "../utils/sanitize.js";
+import { sanitizeString } from "../utils/sanitize.js";
 
 // ============================================================
 // PUBLIC ROUTES
@@ -11,36 +10,31 @@ import { sanitizeObjectId, sanitizeString } from "../utils/sanitize.js";
 // @desc    Fetch all products
 export const getProducts = async (req, res) => {
   try {
-    // 🚀 PERFORMANCE FIX: Pagination variables
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const skip = (page - 1) * limit;
 
-    // Search query builder
-    // 🛡️ SECURITY FIX (BUG-6): Escape user input to prevent regex injection (ReDoS)
-    const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const keyword = req.query.keyword
-      ? { name: { $regex: escapeRegex(req.query.keyword), $options: "i" } }
-      : {};
+    const where = {};
+    if (req.query.keyword) {
+      where.name = { contains: req.query.keyword, mode: "insensitive" };
+    }
+    if (req.query.category) {
+      where.category = req.query.category;
+    }
+    if (req.query.restaurant) {
+      where.restaurantId = req.query.restaurant;
+    }
 
-    const categoryFilter = req.query.category
-      ? { category: req.query.category }
-      : {};
-
-    const restaurantFilter = req.query.restaurant
-      ? { restaurant: req.query.restaurant }
-      : {};
-
-    const query = { ...keyword, ...categoryFilter, ...restaurantFilter };
-
-    const count = await Product.countDocuments(query);
-
-    const products = await Product.find(query)
-      .populate("restaurant", "name")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const count = await prisma.product.count({ where });
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        restaurant: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    });
 
     res.json({
       data: products,
@@ -59,11 +53,13 @@ export const getProducts = async (req, res) => {
 // @desc    Fetch single product
 export const getProductById = async (req, res) => {
   try {
-    const productId = sanitizeObjectId(req.params.id);
-    const product = await Product.findById(productId).populate(
-      "restaurant",
-      "name",
-    );
+    const product = await prisma.product.findUnique({
+      where: { id: req.params.id },
+      include: {
+        restaurant: { select: { id: true, name: true } },
+        reviews: true,
+      },
+    });
     if (product) res.json(product);
     else res.status(404).json({ message: "Product not found" });
   } catch (error) {
@@ -72,19 +68,23 @@ export const getProductById = async (req, res) => {
 };
 
 // @desc    Fetch products by Restaurant ID
-// FIX: Handle both Restaurant ID and Owner User ID
 export const getProductsByRestaurant = asyncHandler(async (req, res) => {
-  const inputId = sanitizeObjectId(req.params.id);
-  let restaurant = await Restaurant.findById(inputId).lean();
+  const inputId = req.params.id;
+  let restaurant = await prisma.restaurant.findUnique({ where: { id: inputId } });
   if (!restaurant) {
-    restaurant = await Restaurant.findOne({ owner: inputId }).lean();
+    restaurant = await prisma.restaurant.findFirst({ where: { ownerId: inputId } });
   }
   if (!restaurant) return res.status(200).json([]);
-  const actualRestaurantId = restaurant._id.toString();
+
+  const actualRestaurantId = restaurant.id;
   const cacheKey = `menu_rest_${actualRestaurantId}`;
   let products = await getCache(cacheKey);
+
   if (!products) {
-    products = await Product.find({ restaurant: actualRestaurantId }).sort({ orderIndex: 1 }).lean();
+    products = await prisma.product.findMany({
+      where: { restaurantId: actualRestaurantId },
+      orderBy: { orderIndex: "asc" },
+    });
     await setCache(cacheKey, products, 3600);
   }
   res.status(200).json(products);
@@ -94,7 +94,7 @@ export const getProductsByRestaurant = asyncHandler(async (req, res) => {
 // PROTECTED ROUTES (Admin / Restaurant Owner)
 // ============================================================
 
-// @desc    Create a product (FIXED: Supports Admin adding to Dummy Shops)
+// @desc    Create a product
 export const createProduct = asyncHandler(async (req, res) => {
   try {
     const {
@@ -108,160 +108,144 @@ export const createProduct = asyncHandler(async (req, res) => {
       orderIndex,
       variants,
       addons,
-      restaurantId, // Owner or Restaurant ID from frontend
+      restaurantId,
     } = req.body;
 
+    const userId = req.user.id || req.user._id;
     let restaurant;
 
-    // LOGIC: Find the correct Restaurant
     if (restaurantId) {
-      // CASE 1: Admin selected from dropdown
-      restaurant = await Restaurant.findOne({ owner: restaurantId });
-
-      // If not found by Owner ID, check if it is a direct Restaurant ID
+      restaurant = await prisma.restaurant.findFirst({ where: { ownerId: restaurantId } });
       if (!restaurant) {
-        restaurant = await Restaurant.findById(restaurantId);
+        restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
       }
     } else {
-      // CASE 2: Owner is adding (Logged in user is the owner)
-      restaurant = await Restaurant.findOne({ owner: req.user._id });
+      restaurant = await prisma.restaurant.findFirst({ where: { ownerId: userId } });
     }
 
-    // If still not found
     if (!restaurant) {
       return res.status(404).json({
-        message:
-          "No Restaurant found for this owner. Ensure Dummy Shop is linked correctly.",
+        message: "No Restaurant found for this owner. Ensure Shop is linked correctly.",
       });
     }
 
-    // Create Product
-    const product = new Product({
-      name,
-      price,
-      description,
-      image: image || "https://placehold.co/400",
-      category,
-      isVeg: isVeg === undefined ? true : isVeg,
-      orderIndex: orderIndex || 0,
+    const stock = countInStock !== undefined ? Number(countInStock) : 0;
 
-      restaurant: restaurant._id, // Actual Restaurant ID from Database
-      user: req.user._id, // Created By (Admin/User)
-
-      countInStock: countInStock !== undefined ? countInStock : 0,
-      isAvailable: (countInStock !== undefined ? countInStock : 0) > 0,
-      variants: variants || [],
-      addons: addons || [],
+    const product = await prisma.product.create({
+      data: {
+        name,
+        price: Number(price),
+        description: description || "",
+        image: image || "https://placehold.co/400",
+        category,
+        isVeg: isVeg === undefined ? true : Boolean(isVeg),
+        orderIndex: orderIndex || 0,
+        restaurantId: restaurant.id,
+        userId,
+        countInStock: stock,
+        isAvailable: stock > 0,
+        variants: variants || [],
+        addons: addons || [],
+      },
     });
 
-    const createdProduct = await product.save();
-
-    // Invalidating cache with correct ID
     await invalidateByTag("products:restaurant");
-
-    res.status(201).json(createdProduct);
+    res.status(201).json(product);
   } catch (error) {
     console.error("Create Product Error:", error.message);
     res.status(400).json({ message: error.message });
   }
-}); // Fixed Syntax Error
+});
 
 // @desc    Update a product
 export const updateProduct = asyncHandler(async (req, res) => {
   try {
-    const productId = sanitizeObjectId(req.params.id);
-    const product = await Product.findById(productId);
+    const productId = req.params.id;
+    const userId = req.user.id || req.user._id;
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: { restaurant: { select: { ownerId: true } } },
+    });
 
-    if (product) {
-      // SECURITY Check
-      const isAdmin = req.user.role === "admin";
-      const restaurant = await Restaurant.findById(product.restaurant).select("owner").lean();
-      const isOwner = restaurant && restaurant.owner.toString() === req.user._id.toString();
-
-      if (!isAdmin && !isOwner) {
-        return res
-          .status(401)
-          .json({ message: "Not authorized to update this product" });
-      }
-
-      // Update fields — use !== undefined to allow falsy values like 0 or ""
-      product.name = req.body.name !== undefined ? sanitizeString(req.body.name) : product.name;
-      product.price = req.body.price !== undefined ? req.body.price : product.price;
-      product.description = req.body.description !== undefined ? sanitizeString(req.body.description) : product.description;
-      product.image = req.body.image || product.image;
-      product.category = req.body.category || product.category;
-      const previousStock = product.countInStock;
-      product.countInStock =
-        req.body.countInStock !== undefined
-          ? req.body.countInStock
-          : product.countInStock;
-      product.isVeg =
-        req.body.isVeg !== undefined ? req.body.isVeg : product.isVeg;
-
-      // ⏰ FEAT-7: Availability Scheduling
-      if (req.body.scheduleEnabled !== undefined) {
-        product.scheduleEnabled = Boolean(req.body.scheduleEnabled);
-      }
-      if (req.body.schedule) {
-        product.schedule = {
-          days: req.body.schedule.days || product.schedule?.days || [],
-          startTime: req.body.schedule.startTime || product.schedule?.startTime || "00:00",
-          endTime: req.body.schedule.endTime || product.schedule?.endTime || "23:59",
-        };
-      }
-
-      // 📦 FEAT-14: Auto-enable when restocked from 0
-      if (
-        previousStock === 0 &&
-        product.countInStock > 0 &&
-        product.autoDisable === true &&
-        product.isAvailable === false
-      ) {
-        product.isAvailable = true;
-        product.lastRestocked = new Date();
-      }
-
-      if (req.body.variants) product.variants = req.body.variants;
-      if (req.body.addons) product.addons = req.body.addons;
-
-      const updatedProduct = await product.save();
-
-      // Fixed Variable Shadowing (already fetched above)
-      await invalidateByTag("products:restaurant");
-
-      if (req.io) req.io.emit("productUpdated", updatedProduct);
-      res.json(updatedProduct);
-    } else {
-      res.status(404).json({ message: "Product not found" });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
     }
+
+    const isAdmin = req.user.role === "admin";
+    const isOwner = product.restaurant && product.restaurant.ownerId === userId;
+
+    if (!isAdmin && !isOwner) {
+      return res.status(401).json({ message: "Not authorized to update this product" });
+    }
+
+    const updateData = {};
+    if (req.body.name !== undefined) updateData.name = sanitizeString(req.body.name);
+    if (req.body.price !== undefined) updateData.price = Number(req.body.price);
+    if (req.body.description !== undefined) updateData.description = sanitizeString(req.body.description);
+    if (req.body.image) updateData.image = req.body.image;
+    if (req.body.category) updateData.category = req.body.category;
+    if (req.body.isVeg !== undefined) updateData.isVeg = Boolean(req.body.isVeg);
+
+    if (req.body.countInStock !== undefined) {
+      const newStock = Number(req.body.countInStock);
+      updateData.countInStock = newStock;
+      if (product.countInStock === 0 && newStock > 0 && product.autoDisable && !product.isAvailable) {
+        updateData.isAvailable = true;
+        updateData.lastRestocked = new Date();
+      }
+    }
+
+    if (req.body.scheduleEnabled !== undefined) {
+      updateData.scheduleEnabled = Boolean(req.body.scheduleEnabled);
+    }
+    if (req.body.schedule) {
+      updateData.schedule = {
+        days: req.body.schedule.days || [],
+        startTime: req.body.schedule.startTime || "00:00",
+        endTime: req.body.schedule.endTime || "23:59",
+      };
+    }
+
+    if (req.body.variants) updateData.variants = req.body.variants;
+    if (req.body.addons) updateData.addons = req.body.addons;
+
+    const updatedProduct = await prisma.product.update({
+      where: { id: productId },
+      data: updateData,
+    });
+
+    await invalidateByTag("products:restaurant");
+
+    if (req.io) req.io.emit("productUpdated", updatedProduct);
+    res.json(updatedProduct);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-}); // Fixed Syntax Error
+});
 
 // @desc    Delete a product
 export const deleteProduct = asyncHandler(async (req, res) => {
   try {
-    const productId = sanitizeObjectId(req.params.id);
-    const product = await Product.findById(productId);
-    if (product) {
-      const isAdmin = req.user.role === "admin";
-      const restaurantDoc = await Restaurant.findById(product.restaurant).select("owner").lean();
-      const isOwner = restaurantDoc && restaurantDoc.owner.toString() === req.user._id.toString();
+    const productId = req.params.id;
+    const userId = req.user.id || req.user._id;
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: { restaurant: { select: { ownerId: true } } },
+    });
 
-      if (isAdmin || isOwner) {
-        const restaurantId = product.restaurant;
-        await product.deleteOne();
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
 
-        // Clear cache on delete as well
-        await invalidateByTag("products:restaurant");
+    const isAdmin = req.user.role === "admin";
+    const isOwner = product.restaurant && product.restaurant.ownerId === userId;
 
-        res.json({ message: "Product removed" });
-      } else {
-        res.status(401).json({ message: "Not authorized" });
-      }
+    if (isAdmin || isOwner) {
+      await prisma.product.delete({ where: { id: productId } });
+      await invalidateByTag("products:restaurant");
+      res.json({ message: "Product removed" });
     } else {
-      res.status(404).json({ message: "Product not found" });
+      res.status(401).json({ message: "Not authorized" });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -271,22 +255,26 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 // @desc    Toggle Product Availability
 export const toggleProductStock = asyncHandler(async (req, res) => {
   try {
-    const productId = sanitizeObjectId(req.params.id);
-    const product = await Product.findById(productId);
+    const productId = req.params.id;
+    const userId = req.user.id || req.user._id;
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: { restaurant: { select: { ownerId: true } } },
+    });
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
 
     const isAdmin = req.user.role === "admin";
-    const restaurantDoc = await Restaurant.findById(product.restaurant).select("owner").lean();
-    const isOwner = restaurantDoc && restaurantDoc.owner.toString() === req.user._id.toString();
+    const isOwner = product.restaurant && product.restaurant.ownerId === userId;
 
     if (isAdmin || isOwner) {
-      product.isAvailable = !product.isAvailable;
-      const updatedProduct = await product.save();
+      const updatedProduct = await prisma.product.update({
+        where: { id: productId },
+        data: { isAvailable: !product.isAvailable },
+      });
 
-      // Clear cache on stock change
       await invalidateByTag("products:restaurant");
 
       if (req.io) {
@@ -300,55 +288,51 @@ export const toggleProductStock = asyncHandler(async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Toggle Error:", error);
     res.status(500).json({ message: error.message });
   }
 });
 
 // @desc    Batch-reorder menu items (drag-and-drop)
-// @route   PUT /api/v1/products/reorder
-// @access  Private (restaurant_owner, admin)
 export const reorderProducts = asyncHandler(async (req, res) => {
   const { items } = req.body;
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ message: "Items array is required" });
   }
 
+  const userId = req.user.id || req.user._id;
   const isAdmin = req.user.role === "admin";
   let restaurantId;
 
   if (!isAdmin) {
-    const restaurant = await Restaurant.findOne({ owner: req.user._id }).lean();
+    const restaurant = await prisma.restaurant.findFirst({ where: { ownerId: userId } });
     if (!restaurant) {
       return res.status(404).json({ message: "Restaurant not found" });
     }
-    restaurantId = restaurant._id.toString();
+    restaurantId = restaurant.id;
   }
 
-  const bulkOps = [];
+  const updates = [];
   for (const item of items) {
-    if (!item._id || typeof item.orderIndex !== "number") continue;
-    if (!isAdmin) {
-      const product = await Product.findById(item._id).select("restaurant").lean();
-      if (!product || product.restaurant.toString() !== restaurantId) continue;
-    }
-    bulkOps.push({
-      updateOne: {
-        filter: { _id: item._id },
-        update: { $set: { orderIndex: item.orderIndex } },
-      },
-    });
+    const itemId = item.id || item._id;
+    if (!itemId || typeof item.orderIndex !== "number") continue;
+
+    updates.push(
+      prisma.product.update({
+        where: { id: itemId },
+        data: { orderIndex: item.orderIndex },
+      }),
+    );
   }
 
-  if (bulkOps.length === 0) {
+  if (updates.length === 0) {
     return res.status(400).json({ message: "No valid items to reorder" });
   }
 
-  await Product.bulkWrite(bulkOps);
+  await prisma.$transaction(updates);
   await invalidateByTag("products:restaurant");
 
   if (req.io) req.io.emit("menuReordered", { items });
-  res.json({ message: "Menu order updated", updated: bulkOps.length });
+  res.json({ message: "Menu order updated", updated: updates.length });
 });
 
 // ============================================================
@@ -357,42 +341,50 @@ export const reorderProducts = asyncHandler(async (req, res) => {
 export const createProductReview = async (req, res) => {
   try {
     const { rating, comment } = req.body;
-    const product = await Product.findById(req.params.id);
+    const productId = req.params.id;
+    const userId = req.user.id || req.user._id;
 
-    if (product) {
-      const alreadyReviewed = product.reviews.find(
-        (r) => r.user.toString() === req.user._id.toString(),
-      );
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: { reviews: true },
+    });
 
-      if (alreadyReviewed) {
-        return res.status(400).json({ message: "Product already reviewed" });
-      }
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
 
-      const review = {
+    const alreadyReviewed = product.reviews.find((r) => r.userId === userId);
+    if (alreadyReviewed) {
+      return res.status(400).json({ message: "Product already reviewed" });
+    }
+
+    await prisma.review.create({
+      data: {
         name: req.user.name,
         rating: Number(rating),
         comment,
-        user: req.user._id,
-      };
+        userId,
+        productId,
+      },
+    });
 
-      product.reviews.push(review);
-      product.numReviews = product.reviews.length;
+    const allReviews = await prisma.review.findMany({
+      where: { productId },
+    });
+    const avgRating =
+      allReviews.reduce((acc, item) => item.rating + acc, 0) / allReviews.length;
 
-      product.rating =
-        product.reviews.reduce((acc, item) => item.rating + acc, 0) /
-        product.reviews.length;
+    await prisma.product.update({
+      where: { id: productId },
+      data: {
+        numReviews: allReviews.length,
+        rating: avgRating,
+      },
+    });
 
-      await product.save();
-
-      // Optional: Clear cache when reviews are updated
-      await invalidateByTag("products:restaurant");
-
-      res.status(201).json({ message: "Review added" });
-    } else {
-      res.status(404).json({ message: "Product not found" });
-    }
+    await invalidateByTag("products:restaurant");
+    res.status(201).json({ message: "Review added" });
   } catch (error) {
-    // 👈 YAHAN CATCH BLOCK AUR MISSING BRACKETS THEEK KIYE GAYE HAIN
     res.status(500).json({ message: error.message });
   }
 };

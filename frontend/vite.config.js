@@ -114,13 +114,13 @@ export default defineConfig(() => {
       https: false, // HTTP for local dev (avoids SSL cert issues with ServiceWorker + cookies)
       proxy: {
         "/api": {
-          target: "http://localhost:8000",
+          target: process.env.VITE_BACKEND_TARGET || "http://localhost:8000",
           changeOrigin: true,
           secure: false,
           cookieDomainRewrite: { "*": "" }, // Rewrite cookie domain to match frontend
         },
         "/socket.io": {
-          target: "http://localhost:8000",
+          target: process.env.VITE_BACKEND_TARGET || "http://localhost:8000",
           ws: true,
         },
       },

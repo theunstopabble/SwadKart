@@ -1,7 +1,6 @@
 import crypto from "crypto";
 import asyncHandler from "express-async-handler";
-import User from "../models/userModel.js";
-import Referral from "../models/referralModel.js";
+import prisma from "../config/prisma.js";
 import { awardCoinsToUser } from "./loyaltyController.js";
 
 const REFERRAL_REWARD = 50; // ₹50 worth of coins
@@ -11,47 +10,52 @@ const REFERRAL_COIN_REWARD = 500; // 500 SwadCoins = ₹50
 // 1. GET MY REFERRAL CODE & STATS
 // ==========================================
 export const getMyReferral = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("referralCode swadCoins name");
+  const userId = req.user.id || req.user._id;
+  let user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { referralCode: true, swadCoins: true, name: true, role: true },
+  });
+
   if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
 
-  // Auto-generate if missing
   if (!user.referralCode && user.role === "user") {
-    user.referralCode = crypto.randomBytes(6).toString("hex").toUpperCase();
-    await user.save();
+    const code = crypto.randomBytes(6).toString("hex").toUpperCase();
+    user = await prisma.user.update({
+      where: { id: userId },
+      data: { referralCode: code },
+    });
   }
 
-  const stats = await Referral.aggregate([
-    { $match: { referrer: user._id } },
-    {
-      $group: {
-        _id: null,
-        totalReferrals: { $sum: 1 },
-        pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
-        completed: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } },
-        paid: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, 1, 0] } },
-        totalEarnings: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$rewardAmount", 0] } },
-      },
-    },
-  ]);
+  const referrals = await prisma.referral.findMany({
+    where: { referrerId: userId },
+  });
+
+  const totalReferrals = referrals.length;
+  const pending = referrals.filter((r) => r.status === "pending").length;
+  const completed = referrals.filter((r) => r.status === "completed").length;
+  const paid = referrals.filter((r) => r.status === "paid").length;
+  const totalEarnings = referrals
+    .filter((r) => r.status === "paid")
+    .reduce((sum, r) => sum + r.rewardAmount, 0);
 
   res.json({
     referralCode: user.referralCode,
     swadCoins: user.swadCoins || 0,
-    stats: stats[0] || {
-      totalReferrals: 0,
-      pending: 0,
-      completed: 0,
-      paid: 0,
-      totalEarnings: 0,
+    stats: {
+      totalReferrals,
+      pending,
+      completed,
+      paid,
+      totalEarnings,
     },
   });
 });
 
 // ==========================================
-// 2. VALIDATE REFERRAL CODE (Used at registration)
+// 2. VALIDATE REFERRAL CODE
 // ==========================================
 export const validateReferralCode = asyncHandler(async (req, res) => {
   const { code } = req.body;
@@ -61,9 +65,11 @@ export const validateReferralCode = asyncHandler(async (req, res) => {
     throw new Error("Invalid referral code");
   }
 
-  const referrer = await User.findOne({
-    referralCode: code.toUpperCase(),
-    role: "user",
+  const referrer = await prisma.user.findFirst({
+    where: {
+      referralCode: code.toUpperCase(),
+      role: "user",
+    },
   });
 
   if (!referrer) {
@@ -78,31 +84,35 @@ export const validateReferralCode = asyncHandler(async (req, res) => {
 });
 
 // ==========================================
-// 3. APPLY REFERRAL ON REGISTRATION (Internal, called by authController)
+// 3. APPLY REFERRAL ON REGISTRATION
 // ==========================================
 export const applyReferralOnRegister = async (newUserId, referralCode) => {
   if (!referralCode) return;
 
-  const referrer = await User.findOne({
-    referralCode: referralCode.toUpperCase(),
-    role: "user",
+  const referrer = await prisma.user.findFirst({
+    where: {
+      referralCode: referralCode.toUpperCase(),
+      role: "user",
+    },
   });
 
-  if (!referrer || referrer._id.toString() === newUserId.toString()) return;
+  if (!referrer || referrer.id === newUserId) return;
 
-  // Check if referee already has a referral record
-  const existing = await Referral.findOne({ referee: newUserId });
+  const existing = await prisma.referral.findFirst({
+    where: { refereeId: newUserId },
+  });
   if (existing) return;
 
-  await Referral.create({
-    referrer: referrer._id,
-    referee: newUserId,
-    referralCode: referralCode.toUpperCase(),
-    status: "pending",
-    rewardAmount: REFERRAL_REWARD,
+  await prisma.referral.create({
+    data: {
+      referrerId: referrer.id,
+      refereeId: newUserId,
+      referralCode: referralCode.toUpperCase(),
+      status: "pending",
+      rewardAmount: REFERRAL_REWARD,
+    },
   });
 
-  // Award welcome coins to new user
   await awardCoinsToUser(
     newUserId,
     200,
@@ -112,44 +122,37 @@ export const applyReferralOnRegister = async (newUserId, referralCode) => {
 };
 
 // ==========================================
-// 4. PROCESS REFERRAL REWARD (Called when referee's first order is delivered)
+// 4. PROCESS REFERRAL REWARD
 // ==========================================
 export const processReferralReward = async (refereeId, orderId) => {
-  const referral = await Referral.findOneAndUpdate(
-    { referee: refereeId, status: "pending" },
-    { $set: { status: "completed", firstOrder: orderId } },
-    { returnDocument: "after" },
-  ).populate("referrer", "swadCoins");
+  const referral = await prisma.referral.findFirst({
+    where: { refereeId, status: "pending" },
+  });
 
   if (!referral) return;
 
-  const referrerId = referral.referrer._id;
-
-  // Award coins to referrer
   await awardCoinsToUser(
-    referrerId,
+    referral.referrerId,
     REFERRAL_COIN_REWARD,
     "Referral",
-    `Referral reward for inviting a new user`,
-    orderId,
-    refereeId,
+    "Referral reward for inviting a new user",
   );
 
-  // Award coins to referee
   await awardCoinsToUser(
     refereeId,
     REFERRAL_COIN_REWARD,
     "Referral",
-    `Referral reward for your first order`,
-    orderId,
-    referrerId,
+    "Referral reward for your first order",
   );
 
-  // Update referral status to paid atomically
-  await Referral.findOneAndUpdate(
-    { _id: referral._id, status: "completed" },
-    { $set: { status: "paid", paidAt: new Date() } },
-  );
+  await prisma.referral.update({
+    where: { id: referral.id },
+    data: {
+      status: "paid",
+      firstOrderId: orderId,
+      paidAt: new Date(),
+    },
+  });
 };
 
 // ==========================================
@@ -158,16 +161,20 @@ export const processReferralReward = async (refereeId, orderId) => {
 export const getAllReferrals = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+  const skip = (page - 1) * limit;
 
-  const referrals = await Referral.find({})
-    .populate("referrer", "name email")
-    .populate("referee", "name email")
-    .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(limit)
-    .lean();
-
-  const count = await Referral.countDocuments({});
+  const [referrals, count] = await Promise.all([
+    prisma.referral.findMany({
+      include: {
+        referrer: { select: { id: true, name: true, email: true } },
+        referee: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.referral.count(),
+  ]);
 
   res.json({
     data: referrals,

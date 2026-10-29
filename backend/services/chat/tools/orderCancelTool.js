@@ -1,17 +1,8 @@
 /**
  * Order Cancel Tool — Cancels an order if within the cancellation window.
- *
- * Gate pattern: auth check → fetch order → validate cancellation eligibility → atomic update
- *
- * Cancellation eligibility:
- * - Order is eligible if: (current time − createdAt ≤ 5 minutes) OR (orderStatus ∈ {Placed, Preparing})
- * - Orders with status in {Out for Delivery, Delivered, Cancelled} are ALWAYS ineligible
- * - If order status is "Ready" AND placed more than 5 minutes ago → cancellation_window_expired
- *
- * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9
  */
 
-import Order from "../../../models/orderModel.js";
+import prisma from "../../../config/prisma.js";
 
 export const toolSchema = {
   type: "function",
@@ -24,7 +15,7 @@ export const toolSchema = {
         orderId: {
           type: "string",
           description:
-            "MongoDB ObjectId of the order to cancel. If omitted, targets the most recent order.",
+            "ID of the order to cancel. If omitted, targets the most recent order.",
         },
       },
       required: [],
@@ -32,31 +23,11 @@ export const toolSchema = {
   },
 };
 
-/**
- * Terminal statuses that can never be cancelled regardless of time.
- */
 const NON_CANCELLABLE_STATUSES = ["Out for Delivery", "Delivered", "Cancelled"];
-
-/**
- * Statuses that are always eligible for cancellation (regardless of time window).
- */
 const ALWAYS_ELIGIBLE_STATUSES = ["Placed", "Preparing"];
-
-/**
- * Maximum cancellation window in milliseconds (5 minutes).
- */
 const CANCELLATION_WINDOW_MS = 5 * 60 * 1000;
-
-/**
- * Timeout for the write operation in milliseconds (5 seconds).
- */
 const WRITE_TIMEOUT_MS = 5000;
 
-/**
- * Format a Date object as a human-readable date-time string.
- * @param {Date|null} date
- * @returns {string|null}
- */
 function formatDateTime(date) {
   if (!date) return null;
   return new Date(date).toLocaleString("en-IN", {
@@ -66,16 +37,7 @@ function formatDateTime(date) {
   });
 }
 
-/**
- * Execute the order cancel tool.
- *
- * @param {object} params
- * @param {string} [params.orderId] - Optional specific order ID
- * @param {string|null} params.userId - Authenticated user ID
- * @returns {Promise<object>} Structured result with cancellation status or error
- */
 export async function execute({ orderId, userId }) {
-  // Gate 1: Auth check
   if (!userId) {
     return {
       success: false,
@@ -85,108 +47,92 @@ export async function execute({ orderId, userId }) {
   }
 
   try {
-    // Gate 2: Fetch order
     let fetchPromise;
 
     if (orderId) {
-      fetchPromise = Order.findOne({ _id: orderId, user: userId }).lean();
+      fetchPromise = prisma.order.findFirst({
+        where: { id: orderId, userId },
+      });
     } else {
-      fetchPromise = Order.findOne({ user: userId })
-        .sort({ createdAt: -1 })
-        .lean();
+      fetchPromise = prisma.order.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+      });
     }
 
     let fetchTimer;
     const fetchTimeout = new Promise((_, reject) => {
-      fetchTimer = setTimeout(() => reject(new Error("timeout")), WRITE_TIMEOUT_MS);
+      fetchTimer = setTimeout(() => reject(new Error("timeout")), 3000);
     });
 
-    const order = await Promise.race([fetchPromise, fetchTimeout]).finally(() => clearTimeout(fetchTimer));
+    const order = await Promise.race([fetchPromise, fetchTimeout]).finally(() =>
+      clearTimeout(fetchTimer)
+    );
 
     if (!order) {
+      if (orderId) {
+        return {
+          success: false,
+          reason: "not_found",
+          message: "Order not found or does not belong to your account.",
+        };
+      }
       return {
         success: false,
-        reason: "not_found",
-        message: "Order not found or does not belong to your account.",
+        reason: "no_orders",
+        message: "You don't have any orders to cancel.",
       };
     }
 
-    // Gate 3: Validate cancellation eligibility
-    const currentStatus = order.orderStatus;
-
-    // Check terminal statuses first — always ineligible
-    if (NON_CANCELLABLE_STATUSES.includes(currentStatus)) {
+    if (NON_CANCELLABLE_STATUSES.includes(order.orderStatus)) {
       return {
         success: false,
-        reason: "order_not_cancellable",
-        message: `Order cannot be cancelled because it is already "${currentStatus}".`,
+        reason: "not_cancellable",
+        message: `Order cannot be cancelled because it is already '${order.orderStatus}'.`,
       };
     }
 
-    // Check time window
-    const now = new Date();
-    const createdAt = new Date(order.createdAt);
-    const elapsedMs = now.getTime() - createdAt.getTime();
-    const withinTimeWindow = elapsedMs <= CANCELLATION_WINDOW_MS;
+    const now = Date.now();
+    const createdAt = new Date(order.createdAt).getTime();
+    const isWithinWindow = now - createdAt <= CANCELLATION_WINDOW_MS;
+    const isAlwaysEligible = ALWAYS_ELIGIBLE_STATUSES.includes(order.orderStatus);
 
-    // Check if status is always eligible
-    const statusEligible = ALWAYS_ELIGIBLE_STATUSES.includes(currentStatus);
-
-    // Eligibility: within time window OR status is Placed/Preparing
-    if (!withinTimeWindow && !statusEligible) {
-      // Order is in "Ready" status and past the 5-minute window
+    if (!isWithinWindow && !isAlwaysEligible) {
       return {
         success: false,
         reason: "cancellation_window_expired",
         message:
-          "The cancellation window has expired. Orders can only be cancelled within 5 minutes of placement or while still being prepared.",
+          "The 5-minute cancellation window for this order has expired. Orders in preparation cannot be cancelled.",
       };
     }
-
-    // Gate 4: Atomic cancellation via findOneAndUpdate
-    const cancelledAt = new Date();
-
-    const updatePromise = Order.findOneAndUpdate(
-      {
-        _id: order._id,
-        user: userId,
-        orderStatus: { $nin: NON_CANCELLABLE_STATUSES },
-      },
-      {
-        $set: {
-          orderStatus: "Cancelled",
-          cancelledAt,
-          cancellationReason: "Cancelled via chatbot",
-        },
-      },
-      { returnDocument: "after" }
-    ).lean();
 
     let writeTimer;
     const writeTimeout = new Promise((_, reject) => {
       writeTimer = setTimeout(() => reject(new Error("timeout")), WRITE_TIMEOUT_MS);
     });
 
-    const updatedOrder = await Promise.race([updatePromise, writeTimeout]).finally(() => clearTimeout(writeTimer));
+    const updatePromise = prisma.order.update({
+      where: { id: order.id },
+      data: {
+        orderStatus: "Cancelled",
+        cancelledAt: new Date(),
+        cancellationReason: "Cancelled by user via chatbot",
+      },
+    });
 
-    if (!updatedOrder) {
-      // Race condition: order status changed between read and write
-      return {
-        success: false,
-        reason: "order_not_cancellable",
-        message:
-          "Order could not be cancelled. It may have been updated by another process.",
-      };
-    }
+    const updatedOrder = await Promise.race([updatePromise, writeTimeout]).finally(() =>
+      clearTimeout(writeTimer)
+    );
 
-    // Success response
     return {
       success: true,
       data: {
-        orderId: updatedOrder._id.toString(),
-        status: "Cancelled",
-        refundEligible: !!updatedOrder.isPaid,
+        orderId: updatedOrder.id,
+        orderStatus: "Cancelled",
         cancelledAt: formatDateTime(updatedOrder.cancelledAt),
+        totalPrice: updatedOrder.totalPrice,
+        refundStatus: updatedOrder.refundStatus,
+        message: "Your order has been successfully cancelled.",
       },
     };
   } catch (err) {

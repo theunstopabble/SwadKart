@@ -4,7 +4,7 @@ import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
-import User from "../models/userModel.js";
+import prisma from "../config/prisma.js";
 import { webAuthnConfig } from "../config/webauthnConfig.js";
 
 /**
@@ -12,35 +12,35 @@ import { webAuthnConfig } from "../config/webauthnConfig.js";
  */
 export const registerBiometricStart = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const userId = req.user.id || req.user._id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const userAuthenticators = user.biometricCredentials || [];
-
-    console.log("🔐 Generating registration options for:", user.email);
-    console.log("🔐 WebAuthn Config:", webAuthnConfig);
+    const userAuthenticators = Array.isArray(user.biometricCredentials)
+      ? user.biometricCredentials
+      : [];
 
     const options = await generateRegistrationOptions({
       rpName: webAuthnConfig.rpName,
       rpID: webAuthnConfig.rpID,
-      userID: new Uint8Array(Buffer.from(user._id.toString())),
+      userID: new Uint8Array(Buffer.from(user.id)),
       userName: user.email,
       attestationType: "none",
       excludeCredentials: userAuthenticators.map((authenticator) => ({
         id: authenticator.credentialID,
         type: "public-key",
       })),
-      // Relaxed requirements for maximum compatibility
       authenticatorSelection: {
         residentKey: "preferred",
-        userVerification: "discouraged", // 👈 Changed from 'preferred' to fix Android issues
+        userVerification: "discouraged",
       },
     });
 
-    console.log("🔐 Options generated successfully, challenge:", options.challenge.substring(0, 20) + "...");
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { currentChallenge: options.challenge },
+    });
 
-    user.currentChallenge = options.challenge;
-    await user.save();
     res.status(200).json(options);
   } catch (error) {
     console.error("Biometric Reg Start Error:", error);
@@ -54,7 +54,8 @@ export const registerBiometricStart = async (req, res) => {
 export const registerBiometricVerify = async (req, res) => {
   try {
     const { body } = req;
-    const user = await User.findById(req.user._id);
+    const userId = req.user.id || req.user._id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const expectedChallenge = user.currentChallenge;
@@ -78,19 +79,27 @@ export const registerBiometricVerify = async (req, res) => {
       const { credential } = registrationInfo;
       const newAuthenticator = {
         credentialID: credential.id,
-        credentialPublicKey: Buffer.from(credential.publicKey),
+        credentialPublicKey: Buffer.from(credential.publicKey).toString("base64"),
         counter: credential.counter,
         transports: credential.transports || [],
         deviceType: registrationInfo.credentialDeviceType || "singleDevice",
         backedUp: registrationInfo.credentialBackedUp || false,
       };
 
-      user.biometricCredentials.push(newAuthenticator);
-      user.currentChallenge = "";
-      await user.save();
-      res
-        .status(200)
-        .json({ verified: true, message: "Biometric Registered!" });
+      const existingCreds = Array.isArray(user.biometricCredentials)
+        ? user.biometricCredentials
+        : [];
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          biometricCredentials: [...existingCreds, newAuthenticator],
+          currentChallenge: null,
+          isBiometricEnabled: true,
+        },
+      });
+
+      res.status(200).json({ verified: true, message: "Biometric Registered!" });
     } else {
       res.status(400).json({ verified: false, message: "Verification failed" });
     }
@@ -105,14 +114,17 @@ export const registerBiometricVerify = async (req, res) => {
  */
 export const loginBiometricStart = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const userId = req.user.id || req.user._id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    console.log("🔓 Login Start Request for:", user.email);
-
-    const auths = user.biometricCredentials || [];
+    const auths = Array.isArray(user.biometricCredentials)
+      ? user.biometricCredentials
+      : [];
     if (auths.length === 0) {
-      return res.status(400).json({ message: "No biometric credentials found. Please register first." });
+      return res.status(400).json({
+        message: "No biometric credentials found. Please register first.",
+      });
     }
 
     const options = await generateAuthenticationOptions({
@@ -122,11 +134,14 @@ export const loginBiometricStart = async (req, res) => {
         type: "public-key",
         transports: cred.transports,
       })),
-      userVerification: "discouraged", // 👈 Matched with registration settings
+      userVerification: "discouraged",
     });
 
-    user.currentChallenge = options.challenge;
-    await user.save();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { currentChallenge: options.challenge },
+    });
+
     res.status(200).json(options);
   } catch (error) {
     console.error("Biometric Login Start Error:", error);
@@ -135,47 +150,33 @@ export const loginBiometricStart = async (req, res) => {
 };
 
 /**
- * 🔵 STEP 4: LOGIN VERIFY (🛠️ ROBUST MANUAL FIX)
+ * 🔵 STEP 4: LOGIN VERIFY
  */
 export const loginBiometricVerify = async (req, res) => {
   try {
     const { body } = req;
-    const user = await User.findById(req.user._id);
+    const userId = req.user.id || req.user._id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    console.log("🔍 Verifying Login for:", user.email);
-
-    // Find the specific credential in Mongoose
-    const authDoc = user.biometricCredentials.find(
-      (cred) => cred.credentialID === body.id,
-    );
+    const creds = Array.isArray(user.biometricCredentials)
+      ? user.biometricCredentials
+      : [];
+    const authDoc = creds.find((cred) => cred.credentialID === body.id);
 
     if (!authDoc) {
       return res.status(400).json({ message: "Authenticator not registered" });
     }
 
-    // 🛠️ INDUSTRY STANDARD FIX: Deep copy Mongoose Buffers to pure JS Uint8Arrays
-    // This avoids "Buffer vs Uint8Array" inheritance issues in comparison logic
-    const credentialIDBuffer = Buffer.from(body.id, 'base64url'); // Decode from request
-    const publicKeyBuffer = authDoc.credentialPublicKey; // From DB
+    const credentialIDBuffer = Buffer.from(body.id, "base64url");
+    const publicKeyBuffer = Buffer.from(authDoc.credentialPublicKey, "base64");
 
-    // 🛠️ SOURCE CODE VERIFIED FIX (v13.2.2)
-    // The library expects 'credential' option (not 'authenticator')
-    // AND the object must have 'id' and 'publicKey' properties explicitly.
-    const bufferID = new Uint8Array([...credentialIDBuffer]);
-    
     const validCredential = {
-      id: bufferID, // Library accesses .id (Line 161)
-      publicKey: new Uint8Array([...publicKeyBuffer]), // Library accesses .publicKey (Line 157)
-      counter: Number(authDoc.counter), // Library accesses .counter (Line 144)
+      id: new Uint8Array([...credentialIDBuffer]),
+      publicKey: new Uint8Array([...publicKeyBuffer]),
+      counter: Number(authDoc.counter),
       transports: authDoc.transports,
     };
-
-    console.log("🛠️ Credential Object Prepared:", {
-       hasID: !!validCredential.id,
-       hasPublicKey: !!validCredential.publicKey,
-       counter: validCredential.counter
-    });
 
     let verification;
     try {
@@ -184,7 +185,7 @@ export const loginBiometricVerify = async (req, res) => {
         expectedChallenge: user.currentChallenge,
         expectedOrigin: webAuthnConfig.origin,
         expectedRPID: webAuthnConfig.rpID,
-        credential: validCredential, // 👈 KEY FIX: Named 'credential', NOT 'authenticator'
+        credential: validCredential,
         requireUserVerification: false,
       });
     } catch (error) {
@@ -194,23 +195,24 @@ export const loginBiometricVerify = async (req, res) => {
 
     const { verified, authenticationInfo } = verification;
 
-    // BUG-05 FIX: Clear challenge after every attempt (one-time use)
-    user.currentChallenge = undefined;
-    await user.save();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { currentChallenge: null },
+    });
 
-    if (!verified) {
-      return res.status(400).json({ verified: false, message: 'Verification failed' });
-    }
-
-    // 🛠️ SAFETY: Ensure authenticationInfo exists before updating counter
-    if (!authenticationInfo) {
-      return res.status(500).json({ verified: false, message: 'Authentication info missing from verification' });
+    if (!verified || !authenticationInfo) {
+      return res.status(400).json({ verified: false, message: "Verification failed" });
     }
 
     // Update counter
-    authDoc.counter = authenticationInfo.newCounter;
-    user.markModified("biometricCredentials");
-    await user.save();
+    const updatedCreds = creds.map((c) =>
+      c.credentialID === body.id ? { ...c, counter: authenticationInfo.newCounter } : c,
+    );
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { biometricCredentials: updatedCreds },
+    });
 
     res.status(200).json({ verified: true, message: "Unlocked Successfully!" });
   } catch (error) {

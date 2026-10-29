@@ -1,15 +1,10 @@
-import Coupon from "../models/couponModel.js";
-import CouponUsage from "../models/couponUsageModel.js";
-import Order from "../models/orderModel.js";
-import { sanitizeObjectId } from "../utils/sanitize.js";
+import prisma from "../config/prisma.js";
 
 // =================================================================
 // 👑 ADMIN ACTIONS
 // =================================================================
 
 // @desc    Create a new Coupon
-// @route   POST /api/v1/coupons
-// @access  Private/Admin
 export const createCoupon = async (req, res) => {
   try {
     const {
@@ -20,7 +15,9 @@ export const createCoupon = async (req, res) => {
       maxDiscountAmount,
     } = req.body;
 
-    const couponExists = await Coupon.findOne({ code: code.toUpperCase() });
+    const couponExists = await prisma.coupon.findUnique({
+      where: { code: code.toUpperCase() },
+    });
     if (couponExists) {
       return res.status(400).json({ message: "Coupon code already exists" });
     }
@@ -36,13 +33,14 @@ export const createCoupon = async (req, res) => {
       return res.status(400).json({ message: "expirationDate must be in the future" });
     }
 
-    const coupon = await Coupon.create({
-      code: code.toUpperCase(),
-      discountPercentage,
-      expirationDate,
-      minOrderValue: minOrderValue || 0,
-      maxDiscountAmount: maxDiscountAmount || 0,
-      // Removed initialization of usedBy array
+    const coupon = await prisma.coupon.create({
+      data: {
+        code: code.toUpperCase(),
+        discountPercentage: Number(discountPercentage),
+        expirationDate: new Date(expirationDate),
+        minOrderValue: Number(minOrderValue) || 0,
+        maxDiscountAmount: Number(maxDiscountAmount) || 0,
+      },
     });
 
     res.status(201).json(coupon);
@@ -52,11 +50,11 @@ export const createCoupon = async (req, res) => {
 };
 
 // @desc    Get All Coupons (Admin Dashboard)
-// @route   GET /api/v1/coupons
-// @access  Private/Admin
 export const getCoupons = async (req, res) => {
   try {
-    const coupons = await Coupon.find({}).sort({ createdAt: -1 });
+    const coupons = await prisma.coupon.findMany({
+      orderBy: { createdAt: "desc" },
+    });
     res.json(coupons);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -64,8 +62,6 @@ export const getCoupons = async (req, res) => {
 };
 
 // @desc    Update a Coupon
-// @route   PUT /api/v1/coupons/:id
-// @access  Private/Admin
 export const updateCoupon = async (req, res) => {
   try {
     const {
@@ -76,41 +72,32 @@ export const updateCoupon = async (req, res) => {
       maxDiscountAmount,
       isActive,
     } = req.body;
-    const couponId = sanitizeObjectId(req.params.id);
-    const coupon = await Coupon.findById(couponId);
 
-    if (coupon) {
-      coupon.code = code ? code.toUpperCase() : coupon.code;
-      coupon.discountPercentage =
-        discountPercentage || coupon.discountPercentage;
-      coupon.expirationDate = expirationDate || coupon.expirationDate;
-      coupon.minOrderValue = minOrderValue ?? coupon.minOrderValue;
-      coupon.maxDiscountAmount = maxDiscountAmount ?? coupon.maxDiscountAmount;
-      coupon.isActive = isActive !== undefined ? isActive : coupon.isActive;
+    const couponId = req.params.id;
+    const updateData = {};
+    if (code) updateData.code = code.toUpperCase();
+    if (discountPercentage !== undefined) updateData.discountPercentage = Number(discountPercentage);
+    if (expirationDate) updateData.expirationDate = new Date(expirationDate);
+    if (minOrderValue !== undefined) updateData.minOrderValue = Number(minOrderValue);
+    if (maxDiscountAmount !== undefined) updateData.maxDiscountAmount = Number(maxDiscountAmount);
+    if (isActive !== undefined) updateData.isActive = Boolean(isActive);
 
-      const updatedCoupon = await coupon.save();
-      res.json(updatedCoupon);
-    } else {
-      res.status(404).json({ message: "Coupon not found" });
-    }
+    const updatedCoupon = await prisma.coupon.update({
+      where: { id: couponId },
+      data: updateData,
+    });
+    res.json(updatedCoupon);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
 // @desc    Delete a Coupon
-// @route   DELETE /api/v1/coupons/:id
-// @access  Private/Admin
 export const deleteCoupon = async (req, res) => {
   try {
-    const couponId = sanitizeObjectId(req.params.id);
-    const coupon = await Coupon.findById(couponId);
-    if (coupon) {
-      await coupon.deleteOne();
-      res.json({ message: "Coupon removed successfully" });
-    } else {
-      res.status(404).json({ message: "Coupon not found" });
-    }
+    const couponId = req.params.id;
+    await prisma.coupon.delete({ where: { id: couponId } });
+    res.json({ message: "Coupon removed successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -120,30 +107,25 @@ export const deleteCoupon = async (req, res) => {
 // 🛒 USER ACTIONS
 // =================================================================
 
-// @desc    Validate Coupon (Fixed with CouponUsage Model)
-// @route   POST /api/v1/coupons/validate
-// @access  Private
+// @desc    Validate Coupon
 export const validateCoupon = async (req, res) => {
   try {
     const { code, orderAmount } = req.body;
-    const coupon = await Coupon.findOne({ code: code.toUpperCase() });
+    const userId = req.user?.id || req.user?._id;
 
-    if (!coupon)
-      return res.status(404).json({ message: "Invalid Coupon Code" });
-    if (!coupon.isActive)
-      return res.status(400).json({ message: "Coupon is currently inactive" });
+    const coupon = await prisma.coupon.findUnique({
+      where: { code: code.toUpperCase() },
+    });
 
-    // 🛡️ SECURITY: Check if user has already used this coupon using the new collection
-    if (req.user) {
-      const alreadyUsed = await CouponUsage.findOne({
-        user: req.user._id,
-        coupon: coupon._id,
+    if (!coupon) return res.status(404).json({ message: "Invalid Coupon Code" });
+    if (!coupon.isActive) return res.status(400).json({ message: "Coupon is currently inactive" });
+
+    if (userId) {
+      const alreadyUsed = await prisma.couponUsage.findFirst({
+        where: { userId, couponId: coupon.id },
       });
-
       if (alreadyUsed) {
-        return res
-          .status(400)
-          .json({ message: "You have already used this coupon!" });
+        return res.status(400).json({ message: "You have already used this coupon!" });
       }
     }
 
@@ -175,32 +157,28 @@ export const validateCoupon = async (req, res) => {
 
 export const getApplicableCoupons = async (req, res) => {
   try {
-    const userId = req.user?._id;
-    const currentDate = new Date();
-
-    const query = {
-      isActive: true,
-      expirationDate: { $gte: currentDate },
-    };
-    const allCoupons = await Coupon.find(query).sort({
-      discountPercentage: -1,
+    const userId = req.user?.id || req.user?._id;
+    const allCoupons = await prisma.coupon.findMany({
+      where: {
+        isActive: true,
+        expirationDate: { gte: new Date() },
+      },
+      orderBy: { discountPercentage: "desc" },
     });
 
     let unusedCoupons = allCoupons;
 
     if (userId) {
-      const usedCouponsDocs = await CouponUsage.find({ user: userId }).select(
-        "coupon",
-      );
-      const usedCouponIds = usedCouponsDocs.map((doc) => doc.coupon.toString());
+      const usedCoupons = await prisma.couponUsage.findMany({
+        where: { userId },
+        select: { couponId: true },
+      });
+      const usedCouponIds = usedCoupons.map((u) => u.couponId);
 
-      unusedCoupons = allCoupons.filter(
-        (c) => !usedCouponIds.includes(c._id.toString()),
-      );
+      unusedCoupons = allCoupons.filter((c) => !usedCouponIds.includes(c.id));
 
-      const orderCount = await Order.countDocuments({
-        user: userId,
-        isPaid: true,
+      const orderCount = await prisma.order.count({
+        where: { userId, isPaid: true },
       });
 
       if (orderCount > 0) {

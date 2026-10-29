@@ -1,5 +1,5 @@
 import asyncHandler from "express-async-handler";
-import User from "../models/userModel.js";
+import prisma from "../config/prisma.js";
 
 const BADGES = [
   { name: "First Bite", description: "Placed your first order", icon: "🍔", orders: 1 },
@@ -10,13 +10,12 @@ const BADGES = [
   { name: "Month Master", description: "30-day ordering streak", icon: "🏆", streak: 30 },
 ];
 
-/**
- * Update user streak on order delivery
- * Call this when order status changes to "delivered"
- */
 export const updateOrderStreak = async (userId) => {
   try {
-    const user = await User.findById(userId).select("orderStreak longestStreak lastOrderDate badges");
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { orderStreak: true, longestStreak: true, lastOrderDate: true, badges: true },
+    });
     if (!user) return;
 
     const today = new Date();
@@ -27,24 +26,20 @@ export const updateOrderStreak = async (userId) => {
       const lastDate = new Date(user.lastOrderDate);
       lastDate.setHours(0, 0, 0, 0);
 
-      const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+      const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
 
       if (diffDays === 0) {
-        // Already ordered today, don't increment
         newStreak = user.orderStreak;
       } else if (diffDays === 1) {
-        // Consecutive day
         newStreak = user.orderStreak + 1;
       } else {
-        // Streak broken
         newStreak = 1;
       }
     }
 
-    const longestStreak = Math.max(user.longestStreak, newStreak);
-
-    // Check for streak badges
-    const currentBadgeNames = user.badges.map((b) => b.name);
+    const longestStreak = Math.max(user.longestStreak || 0, newStreak);
+    const badges = Array.isArray(user.badges) ? user.badges : [];
+    const currentBadgeNames = badges.map((b) => b.name);
     const newBadges = [];
 
     for (const badge of BADGES) {
@@ -58,15 +53,17 @@ export const updateOrderStreak = async (userId) => {
       }
     }
 
-    const update = { orderStreak: newStreak, longestStreak, lastOrderDate: today };
-    if (newBadges.length > 0) {
-      await User.findByIdAndUpdate(userId, {
-        $addToSet: { badges: { $each: newBadges } },
-        $set: update,
-      });
-    } else {
-      await User.findByIdAndUpdate(userId, update);
-    }
+    const allBadges = [...badges, ...newBadges];
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        orderStreak: newStreak,
+        longestStreak,
+        lastOrderDate: today,
+        badges: allBadges,
+      },
+    });
 
     return { streak: newStreak, newBadges };
   } catch (error) {
@@ -75,15 +72,16 @@ export const updateOrderStreak = async (userId) => {
   }
 };
 
-/**
- * Check order count badges (call periodically or on order creation)
- */
 export const checkOrderCountBadges = async (userId, totalOrders) => {
   try {
-    const user = await User.findById(userId).select("badges");
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { badges: true },
+    });
     if (!user) return;
 
-    const currentBadgeNames = user.badges.map((b) => b.name);
+    const badges = Array.isArray(user.badges) ? user.badges : [];
+    const currentBadgeNames = badges.map((b) => b.name);
     const newBadges = [];
 
     for (const badge of BADGES) {
@@ -98,8 +96,9 @@ export const checkOrderCountBadges = async (userId, totalOrders) => {
     }
 
     if (newBadges.length > 0) {
-      await User.findByIdAndUpdate(userId, {
-        $addToSet: { badges: { $each: newBadges } },
+      await prisma.user.update({
+        where: { id: userId },
+        data: { badges: [...badges, ...newBadges] },
       });
     }
 
@@ -110,30 +109,36 @@ export const checkOrderCountBadges = async (userId, totalOrders) => {
   }
 };
 
-// @desc    Get user's gamification stats
-// @route   GET /api/v1/gamification/stats
-// @access  Private
 export const getGamificationStats = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select(
-    "orderStreak longestStreak lastOrderDate badges"
-  );
+  const userId = req.user.id || req.user._id;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      orderStreak: true,
+      longestStreak: true,
+      lastOrderDate: true,
+      badges: true,
+    },
+  });
 
   if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
 
+  const badges = Array.isArray(user.badges) ? user.badges : [];
+
   res.json({
     streak: user.orderStreak,
     longestStreak: user.longestStreak,
     lastOrderDate: user.lastOrderDate,
-    badges: user.badges,
-    totalBadges: user.badges.length,
-    nextBadge: BADGES.find(
-      (b) =>
-        (b.streak && user.orderStreak < b.streak) ||
-        (b.orders && !user.badges.some((ub) => ub.name === b.name))
-    ) || null,
+    badges,
+    totalBadges: badges.length,
+    nextBadge:
+      BADGES.find(
+        (b) =>
+          (b.streak && user.orderStreak < b.streak) ||
+          (b.orders && !badges.some((ub) => ub.name === b.name)),
+      ) || null,
   });
 });
-

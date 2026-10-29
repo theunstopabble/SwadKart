@@ -1,68 +1,84 @@
 import asyncHandler from "express-async-handler";
-import Order from "../models/orderModel.js";
-import Payout from "../models/payoutModel.js";
-import Restaurant from "../models/restaurantModel.js";
+import prisma from "../config/prisma.js";
 import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // @desc    Get restaurant earnings summary
 // @route   GET /api/v1/payouts/restaurant/:id
 // @access  Admin / Restaurant Owner
 export const getRestaurantEarnings = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const restaurantId = sanitizeObjectId(req.params.id);
-  const restaurant = await Restaurant.findById(restaurantId);
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+  });
   if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
 
-  const isOwner = restaurant.owner && restaurant.owner.toString() === req.user._id.toString();
+  const isOwner = restaurant.ownerId && restaurant.ownerId.toString() === currentUserId.toString();
   const isAdmin = req.user.role === "admin";
   if (!isAdmin && !isOwner) {
     return res.status(401).json({ message: "Not authorized" });
   }
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-  const summary = await Order.aggregate([
-    {
-      $match: {
-        "orderItems.restaurant": restaurant._id,
-        isPaid: true,
-        orderStatus: { $nin: ["Cancelled"] },
-      },
+  const orders = await prisma.order.findMany({
+    where: {
+      restaurantId: restaurant.id,
+      isPaid: true,
+      orderStatus: { not: "Cancelled" },
     },
-    {
-      $group: {
-        _id: "$payoutStatus",
-        count: { $sum: 1 },
-        totalCommission: { $sum: "$restaurantCommission" },
-        totalPayout: { $sum: "$restaurantPayout" },
-        totalItemsPrice: { $sum: "$itemsPrice" },
-      },
+    select: {
+      payoutStatus: true,
+      restaurantCommission: true,
+      restaurantPayout: true,
+      itemsPrice: true,
     },
-  ]);
+  });
 
-  const pending = summary.find((s) => s._id === "pending") || { count: 0, totalPayout: 0, totalCommission: 0 };
-  const paid = summary.find((s) => s._id === "paid") || { count: 0, totalPayout: 0, totalCommission: 0 };
-  const processing = summary.find((s) => s._id === "processing") || { count: 0, totalPayout: 0, totalCommission: 0 };
+  const summaryMap = {
+    pending: { count: 0, totalPayout: 0, totalCommission: 0 },
+    paid: { count: 0, totalPayout: 0, totalCommission: 0 },
+    processing: { count: 0, totalPayout: 0, totalCommission: 0 },
+  };
 
-  const recentOrders = await Order.find({
-    "orderItems.restaurant": restaurant._id,
-    payoutStatus: "pending",
-    isPaid: true,
-    orderStatus: { $ne: "Cancelled" },
-  })
-    .select("_id itemsPrice restaurantCommission restaurantPayout createdAt")
-    .sort({ createdAt: -1 })
-    .limit(20);
+  for (const o of orders) {
+    const status = o.payoutStatus || "pending";
+    if (!summaryMap[status]) {
+      summaryMap[status] = { count: 0, totalPayout: 0, totalCommission: 0 };
+    }
+    summaryMap[status].count += 1;
+    summaryMap[status].totalPayout += (o.restaurantPayout || 0);
+    summaryMap[status].totalCommission += (o.restaurantCommission || 0);
+  }
+
+  const recentOrders = await prisma.order.findMany({
+    where: {
+      restaurantId: restaurant.id,
+      payoutStatus: "pending",
+      isPaid: true,
+      orderStatus: { not: "Cancelled" },
+    },
+    select: {
+      id: true,
+      itemsPrice: true,
+      restaurantCommission: true,
+      restaurantPayout: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
 
   res.json({
     restaurantId,
     summary: {
-      pendingPayout: Math.round(pending.totalPayout || 0),
-      pendingOrders: pending.count || 0,
-      paidPayout: Math.round(paid.totalPayout || 0),
-      paidOrders: paid.count || 0,
-      processingPayout: Math.round(processing.totalPayout || 0),
-      processingOrders: processing.count || 0,
-      totalCommission: Math.round((pending.totalCommission || 0) + (paid.totalCommission || 0)),
+      pendingPayout: Math.round(summaryMap.pending.totalPayout || 0),
+      pendingOrders: summaryMap.pending.count || 0,
+      paidPayout: Math.round(summaryMap.paid.totalPayout || 0),
+      paidOrders: summaryMap.paid.count || 0,
+      processingPayout: Math.round(summaryMap.processing.totalPayout || 0),
+      processingOrders: summaryMap.processing.count || 0,
+      totalCommission: Math.round(
+        (summaryMap.pending.totalCommission || 0) + (summaryMap.paid.totalCommission || 0)
+      ),
     },
     recentOrders,
   });
@@ -72,23 +88,30 @@ export const getRestaurantEarnings = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/payouts/restaurant/:id/request
 // @access  Admin / Restaurant Owner
 export const requestPayout = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const restaurantId = sanitizeObjectId(req.params.id);
-  const restaurant = await Restaurant.findById(restaurantId);
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+  });
   if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
 
-  const isOwner = restaurant.owner && restaurant.owner.toString() === req.user._id.toString();
+  const isOwner = restaurant.ownerId && restaurant.ownerId.toString() === currentUserId.toString();
   const isAdmin = req.user.role === "admin";
   if (!isAdmin && !isOwner) {
     return res.status(401).json({ message: "Not authorized" });
   }
 
   // Find pending orders eligible for payout (paid orders only)
-  const pendingOrders = await Order.find({
-    "orderItems.restaurant": restaurant._id,
-    payoutStatus: "pending",
-    isPaid: true,
-    orderStatus: { $ne: "Cancelled" },
-  }).select("_id restaurantPayout createdAt");
+  const pendingOrders = await prisma.order.findMany({
+    where: {
+      restaurantId: restaurant.id,
+      payoutStatus: "pending",
+      isPaid: true,
+      orderStatus: { not: "Cancelled" },
+    },
+    select: { id: true, restaurantPayout: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
 
   if (pendingOrders.length === 0) {
     return res.status(400).json({ message: "No pending orders available for payout" });
@@ -99,35 +122,34 @@ export const requestPayout = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Payout amount must be greater than 0" });
   }
 
-  const periodStart = pendingOrders[pendingOrders.length - 1].createdAt;
-  const periodEnd = pendingOrders[0].createdAt;
-  const orderIds = pendingOrders.map((o) => o._id);
+  const periodStart = pendingOrders[0].createdAt;
+  const periodEnd = pendingOrders[pendingOrders.length - 1].createdAt;
+  const orderIds = pendingOrders.map((o) => o.id);
 
-  // TODO: use MongoDB transaction
-  // Atomically mark orders as processing — only claim pending ones
-  const markResult = await Order.updateMany(
-    { _id: { $in: orderIds }, payoutStatus: "pending" },
-    { payoutStatus: "processing" },
-  );
+  const payout = await prisma.$transaction(async (tx) => {
+    // Atomically mark orders as processing
+    await tx.order.updateMany({
+      where: { id: { in: orderIds }, payoutStatus: "pending" },
+      data: { payoutStatus: "processing" },
+    });
 
-  if (markResult.modifiedCount === 0) {
-    return res.status(409).json({ message: "Payout already being processed" });
-  }
-
-  // Create payout record only after orders are claimed
-  const payout = await Payout.create({
-    restaurant: restaurantId,
-    owner: restaurant.owner,
-    amount: totalPayout,
-    orders: orderIds,
-    periodStart,
-    periodEnd,
-    status: "pending",
+    // Create payout record
+    return tx.payout.create({
+      data: {
+        restaurantId: restaurant.id,
+        ownerId: restaurant.ownerId,
+        amount: totalPayout,
+        orders: orderIds,
+        periodStart,
+        periodEnd,
+        status: "pending",
+      },
+    });
   });
 
   res.status(201).json({
     message: "Payout request submitted",
-    payoutId: payout._id,
+    payoutId: payout.id,
     amount: totalPayout,
     ordersIncluded: orderIds.length,
     period: { start: periodStart, end: periodEnd },
@@ -140,17 +162,25 @@ export const requestPayout = asyncHandler(async (req, res) => {
 export const getAllPayouts = asyncHandler(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Number(req.query.limit) || 20);
-  const status = (typeof req.query.status === "string" && ["pending", "processing", "paid", "failed", "cancelled"].includes(req.query.status)) ? req.query.status : null;
+  const status =
+    typeof req.query.status === "string" &&
+    ["pending", "processing", "paid", "failed", "cancelled"].includes(req.query.status)
+      ? req.query.status
+      : null;
 
   const filter = status ? { status } : {};
-  const total = await Payout.countDocuments(filter);
+  const total = await prisma.payout.count({ where: filter });
 
-  const payouts = await Payout.find(filter)
-    .populate("restaurant", "name")
-    .populate("owner", "name email")
-    .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(limit);
+  const payouts = await prisma.payout.findMany({
+    where: filter,
+    include: {
+      restaurant: { select: { name: true } },
+      owner: { select: { name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    skip: (page - 1) * limit,
+    take: limit,
+  });
 
   res.json({
     payouts,
@@ -167,24 +197,36 @@ export const markPayoutPaid = asyncHandler(async (req, res) => {
   const payoutId = sanitizeObjectId(req.params.id);
   const { utrNumber, notes } = req.body || {};
 
-  const payout = await Payout.findById(payoutId);
+  const payout = await prisma.payout.findUnique({
+    where: { id: payoutId },
+  });
   if (!payout) return res.status(404).json({ message: "Payout not found" });
 
   if (payout.status === "paid") {
     return res.status(400).json({ message: "Payout already marked as paid" });
   }
 
-  payout.status = "paid";
-  payout.paidAt = new Date();
-  payout.utrNumber = utrNumber || payout.utrNumber;
-  payout.notes = notes || payout.notes;
-  await payout.save();
+  const updatedPayout = await prisma.$transaction(async (tx) => {
+    const updated = await tx.payout.update({
+      where: { id: payoutId },
+      data: {
+        status: "paid",
+        paidAt: new Date(),
+        utrNumber: utrNumber || payout.utrNumber,
+        notes: notes || payout.notes,
+      },
+    });
 
-  // Mark all included orders as paid
-  await Order.updateMany(
-    { _id: { $in: payout.orders } },
-    { payoutStatus: "paid", paidOutAt: new Date() },
-  );
+    const ordersToUpdate = Array.isArray(payout.orders) ? payout.orders : [];
+    if (ordersToUpdate.length > 0) {
+      await tx.order.updateMany({
+        where: { id: { in: ordersToUpdate } },
+        data: { payoutStatus: "paid", paidOutAt: new Date() },
+      });
+    }
 
-  res.json({ message: "Payout marked as paid", payoutId: payout._id });
+    return updated;
+  });
+
+  res.json({ message: "Payout marked as paid", payoutId: updatedPayout.id });
 });

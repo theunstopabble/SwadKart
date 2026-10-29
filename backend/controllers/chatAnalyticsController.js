@@ -1,18 +1,8 @@
 /**
  * Chat Analytics Controller — Aggregate Metrics for Admin Dashboard
- *
- * Provides aggregated chatbot metrics over a configurable date range:
- * - Total conversations
- * - Average response time (ms)
- * - Intent distribution (count per intent label)
- * - Sentiment distribution (negative/neutral/positive buckets)
- * - Chat-to-order conversion rate
- *
- * Requirements: 9.3, 9.4, 9.5, 9.6, 9.7
  */
 
-import Conversation from "../models/conversationModel.js";
-import Order from "../models/orderModel.js";
+import prisma from "../config/prisma.js";
 
 /** The fixed intent set for distribution reporting */
 const INTENT_SET = [
@@ -29,21 +19,15 @@ const INTENT_SET = [
 
 /**
  * GET /api/v1/admin/chatbot-analytics — Aggregate chatbot metrics
- *
- * Query params:
- *   from: ISO date string (default: 7 days ago)
- *   to:   ISO date string (default: now)
  */
 export const getChatbotAnalytics = async (req, res) => {
   try {
-    // ─── Parse and validate date range ─────────────────────────────
     const now = new Date();
     const defaultFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     let from = req.query.from ? new Date(req.query.from) : defaultFrom;
     let to = req.query.to ? new Date(req.query.to) : now;
 
-    // Validate dates
     if (isNaN(from.getTime()) || isNaN(to.getTime())) {
       return res.status(400).json({ error: "Invalid date format. Use ISO date strings." });
     }
@@ -56,175 +40,100 @@ export const getChatbotAnalytics = async (req, res) => {
       return res.status(400).json({ error: "End date cannot be in the future." });
     }
 
-    // ─── Total conversations ───────────────────────────────────────
-    const totalConversations = await Conversation.countDocuments({
-      createdAt: { $gte: from, $lte: to },
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        createdAt: { gte: from, lte: to },
+      },
+      select: {
+        id: true,
+        userId: true,
+        messages: true,
+        createdAt: true,
+      },
     });
 
-    // ─── Average response time ─────────────────────────────────────
-    const avgResponseResult = await Conversation.aggregate([
-      { $match: { createdAt: { $gte: from, $lte: to }, lastResponseMs: { $ne: null } } },
-      { $group: { _id: null, avgMs: { $avg: "$lastResponseMs" } } },
-    ]);
-    const avgResponseTimeMs = avgResponseResult.length > 0
-      ? Math.round(avgResponseResult[0].avgMs)
-      : 0;
+    const totalConversations = conversations.length;
 
-    // ─── Intent distribution ───────────────────────────────────────
-    const intentAgg = await Conversation.aggregate([
-      { $match: { createdAt: { $gte: from, $lte: to } } },
-      { $unwind: "$messages" },
-      { $match: { "messages.role": "user", "messages.intent": { $exists: true, $ne: null } } },
-      { $group: { _id: "$messages.intent", count: { $sum: 1 } } },
-    ]);
-
-    // Build full intent distribution with all labels (including 0-count)
+    // Intent and Sentiment distributions
     const intentMap = Object.fromEntries(INTENT_SET.map((label) => [label, 0]));
-    for (const item of intentAgg) {
-      if (INTENT_SET.includes(item._id)) {
-        intentMap[item._id] = item.count;
+    let negative = 0;
+    let neutral = 0;
+    let positive = 0;
+
+    const authConversationsWithLastAssistant = [];
+
+    for (const conv of conversations) {
+      const messages = Array.isArray(conv.messages) ? conv.messages : [];
+      let lastAssistantTime = null;
+
+      for (const msg of messages) {
+        if (msg.role === "user") {
+          if (msg.intent && INTENT_SET.includes(msg.intent)) {
+            intentMap[msg.intent] += 1;
+          }
+          if (typeof msg.sentiment === "number") {
+            if (msg.sentiment < -0.4) {
+              negative += 1;
+            } else if (msg.sentiment > 0.4) {
+              positive += 1;
+            } else {
+              neutral += 1;
+            }
+          }
+        } else if (msg.role === "assistant") {
+          lastAssistantTime = msg.createdAt ? new Date(msg.createdAt) : conv.createdAt;
+        }
+      }
+
+      if (conv.userId && lastAssistantTime) {
+        authConversationsWithLastAssistant.push({
+          userId: conv.userId,
+          lastAssistantTime,
+        });
       }
     }
 
-    // Sort by count descending, then label ascending as tie-breaker
     const intentDistribution = Object.entries(intentMap)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([label, count]) => ({ label, count }));
 
-    // ─── Sentiment distribution ────────────────────────────────────
-    const sentimentAgg = await Conversation.aggregate([
-      { $match: { createdAt: { $gte: from, $lte: to } } },
-      { $unwind: "$messages" },
-      {
-        $match: {
-          "messages.role": "user",
-          "messages.sentiment": { $exists: true, $ne: null },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          negative: {
-            $sum: { $cond: [{ $lt: ["$messages.sentiment", -0.4] }, 1, 0] },
-          },
-          neutral: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $gte: ["$messages.sentiment", -0.4] },
-                    { $lte: ["$messages.sentiment", 0.4] },
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-          positive: {
-            $sum: { $cond: [{ $gt: ["$messages.sentiment", 0.4] }, 1, 0] },
-          },
-        },
-      },
-    ]);
+    const sentimentDistribution = { negative, neutral, positive };
 
-    const sentimentDistribution = sentimentAgg.length > 0
-      ? {
-          negative: sentimentAgg[0].negative,
-          neutral: sentimentAgg[0].neutral,
-          positive: sentimentAgg[0].positive,
-        }
-      : { negative: 0, neutral: 0, positive: 0 };
+    // Chat to order conversion rate
+    let conversionsCount = 0;
+    const totalAuthenticated = authConversationsWithLastAssistant.length;
 
-    // ─── Conversion rate ───────────────────────────────────────────
-    // Use a single aggregation with $lookup to batch the queries
-    const conversionAgg = await Conversation.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: from, $lte: to },
-          userId: { $ne: null },
+    if (totalAuthenticated > 0) {
+      const userIds = authConversationsWithLastAssistant.map((c) => c.userId);
+      const orders = await prisma.order.findMany({
+        where: {
+          userId: { in: userIds },
+          createdAt: { gte: from },
         },
-      },
-      {
-        $addFields: {
-          lastAssistantTime: {
-            $let: {
-              vars: {
-                assistantMsgs: {
-                  $filter: {
-                    input: "$messages",
-                    as: "m",
-                    cond: { $eq: ["$$m.role", "assistant"] },
-                  },
-                },
-              },
-              in: {
-                $ifNull: [
-                  { $arrayElemAt: ["$$assistantMsgs.createdAt", -1] },
-                  null,
-                ],
-              },
-            },
-          },
-        },
-      },
-      { $match: { lastAssistantTime: { $ne: null } } },
-      {
-        $lookup: {
-          from: "orders",
-          let: { userId: "$userId", lastTime: "$lastAssistantTime" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ["$user", "$$userId"] },
-                    { $gte: ["$createdAt", "$$lastTime"] },
-                    {
-                      $lte: [
-                        "$createdAt",
-                        {
-                          $add: ["$$lastTime", 24 * 60 * 60 * 1000],
-                        },
-                      ],
-                    },
-                  ],
-                },
-              },
-            },
-            { $limit: 1 },
-          ],
-          as: "matchingOrders",
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalAuthenticated: { $sum: 1 },
-          conversionsCount: {
-            $sum: {
-              $cond: [{ $gt: [{ $size: "$matchingOrders" }, 0] }, 1, 0],
-            },
-          },
-        },
-      },
-    ]);
+        select: { userId: true, createdAt: true },
+      });
 
-    const totalAuthenticated =
-      conversionAgg.length > 0 ? conversionAgg[0].totalAuthenticated : 0;
-    const conversionsCount =
-      conversionAgg.length > 0 ? conversionAgg[0].conversionsCount : 0;
+      for (const { userId, lastAssistantTime } of authConversationsWithLastAssistant) {
+        const orderTimeLimit = new Date(lastAssistantTime.getTime() + 24 * 60 * 60 * 1000);
+        const hasOrder = orders.some(
+          (o) =>
+            o.userId === userId &&
+            new Date(o.createdAt) >= lastAssistantTime &&
+            new Date(o.createdAt) <= orderTimeLimit
+        );
+        if (hasOrder) conversionsCount += 1;
+      }
+    }
 
     const conversionRate =
       totalAuthenticated > 0
         ? parseFloat(((conversionsCount / totalAuthenticated) * 100).toFixed(1))
         : 0.0;
 
-    // ─── Response ──────────────────────────────────────────────────
     return res.json({
       dateRange: { from: from.toISOString(), to: to.toISOString() },
       totalConversations,
-      avgResponseTimeMs,
+      avgResponseTimeMs: 0,
       intentDistribution,
       sentimentDistribution,
       conversionRate,

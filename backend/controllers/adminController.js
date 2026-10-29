@@ -1,35 +1,45 @@
-import Order from "../models/orderModel.js";
-import User from "../models/userModel.js";
-import Restaurant from "../models/restaurantModel.js";
-import { sanitizeObjectId } from "../utils/sanitize.js";
+import prisma from "../config/prisma.js";
 
 // ==========================================
 // 📈 1. GET SALES STATS (For Recharts)
 // ==========================================
 export const getSalesStats = async (req, res) => {
   try {
-    let matchQuery = { isPaid: true, orderStatus: { $ne: "Cancelled" } };
+    const userId = req.user.id || req.user._id;
+    const where = { isPaid: true, orderStatus: { not: "Cancelled" } };
 
-    // Filter for restaurant owners to see only their data
     if (req.user.role === "restaurant_owner") {
-      const restaurantDoc = await Restaurant.findOne({ owner: req.user._id });
+      const restaurantDoc = await prisma.restaurant.findFirst({
+        where: { ownerId: userId },
+      });
       if (!restaurantDoc)
         return res.status(404).json({ message: "Restaurant not found." });
-      matchQuery["orderItems.restaurant"] = restaurantDoc._id;
+      where.restaurantId = restaurantDoc.id;
     }
 
-    const stats = await Order.aggregate([
-      { $match: matchQuery },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          sales: { $sum: "$totalPrice" },
-          orders: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
-      { $limit: 7 }, // Last 7 days trend
-    ]);
+    const paidOrders = await prisma.order.findMany({
+      where,
+      select: { totalPrice: true, createdAt: true },
+    });
+
+    const dateMap = {};
+    for (const order of paidOrders) {
+      const dateKey = new Date(order.createdAt).toISOString().split("T")[0];
+      if (!dateMap[dateKey]) {
+        dateMap[dateKey] = { sales: 0, orders: 0 };
+      }
+      dateMap[dateKey].sales += order.totalPrice;
+      dateMap[dateKey].orders += 1;
+    }
+
+    const stats = Object.keys(dateMap)
+      .sort()
+      .slice(-7)
+      .map((date) => ({
+        _id: date,
+        sales: parseFloat(dateMap[date].sales.toFixed(2)),
+        orders: dateMap[date].orders,
+      }));
 
     res.json(stats);
   } catch (error) {
@@ -38,53 +48,53 @@ export const getSalesStats = async (req, res) => {
 };
 
 // ==========================================
-// 📊 2. GET DASHBOARD SUMMARY (Optimized)
+// 📊 2. GET DASHBOARD SUMMARY
 // ==========================================
 export const getDashboardStats = async (req, res) => {
   try {
-    let query = {};
+    const userId = req.user.id || req.user._id;
+    const query = {};
     if (req.user.role === "restaurant_owner") {
-      const restaurantDoc = await Restaurant.findOne({ owner: req.user._id });
+      const restaurantDoc = await prisma.restaurant.findFirst({
+        where: { ownerId: userId },
+      });
       if (!restaurantDoc)
         return res.status(404).json({ message: "No restaurant found." });
-      query = { "orderItems.restaurant": restaurantDoc._id };
+      query.restaurantId = restaurantDoc.id;
     }
 
-    // 🔥 Optimized: Single database call for all counts using $facet
-    const statsData = await Order.aggregate([
-      { $match: query },
-      {
-        $facet: {
-          totalOrders: [{ $count: "count" }],
-          totalSales: [
-            { $match: { isPaid: true, orderStatus: { $ne: "Cancelled" } } },
-            { $group: { _id: null, total: { $sum: "$totalPrice" } } },
-          ],
-          breakdown: [{ $group: { _id: "$orderStatus", count: { $sum: 1 } } }],
-        },
-      },
-    ]);
+    const [allOrders, paidOrders, recentOrders, totalUsers, totalRestaurants] =
+      await Promise.all([
+        prisma.order.findMany({
+          where: query,
+          select: { orderStatus: true },
+        }),
+        prisma.order.findMany({
+          where: { ...query, isPaid: true, orderStatus: { not: "Cancelled" } },
+          select: { totalPrice: true },
+        }),
+        prisma.order.findMany({
+          where: query,
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          include: { user: { select: { id: true, name: true, email: true } } },
+        }),
+        req.user.role === "admin" ? prisma.user.count() : 0,
+        req.user.role === "admin" ? prisma.restaurant.count() : 0,
+      ]);
 
-    // Format breakdown object — use dynamic keys from aggregation result
+    const totalOrders = allOrders.length;
+    const totalSales = paidOrders.reduce((sum, o) => sum + o.totalPrice, 0);
+
     const breakdown = {};
-    statsData[0].breakdown.forEach((item) => {
-      const key = item._id.toLowerCase();
-      breakdown[key] = item.count;
-    });
-
-    const recentOrders = await Order.find(query)
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate("user", "name email");
-
-    const totalUsers =
-      req.user.role === "admin" ? await User.countDocuments() : 0;
-    const totalRestaurants =
-      req.user.role === "admin" ? await Restaurant.countDocuments() : 0;
+    for (const o of allOrders) {
+      const key = o.orderStatus.toLowerCase();
+      breakdown[key] = (breakdown[key] || 0) + 1;
+    }
 
     res.json({
-      totalOrders: statsData[0].totalOrders[0]?.count || 0,
-      totalSales: Number((statsData[0].totalSales[0]?.total || 0).toFixed(2)),
+      totalOrders,
+      totalSales: Number(totalSales.toFixed(2)),
       breakdown,
       recentOrders,
       totalRestaurants,
@@ -96,26 +106,26 @@ export const getDashboardStats = async (req, res) => {
 };
 
 // ==========================================
-// 🔥 3. GET HEATMAP DATA (New)
+// 🔥 3. GET HEATMAP DATA
 // ==========================================
 export const getHeatmapData = async (req, res) => {
   try {
-    const filter = {
-      "shippingAddress.lat": { $exists: true, $ne: null },
-      "shippingAddress.lng": { $exists: true, $ne: null },
-    };
+    const orders = await prisma.order.findMany({
+      select: { shippingAddress: true, totalPrice: true },
+    });
 
-    // (restaurant_owner guard removed — route is admin-only)
-
-    const orders = await Order.find(filter).select(
-      "shippingAddress.lat shippingAddress.lng totalPrice"
-    );
-
-    const heatmapData = orders.map((order) => ({
-      lat: order.shippingAddress.lat,
-      lng: order.shippingAddress.lng,
-      weight: Math.min(order.totalPrice / 500, 1),
-    }));
+    const heatmapData = orders
+      .filter(
+        (o) =>
+          o.shippingAddress &&
+          typeof o.shippingAddress.lat === "number" &&
+          typeof o.shippingAddress.lng === "number",
+      )
+      .map((order) => ({
+        lat: order.shippingAddress.lat,
+        lng: order.shippingAddress.lng,
+        weight: Math.min(order.totalPrice / 500, 1),
+      }));
 
     res.json(heatmapData);
   } catch (error) {
@@ -123,11 +133,9 @@ export const getHeatmapData = async (req, res) => {
   }
 };
 
-
 // ==========================================
-// 🛡️ 3. USER MANAGEMENT (Admin)
+// 🛡️ 4. USER MANAGEMENT (Admin)
 // ==========================================
-// TODO: Wire `getAllUsersAdmin` to a route (e.g. GET /api/v1/admin/users)
 export const getAllUsersAdmin = async (req, res) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
@@ -135,86 +143,86 @@ export const getAllUsersAdmin = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [users, total] = await Promise.all([
-      User.find({})
-        .select("-password")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      User.countDocuments(),
+      prisma.user.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.user.count(),
     ]);
 
-    res.json({ users, total, page, pages: Math.ceil(total / limit) });
+    const safeUsers = users.map(({ password: _, ...u }) => u);
+    res.json({ users: safeUsers, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// TODO: Wire `updateUserRole` to a route (e.g. PUT /api/v1/admin/users/:id/role)
 export const updateUserRole = async (req, res) => {
   try {
-    const userId = sanitizeObjectId(req.params.id);
-    const user = await User.findById(userId);
+    const userId = req.params.id;
+    const currentUserId = req.user.id || req.user._id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (user._id.toString() === req.user._id.toString()) {
+    if (user.id === currentUserId) {
       return res.status(400).json({ message: "Cannot change your own role" });
     }
 
     const validRoles = ["user", "admin", "delivery_partner", "restaurant_owner"];
     const newRole = req.body.role;
     if (!newRole || !validRoles.includes(newRole)) {
-      return res.status(400).json({ message: `Invalid role. Must be one of: ${validRoles.join(", ")}` });
+      return res.status(400).json({
+        message: `Invalid role. Must be one of: ${validRoles.join(", ")}`,
+      });
     }
 
-    user.role = newRole;
-    user.isAdmin = user.role === "admin";
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        role: newRole,
+        isAdmin: newRole === "admin",
+      },
+    });
 
-    const updatedUser = await user.save();
-    res.json({ message: "Role updated", user: updatedUser });
+    const { password: _, ...safeUser } = updatedUser;
+    res.json({ message: "Role updated", user: safeUser });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// ==========================================
-// 🏪 4. RESTAURANT APPROVAL (New)
-// ==========================================
-// TODO: Wire `toggleRestaurantApproval` to a route (e.g. PUT /api/v1/admin/restaurants/:id/approve)
 export const toggleRestaurantApproval = async (req, res) => {
   try {
-    const restaurantId = sanitizeObjectId(req.params.id);
-    const restaurant = await Restaurant.findById(restaurantId);
-    if (!restaurant)
-      return res.status(404).json({ message: "Restaurant not found" });
+    const restaurantId = req.params.id;
+    const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
+    if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
 
-    restaurant.isVerified = !restaurant.isVerified;
-    await restaurant.save();
+    const updated = await prisma.restaurant.update({
+      where: { id: restaurantId },
+      data: { isVerified: !restaurant.isVerified },
+    });
 
     res.json({
-      message: `Restaurant ${restaurant.isVerified ? "Approved" : "Disapproved"
-        }`,
-      restaurant,
+      message: `Restaurant ${updated.isVerified ? "Approved" : "Disapproved"}`,
+      restaurant: updated,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// TODO: Wire `deleteUser` to a route (e.g. DELETE /api/v1/admin/users/:id)
 export const deleteUser = async (req, res) => {
   try {
-    const userId = sanitizeObjectId(req.params.id);
-    const user = await User.findById(userId);
+    const userId = req.params.id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: "User not found" });
     if (user.role === "admin")
       return res.status(400).json({ message: "Cannot delete Admin" });
 
-    await Order.updateMany(
-      { user: user._id },
-      { $set: { deletedUserName: user.name, user: null } }
-    );
-    await Restaurant.deleteMany({ owner: user._id });
-    await user.deleteOne();
+    await prisma.restaurant.deleteMany({ where: { ownerId: user.id } });
+    await prisma.order.deleteMany({ where: { userId: user.id } });
+    await prisma.user.delete({ where: { id: user.id } });
     res.json({ message: "User deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });

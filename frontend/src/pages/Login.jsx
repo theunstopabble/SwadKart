@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import axios from "axios";
 import { setCredentials } from "../redux/userSlice";
 import { Mail, Lock, LogIn, Loader } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { BASEURL } from "../config";
 
-// Lazy load GoogleAuth to keep Firebase out of main bundle
-import { lazy, Suspense } from "react";
-const GoogleAuth = lazy(() => import("../components/GoogleAuth"));
+const redirectByRole = (role) => {
+  if (role === "admin") return "/admin/dashboard";
+  if (role === "restaurant_owner") return "/restaurant/dashboard";
+  if (role === "delivery_partner") return "/delivery/dashboard";
+  return "/";
+};
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -23,7 +25,7 @@ const Login = () => {
 
   useEffect(() => {
     if (userInfo) {
-      navigate("/");
+      navigate(redirectByRole(userInfo.role));
     }
   }, [userInfo, navigate]);
 
@@ -55,29 +57,22 @@ const Login = () => {
         setLoading(false);
         return;
       }
+
       const data = await res.json();
 
-      if (typeof window !== "undefined" && window.sessionStorage) {
-        sessionStorage.setItem("biometricUnlocked", "true");
-      }
-      dispatch(setCredentials(data));
-
-      try {
-        const bioRes = await axios.get(
-          `${BASEURL}/api/v1/users/profile/biometric-status`,
-          { withCredentials: true },
-        );
-        if (bioRes.data?.isBiometricEnabled && bioRes.data?.hasCredentials) {
-          localStorage.setItem("isBiometricEnabled", "true");
-        } else {
-          localStorage.removeItem("isBiometricEnabled");
+      // Clear any stale biometric locks so app is immediately accessible
+      if (typeof window !== "undefined") {
+        if (window.sessionStorage) {
+          sessionStorage.setItem("biometricUnlocked", "true");
         }
-      } catch (_err) {
-        void _err;
+        localStorage.removeItem("isBiometricEnabled");
       }
 
-      toast.success("Login Successful! Welcome back. 👋");
-      navigate("/");
+      dispatch(setCredentials(data));
+      toast.success(`Welcome back, ${data.name || "Foodie"}! 👋`);
+
+      const targetPath = redirectByRole(data.role);
+      navigate(targetPath);
     } catch {
       toast.error("Network Error. Check your connection.");
     } finally {
@@ -93,7 +88,9 @@ const Login = () => {
           <br />
           <span className="text-primary tracking-tight">Swad</span>Kart
         </h2>
-        <br />
+        <p className="text-gray-400 text-center text-sm mb-6">
+          Sign in with your email and password
+        </p>
 
         <form onSubmit={submitHandler} className="space-y-6">
           <div className="relative">
@@ -120,6 +117,35 @@ const Login = () => {
             />
           </div>
 
+          {/* Quick Demo Credentials */}
+          <div className="bg-gray-800/60 p-3 rounded-xl border border-gray-700/50 space-y-2">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block text-center">
+              Quick Fill Demo Accounts
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("admin@swadkart.com");
+                  setPassword("Password123!");
+                }}
+                className="bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 text-xs py-2 px-3 rounded-lg font-bold transition-all text-center cursor-pointer"
+              >
+                👑 Demo Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("customer@swadkart.com");
+                  setPassword("Password123!");
+                }}
+                className="bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30 text-xs py-2 px-3 rounded-lg font-bold transition-all text-center cursor-pointer"
+              >
+                👤 Demo Customer
+              </button>
+            </div>
+          </div>
+
           {/* Forgot Password Link */}
           <div className="flex justify-end">
             <Link
@@ -133,7 +159,7 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary hover:bg-red-600 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25 disabled:opacity-50"
+            className="w-full bg-primary hover:bg-red-600 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25 disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
               <Loader className="animate-spin" />
@@ -144,22 +170,6 @@ const Login = () => {
             )}
           </button>
         </form>
-        <div className="my-6 flex items-center gap-4 opacity-50">
-          <div className="flex-1 h-[1px] bg-gray-700"></div>
-          <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-            OR
-          </span>
-          <div className="flex-1 h-[1px] bg-gray-700"></div>
-        </div>
-
-        {/* The Magic Button */}
-        <Suspense
-          fallback={
-            <div className="h-[56px] w-full bg-gray-800 animate-pulse rounded-2xl border border-gray-700"></div>
-          }
-        >
-          <GoogleAuth />
-        </Suspense>
 
         <p className="text-gray-400 text-center mt-8 text-sm">
           Hungry for more?{" "}

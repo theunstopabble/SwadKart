@@ -1,7 +1,5 @@
 import asyncHandler from "express-async-handler";
-import User from "../models/userModel.js";
-import Order from "../models/orderModel.js";
-import CoinTransaction from "../models/coinTransactionModel.js";
+import prisma from "../config/prisma.js";
 
 export const getLoyaltyTiers = asyncHandler(async (req, res) => {
   const tiers = [
@@ -15,6 +13,7 @@ export const getLoyaltyTiers = asyncHandler(async (req, res) => {
 });
 
 export const calculateCoinEarnings = asyncHandler(async (req, res) => {
+  const currentUserId = req.user?.id || req.user?._id;
   const { orderAmount, userId } = req.body;
 
   if (!orderAmount || orderAmount <= 0) {
@@ -22,10 +21,19 @@ export const calculateCoinEarnings = asyncHandler(async (req, res) => {
     throw new Error("Valid order amount is required");
   }
 
-  const targetUserId = userId && userId !== req.user?._id.toString()
-    ? (req.user?.role === "admin" ? userId : req.user._id)
-    : (userId || req.user?._id);
-  const user = targetUserId ? await User.findById(targetUserId).select("swadCoins badges") : null;
+  const targetUserId =
+    userId && userId !== currentUserId?.toString()
+      ? req.user?.role === "admin"
+        ? userId
+        : currentUserId
+      : userId || currentUserId;
+
+  const user = targetUserId
+    ? await prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { swadCoins: true, badges: true },
+      })
+    : null;
 
   let earningRate = 1;
   let tierName = "Bronze";
@@ -33,22 +41,22 @@ export const calculateCoinEarnings = asyncHandler(async (req, res) => {
 
   if (user) {
     const tiers = [
-      { name: "Bronze", min: 0, rate: 1 },
-      { name: "Silver", min: 500, rate: 1.5 },
-      { name: "Gold", min: 2000, rate: 2 },
-      { name: "Platinum", min: 5000, rate: 3 },
+      { name: "Bronze", min: 0, rate: 1, color: "#cd7f32" },
+      { name: "Silver", min: 500, rate: 1.5, color: "#c0c0c0" },
+      { name: "Gold", min: 2000, rate: 2, color: "#ffd700" },
+      { name: "Platinum", min: 5000, rate: 3, color: "#e5e4e2" },
     ];
-    const currentTier = [...tiers].reverse().find((t) => user.swadCoins >= t.min);
+    const currentTier = [...tiers].reverse().find((t) => (user.swadCoins || 0) >= t.min);
     if (currentTier) {
       earningRate = currentTier.rate;
       tierName = currentTier.name;
-      tierColor = tiers.find((t) => t.name === currentTier.name)?.color || "#cd7f32";
+      tierColor = currentTier.color;
     }
   }
 
   const baseCoins = Math.floor(orderAmount / 10);
   const earnedCoins = Math.floor(baseCoins * earningRate);
-  const nextTierCoins = earningRate < 3 ? (Math.ceil(baseCoins / 100) * 100) - baseCoins : 0;
+  const nextTierCoins = earningRate < 3 ? Math.ceil(baseCoins / 100) * 100 - baseCoins : 0;
 
   res.json({
     orderAmount,
@@ -59,13 +67,17 @@ export const calculateCoinEarnings = asyncHandler(async (req, res) => {
     tierColor,
     nextTierCoins,
     coinsValueRupees: Number((earnedCoins * 0.1).toFixed(2)),
-    message: earnedCoins > baseCoins
-      ? `🎉 You've earned ${earnedCoins} coins (${earningRate}x multiplier for ${tierName} tier)!`
-      : `You earned ${earnedCoins} coins. Spend ${nextTierCoins} more coins to reach ${earningRate < 3 ? "next tier" : "Platinum"}!`,
+    message:
+      earnedCoins > baseCoins
+        ? `🎉 You've earned ${earnedCoins} coins (${earningRate}x multiplier for ${tierName} tier)!`
+        : `You earned ${earnedCoins} coins. Spend ${nextTierCoins} more coins to reach ${
+            earningRate < 3 ? "next tier" : "Platinum"
+          }!`,
   });
 });
 
 export const calculateCoinRedemption = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const { coins, orderAmount } = req.body;
 
   if (!coins || coins <= 0 || coins % 100 !== 0) {
@@ -73,13 +85,16 @@ export const calculateCoinRedemption = asyncHandler(async (req, res) => {
     throw new Error("Coins must be a positive multiple of 100");
   }
 
-  const user = await User.findById(req.user._id).select("swadCoins");
+  const user = await prisma.user.findUnique({
+    where: { id: currentUserId },
+    select: { swadCoins: true },
+  });
   if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
 
-  if (user.swadCoins < coins) {
+  if ((user.swadCoins || 0) < coins) {
     return res.status(400).json({
       error: "Insufficient coins",
       available: user.swadCoins,
@@ -111,7 +126,7 @@ export const calculateCoinRedemption = asyncHandler(async (req, res) => {
     platformFee: Number(platformFee.toFixed(2)),
     restaurantPayout: Number(restaurantPayout.toFixed(2)),
     availableCoins: user.swadCoins,
-    coinsRemainingAfter: user.swadCoins - coins,
+    coinsRemainingAfter: (user.swadCoins || 0) - coins,
   });
 });
 
@@ -123,16 +138,19 @@ export const calculateReferralReward = asyncHandler(async (req, res) => {
     throw new Error("Referrer code is required");
   }
 
-  const referrer = await User.findOne({ referralCode: referrerCode.toUpperCase() }).select("name swadCoins badges");
+  const referrer = await prisma.user.findFirst({
+    where: { referralCode: referrerCode.toUpperCase() },
+    select: { name: true, swadCoins: true, badges: true },
+  });
   if (!referrer) {
     res.status(404);
     throw new Error("Invalid referral code");
   }
 
   let referrerTier = "Bronze";
-  if (referrer.swadCoins >= 5000) referrerTier = "Platinum";
-  else if (referrer.swadCoins >= 2000) referrerTier = "Gold";
-  else if (referrer.swadCoins >= 500) referrerTier = "Silver";
+  if ((referrer.swadCoins || 0) >= 5000) referrerTier = "Platinum";
+  else if ((referrer.swadCoins || 0) >= 2000) referrerTier = "Gold";
+  else if ((referrer.swadCoins || 0) >= 500) referrerTier = "Silver";
 
   const referrerReward = 200;
   const refereeReward = 100;
@@ -165,12 +183,24 @@ export const getCoinRates = asyncHandler(async (req, res) => {
 });
 
 export const getRewardBreakdown = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const currentUserId = req.user.id || req.user._id;
 
   const [orders, user, coinTxs] = await Promise.all([
-    Order.find({ user: userId, isPaid: true }).select("itemsPrice createdAt").sort({ createdAt: -1 }).limit(90).lean(),
-    User.findById(userId).select("swadCoins referralCode referralRewardClaimed"),
-    CoinTransaction.find({ user: userId }).sort({ createdAt: -1 }).limit(50).lean(),
+    prisma.order.findMany({
+      where: { userId: currentUserId, isPaid: true },
+      select: { itemsPrice: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 90,
+    }),
+    prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { swadCoins: true, referralCode: true, referralRewardClaimed: true },
+    }),
+    prisma.coinTransaction.findMany({
+      where: { userId: currentUserId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
   ]);
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -179,8 +209,12 @@ export const getRewardBreakdown = asyncHandler(async (req, res) => {
   const recentSpent = recentOrders.reduce((s, o) => s + (o.itemsPrice || 0), 0);
   const projectedMonthlyCoins = Math.floor(recentSpent / 10) * 1;
 
-  const earnedCoins = coinTxs.filter((t) => t.type === "Earn" || t.type === "Bonus" || t.type === "Referral").reduce((s, t) => s + Math.abs(t.amount), 0);
-  const redeemedCoins = coinTxs.filter((t) => t.type === "Redeem" || t.type === "Refund").reduce((s, t) => s + Math.abs(t.amount), 0);
+  const earnedCoins = coinTxs
+    .filter((t) => t.type === "Earn" || t.type === "Bonus" || t.type === "Referral")
+    .reduce((s, t) => s + Math.abs(t.amount), 0);
+  const redeemedCoins = coinTxs
+    .filter((t) => t.type === "Redeem" || t.type === "Refund")
+    .reduce((s, t) => s + Math.abs(t.amount), 0);
 
   res.json({
     currentCoins: user?.swadCoins || 0,

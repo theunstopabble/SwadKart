@@ -1,15 +1,13 @@
 import asyncHandler from "express-async-handler";
-import Order from "../models/orderModel.js";
-import User from "../models/userModel.js";
+import prisma from "../config/prisma.js";
 
 // In-memory surge config
-// TODO: Persist surge config to DB so it survives restarts
 let surgeConfig = {
   enabled: true,
   baseDeliveryFee: 40,
   thresholds: {
-    activeOrdersThreshold: 50,   // orders in last 15 min
-    minDriversRequired: 10,      // active delivery partners
+    activeOrdersThreshold: 50, // orders in last 15 min
+    minDriversRequired: 10, // active delivery partners
   },
   multipliers: [1.0, 1.2, 1.5, 2.0, 2.5],
   maxMultiplier: 2.5,
@@ -23,14 +21,18 @@ const getCurrentLoad = async () => {
   const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
 
   const [activeOrdersCount, activeDriversCount] = await Promise.all([
-    Order.countDocuments({
-      createdAt: { $gte: fifteenMinAgo },
-      isDelivered: false,
-      orderStatus: { $ne: "Cancelled" },
+    prisma.order.count({
+      where: {
+        createdAt: { gte: fifteenMinAgo },
+        isDelivered: false,
+        orderStatus: { not: "Cancelled" },
+      },
     }),
-    User.countDocuments({
-      role: "delivery_partner",
-      isAvailable: true,
+    prisma.user.count({
+      where: {
+        role: "delivery_partner",
+        isAvailable: true,
+      },
     }),
   ]);
 
@@ -46,10 +48,13 @@ export const calculateSurgeMultiplier = async () => {
   const demandRatio = activeOrdersCount / Math.max(activeDriversCount, 1);
 
   let multiplierIndex = 0;
-  if (activeOrdersCount >= thresholds.activeOrdersThreshold && activeDriversCount < thresholds.minDriversRequired) {
+  if (
+    activeOrdersCount >= thresholds.activeOrdersThreshold &&
+    activeDriversCount < thresholds.minDriversRequired
+  ) {
     multiplierIndex = Math.min(
       Math.floor((demandRatio - 1) * 2),
-      multipliers.length - 1,
+      multipliers.length - 1
     );
   }
 
@@ -105,7 +110,11 @@ export const updateSurgeConfig = asyncHandler(async (req, res) => {
   }
 
   if (multipliers) {
-    if (!Array.isArray(multipliers) || multipliers.length === 0 || !multipliers.every((m) => typeof m === "number" && m > 0)) {
+    if (
+      !Array.isArray(multipliers) ||
+      multipliers.length === 0 ||
+      !multipliers.every((m) => typeof m === "number" && m > 0)
+    ) {
       res.status(400);
       throw new Error("multipliers must be a non-empty array of positive numbers");
     }

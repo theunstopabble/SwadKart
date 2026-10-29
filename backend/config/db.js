@@ -1,29 +1,22 @@
-import mongoose from "mongoose";
+import prisma from "./prisma.js";
 
 const connectDB = async (retries = 5, delay = 3000) => {
   try {
-    const isProduction = process.env.NODE_ENV === "production";
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      connectTimeoutMS: 10000,
-      maxPoolSize: isProduction ? 50 : 10,
-      minPoolSize: isProduction ? 5 : 1,
-      heartbeatFrequencyMS: 10000,
-      retryWrites: true,
-      writeConcern: { w: "majority" },
-    });
-
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    // Ping database via Prisma query
+    await prisma.$queryRaw`SELECT 1`;
+    console.log("✅ Local Database Connected via Prisma ORM");
   } catch (error) {
-    console.error(`❌ MongoDB Connection Error: ${error.message}`);
+    console.error(`❌ Prisma Database Connection Error: ${error.message}`);
     if (retries > 0) {
-      console.log(`🔄 Retrying MongoDB connection in ${delay}ms... (${retries} attempts left)`);
+      console.log(`🔄 Retrying database connection in ${delay}ms... (${retries} attempts left)`);
       await new Promise((resolve) => setTimeout(resolve, delay));
       return connectDB(retries - 1, delay * 2);
     }
-    console.error("❌ MongoDB connection failed after all retries. Shutting down.");
-    process.exit(1);
+    console.error("❌ Prisma database connection failed after all retries. Shutting down.");
+    // In dev we don't necessarily exit immediately if running outside Docker without DB started yet
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
+    }
   }
 };
 

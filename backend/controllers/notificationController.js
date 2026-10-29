@@ -1,6 +1,5 @@
 import asyncHandler from "express-async-handler";
-import Notification from "../models/notificationModel.js";
-import User from "../models/userModel.js";
+import prisma from "../config/prisma.js";
 import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // @desc    Send a notification to a user (and store in DB)
@@ -15,18 +14,23 @@ export const sendNotification = asyncHandler(async (req, res) => {
 
   const userId = sanitizeObjectId(rawUserId);
 
-  const notification = await Notification.create({
-    user: userId,
-    title,
-    body,
-    type,
-    data,
-    sentVia: ["in_app"],
+  let notification = await prisma.notification.create({
+    data: {
+      userId,
+      title,
+      body,
+      type,
+      data,
+      sentVia: ["in_app"],
+    },
   });
 
   // Attempt FCM push if fcmToken exists (non-blocking)
   try {
-    const user = await User.findById(userId).select("fcmToken").lean();
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { fcmToken: true },
+    });
     if (user?.fcmToken) {
       const { getMessaging } = await import("firebase-admin/messaging");
       const { default: admin } = await import("firebase-admin");
@@ -38,14 +42,16 @@ export const sendNotification = asyncHandler(async (req, res) => {
           Object.entries(data).map(([k, v]) => [k, String(v)]),
         ),
       });
-      notification.fcmSent = true;
-      notification.sentVia.push("push");
-      await notification.save();
+      notification = await prisma.notification.update({
+        where: { id: notification.id },
+        data: {
+          fcmSent: true,
+          sentVia: ["in_app", "push"],
+        },
+      });
     }
   } catch (fcmErr) {
     console.error("🔔 FCM push failed (non-blocking):", fcmErr.message);
-    notification.fcmResponse = fcmErr.message;
-    await notification.save();
   }
 
   res.status(201).json({ message: "Notification sent", notification });
@@ -55,16 +61,20 @@ export const sendNotification = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/notifications/my
 // @access  User
 export const getMyNotifications = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Number(req.query.limit) || 20);
 
   const [notifications, unreadCount] = await Promise.all([
-    Notification.find({ user: req.user._id })
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
-    Notification.countDocuments({ user: req.user._id, read: false }),
+    prisma.notification.findMany({
+      where: { userId: currentUserId },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.notification.count({
+      where: { userId: currentUserId, read: false },
+    }),
   ]);
 
   res.json({ notifications, unreadCount, page, limit });
@@ -74,13 +84,14 @@ export const getMyNotifications = asyncHandler(async (req, res) => {
 // @route   PATCH /api/v1/notifications/read
 // @access  User
 export const markRead = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const { ids } = req.body; // Array of notification IDs, or "all"
 
   if (ids === "all") {
-    await Notification.updateMany(
-      { user: req.user._id, read: false },
-      { $set: { read: true } },
-    );
+    await prisma.notification.updateMany({
+      where: { userId: currentUserId, read: false },
+      data: { read: true },
+    });
     return res.json({ message: "All notifications marked as read" });
   }
 
@@ -88,7 +99,7 @@ export const markRead = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Provide ids array or 'all'" });
   }
 
-  // 🛡️ Sanitize each ObjectId in the array
+  // Sanitize each ObjectId in the array
   const sanitizedIds = ids
     .map((id) => {
       try {
@@ -103,10 +114,10 @@ export const markRead = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "No valid notification IDs provided" });
   }
 
-  await Notification.updateMany(
-    { _id: { $in: sanitizedIds }, user: req.user._id },
-    { $set: { read: true } },
-  );
+  await prisma.notification.updateMany({
+    where: { id: { in: sanitizedIds }, userId: currentUserId },
+    data: { read: true },
+  });
 
   res.json({ message: "Notifications marked as read", count: sanitizedIds.length });
 });
@@ -124,13 +135,13 @@ export const sendBulkNotification = asyncHandler(async (req, res) => {
   const allowedRoles = ["user", "admin", "delivery_partner", "restaurant_owner"];
   const roleFilter = (role && allowedRoles.includes(role)) ? role : null;
   const filter = roleFilter ? { role: roleFilter } : {};
-  const totalUsers = await User.countDocuments(filter);
+  const totalUsers = await prisma.user.count({ where: filter });
 
   const FCM_CONCURRENCY = 50;
   const PAGE_SIZE = 500;
-  const notifications = [];
+  const notificationIds = [];
 
-  const sendFCM = async (user, notif) => {
+  const sendFCM = async (user, notifId) => {
     if (!user.fcmToken) return;
     try {
       const { getMessaging } = await import("firebase-admin/messaging");
@@ -143,37 +154,43 @@ export const sendBulkNotification = asyncHandler(async (req, res) => {
           Object.entries(data).map(([k, v]) => [k, String(v)]),
         ),
       });
-      notif.fcmSent = true;
-      notif.sentVia.push("push");
-      await notif.save();
+      await prisma.notification.update({
+        where: { id: notifId },
+        data: {
+          fcmSent: true,
+          sentVia: ["in_app", "push"],
+        },
+      });
     } catch (fcmErr) {
-      notif.fcmResponse = fcmErr.message;
-      await notif.save();
+      // Ignored for individual failure
     }
   };
 
   // Create notifications and batch FCM with concurrency control
   for (let page = 0; page * PAGE_SIZE < totalUsers; page++) {
-    const users = await User.find(filter)
-      .select("_id fcmToken")
-      .skip(page * PAGE_SIZE)
-      .limit(PAGE_SIZE)
-      .lean();
+    const users = await prisma.user.findMany({
+      where: filter,
+      select: { id: true, fcmToken: true },
+      skip: page * PAGE_SIZE,
+      take: PAGE_SIZE,
+    });
 
     const fcmBatch = [];
     for (const user of users) {
-      const notif = await Notification.create({
-        user: user._id,
-        title,
-        body,
-        type,
-        data,
-        sentVia: ["in_app"],
+      const notif = await prisma.notification.create({
+        data: {
+          userId: user.id,
+          title,
+          body,
+          type,
+          data,
+          sentVia: ["in_app"],
+        },
       });
-      notifications.push(notif._id);
+      notificationIds.push(notif.id);
 
       if (user.fcmToken) {
-        fcmBatch.push(sendFCM(user, notif));
+        fcmBatch.push(sendFCM(user, notif.id));
       }
 
       if (fcmBatch.length >= FCM_CONCURRENCY) {
@@ -186,24 +203,29 @@ export const sendBulkNotification = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     message: "Bulk notifications sent",
-    count: notifications.length,
+    count: notificationIds.length,
   });
 });
 
 // @desc    Helper: create notification internally (used by other controllers)
 export const createNotification = async (userId, title, body, type, data = {}) => {
   try {
-    const notification = await Notification.create({
-      user: userId,
-      title,
-      body,
-      type,
-      data,
-      sentVia: ["in_app"],
+    let notification = await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        body,
+        type,
+        data,
+        sentVia: ["in_app"],
+      },
     });
 
     // Attempt FCM non-blocking
-    const user = await User.findById(userId).select("fcmToken").lean();
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { fcmToken: true },
+    });
     if (user?.fcmToken) {
       try {
         const { getMessaging } = await import("firebase-admin/messaging");
@@ -216,12 +238,15 @@ export const createNotification = async (userId, title, body, type, data = {}) =
             Object.entries(data).map(([k, v]) => [k, String(v)]),
           ),
         });
-        notification.fcmSent = true;
-        notification.sentVia.push("push");
-        await notification.save();
+        notification = await prisma.notification.update({
+          where: { id: notification.id },
+          data: {
+            fcmSent: true,
+            sentVia: ["in_app", "push"],
+          },
+        });
       } catch (fcmErr) {
-        notification.fcmResponse = fcmErr.message;
-        await notification.save();
+        // FCM error non-blocking
       }
     }
 

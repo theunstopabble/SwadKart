@@ -1,15 +1,22 @@
 import asyncHandler from "express-async-handler";
-import mongoose from "mongoose";
-import Order from "../models/orderModel.js";
-import User from "../models/userModel.js";
+import prisma from "../config/prisma.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 import { calculateSurgeMultiplier } from "./surgePricingController.js";
 
 export const calculateDeliveryFee = asyncHandler(async (req, res) => {
+  const currentUserId = req.user?.id || req.user?._id;
   let { distanceKm, isSurgeActive, orderSubtotal, baseFee = 40, hasSwadPass } = req.body;
 
-  if (hasSwadPass === undefined && req.user) {
-    const user = await User.findById(req.user._id).select("hasSwadPass swadPassExpiry").lean();
-    hasSwadPass = !!(user?.hasSwadPass && user?.swadPassExpiry && new Date(user.swadPassExpiry) > new Date());
+  if (hasSwadPass === undefined && currentUserId) {
+    const user = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { hasSwadPass: true, swadPassExpiry: true },
+    });
+    hasSwadPass = !!(
+      user?.hasSwadPass &&
+      user?.swadPassExpiry &&
+      new Date(user.swadPassExpiry) > new Date()
+    );
   }
 
   if (distanceKm === undefined || distanceKm < 0) {
@@ -33,12 +40,13 @@ export const calculateDeliveryFee = asyncHandler(async (req, res) => {
     deliveryFee = Math.min(baseWithDistance * surgeMultiplier, maxDeliveryFee);
   }
 
-  const surgeAmount = hasSwadPass || orderSubtotal >= freeDeliveryThreshold ? 0 : deliveryFee * (surgeMultiplier - 1);
+  const surgeAmount =
+    hasSwadPass || orderSubtotal >= freeDeliveryThreshold ? 0 : deliveryFee * (surgeMultiplier - 1);
 
   res.json({
     distanceKm: Number(distanceKm),
     baseFee,
-    distanceSurcharge: Number((Math.min(distanceKm * 8, 50)).toFixed(2)),
+    distanceSurcharge: Number(Math.min(distanceKm * 8, 50).toFixed(2)),
     surgeMultiplier,
     surgeAmount: Number(surgeAmount.toFixed(2)),
     totalDeliveryFee: Number(deliveryFee.toFixed(2)),
@@ -68,8 +76,16 @@ export const calculateDeliveryRoute = asyncHandler(async (req, res) => {
   const dLat = Number(dropLat);
   const dLng = Number(dropLng);
 
-  if (!Number.isFinite(pLat) || Math.abs(pLat) > 90 || !Number.isFinite(pLng) || Math.abs(pLng) > 180 ||
-      !Number.isFinite(dLat) || Math.abs(dLat) > 90 || !Number.isFinite(dLng) || Math.abs(dLng) > 180) {
+  if (
+    !Number.isFinite(pLat) ||
+    Math.abs(pLat) > 90 ||
+    !Number.isFinite(pLng) ||
+    Math.abs(pLng) > 180 ||
+    !Number.isFinite(dLat) ||
+    Math.abs(dLat) > 90 ||
+    !Number.isFinite(dLng) ||
+    Math.abs(dLng) > 180
+  ) {
     res.status(400);
     throw new Error("Valid numeric coordinates required (lat: -90 to 90, lng: -180 to 180)");
   }
@@ -80,7 +96,10 @@ export const calculateDeliveryRoute = asyncHandler(async (req, res) => {
   const dLngR = toRadians(dLng - pLng);
   const a =
     Math.sin(dLatR / 2) * Math.sin(dLatR / 2) +
-    Math.cos(toRadians(pLat)) * Math.cos(toRadians(dLat)) * Math.sin(dLngR / 2) * Math.sin(dLngR / 2);
+    Math.cos(toRadians(pLat)) *
+      Math.cos(toRadians(dLat)) *
+      Math.sin(dLngR / 2) *
+      Math.sin(dLngR / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distanceKm = Number((R * c).toFixed(2));
 
@@ -118,58 +137,50 @@ export const calculateDeliveryRoute = asyncHandler(async (req, res) => {
 });
 
 export const getDeliveryEarningsProjection = asyncHandler(async (req, res) => {
+  const currentUserId = req.user?.id || req.user?._id;
   let driverId = req.query.driverId;
-  if (driverId && !mongoose.Types.ObjectId.isValid(driverId)) {
-    return res.status(400).json({ message: "Invalid driverId" });
+
+  if (driverId) {
+    try {
+      driverId = sanitizeObjectId(driverId);
+    } catch {
+      return res.status(400).json({ message: "Invalid driverId" });
+    }
   }
-  driverId = driverId && mongoose.Types.ObjectId.isValid(driverId) ? driverId : null;
 
-  // 🛡️ Delivery partners can only view their own earnings
-  if (req.user.role === "delivery_partner") {
-    driverId = req.user._id.toString();
+  // Delivery partners can only view their own earnings
+  if (req.user?.role === "delivery_partner") {
+    driverId = currentUserId.toString();
   }
 
-  const matchFilter = driverId ? { deliveryPartner: driverId } : { deliveryPartner: { $exists: true } };
-  const orders = await Order.find({
-    ...matchFilter,
-    orderStatus: { $in: ["Delivered", "Out for Delivery"] },
-  })
-    .select("deliveryFee distanceKm createdAt deliveryPartner")
-    .sort({ createdAt: -1 })
-    .limit(100)
-    .lean();
+  const matchFilter = driverId
+    ? { deliveryPartnerId: driverId }
+    : { deliveryPartnerId: { not: null } };
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const recentOrders = orders.filter((o) => new Date(o.createdAt) >= thirtyDaysAgo);
-
-  const avgDeliveryFee = recentOrders.length
-    ? recentOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0) / recentOrders.length
-    : 0;
-  const avgDistance = recentOrders.length
-    ? recentOrders.reduce((s, o) => s + (o.distanceKm || 0), 0) / recentOrders.length
-    : 0;
-  const ordersPerDay = recentOrders.length / 30;
-  const monthlyProjection = Number((ordersPerDay * 30 * avgDeliveryFee).toFixed(2));
-  const weeklyProjection = Number((ordersPerDay * 7 * avgDeliveryFee).toFixed(2));
-
-  const earningsByDay = {};
-  recentOrders.forEach((o) => {
-    const day = new Date(o.createdAt).toISOString().split("T")[0];
-    if (!earningsByDay[day]) earningsByDay[day] = { orders: 0, earnings: 0, distance: 0 };
-    earningsByDay[day].orders += 1;
-    earningsByDay[day].earnings += o.deliveryFee || 0;
-    earningsByDay[day].distance += o.distanceKm || 0;
+  const orders = await prisma.order.findMany({
+    where: {
+      ...matchFilter,
+      orderStatus: { in: ["Delivered", "Out for Delivery"] },
+    },
+    select: {
+      deliveryFee: true,
+      shippingPrice: true,
+      createdAt: true,
+      deliveryPartnerId: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
   });
 
+  const totalEarnings = orders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+  const avgPerOrder = orders.length > 0 ? totalEarnings / orders.length : 0;
+
   res.json({
-    totalRecentOrders: recentOrders.length,
-    avgDeliveryFee: Number(avgDeliveryFee.toFixed(2)),
-    avgDistanceKm: Number(avgDistance.toFixed(2)),
-    ordersPerDay: Number(ordersPerDay.toFixed(2)),
-    weeklyProjection,
-    monthlyProjection,
-    earningsByDay: Object.entries(earningsByDay)
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([date, data]) => ({ date, ...data })),
+    driverId: driverId || "all",
+    totalOrders: orders.length,
+    totalEarnings: Number(totalEarnings.toFixed(2)),
+    avgEarningsPerOrder: Number(avgPerOrder.toFixed(2)),
+    projectedWeekly: Number((avgPerOrder * 35).toFixed(2)),
+    projectedMonthly: Number((avgPerOrder * 150).toFixed(2)),
   });
 });

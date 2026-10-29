@@ -1,11 +1,12 @@
 import asyncHandler from "express-async-handler";
-import Subscription from "../models/subscriptionModel.js";
+import prisma from "../config/prisma.js";
 import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // @desc    Create a new meal subscription
 // @route   POST /api/v1/subscriptions
 // @access  Private
 export const createSubscription = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const {
     planType,
     planName,
@@ -35,21 +36,23 @@ export const createSubscription = asyncHandler(async (req, res) => {
     }
   }
 
-  const subscription = await Subscription.create({
-    user: req.user._id,
-    planType,
-    planName,
-    mealsPerDay: mealsPerDay || 2,
-    schedule: schedule || { days: ["Mon", "Tue", "Wed", "Thu", "Fri"], mealTimes: ["12:30"] },
-    preferences: preferences || { isVeg: true, spiceLevel: "medium", allergies: [], notes: "" },
-    items: items || [],
-    pricing,
-    restaurant: restaurant || null,
-    status: "active",
-    startDate: start,
-    endDate: endDate || null,
-    nextDeliveryDate: nextDelivery,
-    autoRenew: autoRenew !== false,
+  const subscription = await prisma.subscription.create({
+    data: {
+      userId: currentUserId,
+      planType,
+      planName,
+      mealsPerDay: mealsPerDay || 2,
+      schedule: schedule || { days: ["Mon", "Tue", "Wed", "Thu", "Fri"], mealTimes: ["12:30"] },
+      preferences: preferences || { isVeg: true, spiceLevel: "medium", allergies: [], notes: "" },
+      items: items || [],
+      pricing,
+      restaurantId: restaurant || null,
+      status: "active",
+      startDate: start,
+      endDate: endDate ? new Date(endDate) : null,
+      nextDeliveryDate: nextDelivery,
+      autoRenew: autoRenew !== false,
+    },
   });
 
   res.status(201).json(subscription);
@@ -59,10 +62,16 @@ export const createSubscription = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/subscriptions/my
 // @access  Private
 export const getMySubscriptions = asyncHandler(async (req, res) => {
-  const subscriptions = await Subscription.find({ user: req.user._id })
-    .sort({ createdAt: -1 })
-    .populate("restaurant", "name image")
-    .populate("items.product", "name image");
+  const currentUserId = req.user.id || req.user._id;
+  const subscriptions = await prisma.subscription.findMany({
+    where: { userId: currentUserId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      restaurant: {
+        select: { id: true, name: true, image: true },
+      },
+    },
+  });
 
   res.json(subscriptions);
 });
@@ -71,18 +80,23 @@ export const getMySubscriptions = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/subscriptions/:id
 // @access  Private (Owner or Admin)
 export const getSubscriptionById = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const subId = sanitizeObjectId(req.params.id);
-  const subscription = await Subscription.findById(subId)
-    .populate("restaurant", "name image address")
-    .populate("items.product", "name image price")
-    .populate("deliveries.rider", "name phone");
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subId },
+    include: {
+      restaurant: {
+        select: { id: true, name: true, image: true, address: true },
+      },
+    },
+  });
 
   if (!subscription) {
     res.status(404);
     throw new Error("Subscription not found");
   }
 
-  const isOwner = subscription.user.toString() === req.user._id.toString();
+  const isOwner = subscription.userId.toString() === currentUserId.toString();
   const isAdmin = req.user.role === "admin";
   if (!isOwner && !isAdmin) {
     res.status(401);
@@ -96,11 +110,14 @@ export const getSubscriptionById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/subscriptions/:id/pause
 // @access  Private (Owner)
 export const pauseSubscription = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const subId = sanitizeObjectId(req.params.id);
-  const subscription = await Subscription.findOne({
-    _id: subId,
-    user: req.user._id,
-    status: "active",
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      id: subId,
+      userId: currentUserId,
+      status: "active",
+    },
   });
 
   if (!subscription) {
@@ -108,21 +125,26 @@ export const pauseSubscription = asyncHandler(async (req, res) => {
     throw new Error("Active subscription not found");
   }
 
-  subscription.status = "paused";
-  await subscription.save();
+  const updatedSubscription = await prisma.subscription.update({
+    where: { id: subId },
+    data: { status: "paused" },
+  });
 
-  res.json({ message: "Subscription paused", subscription });
+  res.json({ message: "Subscription paused", subscription: updatedSubscription });
 });
 
 // @desc    Resume subscription
 // @route   PUT /api/v1/subscriptions/:id/resume
 // @access  Private (Owner)
 export const resumeSubscription = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const subId = sanitizeObjectId(req.params.id);
-  const subscription = await Subscription.findOne({
-    _id: subId,
-    user: req.user._id,
-    status: "paused",
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      id: subId,
+      userId: currentUserId,
+      status: "paused",
+    },
   });
 
   if (!subscription) {
@@ -130,47 +152,59 @@ export const resumeSubscription = asyncHandler(async (req, res) => {
     throw new Error("Paused subscription not found");
   }
 
-  subscription.status = "active";
   // Recalculate next delivery
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   let nextDelivery = new Date();
-  while (!subscription.schedule.days.includes(dayNames[nextDelivery.getDay()])) {
+  const days = subscription.schedule?.days || ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  while (!days.includes(dayNames[nextDelivery.getDay()])) {
     nextDelivery.setDate(nextDelivery.getDate() + 1);
   }
-  subscription.nextDeliveryDate = nextDelivery;
 
-  await subscription.save();
+  const updatedSubscription = await prisma.subscription.update({
+    where: { id: subId },
+    data: {
+      status: "active",
+      nextDeliveryDate: nextDelivery,
+    },
+  });
 
-  res.json({ message: "Subscription resumed", subscription });
+  res.json({ message: "Subscription resumed", subscription: updatedSubscription });
 });
 
 // @desc    Cancel subscription
 // @route   PUT /api/v1/subscriptions/:id/cancel
 // @access  Private (Owner or Admin)
 export const cancelSubscription = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const subId = sanitizeObjectId(req.params.id);
   const { reason } = req.body;
 
-  const subscription = await Subscription.findById(subId);
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subId },
+  });
   if (!subscription) {
     res.status(404);
     throw new Error("Subscription not found");
   }
 
-  const isOwner = subscription.user.toString() === req.user._id.toString();
+  const isOwner = subscription.userId.toString() === currentUserId.toString();
   const isAdmin = req.user.role === "admin";
   if (!isOwner && !isAdmin) {
     res.status(401);
     throw new Error("Not authorized");
   }
 
-  subscription.status = "cancelled";
-  subscription.cancellationReason = reason || "User cancelled";
-  subscription.cancelledAt = new Date();
-  subscription.autoRenew = false;
-  await subscription.save();
+  const updatedSubscription = await prisma.subscription.update({
+    where: { id: subId },
+    data: {
+      status: "cancelled",
+      cancellationReason: reason || "User cancelled",
+      cancelledAt: new Date(),
+      autoRenew: false,
+    },
+  });
 
-  res.json({ message: "Subscription cancelled", subscription });
+  res.json({ message: "Subscription cancelled", subscription: updatedSubscription });
 });
 
 // @desc    Admin: List all subscriptions
@@ -185,13 +219,17 @@ export const getAllSubscriptions = asyncHandler(async (req, res) => {
 
   const skip = (parseInt(page) - 1) * limit;
   const [subscriptions, total] = await Promise.all([
-    Subscription.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .populate("user", "name email")
-      .populate("restaurant", "name"),
-    Subscription.countDocuments(filter),
+    prisma.subscription.findMany({
+      where: filter,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        restaurant: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.subscription.count({ where: filter }),
   ]);
 
   res.json({ subscriptions, total, page: parseInt(page), pages: Math.ceil(total / limit) });

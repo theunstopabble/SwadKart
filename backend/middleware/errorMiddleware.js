@@ -8,11 +8,21 @@ const errorHandler = (err, req, res, next) => {
   let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
   let message = err.message;
 
-  // 🕵️‍♂️ Catch Duplicate Key Error (MongoDB Code 11000)
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
+  // Catch Prisma Duplicate Key Error (P2002) or MongoDB 11000
+  if (err.code === "P2002") {
+    const target = err.meta?.target ? Array.isArray(err.meta.target) ? err.meta.target.join(", ") : err.meta.target : "field";
+    message = `Duplicate field value entered: ${target}. Please use another value!`;
+    statusCode = 400;
+  } else if (err.code === 11000) {
+    const field = err.keyValue ? Object.keys(err.keyValue)[0] : "field";
     message = `Duplicate field value entered: ${field}. Please use another value!`;
     statusCode = 400;
+  }
+
+  // Catch Prisma Record Not Found (P2025)
+  if (err.code === "P2025") {
+    message = `Resource not found`;
+    statusCode = 404;
   }
 
   // Mongoose bad ObjectId
@@ -21,9 +31,11 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 404;
   }
 
-  // Mongoose Validation Error
-  if (err.name === "ValidationError") {
-    message = Object.values(err.errors).map((val) => val.message).join(". ");
+  // Mongoose / Prisma Validation Error
+  if (err.name === "ValidationError" || err.name === "PrismaClientValidationError") {
+    if (err.errors) {
+      message = Object.values(err.errors).map((val) => val.message).join(". ");
+    }
     statusCode = 400;
   }
 

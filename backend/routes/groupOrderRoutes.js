@@ -1,6 +1,6 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
-import GroupOrder from "../models/groupOrderModel.js";
+import prisma from "../config/prisma.js";
 import {
   createGroupOrder,
   joinGroupOrder,
@@ -15,9 +15,17 @@ router.post("/", protect, createGroupOrder);
 router.post("/join", protect, joinGroupOrder);
 router.get("/my", protect, async (req, res, next) => {
   try {
-    const orders = await GroupOrder.find({
-      $or: [{ host: req.user._id }, { "members.user": req.user._id }],
-    }).sort({ createdAt: -1 });
+    const currentUserId = req.user.id || req.user._id;
+    const allRecent = await prisma.groupOrder.findMany({
+      take: 100,
+      orderBy: { createdAt: "desc" },
+    });
+    const orders = allRecent.filter(
+      (o) =>
+        o.hostId === currentUserId ||
+        (Array.isArray(o.members) &&
+          o.members.some((m) => m.user?.toString() === currentUserId.toString()))
+    );
     res.json(orders);
   } catch (err) {
     next(err);

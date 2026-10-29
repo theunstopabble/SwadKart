@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import mongoose from "mongoose";
+import prisma from "./config/prisma.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import compression from "compression";
@@ -63,7 +63,7 @@ function validateEnv() {
   const isProduction = process.env.NODE_ENV === "production";
   const requiredVars = [
     "JWT_SECRET",
-    "MONGO_URI",
+    "DATABASE_URL",
     ...(isProduction ? ["RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET", "COOKIE_SECRET"] : []),
   ];
 
@@ -180,10 +180,6 @@ io.use((socket, next) => {
 });
 
 // 🛰️ Socket.io Logic
-// 🛡️ SECURITY FIX (SEC-5): Verify order ownership before joining room
-import Order from "./models/orderModel.js";
-import User from "./models/userModel.js";
-
 io.on("connection", (socket) => {
   console.log(
     `⚡ Secure Signal Established: ${socket.id} (User: ${socket.user.userId})`,
@@ -194,15 +190,19 @@ io.on("connection", (socket) => {
 
   socket.on("joinOrder", async (id) => {
     try {
-      // 🛡️ SEC-5: Verify the user is allowed to join this order room
-      const order = await Order.findById(id).select("user deliveryPartner orderItems").lean();
+      const order = await prisma.order.findUnique({
+        where: { id },
+        select: { userId: true, deliveryPartnerId: true },
+      });
       if (!order) return;
 
       const userId = socket.user.userId;
-      const isOrderOwner = order.user.toString() === userId;
-      const isDriver = order.deliveryPartner && order.deliveryPartner.toString() === userId;
-      // Allow admin and restaurant owner roles to join any room
-      const userDoc = await User.findById(userId).select("role").lean();
+      const isOrderOwner = order.userId === userId;
+      const isDriver = order.deliveryPartnerId === userId;
+      const userDoc = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
       const isPrivileged = userDoc && (userDoc.role === "admin" || userDoc.role === "restaurant_owner");
 
       if (isOrderOwner || isDriver || isPrivileged) {
@@ -224,9 +224,12 @@ io.on("connection", (socket) => {
   // 📍 FEAT-25: Driver Real-time Tracking
   socket.on("updateLocation", async ({ orderId, lat, lng, heading, speed }) => {
     try {
-      const order = await Order.findById(orderId).select("deliveryPartner user").lean();
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { deliveryPartnerId: true, userId: true },
+      });
       if (!order) return;
-      if (!order.deliveryPartner || order.deliveryPartner.toString() !== socket.user.userId) {
+      if (order.deliveryPartnerId !== socket.user.userId) {
         console.warn(`🚫 Unauthorized location update attempt for order ${orderId}`);
         return;
       }
@@ -239,13 +242,12 @@ io.on("connection", (socket) => {
         updatedAt: new Date(),
       };
 
-      // Persist to DB with retry (3 attempts, 200ms apart)
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          await Order.updateOne(
-            { _id: orderId },
-            { $set: { driverLocation: locationData } },
-          );
+          await prisma.order.update({
+            where: { id: orderId },
+            data: { driverLocation: locationData },
+          });
           break;
         } catch (e) {
           if (attempt === 3) {
@@ -256,10 +258,8 @@ io.on("connection", (socket) => {
         }
       }
 
-      // Broadcast to order room (customer + any admins watching)
       io.to(orderId).emit("driverLocationUpdate", locationData);
-      // Also emit to user's personal room in case they're not in order room
-      io.to(order.user.toString()).emit("driverLocationUpdate", { orderId, ...locationData });
+      io.to(order.userId).emit("driverLocationUpdate", { orderId, ...locationData });
     } catch (err) {
       console.error("updateLocation error:", err.message);
     }
@@ -392,7 +392,7 @@ app.use("/api", apiLimiter);
 // 🛡️ SECURITY FIX (BUG-5): Strict rate limiter for OTP/auth endpoints
 const authLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 10,
+  max: process.env.NODE_ENV === "development" ? 200 : 10,
   message: "Too many attempts. Please try again after 10 minutes.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -437,17 +437,21 @@ app.get("/ping", (req, res) => {
 // 🏥 Health Check Endpoint (for uptime monitoring & load balancers)
 const healthLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: process.env.NODE_ENV === "development" ? 200 : 10,
   message: "Too many health checks",
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 app.get("/health", healthLimiter, async (req, res) => {
-  const mongoReady = mongoose.connection.readyState === 1;
+  let dbReady = true;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch {
+    dbReady = false;
+  }
   let redisReady = true;
   try {
-    // cacheClient may be a Proxy to redisClient or inMemory fallback
     if (typeof cacheClient.ping === "function") {
       await cacheClient.ping();
     }
@@ -455,11 +459,11 @@ app.get("/health", healthLimiter, async (req, res) => {
     redisReady = false;
   }
 
-  const status = mongoReady ? 200 : 503;
+  const status = dbReady ? 200 : 503;
   res.status(status).json({
     status: status === 200 ? "healthy" : "degraded",
     services: {
-      mongo: mongoReady ? "connected" : "disconnected",
+      database: dbReady ? "connected" : "disconnected",
       redis: redisReady ? "connected" : "disconnected",
     },
     timestamp: new Date().toISOString(),
@@ -553,8 +557,8 @@ const gracefulShutdown = (signal) => {
 
   server.close(() => {
     console.log("✅ HTTP server closed");
-    mongoose.connection.close().then(() => {
-      console.log("🔌 MongoDB connection closed.");
+    prisma.$disconnect().then(() => {
+      console.log("🔌 Prisma connection closed.");
       process.exit(0);
     });
   });

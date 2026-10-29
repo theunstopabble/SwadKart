@@ -45,7 +45,7 @@ const calculateBuffer = () => {
 
 /**
  * Main ETA calculation.
- * @param {Object} order - Mongoose order document (needs orderItems, shippingAddress)
+ * @param {Object} order - Order record (needs orderItems, shippingAddress)
  * @returns {Date} estimatedDeliveryAt
  * @returns {Number} estimatedMinutes
  */

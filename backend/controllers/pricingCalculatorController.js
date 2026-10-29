@@ -1,39 +1,49 @@
 import asyncHandler from "express-async-handler";
-import mongoose from "mongoose";
-import Order from "../models/orderModel.js";
-import Restaurant from "../models/restaurantModel.js";
-import Product from "../models/productModel.js";
+import prisma from "../config/prisma.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 export const calculateCommission = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const { orderId } = req.params;
+  const cleanOrderId = sanitizeObjectId(orderId);
 
-  const order = await Order.findById(orderId)
-    .populate("orderItems.product", "name price")
-    .populate("user", "name");
+  const order = await prisma.order.findUnique({
+    where: { id: cleanOrderId },
+    include: {
+      user: { select: { id: true, name: true } },
+    },
+  });
 
   if (!order) {
     res.status(404);
     throw new Error("Order not found");
   }
 
-  // 🛡️ Restaurant owners can only see their own orders
+  // Restaurant owners can only see their own orders
   if (req.user.role === "restaurant_owner") {
-    const owned = await Restaurant.find({ owner: req.user._id }).select("_id").lean();
-    const ownedIds = owned.map(r => r._id.toString());
-    const orderRestaurantIds = order.orderItems.map(i => i.restaurant?.toString());
-    if (!orderRestaurantIds.some(id => ownedIds.includes(id))) {
+    const owned = await prisma.restaurant.findMany({
+      where: { ownerId: currentUserId },
+      select: { id: true },
+    });
+    const ownedIds = owned.map((r) => r.id.toString());
+    const orderItems = Array.isArray(order.orderItems) ? order.orderItems : [];
+    const orderRestaurantIds = orderItems.map((i) => (i.restaurant || i.restaurantId)?.toString());
+    if (
+      !orderRestaurantIds.some((id) => ownedIds.includes(id)) &&
+      (!order.restaurantId || !ownedIds.includes(order.restaurantId.toString()))
+    ) {
       res.status(403);
       throw new Error("Not authorized to view this order's commission");
     }
   }
 
   const platformFeeRate = 0.15; // 15% standard
-  const netItemsValue = order.itemsPrice - order.couponDiscount;
+  const netItemsValue = (order.itemsPrice || 0) - (order.couponDiscount || 0);
   const commission = Number((netItemsValue * platformFeeRate).toFixed(2));
   const restaurantPayout = Number((netItemsValue - commission).toFixed(2));
 
   res.json({
-    orderId,
+    orderId: cleanOrderId,
     orderTotal: order.totalPrice,
     itemsPrice: order.itemsPrice,
     couponDiscount: order.couponDiscount || 0,
@@ -49,59 +59,87 @@ export const calculateCommission = asyncHandler(async (req, res) => {
 });
 
 export const getCommissionBreakdown = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   let { restaurantId, startDate, endDate } = req.query;
 
   if (!restaurantId && req.user.role === "restaurant_owner") {
-    const owned = await Restaurant.findOne({ owner: req.user._id }).select("_id").lean();
-    if (owned) restaurantId = owned._id.toString();
+    const owned = await prisma.restaurant.findFirst({
+      where: { ownerId: currentUserId },
+      select: { id: true },
+    });
+    if (owned) restaurantId = owned.id.toString();
   }
 
-  const safeRestaurantId = restaurantId && mongoose.Types.ObjectId.isValid(restaurantId)
-    ? new mongoose.Types.ObjectId(restaurantId) : null;
+  let cleanRestaurantId = null;
+  if (restaurantId) {
+    try {
+      cleanRestaurantId = sanitizeObjectId(restaurantId);
+    } catch {
+      cleanRestaurantId = null;
+    }
+  }
 
   const dateFilter = {};
   if (startDate) {
     const sd = new Date(startDate);
-    if (!isNaN(sd.getTime())) dateFilter.$gte = sd;
+    if (!isNaN(sd.getTime())) dateFilter.gte = sd;
   }
   if (endDate) {
     const ed = new Date(endDate);
-    if (!isNaN(ed.getTime())) dateFilter.$lte = ed;
+    if (!isNaN(ed.getTime())) dateFilter.lte = ed;
   }
 
-  const matchStage = { orderStatus: { $ne: "Cancelled" } };
-  if (safeRestaurantId) matchStage["orderItems.restaurant"] = safeRestaurantId;
+  const matchStage = { orderStatus: { not: "Cancelled" } };
+  if (cleanRestaurantId) matchStage.restaurantId = cleanRestaurantId;
   if (Object.keys(dateFilter).length) matchStage.createdAt = dateFilter;
 
-  const orders = await Order.aggregate([
-    { $match: matchStage },
-    { $unwind: "$orderItems" },
-    {
-      $group: {
-        _id: "$orderItems.restaurant",
-        totalRevenue: { $sum: "$orderItems.price" },
-        totalOrders: { $sum: 1 },
-        totalDiscount: { $sum: "$couponDiscount" },
-        totalDeliveryFee: { $sum: "$deliveryFee" },
-        totalTip: { $sum: "$tipAmount" },
-      },
+  const orders = await prisma.order.findMany({
+    where: matchStage,
+    select: {
+      restaurantId: true,
+      orderItems: true,
+      couponDiscount: true,
+      deliveryFee: true,
+      tipAmount: true,
     },
-  ]);
-
-  const restaurants = await Restaurant.find({}).select("name owner");
-  const restaurantMap = {};
-  restaurants.forEach((r) => {
-    restaurantMap[r._id.toString()] = r.name;
   });
 
-  const breakdown = orders.map((r) => {
+  const restaurantDataMap = {};
+  for (const o of orders) {
+    const restId = o.restaurantId || "unknown";
+    if (!restaurantDataMap[restId]) {
+      restaurantDataMap[restId] = {
+        _id: restId,
+        totalRevenue: 0,
+        totalOrders: 0,
+        totalDiscount: 0,
+        totalDeliveryFee: 0,
+        totalTip: 0,
+      };
+    }
+    const items = Array.isArray(o.orderItems) ? o.orderItems : [];
+    for (const item of items) {
+      restaurantDataMap[restId].totalRevenue += Number(item.price || 0) * Number(item.qty || 1);
+      restaurantDataMap[restId].totalOrders += Number(item.qty || 1);
+    }
+    restaurantDataMap[restId].totalDiscount += (o.couponDiscount || 0);
+    restaurantDataMap[restId].totalDeliveryFee += (o.deliveryFee || 0);
+    restaurantDataMap[restId].totalTip += (o.tipAmount || 0);
+  }
+
+  const restaurants = await prisma.restaurant.findMany({
+    select: { id: true, name: true },
+  });
+  const restaurantMap = Object.fromEntries(restaurants.map((r) => [r.id, r.name]));
+
+  const breakdown = Object.values(restaurantDataMap).map((r) => {
     const net = r.totalRevenue - r.totalDiscount;
     const commission = net * 0.15;
     const payout = net - commission;
 
     return {
       restaurantId: r._id,
-      restaurantName: restaurantMap[r._id.toString()] || "Unknown",
+      restaurantName: restaurantMap[r._id] || "Unknown",
       totalOrders: r.totalOrders,
       grossRevenue: Number(r.totalRevenue.toFixed(2)),
       totalDiscount: Number(r.totalDiscount.toFixed(2)),
@@ -138,7 +176,11 @@ export const calculatePricingTiers = asyncHandler(async (req, res) => {
     { name: "Standard (25% margin)", price: Number((rawCost / 0.75).toFixed(2)), margin: 25 },
     { name: "Premium (35% margin)", price: Number((rawCost / 0.65).toFixed(2)), margin: 35 },
     { name: "Competitive (15% margin)", price: Number((rawCost / 0.85).toFixed(2)), margin: 15 },
-    { name: `With Surge (${surgeMultiplier}x)`, price: Number((rawBase * 1.5).toFixed(2)), margin: surgeMargin },
+    {
+      name: `With Surge (${surgeMultiplier}x)`,
+      price: Number((rawBase * 1.5).toFixed(2)),
+      margin: Number(surgeMargin),
+    },
   ];
 
   res.json({
@@ -160,10 +202,11 @@ export const getMarketPricing = asyncHandler(async (req, res) => {
 
   const filter = {};
   if (restaurantId) {
-    if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
+    try {
+      filter.restaurantId = sanitizeObjectId(restaurantId);
+    } catch {
       return res.status(400).json({ message: "Invalid restaurantId" });
     }
-    filter.restaurant = restaurantId;
   }
   if (category) {
     if (typeof category !== "string") {
@@ -172,11 +215,17 @@ export const getMarketPricing = asyncHandler(async (req, res) => {
     filter.category = category;
   }
 
-  const products = await Product
-    .find(filter)
-    .select("name price category restaurant")
-    .populate("restaurant", "name")
-    .lean();
+  const products = await prisma.product.findMany({
+    where: filter,
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      category: true,
+      restaurantId: true,
+      restaurant: { select: { name: true } },
+    },
+  });
 
   if (!products.length) {
     return res.json({ categoryAverages: [], priceDistribution: {} });

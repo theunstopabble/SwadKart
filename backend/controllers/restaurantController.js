@@ -1,19 +1,16 @@
-import Restaurant from "../models/restaurantModel.js";
-import { sanitizeString, sanitizeObjectId } from "../utils/sanitize.js";
+import prisma from "../config/prisma.js";
+import { sanitizeString } from "../utils/sanitize.js";
 
 // ==========================================
 // 🛠️ HELPER: Check if Store is Open
 // ==========================================
 const checkIsOpen = (openTime, closeTime) => {
-  if (!openTime || !closeTime) return true; // Default open if no time set
+  if (!openTime || !closeTime) return true;
 
   const now = new Date();
-
-  // 🔥 FIX: Server UTC time ko IST mein convert karo (UTC + 5:30)
-  // now.getHours() → server ka UTC time deta tha → restaurants always closed dikhte the
-  const IST_OFFSET_MINUTES = 5 * 60 + 30; // 330 minutes
+  const IST_OFFSET_MINUTES = 5 * 60 + 30; // UTC + 5:30
   const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
-  const currentMinutes = (utcMinutes + IST_OFFSET_MINUTES) % (24 * 60); // ✅ IST time
+  const currentMinutes = (utcMinutes + IST_OFFSET_MINUTES) % (24 * 60);
 
   const [openH, openM] = openTime.split(":").map(Number);
   const startMinutes = openH * 60 + openM;
@@ -21,55 +18,58 @@ const checkIsOpen = (openTime, closeTime) => {
   const [closeH, closeM] = closeTime.split(":").map(Number);
   const endMinutes = closeH * 60 + closeM;
 
-  // Case 1: Same day (e.g., 10:00 to 22:00)
   if (endMinutes > startMinutes) {
     return currentMinutes >= startMinutes && currentMinutes < endMinutes;
-  }
-  // Case 2: Overnight (e.g., 22:00 to 02:00)
-  else {
+  } else {
     return currentMinutes >= startMinutes || currentMinutes < endMinutes;
   }
 };
 
-
 // ==========================================
 // 🏠 1. GET ALL RESTAURANTS (Public)
 // ==========================================
-// @desc    Get all active/verified restaurants for users
-// @route   GET /api/v1/restaurants
 const getRestaurants = async (req, res) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
     const skip = (page - 1) * limit;
-    const total = await Restaurant.countDocuments({ isVerified: true });
-    const restaurants = await Restaurant.find({ isVerified: true })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-    const updatedRestaurants = restaurants.map((rest) => {
-      const isOpen = checkIsOpen(rest.openingTime, rest.closingTime);
-      return { ...rest, isOpenNow: isOpen };
+
+    const total = await prisma.restaurant.count({ where: { isVerified: true } });
+    const restaurants = await prisma.restaurant.findMany({
+      where: { isVerified: true },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
     });
-    res.json({ restaurants: updatedRestaurants, total, page, limit, pages: Math.ceil(total / limit) });
+
+    const updatedRestaurants = restaurants.map((rest) => ({
+      ...rest,
+      isOpenNow: checkIsOpen(rest.openingTime, rest.closingTime),
+    }));
+
+    res.json({
+      restaurants: updatedRestaurants,
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 // ==========================================
-// 👑 2. GET ALL SHOPS FOR ADMIN (The Missing Link)
+// 👑 2. GET ALL SHOPS FOR ADMIN
 // ==========================================
-// @desc    Get ALL restaurants (Verified + Pending) for Admin Dashboard
-// @route   GET /api/v1/restaurants/admin/all
 const getAllRestaurantsAdmin = async (req, res) => {
   try {
-    // Hamein saare restaurants chahiye (active, pending, dummy sab)
-    const restaurants = await Restaurant.find({})
-      .populate("owner", "name email")
-      .sort({ createdAt: -1 })
-      .lean();
+    const restaurants = await prisma.restaurant.findMany({
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
     res.json(restaurants);
   } catch (error) {
@@ -80,20 +80,19 @@ const getAllRestaurantsAdmin = async (req, res) => {
 // ==========================================
 // 🏢 3. GET SINGLE RESTAURANT
 // ==========================================
-// @route   GET /api/v1/restaurants/:id
 const getRestaurantById = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(sanitizeObjectId(req.params.id)).populate(
-      "owner",
-      "name email"
-    );
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: req.params.id },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        reviews: true,
+      },
+    });
 
     if (restaurant) {
-      const isOpen = checkIsOpen(
-        restaurant.openingTime,
-        restaurant.closingTime
-      );
-      res.json({ ...restaurant.toObject(), isOpenNow: isOpen });
+      const isOpen = checkIsOpen(restaurant.openingTime, restaurant.closingTime);
+      res.json({ ...restaurant, isOpenNow: isOpen });
     } else {
       res.status(404).json({ message: "Restaurant not found" });
     }
@@ -105,13 +104,13 @@ const getRestaurantById = async (req, res) => {
 // ==========================================
 // ⭐ 4. GET TOP RESTAURANTS
 // ==========================================
-// @route   GET /api/v1/restaurants/top
 const getTopRestaurants = async (req, res) => {
   try {
-    const restaurants = await Restaurant.find({ isVerified: true })
-      .sort({ rating: -1 })
-      .limit(3)
-      .lean();
+    const restaurants = await prisma.restaurant.findMany({
+      where: { isVerified: true },
+      orderBy: { rating: "desc" },
+      take: 3,
+    });
     res.json(restaurants);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -121,30 +120,31 @@ const getTopRestaurants = async (req, res) => {
 // ==========================================
 // ➕ 5. CREATE RESTAURANT (Seller)
 // ==========================================
-// @route   POST /api/v1/restaurants
 const createRestaurant = async (req, res) => {
   try {
+    const userId = req.user.id || req.user._id;
     const rawName = req.body.name;
     const name = sanitizeString(rawName);
     const { address, image, description } = req.body;
 
-    const restaurantExists = await Restaurant.findOne({
-      name: { $regex: `^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+    const restaurantExists = await prisma.restaurant.findFirst({
+      where: { name: { equals: name, mode: "insensitive" } },
     });
     if (restaurantExists) {
       return res.status(400).json({ message: "Restaurant name already taken" });
     }
 
-    const restaurant = new Restaurant({
-      owner: req.user._id,
-      name,
-      address,
-      image,
-      description,
-      isVerified: false, // Always false initially
+    const createdRestaurant = await prisma.restaurant.create({
+      data: {
+        ownerId: userId,
+        name,
+        address: address || "",
+        image: image || "https://placehold.co/600x400/png?text=Restaurant",
+        description: description || "",
+        isVerified: false,
+      },
     });
 
-    const createdRestaurant = await restaurant.save();
     res.status(201).json(createdRestaurant);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -154,10 +154,13 @@ const createRestaurant = async (req, res) => {
 // ==========================================
 // 🛍️ 6. GET OWNER'S RESTAURANT (Dashboard)
 // ==========================================
-// @route   GET /api/v1/restaurants/mine
 const getOwnerRestaurant = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findOne({ owner: req.user._id }).lean();
+    const userId = req.user.id || req.user._id;
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { ownerId: userId },
+    });
+
     if (restaurant) {
       const isOpen = checkIsOpen(restaurant.openingTime, restaurant.closingTime);
       res.json({ ...restaurant, isOpenNow: isOpen });
@@ -172,26 +175,28 @@ const getOwnerRestaurant = async (req, res) => {
 // ==========================================
 // ⚙️ 7. UPDATE SETTINGS (Timings/Profile)
 // ==========================================
-// @route   PUT /api/v1/restaurants/settings
 const updateRestaurantSettings = async (req, res) => {
-  const { openingTime, closingTime, name, description, address, image } =
-    req.body;
+  const { openingTime, closingTime, name, description, address, image } = req.body;
+  const userId = req.user.id || req.user._id;
 
   try {
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { ownerId: userId },
+    });
 
     if (restaurant) {
-      // Update Timings
-      if (openingTime) restaurant.openingTime = openingTime;
-      if (closingTime) restaurant.closingTime = closingTime;
+      const updateData = {};
+      if (openingTime) updateData.openingTime = openingTime;
+      if (closingTime) updateData.closingTime = closingTime;
+      if (name) updateData.name = sanitizeString(name);
+      if (description) updateData.description = sanitizeString(description);
+      if (address) updateData.address = sanitizeString(address);
+      if (image) updateData.image = image;
 
-      // Update Profile Info
-      if (name) restaurant.name = sanitizeString(name);
-      if (description) restaurant.description = sanitizeString(description);
-      if (address) restaurant.address = sanitizeString(address);
-      if (image) restaurant.image = image;
-
-      const updatedRestaurant = await restaurant.save();
+      const updatedRestaurant = await prisma.restaurant.update({
+        where: { id: restaurant.id },
+        data: updateData,
+      });
       res.json(updatedRestaurant);
     } else {
       res.status(404).json({ message: "Restaurant not found" });
@@ -202,35 +207,34 @@ const updateRestaurantSettings = async (req, res) => {
 };
 
 // ==========================================
-// 👮 8. ADMIN VERIFY / AUTHORIZE (With Socket & ID Fix)
+// 👮 8. ADMIN VERIFY / AUTHORIZE
 // ==========================================
-// @route   PUT /api/v1/restaurants/:id/approve
 const verifyRestaurant = async (req, res) => {
   try {
-    const id = sanitizeObjectId(req.params.id);
+    const id = req.params.id;
 
-    // 1. Find by ID or Owner ID (Dono check karo)
-    let restaurant = await Restaurant.findById(id);
+    let restaurant = await prisma.restaurant.findUnique({ where: { id } });
     if (!restaurant) {
-      restaurant = await Restaurant.findOne({ owner: id });
+      restaurant = await prisma.restaurant.findFirst({ where: { ownerId: id } });
     }
 
     if (restaurant) {
-      restaurant.isVerified = !restaurant.isVerified;
-      if (restaurant.isVerified) {
-        restaurant.isActive = true;
-      }
+      const nextVerified = !restaurant.isVerified;
+      const updatedRestaurant = await prisma.restaurant.update({
+        where: { id: restaurant.id },
+        data: {
+          isVerified: nextVerified,
+          isActive: nextVerified ? true : restaurant.isActive,
+        },
+      });
 
-      const updatedRestaurant = await restaurant.save();
-
-      // 🔥 REAL-TIME UPDATE TRIGGER (Socket)
       if (req.io) {
         req.io.emit("shopStatusUpdated", updatedRestaurant);
         req.io.emit("restaurantUpdated", updatedRestaurant);
       }
 
       res.json({
-        message: restaurant.isVerified
+        message: updatedRestaurant.isVerified
           ? "Restaurant Authorized ✅"
           : "Authorization Revoked ❌",
         restaurant: updatedRestaurant,
@@ -247,40 +251,46 @@ const verifyRestaurant = async (req, res) => {
 // ==========================================
 // 💬 9. CREATE REVIEW
 // ==========================================
-// @route   POST /api/v1/restaurants/:id/reviews
 const createRestaurantReview = async (req, res) => {
   const { rating, comment } = req.body;
+  const userId = req.user.id || req.user._id;
 
   try {
-    const restaurant = await Restaurant.findById(req.params.id);
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: req.params.id },
+      include: { reviews: true },
+    });
 
     if (restaurant) {
-      const alreadyReviewed = restaurant.reviews.find(
-        (r) => r.user.toString() === req.user._id.toString()
-      );
-
+      const alreadyReviewed = restaurant.reviews.find((r) => r.userId === userId);
       if (alreadyReviewed) {
-        return res
-          .status(400)
-          .json({ message: "You already reviewed this place" });
+        return res.status(400).json({ message: "You already reviewed this place" });
       }
 
-      const review = {
-        name: req.user.name,
-        rating: Number(rating),
-        comment,
-        user: req.user._id,
-      };
+      await prisma.review.create({
+        data: {
+          name: req.user.name,
+          rating: Number(rating),
+          comment,
+          userId,
+          restaurantId: restaurant.id,
+        },
+      });
 
-      restaurant.reviews.push(review);
+      const allReviews = await prisma.review.findMany({
+        where: { restaurantId: restaurant.id },
+      });
+      const avgRating =
+        allReviews.reduce((acc, item) => item.rating + acc, 0) / allReviews.length;
 
-      // Recalculate Rating
-      restaurant.numReviews = restaurant.reviews.length;
-      restaurant.rating =
-        restaurant.reviews.reduce((acc, item) => item.rating + acc, 0) /
-        restaurant.reviews.length;
+      await prisma.restaurant.update({
+        where: { id: restaurant.id },
+        data: {
+          numReviews: allReviews.length,
+          rating: avgRating,
+        },
+      });
 
-      await restaurant.save();
       res.status(201).json({ message: "Review added" });
     } else {
       res.status(404).json({ message: "Restaurant not found" });
@@ -290,17 +300,13 @@ const createRestaurantReview = async (req, res) => {
   }
 };
 
-// Placeholder if needed for routes compatibility
 const updateRestaurantProfile = updateRestaurantSettings;
 
-// ==========================================
-// 📤 EXPORTS
-// ==========================================
 export {
   getRestaurants,
   getRestaurantById,
   getTopRestaurants,
-  getAllRestaurantsAdmin, // 👈 Ye naya wala zaroori hai Dashboard ke liye
+  getAllRestaurantsAdmin,
   createRestaurant,
   getOwnerRestaurant,
   updateRestaurantSettings,

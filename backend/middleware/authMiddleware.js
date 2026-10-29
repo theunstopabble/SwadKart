@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import asyncHandler from "express-async-handler";
-import User from "../models/userModel.js";
+import prisma from "../config/prisma.js";
 
 // ============================================================
 // 🔐 PROTECT MIDDLEWARE (Header + Cookie Support)
@@ -9,34 +9,37 @@ export const protect = asyncHandler(async (req, res, next) => {
   let token;
 
   // 1️⃣ Check Authorization Header (Bearer Token)
-  // (Ye method sabse pehle check karega)
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
   ) {
     try {
-      token = req.headers.authorization.split(" ")[1]; // 'Bearer <token>' me se token nikalo
+      token = req.headers.authorization.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Token me humne 'id' save kiya tha, par safety ke liye 'userId' bhi check kar rahe hain
-      req.user = await User.findById(decoded.userId || decoded.id).select(
-        "-password"
-      );
+      const userId = decoded.userId || decoded.id;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
 
-      if (!req.user) {
+      if (!user) {
         res.status(401);
         throw new Error("User not found with this token");
       }
 
       if (
         decoded.tokenVersion !== undefined &&
-        decoded.tokenVersion !== req.user.tokenVersion
+        decoded.tokenVersion !== user.tokenVersion
       ) {
         res.status(401);
         throw new Error("Token expired after password change");
       }
 
-      return next(); // Agar user mil gaya, to aage badho
+      // Omit password from req.user
+      const { password, ...userWithoutPassword } = user;
+      req.user = userWithoutPassword;
+
+      return next();
     } catch (error) {
       console.error("🔥 Header Auth Error:", error.message);
       res.status(401);
@@ -45,28 +48,31 @@ export const protect = asyncHandler(async (req, res, next) => {
   }
 
   // 2️⃣ Check Cookies (Fallback Mechanism)
-  // (Agar header me token nahi mila, to browser cookies check karo)
   if (!token && req.cookies && req.cookies.jwt) {
     try {
       token = req.cookies.jwt;
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      req.user = await User.findById(decoded.userId || decoded.id).select(
-        "-password"
-      );
+      const userId = decoded.userId || decoded.id;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
 
-      if (!req.user) {
+      if (!user) {
         res.status(401);
         throw new Error("User not found with this cookie");
       }
 
       if (
         decoded.tokenVersion !== undefined &&
-        decoded.tokenVersion !== req.user.tokenVersion
+        decoded.tokenVersion !== user.tokenVersion
       ) {
         res.status(401);
         throw new Error("Token expired after password change");
       }
+
+      const { password, ...userWithoutPassword } = user;
+      req.user = userWithoutPassword;
 
       return next();
     } catch (error) {
@@ -76,14 +82,12 @@ export const protect = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // 3️⃣ Agar kahin bhi token nahi mila
+  // 3️⃣ No token provided
   if (!token) {
     res.status(401);
     throw new Error("Not authorized, no token");
   }
 });
-
-// ADMIN MIDDLEWARE REMOVED — use authorizeRoles("admin") instead
 
 // ============================================================
 // 🎭 ROLE AUTHORIZATION (Flexible)
@@ -116,13 +120,17 @@ export const optionalAuth = asyncHandler(async (req, res, next) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.userId || decoded.id).select(
-        "-password"
-      );
-    } catch (error) {
+      const userId = decoded.userId || decoded.id;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (user) {
+        const { password, ...userWithoutPassword } = user;
+        req.user = userWithoutPassword;
+      }
+    } catch {
       // Just ignore auth errors, req.user remains undefined
     }
   }
   next();
 });
-

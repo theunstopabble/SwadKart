@@ -1,34 +1,51 @@
 import asyncHandler from "express-async-handler";
-import Product from "../models/productModel.js";
+import prisma from "../config/prisma.js";
 import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // @desc    Get low-stock products (countInStock <= threshold)
 // @route   GET /api/v1/inventory/low-stock
 // @access  Admin / Restaurant Owner
 export const getLowStockProducts = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const rawThreshold = parseInt(req.query.threshold, 10);
   const threshold = Number.isNaN(rawThreshold) ? 5 : Math.max(0, rawThreshold);
   const restaurantId = req.query.restaurant ? sanitizeObjectId(req.query.restaurant) : null;
 
-  const query = { countInStock: { $lte: threshold } };
+  const query = { countInStock: { lte: threshold } };
 
-  // 🛡️ Restaurant owners can only see their own restaurant's inventory
+  // Restaurant owners can only see their own restaurant's inventory
   if (req.user.role === "restaurant_owner") {
-    const Restaurant = (await import("../models/restaurantModel.js")).default;
-    const restaurant = await Restaurant.findOne({ owner: req.user._id }).select("_id").lean();
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { ownerId: currentUserId },
+      select: { id: true },
+    });
     if (restaurant) {
-      query.restaurant = restaurant._id;
+      query.restaurantId = restaurant.id;
     } else {
       return res.json({ threshold, total: 0, products: [] });
     }
   } else if (restaurantId) {
-    query.restaurant = restaurantId;
+    query.restaurantId = restaurantId;
   }
 
-  const products = await Product.find(query)
-    .populate("restaurant", "name")
-    .select("name countInStock isAvailable autoDisable lastRestocked restaurant image")
-    .sort({ countInStock: 1 });
+  const products = await prisma.product.findMany({
+    where: query,
+    include: {
+      restaurant: { select: { name: true } },
+    },
+    select: {
+      id: true,
+      name: true,
+      countInStock: true,
+      isAvailable: true,
+      autoDisable: true,
+      lastRestocked: true,
+      restaurantId: true,
+      image: true,
+      restaurant: { select: { name: true } },
+    },
+    orderBy: { countInStock: "asc" },
+  });
 
   res.json({
     threshold,
@@ -41,6 +58,7 @@ export const getLowStockProducts = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/inventory/bulk-restock
 // @access  Admin / Restaurant Owner
 export const bulkRestock = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const { items } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -56,49 +74,51 @@ export const bulkRestock = asyncHandler(async (req, res) => {
     const isAdmin = req.user.role === "admin";
 
     if (!isAdmin) {
-      const product = await Product.findById(productId).select("restaurant").populate({ path: "restaurant", select: "owner" }).lean();
+      const product = await prisma.product.findUnique({
+        where: { id: productId },
+        select: {
+          restaurant: { select: { ownerId: true } },
+        },
+      });
       if (!product) {
         results.push({ productId: item.productId, status: "not_found" });
         continue;
       }
-      if (!product.restaurant || product.restaurant.owner?.toString() !== req.user._id.toString()) {
+      if (
+        !product.restaurant ||
+        product.restaurant.ownerId?.toString() !== currentUserId.toString()
+      ) {
         results.push({ productId: item.productId, status: "unauthorized" });
         continue;
       }
     }
 
-    const updated = await Product.findOneAndUpdate(
-      { _id: productId },
-      {
-        $inc: { countInStock: qty },
-        $set: {
-          ...(qty > 0 ? { lastRestocked: new Date() } : {}),
-        },
-      },
-      { returnDocument: "after" },
-    );
-
-    if (!updated) {
+    const currentProduct = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+    if (!currentProduct) {
       results.push({ productId: item.productId, status: "not_found" });
       continue;
     }
 
-    if (updated.countInStock > 0 && updated.autoDisable && !updated.isAvailable) {
-      await Product.findByIdAndUpdate(productId, { isAvailable: true });
-      results.push({
-        productId: item.productId,
-        status: "restocked",
-        newStock: updated.countInStock,
-        autoEnabled: true,
-      });
-    } else {
-      results.push({
-        productId: item.productId,
-        status: "restocked",
-        newStock: updated.countInStock,
-        autoEnabled: false,
-      });
-    }
+    const newStock = currentProduct.countInStock + qty;
+    const shouldAutoEnable = newStock > 0 && currentProduct.autoDisable && !currentProduct.isAvailable;
+
+    const updated = await prisma.product.update({
+      where: { id: productId },
+      data: {
+        countInStock: newStock,
+        ...(qty > 0 ? { lastRestocked: new Date() } : {}),
+        ...(shouldAutoEnable ? { isAvailable: true } : {}),
+      },
+    });
+
+    results.push({
+      productId: item.productId,
+      status: "restocked",
+      newStock: updated.countInStock,
+      autoEnabled: shouldAutoEnable,
+    });
   }
 
   res.json({ processed: results.length, results });
@@ -108,11 +128,19 @@ export const bulkRestock = asyncHandler(async (req, res) => {
 // @route   PATCH /api/v1/inventory/:id/auto-disable
 // @access  Admin / Restaurant Owner
 export const toggleAutoDisable = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const productId = sanitizeObjectId(req.params.id);
-  const product = await Product.findById(productId);
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: {
+      restaurant: { select: { ownerId: true } },
+    },
+  });
   if (!product) return res.status(404).json({ message: "Product not found" });
 
-  const isOwner = product.restaurant && product.restaurant.owner && product.restaurant.owner.toString() === req.user._id.toString();
+  const isOwner =
+    product.restaurant?.ownerId &&
+    product.restaurant.ownerId.toString() === currentUserId.toString();
   const isAdmin = req.user.role === "admin";
   if (!isAdmin && !isOwner) {
     return res.status(403).json({ message: "Not authorized" });
@@ -122,12 +150,17 @@ export const toggleAutoDisable = asyncHandler(async (req, res) => {
   if (autoDisable !== undefined && typeof autoDisable !== "boolean") {
     return res.status(400).json({ message: "autoDisable must be a boolean" });
   }
-  product.autoDisable = autoDisable !== undefined ? autoDisable : !product.autoDisable;
-  await product.save();
+
+  const updatedProduct = await prisma.product.update({
+    where: { id: productId },
+    data: {
+      autoDisable: autoDisable !== undefined ? autoDisable : !product.autoDisable,
+    },
+  });
 
   res.json({
-    productId: product._id,
-    autoDisable: product.autoDisable,
-    message: `Auto-disable ${product.autoDisable ? "enabled" : "disabled"}`,
+    productId: updatedProduct.id,
+    autoDisable: updatedProduct.autoDisable,
+    message: `Auto-disable ${updatedProduct.autoDisable ? "enabled" : "disabled"}`,
   });
 });

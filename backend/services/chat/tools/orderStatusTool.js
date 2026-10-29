@@ -1,12 +1,8 @@
 /**
  * Order Status Tool — Fetches order status and details for the authenticated user.
- *
- * Gate pattern: auth check → fetch order (by orderId or most recent) → return structured response
- *
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8
  */
 
-import Order from "../../../models/orderModel.js";
+import prisma from "../../../config/prisma.js";
 
 export const toolSchema = {
   type: "function",
@@ -19,7 +15,7 @@ export const toolSchema = {
         orderId: {
           type: "string",
           description:
-            "MongoDB ObjectId of a specific order. If omitted, returns the most recent order.",
+            "ID of a specific order. If omitted, returns the most recent order.",
         },
       },
       required: [],
@@ -27,11 +23,6 @@ export const toolSchema = {
   },
 };
 
-/**
- * Format a Date object as a human-readable date-time string.
- * @param {Date|null} date
- * @returns {string|null}
- */
 function formatDateTime(date) {
   if (!date) return null;
   return new Date(date).toLocaleString("en-IN", {
@@ -41,16 +32,7 @@ function formatDateTime(date) {
   });
 }
 
-/**
- * Execute the order status tool.
- *
- * @param {object} params
- * @param {string} [params.orderId] - Optional specific order ID
- * @param {string|null} params.userId - Authenticated user ID
- * @returns {Promise<object>} Structured result with order details or error
- */
 export async function execute({ orderId, userId }) {
-  // Gate 1: Auth check
   if (!userId) {
     return {
       success: false,
@@ -60,17 +42,17 @@ export async function execute({ orderId, userId }) {
   }
 
   try {
-    // Build the query with a 3-second timeout via Promise.race
     let queryPromise;
 
     if (orderId) {
-      // Gate 2a: Fetch specific order by ID (must belong to user)
-      queryPromise = Order.findOne({ _id: orderId, user: userId }).lean();
+      queryPromise = prisma.order.findFirst({
+        where: { id: orderId, userId },
+      });
     } else {
-      // Gate 2b: Fetch most recent order by createdAt descending
-      queryPromise = Order.findOne({ user: userId })
-        .sort({ createdAt: -1 })
-        .lean();
+      queryPromise = prisma.order.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+      });
     }
 
     let orderStatusTimer;
@@ -78,9 +60,10 @@ export async function execute({ orderId, userId }) {
       orderStatusTimer = setTimeout(() => reject(new Error("timeout")), 3000);
     });
 
-    const order = await Promise.race([queryPromise, timeoutPromise]).finally(() => clearTimeout(orderStatusTimer));
+    const order = await Promise.race([queryPromise, timeoutPromise]).finally(() =>
+      clearTimeout(orderStatusTimer)
+    );
 
-    // Gate 3: Check existence
     if (!order) {
       if (orderId) {
         return {
@@ -96,21 +79,23 @@ export async function execute({ orderId, userId }) {
       };
     }
 
-    // Build structured response
-    const orderItems = (order.orderItems || []).map((item) => ({
-      name: item.name,
-      quantity: item.qty,
+    const items = Array.isArray(order.orderItems) ? order.orderItems : [];
+    const orderItems = items.map((item) => ({
+      name: item.name || "Unknown item",
+      qty: item.qty || 1,
+      price: item.price || 0,
     }));
 
     return {
       success: true,
       data: {
-        orderId: order._id.toString(),
+        orderId: order.id,
         orderStatus: order.orderStatus,
-        deliveryStatus: order.deliveryStatus,
-        estimatedDeliveryAt: formatDateTime(order.estimatedDeliveryAt),
-        createdAt: formatDateTime(order.createdAt),
         totalPrice: order.totalPrice,
+        createdAt: formatDateTime(order.createdAt),
+        deliveredAt: formatDateTime(order.deliveredAt),
+        isDelivered: order.isDelivered,
+        isPaid: order.isPaid,
         orderItems,
       },
     };

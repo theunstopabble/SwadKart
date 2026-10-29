@@ -1,21 +1,25 @@
 import asyncHandler from "express-async-handler";
 import crypto from "crypto";
-import GroupOrder from "../models/groupOrderModel.js";
-import Order from "../models/orderModel.js";
-import Restaurant from "../models/restaurantModel.js";
+import prisma from "../config/prisma.js";
 import { sanitizeObjectId } from "../utils/sanitize.js";
 
 // @desc    Create a group order
 // @route   POST /api/v1/group-orders
 // @access  Private
 export const createGroupOrder = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const { restaurantId, expiresAt, splitType } = req.body;
   if (!restaurantId) {
     res.status(400);
     throw new Error("Restaurant ID is required");
   }
 
-  const restaurant = await Restaurant.findById(sanitizeObjectId(restaurantId)).select("_id name").lean();
+  const cleanRestId = sanitizeObjectId(restaurantId);
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: cleanRestId },
+    select: { id: true, name: true },
+  });
+
   if (!restaurant) {
     res.status(404);
     throw new Error("Restaurant not found");
@@ -24,13 +28,15 @@ export const createGroupOrder = asyncHandler(async (req, res) => {
   const inviteCode = crypto.randomBytes(4).toString("hex").toUpperCase();
   const expiry = new Date(expiresAt || Date.now() + 60 * 60 * 1000); // 1 hour default
 
-  const groupOrder = await GroupOrder.create({
-    host: req.user._id,
-    restaurant: restaurantId,
-    inviteCode,
-    expiresAt: expiry,
-    members: [{ user: req.user._id, name: req.user.name || "Host", items: [] }],
-    splitType: splitType || "itemwise",
+  const groupOrder = await prisma.groupOrder.create({
+    data: {
+      hostId: currentUserId,
+      restaurantId: cleanRestId,
+      inviteCode,
+      expiresAt: expiry,
+      members: [{ user: currentUserId, name: req.user.name || "Host", items: [] }],
+      splitType: splitType || "itemwise",
+    },
   });
 
   res.status(201).json(groupOrder);
@@ -40,8 +46,16 @@ export const createGroupOrder = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/group-orders/join
 // @access  Private
 export const joinGroupOrder = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const { inviteCode } = req.body;
-  const groupOrder = await GroupOrder.findOne({ inviteCode: inviteCode.toUpperCase() });
+  if (!inviteCode) {
+    res.status(400);
+    throw new Error("Invite code is required");
+  }
+
+  const groupOrder = await prisma.groupOrder.findUnique({
+    where: { inviteCode: inviteCode.toUpperCase() },
+  });
 
   if (!groupOrder) {
     res.status(404);
@@ -51,15 +65,22 @@ export const joinGroupOrder = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Group order is no longer accepting members");
   }
-  if (groupOrder.expiresAt < new Date()) {
+  if (new Date(groupOrder.expiresAt) < new Date()) {
     res.status(400);
     throw new Error("Group order has expired");
   }
 
-  await GroupOrder.updateOne(
-    { _id: groupOrder._id, "members.user": { $ne: req.user._id } },
-    { $push: { members: { user: req.user._id, name: req.user.name || "Guest", items: [] } } }
-  );
+  let members = Array.isArray(groupOrder.members) ? [...groupOrder.members] : [];
+  const alreadyMember = members.some((m) => m.user?.toString() === currentUserId.toString());
+
+  if (!alreadyMember) {
+    members.push({ user: currentUserId, name: req.user.name || "Guest", items: [] });
+    const updated = await prisma.groupOrder.update({
+      where: { id: groupOrder.id },
+      data: { members },
+    });
+    return res.json(updated);
+  }
 
   res.json(groupOrder);
 });
@@ -68,18 +89,23 @@ export const joinGroupOrder = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/group-orders/:id
 // @access  Private (Member or Host)
 export const getGroupOrder = asyncHandler(async (req, res) => {
-  const groupOrder = await GroupOrder.findById(sanitizeObjectId(req.params.id))
-    .populate("host", "name")
-    .populate("restaurant", "name image")
-    .populate("cart.product", "name image price");
+  const currentUserId = req.user.id || req.user._id;
+  const groupOrder = await prisma.groupOrder.findUnique({
+    where: { id: sanitizeObjectId(req.params.id) },
+    include: {
+      host: { select: { id: true, name: true } },
+      restaurant: { select: { id: true, name: true, image: true } },
+    },
+  });
 
   if (!groupOrder) {
     res.status(404);
     throw new Error("Group order not found");
   }
 
-  const isMember = groupOrder.members.some((m) => m.user?.toString() === req.user._id.toString());
-  const isHost = groupOrder.host.toString() === req.user._id.toString();
+  const members = Array.isArray(groupOrder.members) ? groupOrder.members : [];
+  const isMember = members.some((m) => m.user?.toString() === currentUserId.toString());
+  const isHost = groupOrder.hostId?.toString() === currentUserId.toString();
   if (!isMember && !isHost) {
     res.status(401);
     throw new Error("Not authorized");
@@ -92,6 +118,7 @@ export const getGroupOrder = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/group-orders/:id/cart
 // @access  Private (Member)
 export const addToGroupCart = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const { productId, name, price, qty } = req.body;
 
   if (!productId || !name || price === undefined || price <= 0) {
@@ -104,47 +131,65 @@ export const addToGroupCart = asyncHandler(async (req, res) => {
     throw new Error("qty must be a positive integer");
   }
 
-  const groupOrder = await GroupOrder.findById(sanitizeObjectId(req.params.id));
+  const groupOrder = await prisma.groupOrder.findUnique({
+    where: { id: sanitizeObjectId(req.params.id) },
+  });
   if (!groupOrder) {
     res.status(404);
     throw new Error("Group order not found");
   }
 
-  const isMember = groupOrder.members.some((m) => m.user?.toString() === req.user._id.toString());
+  const members = Array.isArray(groupOrder.members) ? [...groupOrder.members] : [];
+  const isMember = members.some((m) => m.user?.toString() === currentUserId.toString());
   if (!isMember) {
     res.status(401);
     throw new Error("Not a member of this group order");
   }
 
-groupOrder.cart.push({ product: productId, name, price, qty: qty || 1, addedBy: req.user._id });
-    groupOrder.totalCartValue = groupOrder.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-    const member = groupOrder.members.find((m) => m.user?.toString() === req.user._id.toString());
-    if (member) {
-      member.items.push({ product: productId, name, price, qty: qty || 1 });
-    }
-    await groupOrder.save();
+  const cart = Array.isArray(groupOrder.cart) ? [...groupOrder.cart] : [];
+  cart.push({ product: productId, name, price, qty: qty || 1, addedBy: currentUserId });
+  const totalCartValue = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-  res.json(groupOrder);
+  const member = members.find((m) => m.user?.toString() === currentUserId.toString());
+  if (member) {
+    if (!member.items) member.items = [];
+    member.items.push({ product: productId, name, price, qty: qty || 1 });
+  }
+
+  const updatedOrder = await prisma.groupOrder.update({
+    where: { id: groupOrder.id },
+    data: {
+      cart,
+      totalCartValue,
+      members,
+    },
+  });
+
+  res.json(updatedOrder);
 });
 
 // @desc    Calculate split bill
 // @route   GET /api/v1/group-orders/:id/split
 // @access  Private (Member)
 export const calculateSplit = asyncHandler(async (req, res) => {
-  const groupOrder = await GroupOrder.findById(sanitizeObjectId(req.params.id));
+  const currentUserId = req.user.id || req.user._id;
+  const groupOrder = await prisma.groupOrder.findUnique({
+    where: { id: sanitizeObjectId(req.params.id) },
+  });
   if (!groupOrder) {
     res.status(404);
     throw new Error("Group order not found");
   }
 
-  const isMember = groupOrder.members.some((m) => m.user?.toString() === req.user._id.toString());
-  const isHost = groupOrder.host.toString() === req.user._id.toString();
+  const members = Array.isArray(groupOrder.members) ? groupOrder.members : [];
+  const isMember = members.some((m) => m.user?.toString() === currentUserId.toString());
+  const isHost = groupOrder.hostId?.toString() === currentUserId.toString();
   if (!isMember && !isHost) {
     res.status(403);
     throw new Error("Not authorized to view this group order");
   }
 
-  const memberCount = groupOrder.members.length || 1;
+  const memberCount = members.length || 1;
   const safeTotalValue = groupOrder.totalCartValue || 0;
   const safeTaxPercent = groupOrder.taxPercent || 0;
   const safeDeliveryFee = groupOrder.deliveryFee || 0;
@@ -152,8 +197,9 @@ export const calculateSplit = asyncHandler(async (req, res) => {
   const equalShareDelivery = memberCount > 0 ? safeDeliveryFee / memberCount : 0;
   const equalShareTax = memberCount > 0 ? (safeTotalValue * (safeTaxPercent / 100)) / memberCount : 0;
 
-  const splits = groupOrder.members.map((m) => {
-    const myItemsTotal = m.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const splits = members.map((m) => {
+    const items = Array.isArray(m.items) ? m.items : [];
+    const myItemsTotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
     const subtotal = myItemsTotal || (memberCount > 0 ? safeTotalValue / memberCount : 0);
     const shareDelivery = groupOrder.splitType === "equal"
       ? equalShareDelivery

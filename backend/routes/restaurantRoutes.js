@@ -1,85 +1,62 @@
 import express from "express";
-const router = express.Router();
 import {
   getRestaurants,
   getRestaurantById,
   getTopRestaurants,
+  getAllRestaurantsAdmin,
   createRestaurant,
   getOwnerRestaurant,
   updateRestaurantSettings,
+  updateRestaurantProfile,
   verifyRestaurant,
   createRestaurantReview,
-  getAllRestaurantsAdmin,
 } from "../controllers/restaurantController.js";
-import Restaurant from "../models/restaurantModel.js";
-import { sanitizeObjectId } from "../utils/sanitize.js";
-
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
-import { cacheResponse } from "../middleware/cacheMiddleware.js";
+import prisma from "../config/prisma.js";
 
-// =================================================================
-// 🟢 PUBLIC & GENERAL ROUTES
-// =================================================================
-router
-  .route("/")
-  .get(cacheResponse("restaurants:list", 300), getRestaurants) // Home Page (Verified + Dummy) — 5 min cache
-  .post(protect, authorizeRoles("restaurant_owner"), createRestaurant);
+const router = express.Router();
 
-router.get("/top", cacheResponse("restaurants:top", 300), getTopRestaurants); // Top Rated — 5 min cache
+// Public routes
+router.get("/", getRestaurants);
+router.get("/top", getTopRestaurants);
 
-// =================================================================
-// 🔴 ADMIN ROUTES (Specific routes BEFORE dynamic /:id)
-// =================================================================
-
-// Get ALL restaurants (including pending) for admin
+// Admin: Get all shops (MUST be before /:id)
 router.get(
   "/admin/all",
   protect,
   authorizeRoles("admin"),
-  getAllRestaurantsAdmin
+  getAllRestaurantsAdmin,
 );
 
-// Approve/Verify restaurant
-router.put(
-  "/:id/approve",
-  protect,
-  authorizeRoles("admin"),
-  verifyRestaurant
-);
-
-// Restaurant Owner Settings (MUST be before /:id route)
+// Restaurant Owner routes (MUST be before /:id)
+router.get("/mine", protect, getOwnerRestaurant);
 router.put(
   "/settings",
   protect,
   authorizeRoles("restaurant_owner"),
-  updateRestaurantSettings
+  updateRestaurantSettings,
+);
+router.put(
+  "/profile",
+  protect,
+  authorizeRoles("restaurant_owner"),
+  updateRestaurantProfile,
 );
 
-// Update restaurant details (admin)
+// Create new restaurant (seller registration)
+router.post(
+  "/",
+  protect,
+  authorizeRoles("restaurant_owner", "admin"),
+  createRestaurant,
+);
+
+// Admin: Verify / Authorize restaurant
 router.put(
-  "/:id",
+  "/:id/approve",
   protect,
   authorizeRoles("admin"),
-  async (req, res) => {
-    try {
-      const restaurant = await Restaurant.findById(sanitizeObjectId(req.params.id));
-      if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
-
-      const { name, image, description, openingTime, closingTime, address, phone } = req.body;
-      if (name) restaurant.name = name;
-      if (image) restaurant.image = image;
-      if (description) restaurant.description = description;
-      if (openingTime) restaurant.openingTime = openingTime;
-      if (closingTime) restaurant.closingTime = closingTime;
-      if (address) restaurant.address = address;
-      if (phone) restaurant.phone = phone;
-
-      const updated = await restaurant.save();
-      res.json({ message: "Restaurant updated", restaurant: updated });
-    } catch (error) {
-      next(error);
-    }
-  }
+  verifyRestaurant,
 );
 
 // Delete restaurant (admin)
@@ -87,29 +64,26 @@ router.delete(
   "/:id",
   protect,
   authorizeRoles("admin"),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
-      const restaurant = await Restaurant.findById(sanitizeObjectId(req.params.id));
+      const restaurant = await prisma.restaurant.findUnique({
+        where: { id: req.params.id },
+      });
       if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
 
-      const Product = (await import("../models/productModel.js")).default;
-      await Product.deleteMany({ restaurant: sanitizeObjectId(req.params.id) });
-
-      await restaurant.deleteOne();
+      await prisma.product.deleteMany({ where: { restaurantId: req.params.id } });
+      await prisma.restaurant.delete({ where: { id: req.params.id } });
       res.json({ message: "Restaurant and associated menu items deleted" });
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 // Reviews
 router.route("/:id/reviews").post(protect, createRestaurantReview);
 
-// ROUTE-01 FIX: Specific routes MUST come before /:id param routes
-// router.get('/admin/all', protect, authorizeRoles('admin'), getAllRestaurantsAdmin);
-// Note: /admin/all is ALREADY defined above correctly but /:id was causing issues if not strictly LAST
-// /:id routes AFTER all specific string routes
-router.get('/:id', getRestaurantById);
+// Specific /:id route must be strictly last
+router.get("/:id", getRestaurantById);
 
 export default router;

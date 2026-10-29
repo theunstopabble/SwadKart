@@ -1,0 +1,89 @@
+services:
+  # -------------------------------------------------------------
+  # 🗄️ Local PostgreSQL Database for Prisma
+  # -------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: swadkart-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: swadkart_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d swadkart_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------
+  # 🚀 SwadKart Backend API (Node.js 22 + Express 5 + Prisma)
+  # -------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: swadkart-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 8000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/swadkart_dev?schema=public
+      JWT_SECRET: super_secret_jwt_key_for_development_32_chars
+      FRONTEND_URL: http://localhost:5173
+      COOKIE_SECRET: super_secret_cookie_key_32_chars_long
+      RP_ID: localhost
+      RP_NAME: SwadKart
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # -------------------------------------------------------------
+  # 💻 SwadKart Frontend (React 19 + Vite 7 + Tailwind)
+  # -------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: swadkart-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+      VITE_BACKEND_TARGET: http://backend:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # -------------------------------------------------------------
+  # 📊 Prisma Studio (Visual Database Browser)
+  # -------------------------------------------------------------
+  studio:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: swadkart-prisma-studio
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/swadkart_dev?schema=public
+    ports:
+      - "5555:5555"
+    command: npx prisma studio --port 5555 --browser none
+
+volumes:
+  postgres_data:

@@ -30,7 +30,7 @@ import { buildFallback } from "./fallbackResponder.js";
 import { serializeEvent } from "./sseSerializer.js";
 import groq from "./groqClient.js";
 import cacheClient from "../../config/redis.js";
-import Conversation from "../../models/conversationModel.js";
+import prisma from "../../config/prisma.js";
 
 /** Total pipeline timeout in milliseconds */
 const PIPELINE_TIMEOUT_MS = 15_000;

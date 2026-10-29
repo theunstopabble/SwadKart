@@ -1,11 +1,9 @@
-import mongoose from "mongoose";
-
 /**
  * Input Sanitization Utilities
- * All user inputs MUST pass through these before hitting MongoDB queries.
+ * All user inputs pass through these before hitting database queries.
  */
 
-// Validates and returns a clean string. Rejects objects/arrays (NoSQL injection vectors).
+// Validates and returns a clean string. Rejects objects/arrays.
 export const sanitizeString = (input) => {
   if (typeof input !== "string") return "";
   const sanitized = input.trim();
@@ -14,10 +12,10 @@ export const sanitizeString = (input) => {
   return sanitized;
 };
 
-// Validates MongoDB ObjectId format. Rejects injection payloads.
+// Validates ID format (supports CUIDs, UUIDs, and legacy 24-char hex ObjectIDs). Rejects injection payloads.
 export const sanitizeObjectId = (id) => {
   const cleanId = sanitizeString(id);
-  if (!mongoose.Types.ObjectId.isValid(cleanId)) {
+  if (!cleanId || !/^[a-zA-Z0-9_-]{8,36}$/.test(cleanId)) {
     throw new Error("Invalid ID format");
   }
   return cleanId;

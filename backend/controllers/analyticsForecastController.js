@@ -1,28 +1,43 @@
 import asyncHandler from "express-async-handler";
-import mongoose from "mongoose";
-import Order from "../models/orderModel.js";
-import Restaurant from "../models/restaurantModel.js";
+import prisma from "../config/prisma.js";
+import { sanitizeObjectId } from "../utils/sanitize.js";
 
 const validateRestaurantAccess = async (restaurantId, user) => {
+  const currentUserId = user?.id || user?._id;
   if (!restaurantId) {
-    if (user.role === "restaurant_owner") {
-      const owned = await Restaurant.findOne({ owner: user._id }).select("_id").lean();
-      if (owned) return owned._id;
+    if (user?.role === "restaurant_owner") {
+      const owned = await prisma.restaurant.findFirst({
+        where: { ownerId: currentUserId },
+        select: { id: true },
+      });
+      if (owned) return owned.id;
     }
     return null;
   }
-  if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
+
+  let cleanId;
+  try {
+    cleanId = sanitizeObjectId(restaurantId);
+  } catch {
     throw Object.assign(new Error("Invalid restaurant ID"), { status: 400 });
   }
-  if (user.role === "restaurant_owner") {
-    const restaurant = await Restaurant.findById(restaurantId).select("owner").lean();
-    if (!restaurant || restaurant.owner?.toString() !== user._id.toString()) {
-      const owned = await Restaurant.findOne({ owner: user._id }).select("_id").lean();
-      if (owned) return owned._id;
+
+  if (user?.role === "restaurant_owner") {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: cleanId },
+      select: { ownerId: true },
+    });
+    if (!restaurant || restaurant.ownerId?.toString() !== currentUserId.toString()) {
+      const owned = await prisma.restaurant.findFirst({
+        where: { ownerId: currentUserId },
+        select: { id: true },
+      });
+      if (owned) return owned.id;
       throw Object.assign(new Error("Not authorized"), { status: 403 });
     }
   }
-  return new mongoose.Types.ObjectId(restaurantId);
+
+  return cleanId;
 };
 
 const parseDays = (days) => {
@@ -36,24 +51,38 @@ export const getRevenueProjection = asyncHandler(async (req, res) => {
   const safeRestaurantId = await validateRestaurantAccess(restaurantId, req.user);
   const daysNum = parseDays(days);
 
-  const matchFilter = { orderStatus: { $ne: "Cancelled" } };
-  if (safeRestaurantId) matchFilter["orderItems.restaurant"] = safeRestaurantId;
-
   const now = new Date();
   const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
 
-  const dailyRevenue = await Order.aggregate([
-    { $match: { ...matchFilter, createdAt: { $gte: startDate } } },
-    {
-      $group: {
-        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-        revenue: { $sum: "$totalPrice" },
-        orders: { $sum: 1 },
-        avgOrderValue: { $avg: "$totalPrice" },
-      },
-    },
-    { $sort: { _id: 1 } },
-  ]);
+  const matchFilter = {
+    orderStatus: { not: "Cancelled" },
+    createdAt: { gte: startDate },
+  };
+  if (safeRestaurantId) matchFilter.restaurantId = safeRestaurantId;
+
+  const orders = await prisma.order.findMany({
+    where: matchFilter,
+    select: { totalPrice: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const dailyMap = {};
+  for (const o of orders) {
+    const dateStr = new Date(o.createdAt).toISOString().split("T")[0];
+    if (!dailyMap[dateStr]) {
+      dailyMap[dateStr] = { _id: dateStr, revenue: 0, orders: 0, totalVal: 0 };
+    }
+    dailyMap[dateStr].revenue += (o.totalPrice || 0);
+    dailyMap[dateStr].orders += 1;
+    dailyMap[dateStr].totalVal += (o.totalPrice || 0);
+  }
+
+  const dailyRevenue = Object.values(dailyMap).map((d) => ({
+    _id: d._id,
+    revenue: Number(d.revenue.toFixed(2)),
+    orders: d.orders,
+    avgOrderValue: d.orders ? Number((d.totalVal / d.orders).toFixed(2)) : 0,
+  }));
 
   const totalRevenue = dailyRevenue.reduce((s, d) => s + d.revenue, 0);
   const totalOrders = dailyRevenue.reduce((s, d) => s + d.orders, 0);
@@ -62,7 +91,10 @@ export const getRevenueProjection = asyncHandler(async (req, res) => {
 
   const revenueValues = dailyRevenue.map((d) => d.revenue);
   const mean = avgDailyRevenue;
-  const variance = revenueValues.length > 0 ? revenueValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / revenueValues.length : 0;
+  const variance =
+    revenueValues.length > 0
+      ? revenueValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / revenueValues.length
+      : 0;
   const stdDev = Math.sqrt(variance);
 
   const projected7Days = [];
@@ -104,42 +136,49 @@ export const getOrderVolumeForecast = asyncHandler(async (req, res) => {
   const safeRestaurantId = await validateRestaurantAccess(restaurantId, req.user);
   const daysNum = parseDays(days);
 
-  const matchFilter = { orderStatus: { $ne: "Cancelled" } };
-  if (safeRestaurantId) matchFilter["orderItems.restaurant"] = safeRestaurantId;
-
   const now = new Date();
   const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
 
-  const hourlyVolume = await Order.aggregate([
-    { $match: { ...matchFilter, createdAt: { $gte: startDate } } },
-    {
-      $group: {
-        _id: { $hour: "$createdAt" },
-        count: { $sum: 1 },
-        avgOrderValue: { $avg: "$totalPrice" },
-      },
-    },
-    { $sort: { _id: 1 } },
-  ]);
+  const matchFilter = {
+    orderStatus: { not: "Cancelled" },
+    createdAt: { gte: startDate },
+  };
+  if (safeRestaurantId) matchFilter.restaurantId = safeRestaurantId;
 
-  const dayOfWeekVolume = await Order.aggregate([
-    { $match: { ...matchFilter, createdAt: { $gte: startDate } } },
-    {
-      $group: {
-        _id: { $dayOfWeek: "$createdAt" },
-        count: { $sum: 1 },
-        revenue: { $sum: "$totalPrice" },
-      },
-    },
-    { $sort: { _id: 1 } },
-  ]);
+  const orders = await prisma.order.findMany({
+    where: matchFilter,
+    select: { totalPrice: true, createdAt: true },
+  });
+
+  const hourMap = {};
+  const dayOfWeekMap = {};
+
+  for (const o of orders) {
+    const date = new Date(o.createdAt);
+    const hour = date.getHours();
+    const day = date.getDay(); // 0 (Sun) to 6 (Sat)
+
+    if (!hourMap[hour]) hourMap[hour] = { count: 0, totalVal: 0 };
+    hourMap[hour].count += 1;
+    hourMap[hour].totalVal += (o.totalPrice || 0);
+
+    if (!dayOfWeekMap[day]) dayOfWeekMap[day] = { count: 0, revenue: 0 };
+    dayOfWeekMap[day].count += 1;
+    dayOfWeekMap[day].revenue += (o.totalPrice || 0);
+  }
+
+  const hourlyVolume = Object.entries(hourMap).map(([h, data]) => ({
+    _id: parseInt(h),
+    count: data.count,
+    avgOrderValue: data.count ? data.totalVal / data.count : 0,
+  }));
 
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const formattedDayVolume = dayOfWeekVolume.map((d) => ({
-    day: dayNames[d._id - 1],
-    dayNum: d._id,
-    orders: d.count,
-    revenue: Number(d.revenue.toFixed(2)),
+  const formattedDayVolume = dayNames.map((name, idx) => ({
+    day: name,
+    dayNum: idx + 1,
+    orders: dayOfWeekMap[idx]?.count || 0,
+    revenue: Number((dayOfWeekMap[idx]?.revenue || 0).toFixed(2)),
   }));
 
   const peakHours = hourlyVolume.filter((h) => h.count >= 5).map((h) => h._id);
@@ -150,7 +189,11 @@ export const getOrderVolumeForecast = asyncHandler(async (req, res) => {
   const projectedNext30Days = Math.round(avgDailyOrders * 30);
 
   res.json({
-    hourlyVolume: hourlyVolume.map((h) => ({ hour: h._id, orders: h.count, avgValue: Number(h.avgOrderValue?.toFixed(2) || 0) })),
+    hourlyVolume: hourlyVolume.map((h) => ({
+      hour: h._id,
+      orders: h.count,
+      avgValue: Number(h.avgOrderValue?.toFixed(2) || 0),
+    })),
     dayVolume: formattedDayVolume,
     peakHours,
     offPeakHours,
@@ -166,44 +209,80 @@ export const getDemandAnalytics = asyncHandler(async (req, res) => {
   const safeRestaurantId = await validateRestaurantAccess(restaurantId, req.user);
   const daysNum = parseDays(days);
 
-  const matchFilter = { orderStatus: { $ne: "Cancelled" } };
-  if (safeRestaurantId) matchFilter["orderItems.restaurant"] = safeRestaurantId;
-
   const now = new Date();
   const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
-  matchFilter.createdAt = { $gte: startDate };
 
-  const productDemand = await Order.aggregate([
-    { $match: matchFilter },
-    { $unwind: "$orderItems" },
-    { $match: { "orderItems.product": { $exists: true } } },
-    {
-      $group: {
-        _id: "$orderItems.product",
-        name: { $first: "$orderItems.name" },
-        quantitySold: { $sum: "$orderItems.qty" },
-        revenue: { $sum: { $multiply: ["$orderItems.price", "$orderItems.qty"] } },
-        avgPrice: { $avg: "$orderItems.price" },
-        orderCount: { $sum: 1 },
-      },
-    },
-    { $sort: { quantitySold: -1 } },
-    { $limit: 20 },
-  ]);
+  const matchFilter = {
+    orderStatus: { not: "Cancelled" },
+    createdAt: { gte: startDate },
+  };
+  if (safeRestaurantId) matchFilter.restaurantId = safeRestaurantId;
 
-  const categoryDemand = await Order.aggregate([
-    { $match: matchFilter },
-    { $unwind: "$orderItems" },
-    {
-      $group: {
-        _id: "$orderItems.category",
-        quantitySold: { $sum: "$orderItems.qty" },
-        revenue: { $sum: { $multiply: ["$orderItems.price", "$orderItems.qty"] } },
-        avgOrderValue: { $avg: "$totalPrice" },
-      },
-    },
-    { $sort: { revenue: -1 } },
-  ]);
+  const orders = await prisma.order.findMany({
+    where: matchFilter,
+    select: { orderItems: true, totalPrice: true },
+  });
+
+  const productDemandMap = {};
+  const categoryDemandMap = {};
+
+  for (const o of orders) {
+    const items = Array.isArray(o.orderItems) ? o.orderItems : [];
+    for (const item of items) {
+      const prodId = (item.product || item._id || item.id)?.toString();
+      if (!prodId) continue;
+
+      if (!productDemandMap[prodId]) {
+        productDemandMap[prodId] = {
+          _id: prodId,
+          name: item.name || "Unknown",
+          quantitySold: 0,
+          revenue: 0,
+          orderCount: 0,
+          totalPriceSum: 0,
+        };
+      }
+      const qty = Number(item.qty || 1);
+      const price = Number(item.price || 0);
+      productDemandMap[prodId].quantitySold += qty;
+      productDemandMap[prodId].revenue += qty * price;
+      productDemandMap[prodId].orderCount += 1;
+      productDemandMap[prodId].totalPriceSum += price;
+
+      const cat = item.category || "Uncategorized";
+      if (!categoryDemandMap[cat]) {
+        categoryDemandMap[cat] = {
+          _id: cat,
+          quantitySold: 0,
+          revenue: 0,
+          orderValues: [],
+        };
+      }
+      categoryDemandMap[cat].quantitySold += qty;
+      categoryDemandMap[cat].revenue += qty * price;
+      categoryDemandMap[cat].orderValues.push(o.totalPrice || 0);
+    }
+  }
+
+  const productDemand = Object.values(productDemandMap)
+    .sort((a, b) => b.quantitySold - a.quantitySold)
+    .slice(0, 20)
+    .map((p) => ({
+      ...p,
+      avgPrice: p.orderCount ? p.totalPriceSum / p.orderCount : 0,
+    }));
+
+  const categoryDemand = Object.values(categoryDemandMap)
+    .sort((a, b) => b.revenue - a.revenue)
+    .map((c) => ({
+      _id: c._id,
+      quantitySold: c.quantitySold,
+      revenue: c.revenue,
+      avgOrderValue:
+        c.orderValues.length > 0
+          ? c.orderValues.reduce((s, v) => s + v, 0) / c.orderValues.length
+          : 0,
+    }));
 
   const totalProducts = productDemand.length;
   const topProduct = productDemand[0];
@@ -237,15 +316,27 @@ export const getProfitLossProjection = asyncHandler(async (req, res) => {
   const safeRestaurantId = await validateRestaurantAccess(restaurantId, req.user);
   const daysNum = parseDays(days);
 
-  const matchFilter = { orderStatus: { $ne: "Cancelled" } };
-  if (safeRestaurantId) matchFilter["orderItems.restaurant"] = safeRestaurantId;
-
   const now = new Date();
   const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
 
-  const orders = await Order.find({ ...matchFilter, createdAt: { $gte: startDate } })
-    .select("itemsPrice totalPrice deliveryFee tipAmount couponDiscount restaurantPayout restaurantCommission")
-    .lean();
+  const matchFilter = {
+    orderStatus: { not: "Cancelled" },
+    createdAt: { gte: startDate },
+  };
+  if (safeRestaurantId) matchFilter.restaurantId = safeRestaurantId;
+
+  const orders = await prisma.order.findMany({
+    where: matchFilter,
+    select: {
+      itemsPrice: true,
+      totalPrice: true,
+      deliveryFee: true,
+      tipAmount: true,
+      couponDiscount: true,
+      restaurantPayout: true,
+      restaurantCommission: true,
+    },
+  });
 
   const grossRevenue = orders.reduce((s, o) => s + (o.itemsPrice || 0), 0);
   const totalRevenue = orders.reduce((s, o) => s + (o.totalPrice || 0), 0);
@@ -270,6 +361,6 @@ export const getProfitLossProjection = asyncHandler(async (req, res) => {
     netPlatformRevenue: Number(netPlatformRevenue.toFixed(2)),
     netMarginPercent: Number(netMargin),
     orderCount: orders.length,
-    avgOrderValue: Number((totalRevenue / orders.length).toFixed(2)),
+    avgOrderValue: orders.length ? Number((totalRevenue / orders.length).toFixed(2)) : 0,
   });
 });

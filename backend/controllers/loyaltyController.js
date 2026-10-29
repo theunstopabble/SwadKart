@@ -1,28 +1,28 @@
 import asyncHandler from "express-async-handler";
-import User from "../models/userModel.js";
-import CoinTransaction from "../models/coinTransactionModel.js";
-import { sanitizeObjectId } from "../utils/sanitize.js";
+import prisma from "../config/prisma.js";
 
-// Rate: ₹10 spent = 1 SwadCoin, 100 SwadCoins = ₹10 off
-const COIN_EARN_RATE = 0.1; // 1 coin per ₹10
 const COIN_REDEEM_RATE = 0.1; // ₹10 per 100 coins
-const FIRST_ORDER_BONUS = 500;
-const BIRTHDAY_BONUS = 200;
 
 // ==========================================
 // 1. GET COIN BALANCE & HISTORY
 // ==========================================
 export const getLoyaltyProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("swadCoins name");
+  const userId = req.user.id || req.user._id;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { swadCoins: true, name: true },
+  });
+
   if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
 
-  const transactions = await CoinTransaction.find({ user: req.user._id })
-    .sort({ createdAt: -1 })
-    .limit(50)
-    .lean();
+  const transactions = await prisma.coinTransaction.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
 
   res.json({
     swadCoins: user.swadCoins || 0,
@@ -36,17 +36,14 @@ export const getLoyaltyProfile = asyncHandler(async (req, res) => {
 // ==========================================
 export const redeemCoins = asyncHandler(async (req, res) => {
   const { coins } = req.body;
-  // 🛡️ SECURITY FIX: Never trust frontend totalPrice for discount validation.
-  // totalPrice is removed from required fields. Discount is validated purely
-  // by coin rules: max 50% off, capped at available coins.
-  // Frontend passes current cart total for UI guidance only.
+  const userId = req.user.id || req.user._id;
 
   if (!coins || coins <= 0 || coins % 100 !== 0) {
     res.status(400);
     throw new Error("Coins must be a positive multiple of 100");
   }
 
-  const user = await User.findById(req.user._id);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     res.status(404);
     throw new Error("User not found");
@@ -58,29 +55,25 @@ export const redeemCoins = asyncHandler(async (req, res) => {
   }
 
   const discount = coins * COIN_REDEEM_RATE;
-  // Max discount rule: coin redemption cannot exceed ₹5000 equivalent
   if (discount > 5000) {
     res.status(400);
     throw new Error("Maximum coin discount is ₹5000 per order");
   }
 
-  // Atomic deduction
-  const updatedUser = await User.findOneAndUpdate(
-    { _id: req.user._id, swadCoins: { $gte: coins } },
-    { $inc: { swadCoins: -coins } },
-    { returnDocument: "after" },
-  );
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      swadCoins: { decrement: coins },
+    },
+  });
 
-  if (!updatedUser) {
-    res.status(400);
-    throw new Error("Coin redemption failed. Please try again.");
-  }
-
-  await CoinTransaction.create({
-    user: req.user._id,
-    type: "Redeem",
-    amount: -coins,
-    description: `Redeemed ${coins} SwadCoins for ₹${discount.toFixed(2)} discount`,
+  await prisma.coinTransaction.create({
+    data: {
+      userId,
+      type: "Debit",
+      amount: -coins,
+      description: `Redeemed ${coins} SwadCoins for ₹${discount.toFixed(2)} discount`,
+    },
   });
 
   res.json({
@@ -92,25 +85,24 @@ export const redeemCoins = asyncHandler(async (req, res) => {
 });
 
 // ==========================================
-// 3. AWARD COINS (Internal helper, exported for use by order controllers)
+// 3. AWARD COINS (Internal helper)
 // ==========================================
-export const awardCoinsToUser = async (userId, amount, type, description, orderId = null, relatedUserId = null) => {
+export const awardCoinsToUser = async (userId, amount, type, description) => {
   if (!amount || amount <= 0) return;
 
-  const updatedUser = await User.findByIdAndUpdate(
-    userId,
-    { $inc: { swadCoins: amount } },
-    { returnDocument: "after" },
-  );
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { swadCoins: { increment: amount } },
+  });
 
   if (updatedUser) {
-    await CoinTransaction.create({
-      user: userId,
-      type,
-      amount,
-      description,
-      order: orderId,
-      relatedUser: relatedUserId,
+    await prisma.coinTransaction.create({
+      data: {
+        userId,
+        type: type === "Redeem" ? "Debit" : "Credit",
+        amount,
+        description,
+      },
     });
   }
 
@@ -121,7 +113,7 @@ export const awardCoinsToUser = async (userId, amount, type, description, orderI
 // 4. ADMIN: Adjust Coins Manually
 // ==========================================
 export const adminAdjustCoins = asyncHandler(async (req, res) => {
-  const { userId: rawUserId, coins, reason } = req.body;
+  const { userId, coins, reason } = req.body;
 
   if (!coins || coins === 0) {
     res.status(400);
@@ -138,52 +130,36 @@ export const adminAdjustCoins = asyncHandler(async (req, res) => {
     throw new Error("Reason is required for coin adjustment");
   }
 
-  const userId = sanitizeObjectId(rawUserId);
-  const user = await User.findById(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
 
-  if (coins < 0) {
-    const updated = await User.findOneAndUpdate(
-      { _id: userId, swadCoins: { $gte: Math.abs(coins) } },
-      { $inc: { swadCoins: coins } },
-      { returnDocument: "after" },
-    );
-    if (!updated) {
-      res.status(400);
-      throw new Error("Cannot reduce coins below zero");
-    }
-    await CoinTransaction.create({
-      user: userId,
-      type: "Refund",
-      amount: coins,
-      description: reason || `Admin adjustment by ${req.user.email}`,
-    });
-    return res.json({
-      success: true,
-      message: `Deducted ${Math.abs(coins)} coins`,
-      newBalance: updated.swadCoins,
-    });
+  if (coins < 0 && user.swadCoins < Math.abs(coins)) {
+    res.status(400);
+    throw new Error("Cannot reduce coins below zero");
   }
 
-  const updated = await User.findOneAndUpdate(
-    { _id: userId },
-    { $inc: { swadCoins: coins } },
-    { returnDocument: "after" },
-  );
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      swadCoins: { increment: coins },
+    },
+  });
 
-  await CoinTransaction.create({
-    user: userId,
-    type: "Bonus",
-    amount: coins,
-    description: reason || `Admin adjustment by ${req.user.email}`,
+  await prisma.coinTransaction.create({
+    data: {
+      userId,
+      type: coins < 0 ? "Debit" : "Credit",
+      amount: coins,
+      description: reason || `Admin adjustment by ${req.user.email}`,
+    },
   });
 
   res.json({
     success: true,
-    message: `Added ${coins} coins`,
+    message: `${coins > 0 ? "Added" : "Deducted"} ${Math.abs(coins)} coins`,
     newBalance: updated.swadCoins,
   });
 });

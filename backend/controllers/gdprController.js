@@ -1,20 +1,47 @@
 import asyncHandler from "express-async-handler";
-import User from "../models/userModel.js";
-import Order from "../models/orderModel.js";
-import CouponUsage from "../models/couponUsageModel.js";
-import Reservation from "../models/reservationModel.js";
+import prisma from "../config/prisma.js";
 
 // @desc    Export all user data (Right to Access)
 // @route   GET /api/v1/user/gdpr/export
 // @access  Private
 export const exportUserData = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user.id || req.user._id;
 
   const [user, orders, couponUsages, reservations] = await Promise.all([
-    User.findById(userId).select("name email phone").lean(),
-    Order.find({ user: userId }).select("orderStatus items totalPrice createdAt deliveryAddress").lean(),
-    CouponUsage.find({ user: userId }).populate("coupon", "code discountPercentage").select("coupon usedAt").lean(),
-    Reservation.find({ user: userId }).select("date time guests status createdAt").lean(),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, phone: true },
+    }),
+    prisma.order.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        orderStatus: true,
+        orderItems: true,
+        totalPrice: true,
+        createdAt: true,
+        shippingAddress: true,
+      },
+    }),
+    prisma.couponUsage.findMany({
+      where: { userId },
+      include: {
+        coupon: {
+          select: { code: true, discountPercentage: true },
+        },
+      },
+    }),
+    prisma.reservation.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        date: true,
+        time: true,
+        guests: true,
+        status: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
   const exportPackage = {
@@ -35,27 +62,15 @@ export const exportUserData = asyncHandler(async (req, res) => {
 // @route   DELETE /api/v1/user/gdpr/delete
 // @access  Private
 export const deleteUserAccount = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user.id || req.user._id;
 
-  // Anonymize orders instead of deleting (retain for business/accounting)
-  await Order.updateMany(
-    { user: userId },
-    {
-      $set: {
-        user: null,
-        "shippingAddress.fullName": "[deleted]",
-        "shippingAddress.phone": "[deleted]",
-        "shippingAddress.address": "[deleted]",
-      },
-    },
-  );
+  // Delete associated user data
+  await prisma.couponUsage.deleteMany({ where: { userId } });
+  await prisma.reservation.deleteMany({ where: { userId } });
+  await prisma.notification.deleteMany({ where: { userId } });
 
-  // Delete personal data from other collections
-  await CouponUsage.deleteMany({ user: userId });
-  await Reservation.deleteMany({ user: userId });
-
-  // Delete user account
-  await User.findByIdAndDelete(userId);
+  // Delete user account (schema has cascade relations configured)
+  await prisma.user.delete({ where: { id: userId } });
 
   res.json({ message: "Account and all personal data deleted successfully." });
 });

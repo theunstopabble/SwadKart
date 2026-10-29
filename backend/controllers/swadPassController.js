@@ -1,7 +1,7 @@
 import asyncHandler from "express-async-handler";
 import crypto from "crypto";
 import Razorpay from "razorpay";
-import User from "../models/userModel.js";
+import prisma from "../config/prisma.js";
 
 const SWADPASS_PRICES = {
   monthly: 199,
@@ -12,9 +12,16 @@ const SWADPASS_PRICES = {
 // @route   GET /api/v1/swadpass/status
 // @access  Private
 export const getSwadPassStatus = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select(
-    "hasSwadPass swadPassType swadPassExpiry swadPassStartedAt"
-  );
+  const currentUserId = req.user.id || req.user._id;
+  const user = await prisma.user.findUnique({
+    where: { id: currentUserId },
+    select: {
+      hasSwadPass: true,
+      swadPassType: true,
+      swadPassExpiry: true,
+      swadPassStartedAt: true,
+    },
+  });
 
   if (!user) {
     res.status(404);
@@ -26,10 +33,13 @@ export const getSwadPassStatus = asyncHandler(async (req, res) => {
 
   // Auto-expire if past date
   if (user.hasSwadPass && !isActive) {
-    await User.findByIdAndUpdate(req.user._id, {
-      hasSwadPass: false,
-      swadPassType: null,
-      swadPassExpiry: null,
+    await prisma.user.update({
+      where: { id: currentUserId },
+      data: {
+        hasSwadPass: false,
+        swadPassType: null,
+        swadPassExpiry: null,
+      },
     });
   }
 
@@ -46,6 +56,7 @@ export const getSwadPassStatus = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/swadpass/subscribe
 // @access  Private
 export const subscribeSwadPass = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user._id;
   const { type, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
   if (!["monthly", "yearly"].includes(type)) {
@@ -74,7 +85,7 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
     throw new Error("Payment verification failed. Invalid signature.");
   }
 
-  // 🛡️ Fetch payment from Razorpay to verify amount, status, and order ownership
+  // Fetch payment from Razorpay to verify amount, status, and order ownership
   const instance = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -98,10 +109,10 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
     throw new Error("Payment amount mismatch — possible tampering.");
   }
 
-  // 🛡️ Verify Razorpay order ownership — prevent payment replay attack
+  // Verify Razorpay order ownership — prevent payment replay attack
   try {
     const order = await instance.orders.fetch(razorpay_order_id);
-    if (!order || order.notes?.user_id !== req.user._id.toString()) {
+    if (!order || order.notes?.user_id !== currentUserId.toString()) {
       res.status(403);
       throw new Error("Order ownership verification failed — possible replay attack.");
     }
@@ -114,7 +125,11 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
   const expiry = new Date();
 
   // Check if user already has an active subscription — extend it instead
-  const currentUser = await User.findById(req.user._id).select("hasSwadPass swadPassExpiry");
+  const currentUser = await prisma.user.findUnique({
+    where: { id: currentUserId },
+    select: { hasSwadPass: true, swadPassExpiry: true },
+  });
+
   if (currentUser?.hasSwadPass && currentUser?.swadPassExpiry && currentUser.swadPassExpiry > now) {
     expiry.setTime(currentUser.swadPassExpiry.getTime());
     expiry.setDate(expiry.getDate() + (type === "monthly" ? 30 : 365));
@@ -122,16 +137,21 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
     expiry.setDate(expiry.getDate() + (type === "monthly" ? 30 : 365));
   }
 
-  const updatedUser = await User.findByIdAndUpdate(
-    req.user._id,
-    {
+  const updatedUser = await prisma.user.update({
+    where: { id: currentUserId },
+    data: {
       hasSwadPass: true,
       swadPassType: type,
       swadPassExpiry: expiry,
       swadPassStartedAt: now,
     },
-    { returnDocument: "after" }
-  ).select("hasSwadPass swadPassType swadPassExpiry swadPassStartedAt");
+    select: {
+      hasSwadPass: true,
+      swadPassType: true,
+      swadPassExpiry: true,
+      swadPassStartedAt: true,
+    },
+  });
 
   res.json({
     message: `SwadPass ${type} subscription activated successfully`,
@@ -149,11 +169,15 @@ export const subscribeSwadPass = asyncHandler(async (req, res) => {
 // @route   DELETE /api/v1/swadpass/cancel
 // @access  Private
 export const cancelSwadPass = asyncHandler(async (req, res) => {
-  await User.findByIdAndUpdate(req.user._id, {
-    hasSwadPass: false,
-    swadPassType: null,
-    swadPassExpiry: null,
-    swadPassStartedAt: null,
+  const currentUserId = req.user.id || req.user._id;
+  await prisma.user.update({
+    where: { id: currentUserId },
+    data: {
+      hasSwadPass: false,
+      swadPassType: null,
+      swadPassExpiry: null,
+      swadPassStartedAt: null,
+    },
   });
 
   res.json({ message: "SwadPass subscription cancelled immediately." });

@@ -1,0 +1,541 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================
+// 👤 1. USER MODEL
+// =============================================================
+model User {
+  id                    String            @id @default(uuid())
+  name                  String
+  email                 String            @unique
+  password              String
+  phone                 String?
+  phoneVerified         Boolean           @default(false)
+  role                  String            @default("user") // "user", "admin", "delivery_partner", "restaurant_owner"
+  isAdmin               Boolean           @default(false)
+  image                 String?
+  description           String?
+  orderIndex            Int               @default(0)
+  isVerified            Boolean           @default(false)
+  otp                   String?
+  otpExpires            DateTime?
+  resetPasswordToken    String?
+  resetPasswordExpire   DateTime?
+
+  // Geospatial position
+  currentLocationLat    Float             @default(0)
+  currentLocationLng    Float             @default(0)
+  isAvailable           Boolean           @default(true)
+
+  // Sub-documents preserved as JSON for high performance
+  cartItems             Json?             @default("[]")
+  walletBalance         Float             @default(0)
+  walletTransactions    Json?             @default("[]")
+
+  // WebAuthn Biometrics
+  biometricCredentials  Json?             @default("[]")
+  currentChallenge      String?
+  isBiometricEnabled    Boolean           @default(false)
+
+  // Push notifications
+  fcmToken              String?
+
+  // SwadCoins loyalty
+  swadCoins             Float             @default(0)
+
+  // Referral system
+  referralCode          String?           @unique
+  pendingReferralCode   String?
+  referredById          String?
+  referredBy            User?             @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals             User[]            @relation("UserReferrals")
+  referralRewardClaimed Boolean           @default(false)
+
+  // SwadPass subscription
+  hasSwadPass           Boolean           @default(false)
+  swadPassType          String?
+  swadPassExpiry        DateTime?
+  swadPassStartedAt     DateTime?
+
+  // Security & Gamification
+  tokenVersion          Int               @default(0)
+  orderStreak           Int               @default(0)
+  longestStreak         Int               @default(0)
+  lastOrderDate         DateTime?
+  badges                Json?             @default("[]")
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  // Relational mappings
+  restaurants           Restaurant[]      @relation("RestaurantOwner")
+  products              Product[]         @relation("UserProducts")
+  orders                Order[]           @relation("UserOrders")
+  deliveredOrders       Order[]           @relation("DeliveryPartnerOrders")
+  reviews               Review[]
+  notifications         Notification[]
+  subscriptions         Subscription[]
+  hostedGroupOrders     GroupOrder[]      @relation("GroupOrderHost")
+  reservations          Reservation[]
+  emergencies           Emergency[]       @relation("DriverEmergency")
+  coinTransactions      CoinTransaction[]
+  conversations         Conversation[]
+  supportMessages       SupportMessage[]
+  payouts               Payout[]
+  referralsMade         Referral[]        @relation("ReferrerRel")
+  referralReceived      Referral?         @relation("RefereeRel")
+
+  @@index([role])
+  @@index([email])
+}
+
+// =============================================================
+// 🍽️ 2. RESTAURANT MODEL
+// =============================================================
+model Restaurant {
+  id               String        @id @default(uuid())
+  name             String
+  image            String        @default("https://placehold.co/600x400/png?text=Restaurant")
+  description      String        @default("")
+  address          String
+  ownerId          String
+  owner            User          @relation("RestaurantOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  rating           Float         @default(0)
+  numReviews       Int           @default(0)
+  isVerified       Boolean       @default(false)
+  isActive         Boolean       @default(true)
+  isDummy          Boolean       @default(false)
+  isOpenNow        Boolean       @default(true)
+
+  isDarkKitchen    Boolean       @default(false)
+  virtualBrandName String        @default("")
+  cloudKitchenId   String        @default("")
+
+  openingTime      String        @default("09:00")
+  closingTime      String        @default("23:00")
+
+  locationLat      Float         @default(0)
+  locationLng      Float         @default(0)
+
+  performanceScore Float         @default(0)
+  scoreMetrics     Json?
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  products         Product[]
+  reviews          Review[]
+  orders           Order[]
+  reservations     Reservation[]
+  payouts          Payout[]
+  subscriptions    Subscription[]
+  groupOrders      GroupOrder[]
+
+  @@index([ownerId])
+  @@index([isActive, isVerified])
+  @@index([isActive, isOpenNow])
+}
+
+// =============================================================
+// 🍕 3. PRODUCT / DISH MODEL
+// =============================================================
+model Product {
+  id                 String     @id @default(uuid())
+  restaurantId       String
+  restaurant         Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User       @relation("UserProducts", fields: [userId], references: [id], onDelete: Cascade)
+
+  name               String
+  image              String
+  description        String
+  category           String
+  price              Float
+
+  variants           Json?      @default("[]")
+  addons             Json?      @default("[]")
+
+  isVeg              Boolean    @default(true)
+  isRecommended      Boolean    @default(false)
+  countInStock       Int        @default(0)
+  orderIndex         Int        @default(0)
+
+  // Enterprise Food Costing
+  ingredients        Json?      @default("[]")
+  foodCostPercentage Float      @default(30)
+  preparationCost    Float      @default(0)
+  packagingCost      Float      @default(5)
+  marginTarget       Float      @default(25)
+  lastCostUpdated    DateTime?
+
+  isAvailable        Boolean    @default(true)
+  autoDisable        Boolean    @default(true)
+  lastRestocked      DateTime?
+  tags               Json?      @default("[]")
+
+  scheduleEnabled    Boolean    @default(false)
+  schedule           Json?
+
+  rating             Float      @default(0)
+  numReviews         Int        @default(0)
+
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  reviews            Review[]
+
+  @@index([restaurantId])
+  @@index([category])
+  @@index([isAvailable])
+}
+
+// =============================================================
+// ⭐ 4. REVIEW MODEL
+// =============================================================
+model Review {
+  id           String      @id @default(uuid())
+  name         String
+  rating       Float
+  comment      String
+  avatar       String?     @default("")
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  productId    String?
+  product      Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([restaurantId])
+  @@index([productId])
+  @@index([userId])
+}
+
+// =============================================================
+// 📦 5. ORDER MODEL
+// =============================================================
+model Order {
+  id                   String        @id @default(uuid())
+  userId               String
+  user                 User          @relation("UserOrders", fields: [userId], references: [id], onDelete: Cascade)
+
+  restaurantId         String?
+  restaurant           Restaurant?   @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+
+  orderItems           Json          // Array of items
+  shippingAddress      Json          // Delivery address object
+  paymentMethod        String        // "COD", "Online", "Wallet"
+  paymentResult        Json?         // Gateway response
+
+  itemsPrice           Float         @default(0)
+  taxPrice             Float         @default(0)
+  shippingPrice        Float         @default(0)
+  couponCode           String        @default("")
+  couponDiscount       Float         @default(0)
+  totalPrice           Float         @default(0)
+  tipAmount            Float         @default(0)
+  deliveryFee          Float         @default(0)
+  surgePrice           Float         @default(0)
+
+  restaurantCommission Float         @default(0)
+  restaurantPayout     Float         @default(0)
+  payoutStatus         String        @default("pending") // "pending", "processing", "paid", "failed"
+  paidOutAt            DateTime?
+
+  isPaid               Boolean       @default(false)
+  paidAt               DateTime?
+  refundStatus         String        @default("None")    // "None", "Pending", "Processed", "Failed"
+
+  isDelivered          Boolean       @default(false)
+  deliveredAt          DateTime?
+
+  deliveryPartnerId    String?
+  deliveryPartner      User?         @relation("DeliveryPartnerOrders", fields: [deliveryPartnerId], references: [id], onDelete: SetNull)
+  deliveryStatus       String        @default("None")    // "None", "Assigned", "Accepted", "Rejected", "Out for Delivery", "Delivered"
+
+  deliveryOTP          Int?
+  otpAttempts          Int           @default(0)
+  estimatedDeliveryAt  DateTime?
+  driverLocation       Json?
+
+  orderStatus          String        @default("Placed")  // "Placed", "Preparing", "Ready", "Out for Delivery", "Delivered", "Cancelled"
+  cancelledAt          DateTime?
+  cancellationReason   String?
+
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([deliveryPartnerId])
+  @@index([orderStatus])
+  @@index([createdAt])
+}
+
+// =============================================================
+// 🎟️ 6. COUPON & COUPON USAGE
+// =============================================================
+model Coupon {
+  id                 String        @id @default(uuid())
+  code               String        @unique
+  discountPercentage Float
+  maxDiscountAmount  Float
+  minOrderValue      Float
+  expirationDate     DateTime
+  isActive           Boolean       @default(true)
+  usedBy             Json?         @default("[]")
+
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  usages             CouponUsage[]
+}
+
+model CouponUsage {
+  id              String   @id @default(uuid())
+  couponId        String
+  coupon          Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  userId          String
+  orderId         String?
+  discountApplied Float
+  createdAt       DateTime @default(now())
+
+  @@index([couponId])
+  @@index([userId])
+}
+
+// =============================================================
+// 🔔 7. NOTIFICATION MODEL
+// =============================================================
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  type      String   @default("system")
+  data      Json?
+  read      Boolean  @default(false)
+  sentVia   Json?    @default("[]")
+  fcmSent   Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, read])
+}
+
+// =============================================================
+// 🍱 8. SUBSCRIPTION MODEL (Meal Plans)
+// =============================================================
+model Subscription {
+  id                 String      @id @default(uuid())
+  userId             String
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId       String?
+  restaurant         Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+
+  planType           String      @default("daily") // "daily", "weekly", "monthly", "custom"
+  planName           String      @default("Meal Plan")
+  mealsPerDay        Int         @default(2)
+  schedule           Json?
+  preferences        Json?
+  items              Json?       @default("[]")
+  pricing            Json?
+  status             String      @default("active") // "active", "paused", "cancelled", "expired"
+  startDate          DateTime    @default(now())
+  endDate            DateTime?
+  nextDeliveryDate   DateTime?
+  deliveries         Json?       @default("[]")
+  paymentStatus      String      @default("pending")
+  autoRenew          Boolean     @default(true)
+  cancellationReason String?
+  cancelledAt        DateTime?
+
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([userId, status])
+  @@index([nextDeliveryDate, status])
+}
+
+// =============================================================
+// 👥 9. GROUP ORDER MODEL
+// =============================================================
+model GroupOrder {
+  id             String      @id @default(uuid())
+  hostId         String
+  host           User        @relation("GroupOrderHost", fields: [hostId], references: [id], onDelete: Cascade)
+  restaurantId   String?
+  restaurant     Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+  inviteCode     String      @unique
+  status         String      @default("open") // "open", "ordering", "placed", "cancelled"
+  expiresAt      DateTime
+  members        Json        @default("[]")
+  cart           Json        @default("[]")
+  deliveryFee    Float       @default(0)
+  taxPercent     Float       @default(5)
+  totalCartValue Float       @default(0)
+  finalOrderId   String?
+  splitType      String      @default("itemwise")
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([inviteCode])
+  @@index([hostId])
+}
+
+// =============================================================
+// 🪑 10. RESERVATION MODEL
+// =============================================================
+model Reservation {
+  id              String     @id @default(uuid())
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId    String
+  restaurant      Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  date            DateTime
+  time            String
+  guests          Int
+  status          String     @default("pending") // "pending", "confirmed", "completed", "cancelled"
+  specialRequests String?    @default("")
+  qrCode          String?
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([restaurantId])
+}
+
+// =============================================================
+// 💸 11. PAYOUT MODEL
+// =============================================================
+model Payout {
+  id           String     @id @default(uuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  ownerId      String?
+  owner        User?      @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  amount       Float
+  status       String     @default("pending") // "pending", "processing", "paid", "failed", "cancelled"
+  orders       Json?      @default("[]")
+  periodStart  DateTime?
+  periodEnd    DateTime?
+  utrNumber    String?
+  notes        String?    @default("")
+  bankDetails  String?
+  requestedAt  DateTime   @default(now())
+  paidAt       DateTime?
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([restaurantId, status])
+  @@index([ownerId, status])
+}
+
+// =============================================================
+// 🪙 12. COIN TRANSACTION MODEL
+// =============================================================
+model CoinTransaction {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Float
+  type        String   // "Credit", "Debit"
+  description String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+// =============================================================
+// 🚨 13. EMERGENCY MODEL (SOS)
+// =============================================================
+model Emergency {
+  id        String   @id @default(uuid())
+  driverId  String
+  driver    User     @relation("DriverEmergency", fields: [driverId], references: [id], onDelete: Cascade)
+  location  Json     // { lat, lng }
+  status    String   @default("Active")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([driverId])
+}
+
+// =============================================================
+// 🤖 14. CONVERSATION MODEL (Chatbot)
+// =============================================================
+model Conversation {
+  id               String   @id @default(uuid())
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId        String   @unique
+  messages         Json     @default("[]")
+  toolExecutions   Json?    @default("[]")
+  sentimentHistory Json?    @default("[]")
+  escalatedToHuman Boolean  @default(false)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// =============================================================
+// 💬 15. SUPPORT MESSAGE MODEL
+// =============================================================
+model SupportMessage {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  email     String
+  subject   String
+  message   String
+  status    String   @default("open")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([email])
+}
+// Append Referral model
+model Referral {
+  id           String    @id @default(uuid())
+  referrerId   String
+  referrer     User      @relation("ReferrerRel", fields: [referrerId], references: [id], onDelete: Cascade)
+  refereeId    String    @unique
+  referee      User      @relation("RefereeRel", fields: [refereeId], references: [id], onDelete: Cascade)
+  referralCode String
+  status       String    @default("pending") // pending, completed, paid
+  rewardAmount Float     @default(50)
+  firstOrderId String?
+  paidAt       DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([referrerId, status])
+  @@index([refereeId])
+}

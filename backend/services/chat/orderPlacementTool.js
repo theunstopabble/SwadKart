@@ -3,19 +3,9 @@
  *
  * Exposes a tool schema for Groq tool_use and an execution function that
  * validates inputs through a series of gates before writing to the cart.
- *
- * Gates:
- *   1. Auth required (userId must be truthy)
- *   2. Product existence (Product.findById)
- *   3. Quantity range (integer 1–10)
- *   4. Stock availability (product.stock >= quantity AND product.isAvailable)
- *   5. Cart write on User model (shared with frontend)
- *
- * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
  */
 
-import Product from "../../models/productModel.js";
-import User from "../../models/userModel.js";
+import prisma from "../../config/prisma.js";
 
 /**
  * Groq-compatible tool schema for the place_order function.
@@ -31,7 +21,7 @@ export const toolSchema = {
       properties: {
         productId: {
           type: "string",
-          description: "The MongoDB ObjectId of the product to add to cart.",
+          description: "The ID of the product to add to cart.",
         },
         quantity: {
           type: "integer",
@@ -47,9 +37,6 @@ export const toolSchema = {
 
 /**
  * Execute the order placement tool.
- *
- * Validates inputs through sequential gates and writes to the User model's
- * cartItems array (shared with the frontend).
  *
  * @param {object} params
  * @param {string} params.productId - Product ID to add
@@ -71,7 +58,7 @@ export async function executeOrderPlacement({
     // Gate 2: Product must exist
     let product;
     try {
-      product = await Product.findById(productId);
+      product = await prisma.product.findUnique({ where: { id: productId } });
     } catch {
       return { success: false, reason: "product_not_found" };
     }
@@ -91,10 +78,17 @@ export async function executeOrderPlacement({
     }
 
     // Gate 5: Write to shared User.cartItems (visible to frontend profile)
-    // Atomic: single update removes old entry and adds new one
-    await User.findByIdAndUpdate(userId, {
-      $pull: { cartItems: { product: productId } },
-      $push: { cartItems: { product: productId, quantity } },
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { cartItems: true },
+    });
+    let cart = Array.isArray(user?.cartItems) ? [...user.cartItems] : [];
+    cart = cart.filter((item) => item.product !== productId && item.id !== productId);
+    cart.push({ product: productId, quantity });
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { cartItems: cart },
     });
 
     // Success

@@ -1,4 +1,4 @@
-import User from "../models/userModel.js";
+import prisma from "../config/prisma.js";
 
 /**
  * Resolve the admin email address that should receive alerts.
@@ -13,7 +13,10 @@ export const getAdminEmail = async () => {
   }
 
   try {
-    const admin = await User.findOne({ role: "admin" }).select("email").lean();
+    const admin = await prisma.user.findFirst({
+      where: { role: "admin" },
+      select: { email: true },
+    });
     if (admin?.email) {
       console.warn(
         "⚠️ SMTP_MAIL not set; falling back to admin user's email from DB.",

@@ -1,16 +1,11 @@
-import User from "../models/userModel.js";
-import Restaurant from "../models/restaurantModel.js";
-import Notification from "../models/notificationModel.js";
-import Order from "../models/orderModel.js";
-import Product from "../models/productModel.js";
-import CouponUsage from "../models/couponUsageModel.js";
+import prisma from "../config/prisma.js";
 import generateToken from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import { getPhoneConfirmationTemplate } from "../utils/emailTemplates.js";
-import mongoose from "mongoose";
 import crypto from "crypto";
 import { v2 as cloudinary } from "cloudinary";
-import { sanitizeString, sanitizeEmail, sanitizePhone, sanitizeObjectId } from "../utils/sanitize.js";
+import { sanitizeString, sanitizeEmail, sanitizePhone } from "../utils/sanitize.js";
+import { hashPassword, matchPassword as verifyPassword } from "../utils/password.js";
 
 // =================================================================
 // 👤 1. USER PROFILE OPERATIONS (Self)
@@ -18,9 +13,13 @@ import { sanitizeString, sanitizeEmail, sanitizePhone, sanitizeObjectId } from "
 
 export const getUserProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    const userId = req.user.id || req.user._id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
     if (user) {
-      return res.json(user);
+      const { password: _, ...safeUser } = user;
+      return res.json(safeUser);
     } else {
       res.status(404);
       throw new Error("User not found");
@@ -32,102 +31,99 @@ export const getUserProfile = async (req, res, next) => {
 
 export const updateUserProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id);
-    if (user) {
-      // BUG-07 FIX: Email change requires re-registration — block silent email update
-      if (req.body.email && req.body.email !== user.email) {
-        return res.status(400).json({
-          message: 'Email cannot be changed directly. Please contact support or re-register.',
-        });
-      }
-
-      if (req.body.name) {
-        user.name = sanitizeString(req.body.name) || user.name;
-      }
-      if (req.body.email) {
-        user.email = sanitizeEmail(req.body.email);
-      }
-      if (req.body.phone) {
-        const cleanPhone = sanitizePhone(req.body.phone);
-        const phoneRegex = /^[6-9]\d{9}$/;
-        if (!phoneRegex.test(String(cleanPhone))) {
-          res.status(400);
-          throw new Error("Invalid Indian phone number.");
-        }
-        user.phone = cleanPhone;
-        user.phoneVerified = false;
-      }
-      if (req.body.password) {
-        if (!req.body.currentPassword) {
-          res.status(400);
-          throw new Error("Current password is required to set a new password.");
-        }
-        const isMatch = await user.matchPassword(req.body.currentPassword);
-        if (!isMatch) {
-          res.status(400);
-          throw new Error("Current password is incorrect.");
-        }
-        if (req.body.password.length < 6) {
-          res.status(400);
-          throw new Error("Password must be at least 6 characters.");
-        }
-        user.password = req.body.password;
-      }
-      if (req.body.description !== undefined) {
-        user.description = sanitizeString(req.body.description) || "";
-      }
-      if (req.file) {
-        const b64 = Buffer.from(req.file.buffer).toString("base64");
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        const result = await cloudinary.uploader.upload(dataURI, {
-          folder: "swadkart_profiles",
-        });
-        user.image = result.secure_url;
-      }
-      const updatedUser = await user.save();
-      const token = generateToken(res, updatedUser._id, updatedUser.tokenVersion); // Refreshes HttpOnly cookie
-
-      const safeData = updatedUser.toObject();
-      delete safeData.password;
-      safeData.token = token;
-
-      return res.json(safeData);
-    } else {
+    const userId = req.user.id || req.user._id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
       res.status(404);
       throw new Error("User not found");
     }
+
+    if (req.body.email && req.body.email !== user.email) {
+      return res.status(400).json({
+        message: "Email cannot be changed directly. Please contact support or re-register.",
+      });
+    }
+
+    const updateData = {};
+
+    if (req.body.name) {
+      updateData.name = sanitizeString(req.body.name) || user.name;
+    }
+    if (req.body.phone) {
+      const cleanPhone = sanitizePhone(req.body.phone);
+      const phoneRegex = /^[6-9]\d{9}$/;
+      if (!phoneRegex.test(String(cleanPhone))) {
+        res.status(400);
+        throw new Error("Invalid Indian phone number.");
+      }
+      updateData.phone = cleanPhone;
+      updateData.phoneVerified = false;
+    }
+    if (req.body.password) {
+      if (!req.body.currentPassword) {
+        res.status(400);
+        throw new Error("Current password is required to set a new password.");
+      }
+      const isMatch = await verifyPassword(req.body.currentPassword, user.password);
+      if (!isMatch) {
+        res.status(400);
+        throw new Error("Current password is incorrect.");
+      }
+      if (req.body.password.length < 6) {
+        res.status(400);
+        throw new Error("Password must be at least 6 characters.");
+      }
+      updateData.password = await hashPassword(req.body.password);
+      updateData.tokenVersion = user.tokenVersion + 1;
+    }
+    if (req.body.description !== undefined) {
+      updateData.description = sanitizeString(req.body.description) || "";
+    }
+    if (req.file) {
+      const b64 = Buffer.from(req.file.buffer).toString("base64");
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+      const result = await cloudinary.uploader.upload(dataURI, {
+        folder: "swadkart_profiles",
+      });
+      updateData.image = result.secure_url;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: updateData,
+    });
+
+    const token = generateToken(res, updatedUser.id, updatedUser.tokenVersion);
+    const { password: _, ...safeData } = updatedUser;
+    safeData.token = token;
+
+    return res.json(safeData);
   } catch (error) {
     next(error);
   }
 };
 
 // =================================================================
-// 🔐 BIOMETRIC STATUS (Industry Standard Sync)
+// 🔐 BIOMETRIC STATUS
 // =================================================================
 
-// @desc    Update biometric enabled status
-// @route   PUT /api/v1/users/profile/biometric-status
-// @access  Private
 export const updateBiometricStatus = async (req, res, next) => {
   try {
     const { isEnabled } = req.body;
-    const user = await User.findById(req.user._id);
+    const userId = req.user.id || req.user._id;
 
-    if (!user) {
-      res.status(404);
-      throw new Error("User not found");
-    }
-
-    user.isBiometricEnabled = isEnabled;
-
-    // 🧹 CLEANUP: When disabling, also clear old credentials
-    // This ensures fresh registration next time and prevents stale credential issues
+    const updateData = { isBiometricEnabled: isEnabled };
     if (!isEnabled) {
-      user.biometricCredentials = [];
-      user.currentChallenge = "";
+      updateData.biometricCredentials = [];
+      updateData.currentChallenge = null;
     }
 
-    await user.save();
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
 
     return res.json({
       success: true,
@@ -141,25 +137,24 @@ export const updateBiometricStatus = async (req, res, next) => {
   }
 };
 
-// @desc    Get biometric status (for auto-restore after login)
-// @route   GET /api/v1/users/profile/biometric-status
-// @access  Private
 export const getBiometricStatus = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id);
+    const userId = req.user.id || req.user._id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isBiometricEnabled: true, biometricCredentials: true },
+    });
 
     if (!user) {
       res.status(404);
       throw new Error("User not found");
     }
 
-    // Check if user has registered any biometric credentials
-    const hasCredentials =
-      user.biometricCredentials && user.biometricCredentials.length > 0;
+    const hasCredentials = Array.isArray(user.biometricCredentials) && user.biometricCredentials.length > 0;
 
     return res.json({
       isBiometricEnabled: user.isBiometricEnabled,
-      hasCredentials: hasCredentials,
+      hasCredentials,
     });
   } catch (error) {
     next(error);
@@ -170,25 +165,23 @@ export const getBiometricStatus = async (req, res, next) => {
 // 👑 2. ADMIN OPERATIONS (Manage All Users)
 // =================================================================
 
-// ✅ CRITICAL FIX: Fetch ALL users (Users, Delivery, Owners) for Admin Panel
 export const getUsers = async (req, res, next) => {
   try {
-    // 🚀 PERFORMANCE FIX: Extracted Page & Limit
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const skip = (page - 1) * limit;
 
-    const count = await User.countDocuments({});
+    const count = await prisma.user.count();
+    const users = await prisma.user.findMany({
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+    });
 
-    const users = await User.find({})
-      .select("-password")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const safeUsers = users.map(({ password: _, ...u }) => u);
 
     res.json({
-      data: users,
+      data: safeUsers,
       metadata: {
         total: count,
         page,
@@ -203,31 +196,29 @@ export const getUsers = async (req, res, next) => {
 
 export const updateUserByAdmin = async (req, res, next) => {
   try {
-    const user = await User.findById(sanitizeObjectId(req.params.id));
-    if (user) {
-      user.name = req.body.name || user.name;
-      user.image = req.body.image || user.image;
-
-      // ✅ FIX: Allow admin to update User Role
-      if (req.body.role) {
-        user.role = req.body.role;
-      }
-
-      if (req.body.orderIndex !== undefined) {
-        user.orderIndex = req.body.orderIndex;
-      }
-
-      const updatedUser = await user.save();
-
-      if (req.io) {
-        req.io.to(updatedUser._id.toString()).emit("userUpdated", updatedUser);
-      }
-
-      return res.json(updatedUser);
-    } else {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) {
       res.status(404);
       throw new Error("User not found");
     }
+
+    const updateData = {};
+    if (req.body.name) updateData.name = req.body.name;
+    if (req.body.image) updateData.image = req.body.image;
+    if (req.body.role) updateData.role = req.body.role;
+    if (req.body.orderIndex !== undefined) updateData.orderIndex = req.body.orderIndex;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.params.id },
+      data: updateData,
+    });
+
+    if (req.io) {
+      req.io.to(updatedUser.id).emit("userUpdated", updatedUser);
+    }
+
+    const { password: _, ...safeUser } = updatedUser;
+    return res.json(safeUser);
   } catch (error) {
     next(error);
   }
@@ -235,28 +226,25 @@ export const updateUserByAdmin = async (req, res, next) => {
 
 export const deleteUserByAdmin = async (req, res, next) => {
   try {
-    const user = await User.findById(sanitizeObjectId(req.params.id));
-    if (user) {
-      if (user.role === "admin") {
-        res.status(400);
-        throw new Error("Cannot delete Admin");
-      }
-
-      // TODO: soft-delete
-      // Also delete the associated restaurant profile if it exists
-      await Restaurant.findOneAndDelete({ owner: user._id });
-      // 🛡️ GDPR FIX: Cascade delete related user data
-      await Order.deleteMany({ user: user._id });
-      await Product.deleteMany({ user: user._id });
-      await Notification.deleteMany({ user: user._id });
-      await CouponUsage.deleteMany({ user: user._id });
-      await user.deleteOne();
-
-      return res.json({ message: "User identity and associated data removed" });
-    } else {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) {
       res.status(404);
       throw new Error("User not found");
     }
+
+    if (user.role === "admin") {
+      res.status(400);
+      throw new Error("Cannot delete Admin");
+    }
+
+    await prisma.restaurant.deleteMany({ where: { ownerId: user.id } });
+    await prisma.order.deleteMany({ where: { userId: user.id } });
+    await prisma.product.deleteMany({ where: { userId: user.id } });
+    await prisma.notification.deleteMany({ where: { userId: user.id } });
+    await prisma.couponUsage.deleteMany({ where: { userId: user.id } });
+    await prisma.user.delete({ where: { id: user.id } });
+
+    return res.json({ message: "User identity and associated data removed" });
   } catch (error) {
     next(error);
   }
@@ -268,9 +256,22 @@ export const deleteUserByAdmin = async (req, res, next) => {
 
 export const getAllRestaurantsPublic = async (req, res, next) => {
   try {
-    const restaurants = await Restaurant.find({ isActive: true })
-      .select("name image description rating numReviews address isOpenNow openingTime closingTime")
-      .sort({ orderIndex: 1 });
+    const restaurants = await prisma.restaurant.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        description: true,
+        rating: true,
+        numReviews: true,
+        address: true,
+        isOpenNow: true,
+        openingTime: true,
+        closingTime: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
     return res.json(restaurants);
   } catch (error) {
     next(error);
@@ -280,34 +281,35 @@ export const getAllRestaurantsPublic = async (req, res, next) => {
 export const createRestaurantByAdmin = async (req, res, next) => {
   try {
     const { name, email, password, image } = req.body;
+    const hashedPassword = await hashPassword(password);
 
-    // 1. Create User Identity
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role: "restaurant_owner",
-      phone: req.body.phone || String(Date.now()).slice(-10),
-      image:
-        image || "https://images.unsplash.com/photo-1552566626-52f8b828add9",
-      isVerified: true,
-      orderIndex: 0,
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role: "restaurant_owner",
+        phone: req.body.phone || String(Date.now()).slice(-10),
+        image: image || "https://images.unsplash.com/photo-1552566626-52f8b828add9",
+        isVerified: true,
+        orderIndex: 0,
+      },
     });
 
-    if (user) {
-      // 2. Create Restaurant Profile
-      await Restaurant.create({
+    await prisma.restaurant.create({
+      data: {
         name: `${name} (Shop)`,
-        owner: user._id,
-        image: user.image,
+        ownerId: user.id,
+        image: user.image || "",
         address: "Default Address, India",
         description: "Restaurant managed by SwadKart admin.",
         isVerified: true,
         isActive: true,
-      });
-    }
+      },
+    });
 
-    return res.status(201).json(user);
+    const { password: _, ...safeUser } = user;
+    return res.status(201).json(safeUser);
   } catch (error) {
     next(error);
   }
@@ -317,37 +319,38 @@ export const createDummyRestaurant = async (req, res, next) => {
   try {
     const { name, image } = req.body;
     const uniqueTime = Date.now();
+    const hashedPassword = await hashPassword(`Dummy@${uniqueTime}`);
 
-    // 1. Create Synthetic User Identity
-    const user = await User.create({
-      name: name || "New Dummy Shop",
-      email: `${(name || "dummy")
-        .toLowerCase()
-        .replace(/\s+/g, "")}_${uniqueTime}@dummy.swadkart`,
-      password: `Dummy@${uniqueTime}`,
-      role: "restaurant_owner",
-      image:
-        image || "https://images.unsplash.com/photo-1552566626-52f8b828add9",
-      phone: String(uniqueTime).slice(-10),
-      isVerified: true,
-      orderIndex: 0,
+    const user = await prisma.user.create({
+      data: {
+        name: name || "New Dummy Shop",
+        email: `${(name || "dummy")
+          .toLowerCase()
+          .replace(/\s+/g, "")}_${uniqueTime}@dummy.swadkart`,
+        password: hashedPassword,
+        role: "restaurant_owner",
+        image: image || "https://images.unsplash.com/photo-1552566626-52f8b828add9",
+        phone: String(uniqueTime).slice(-10),
+        isVerified: true,
+        orderIndex: 0,
+      },
     });
 
-    if (user) {
-      // 2. Create Synthetic Restaurant Profile
-      await Restaurant.create({
+    await prisma.restaurant.create({
+      data: {
         name: `${user.name} (Shop)`,
-        owner: user._id,
-        image: user.image,
+        ownerId: user.id,
+        image: user.image || "",
         address: "Synthetic Street, Cyber City",
         description: "Synthetic restaurant for demo purposes.",
         isVerified: false,
         isDummy: true,
         isActive: true,
-      });
-    }
+      },
+    });
 
-    return res.status(201).json(user);
+    const { password: _, ...safeUser } = user;
+    return res.status(201).json(safeUser);
   } catch (error) {
     next(error);
   }
@@ -355,19 +358,27 @@ export const createDummyRestaurant = async (req, res, next) => {
 
 export const getDeliveryPartners = async (req, res, next) => {
   try {
-    // Return all delivery partners. Assignability is checked in the
-    // assignDeliveryPartner controller — unavailable partners get a 400
-    // with a clear message instead of being hidden from the admin list.
-    const partners = await User.find({
-      role: "delivery_partner",
-    }).select("name email phone image currentLocation isAvailable role");
+    const partners = await prisma.user.findMany({
+      where: { role: "delivery_partner" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        image: true,
+        currentLocationLat: true,
+        currentLocationLng: true,
+        isAvailable: true,
+        role: true,
+      },
+    });
     return res.json(partners);
   } catch (error) {
     next(error);
   }
 };
 
-export const seedDatabase = async (req, res, next) => {
+export const seedDatabase = async (req, res) => {
   return res.json({ message: "Seed functionality called." });
 };
 
@@ -383,20 +394,16 @@ export const subscribeToNewsletter = async (req, res) => {
   }
 
   try {
-    // 🛠️ FIX: Hardcoded email hata diya. Ab ye sirf Environment Variable use karega.
     const adminEmail = process.env.SMTP_MAIL;
-
     if (!adminEmail) {
       console.warn("⚠️ Admin email (SMTP_MAIL) not set in .env");
-      // Agar backend me email set nahi hai, to client ko success dikhao par log kar lo
       return res
         .status(200)
         .json({ message: "Success! You are now subscribed. 🚀" });
     }
 
-    // Notify Admin safely
     await sendEmail({
-      email: adminEmail, // ✅ Only uses .env variable now
+      email: adminEmail,
       subject: "New Newsletter Subscriber!",
       html: `
         <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px; max-width: 600px; background-color: #f9f9f9;">
@@ -421,20 +428,15 @@ export const subscribeToNewsletter = async (req, res) => {
   }
 };
 
-// Google Auth Logic
 export const googleCheck = async (req, res, next) => {
   try {
     const rawEmail = req.body.email;
     const email = sanitizeEmail(rawEmail);
-    const user = await User.findOne({ email: String(email) });
+    const user = await prisma.user.findUnique({ where: { email: String(email) } });
 
     if (user) {
-      const token = generateToken(res, user._id, user.tokenVersion); // Sets HttpOnly Cookie
-
-      // 🛡️ SECURITY FIX: Sanitize user object, strictly remove password and omit token
-      const userSafeData = user.toObject();
-      delete userSafeData.password;
-
+      const token = generateToken(res, user.id, user.tokenVersion);
+      const { password: _, ...userSafeData } = user;
       return res.json({ exists: true, user: { ...userSafeData, token } });
     } else {
       return res.json({ exists: false });
@@ -449,7 +451,7 @@ export const googleRegister = async (req, res, next) => {
     const { name, email: rawEmail, image, phone: rawPhone } = req.body;
     const email = sanitizeEmail(rawEmail);
 
-    const emailExists = await User.findOne({ email: String(email) });
+    const emailExists = await prisma.user.findUnique({ where: { email: String(email) } });
     if (emailExists) {
       res.status(400);
       throw new Error("Email is already registered. Please login instead.");
@@ -462,36 +464,38 @@ export const googleRegister = async (req, res, next) => {
         return res.status(400).json({ message: "Invalid Indian phone number." });
       }
       phone = sanitizePhone(rawPhone);
-      const phoneExists = await User.findOne({ phone: String(phone) });
+      const phoneExists = await prisma.user.findFirst({ where: { phone: String(phone) } });
       if (phoneExists) {
         res.status(400);
         throw new Error("Phone number is already associated with another account");
       }
     }
 
-    const user = await User.create({
-      name,
-      email: String(email),
-      phone,
-      phoneVerified: false,
-      image,
-      password: crypto.randomBytes(32).toString("hex"),
-      isVerified: true,
+    const randomPassword = crypto.randomBytes(32).toString("hex");
+    const hashedPassword = await hashPassword(randomPassword);
+
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email: String(email),
+        phone,
+        phoneVerified: false,
+        image,
+        password: hashedPassword,
+        isVerified: true,
+        role: "user",
+      },
     });
 
-    if (user) {
-      const token = generateToken(res, user._id, user.tokenVersion);
-      const safeUser = user.toObject();
-      delete safeUser.password;
-      safeUser.token = token;
-      return res.status(201).json(safeUser);
-    }
+    const token = generateToken(res, user.id, user.tokenVersion);
+    const { password: _, ...safeUser } = user;
+    safeUser.token = token;
+    return res.status(201).json(safeUser);
   } catch (error) {
     next(error);
   }
 };
 
-// Phone Verification (called after Firebase Phone Auth succeeds on client)
 export const verifyPhone = async (req, res) => {
   try {
     const { phone } = req.body;
@@ -500,31 +504,35 @@ export const verifyPhone = async (req, res) => {
       return res.status(400).json({ message: "Invalid Indian phone number." });
     }
 
-    // Check if phone already linked to another verified user
-    const existing = await User.findOne({
-      phone: String(phone),
-      phoneVerified: true,
-      _id: { $ne: req.user._id },
-    }).select("_id");
+    const userId = req.user.id || req.user._id;
+
+    const existing = await prisma.user.findFirst({
+      where: {
+        phone: String(phone),
+        phoneVerified: true,
+        id: { not: userId },
+      },
+      select: { id: true },
+    });
     if (existing) {
       return res.status(400).json({ message: "Phone already linked to another account." });
     }
 
-    const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    user.phone = String(phone);
-    user.phoneVerified = true;
-    await user.save();
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        phone: String(phone),
+        phoneVerified: true,
+      },
+    });
 
     sendEmail({
-      email: user.email,
+      email: updatedUser.email,
       subject: "Phone Number Confirmed — SwadKart",
-      html: getPhoneConfirmationTemplate(user.phone, user.name),
+      html: getPhoneConfirmationTemplate(updatedUser.phone, updatedUser.name),
     }).catch((err) => console.error("[verifyPhone] Email send failed:", err.message));
 
-    const safeUser = user.toObject();
-    delete safeUser.password;
+    const { password: _, ...safeUser } = updatedUser;
     return res.json({ message: "Phone verified successfully", user: safeUser });
   } catch (err) {
     console.error("[verifyPhone] Error:", err.message);

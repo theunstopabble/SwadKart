@@ -1,13 +1,8 @@
 /**
  * Coupon Tool — Lists available coupons or validates/applies a specific coupon code.
- *
- * Gate pattern: auth check → fetch/validate → return structured response
- *
- * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11
  */
 
-import Coupon from "../../../models/couponModel.js";
-import CouponUsage from "../../../models/couponUsageModel.js";
+import prisma from "../../../config/prisma.js";
 
 export const toolSchema = {
   type: "function",
@@ -35,11 +30,6 @@ export const toolSchema = {
   },
 };
 
-/**
- * Format a Date object as a human-readable date string.
- * @param {Date|null} date
- * @returns {string|null}
- */
 function formatDate(date) {
   if (!date) return null;
   return new Date(date).toLocaleString("en-IN", {
@@ -48,12 +38,6 @@ function formatDate(date) {
   });
 }
 
-/**
- * Wrap a promise with a timeout. Rejects with Error("timeout") if exceeded.
- * @param {Promise} promise
- * @param {number} ms - Timeout in milliseconds
- * @returns {Promise}
- */
 function withTimeout(promise, ms = 3000) {
   let timer;
   const timeoutPromise = new Promise((_, reject) => {
@@ -64,17 +48,7 @@ function withTimeout(promise, ms = 3000) {
   });
 }
 
-/**
- * Execute the coupon tool.
- *
- * @param {object} params
- * @param {string} params.action - "list" or "apply"
- * @param {string} [params.couponCode] - Coupon code (required for "apply")
- * @param {string|null} params.userId - Authenticated user ID
- * @returns {Promise<object>} Structured result with coupon data or error
- */
 export async function execute({ action, couponCode, userId }) {
-  // Gate 1: Auth check
   if (!userId) {
     return {
       success: false,
@@ -111,29 +85,24 @@ export async function execute({ action, couponCode, userId }) {
   }
 }
 
-/**
- * Handle the "list" action — fetch active, non-expired coupons not used by user.
- * @param {string} userId
- * @returns {Promise<object>}
- */
 async function handleList(userId) {
   const now = new Date();
 
-  // Fetch coupon IDs already used by this user
-  const usedCouponsPromise = CouponUsage.find({ user: userId })
-    .select("coupon")
-    .lean();
+  const usedCouponsPromise = prisma.couponUsage.findMany({
+    where: { userId },
+    select: { couponId: true },
+  });
   const usedCoupons = await withTimeout(usedCouponsPromise);
-  const usedCouponIds = usedCoupons.map((u) => u.coupon);
+  const usedCouponIds = usedCoupons.map((u) => u.couponId);
 
-  // Fetch active, non-expired coupons not already used
-  const couponsQuery = Coupon.find({
-    isActive: true,
-    expirationDate: { $gt: now },
-    _id: { $nin: usedCouponIds },
-  })
-    .sort({ discountPercentage: -1 })
-    .lean();
+  const couponsQuery = prisma.coupon.findMany({
+    where: {
+      isActive: true,
+      expirationDate: { gt: now },
+      id: { notIn: usedCouponIds },
+    },
+    orderBy: { discountPercentage: "desc" },
+  });
 
   const coupons = await withTimeout(couponsQuery);
 
@@ -159,20 +128,13 @@ async function handleList(userId) {
   };
 }
 
-/**
- * Handle the "apply" action — validate coupon exists, is active, not expired, not used.
- * @param {string} couponCode
- * @param {string} userId
- * @returns {Promise<object>}
- */
 async function handleApply(couponCode, userId) {
   if (!couponCode) return { success: false, reason: "missing_coupon_code" };
   const now = new Date();
 
-  // Gate 2: Validate coupon exists
-  const couponQuery = Coupon.findOne({
-    code: couponCode?.toUpperCase(),
-  }).lean();
+  const couponQuery = prisma.coupon.findUnique({
+    where: { code: couponCode?.toUpperCase() },
+  });
   const coupon = await withTimeout(couponQuery);
 
   if (!coupon) {
@@ -183,7 +145,6 @@ async function handleApply(couponCode, userId) {
     };
   }
 
-  // Gate 3: Check if active and not expired
   if (!coupon.isActive || new Date(coupon.expirationDate) <= now) {
     return {
       success: false,
@@ -192,11 +153,12 @@ async function handleApply(couponCode, userId) {
     };
   }
 
-  // Gate 4: Check if already used by this user
-  const usageQuery = CouponUsage.findOne({
-    user: userId,
-    coupon: coupon._id,
-  }).lean();
+  const usageQuery = prisma.couponUsage.findFirst({
+    where: {
+      userId,
+      couponId: coupon.id,
+    },
+  });
   const usage = await withTimeout(usageQuery);
 
   if (usage) {
@@ -207,7 +169,6 @@ async function handleApply(couponCode, userId) {
     };
   }
 
-  // Success — return coupon details without recording usage
   return {
     success: true,
     data: {
